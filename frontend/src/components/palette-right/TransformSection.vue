@@ -8,9 +8,19 @@ import ActionTile from './ActionTile.vue'
 import { axisAlignedBBox, shapeCenter } from '@/diagram/geometry.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
+import { useFormatPainter } from '@/composables/useFormatPainter.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
+const painter = useFormatPainter(store, editorUi)
+
+// Toggle the painter: when arming, copy the (first) selected shape's formatting
+// so a subsequent canvas click stamps real style (spec §4.3). When already on,
+// just turn it off.
+function togglePainter() {
+  if (painter.isActive()) painter.cancel()
+  else if (shapes.value.length) painter.copyFrom(shapes.value[0].id)
+}
 
 const shapes = computed(() => store.selectedShapes.value)
 const hasShapes = computed(() => shapes.value.length > 0)
@@ -76,7 +86,7 @@ function swap() {
         icon="edit-3"
         label="Painter"
         :active="editorUi.state.formatPainter.active"
-        @click="editorUi.toggleFormatPainter()"
+        @click="togglePainter()"
       />
     </div>
   </PaletteSection>

@@ -59,16 +59,26 @@ export function useViewport() {
     zoomTo(snapZoom(state.zoom + direction * ZOOM_STEP), px, py)
   }
 
-  // Ctrl/Cmd or Shift + scroll zooms (cursor-centred); else scroll pans.
+  // Ctrl/Cmd or Shift + scroll zooms (cursor-centred, 10% steps per §7.7);
+  // plain scroll pans (vertical via deltaY, horizontal via deltaX).
   function handleWheel(event, pointerX, pointerY) {
     event.preventDefault()
     if (event.ctrlKey || event.metaKey || event.shiftKey) {
-      const factor = Math.exp(-event.deltaY * 0.0015)
-      zoomTo(state.zoom * factor, pointerX, pointerY)
+      // Shift+wheel may report the delta on deltaX in some browsers, so pick
+      // whichever axis carries the gesture to decide zoom-in vs zoom-out.
+      const delta = event.deltaY || event.deltaX
+      zoomStep(delta < 0 ? 1 : -1, pointerX, pointerY)
     } else {
       state.panX -= event.deltaX
       state.panY -= event.deltaY
     }
+  }
+
+  // Imperatively set the translation (used to mirror native scrollbar movement
+  // into the viewport so the canvas tracks the scroll position; spec §4.1/§7.7).
+  function setPan(panX, panY) {
+    state.panX = panX
+    state.panY = panY
   }
 
   // Record container + canvas sizes used by fit()/reset() (spec §4.1).
@@ -112,6 +122,7 @@ export function useViewport() {
     zoomStep,
     reset,
     fit,
+    setPan,
     setMeasure,
   }
 }

@@ -11,11 +11,12 @@ export const diagrams = createListResource({
   orderBy: 'modified desc',
 })
 
-// Create a new diagram pre-filled with an empty document, returning its name.
-export async function createDiagram(title = 'Untitled diagram') {
+// Create a new diagram, returning its name. A template's pre-filled document may
+// be supplied (NewDiagramDialog); otherwise it starts empty.
+export async function createDiagram(title = 'Untitled diagram', document = createDiagramDocument()) {
   const created = await diagrams.insert.submit({
     title,
-    document: createDiagramDocument(),
+    document,
   })
   return created.name
 }

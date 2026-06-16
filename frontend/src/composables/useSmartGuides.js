@@ -28,24 +28,56 @@ function createSmartGuides(store) {
   const guides = ref([])
   const active = ref(false)
   const visible = computed(() => (active.value ? guides.value : []))
+  const publisher = createFramePublisher((lines) => (guides.value = lines))
 
   // Adjust a proposed drag delta so the dragged shapes lock onto alignment,
-  // and publish the guide lines for the match. Returns the corrected delta.
+  // and publish the guide lines for the match. The snap correction returns
+  // synchronously every call so movement stays smooth; the visible guide lines
+  // are published at most once per animation frame (spec §7.6 throttling).
   function snapDelta(draggedIds, originals, rawDelta) {
+    if (!draggedIds || !draggedIds.length) return rawDelta
     active.value = true
     const moving = movedBBox(store, draggedIds, originals, rawDelta)
     const targets = targetEdges(store, draggedIds)
     const result = resolveSnap(moving, targets, store.state.canvas)
-    guides.value = result.lines
+    publisher.publish(result.lines)
     return { x: rawDelta.x + result.dx, y: rawDelta.y + result.dy }
   }
 
   function clear() {
+    publisher.cancel()
     active.value = false
     guides.value = []
   }
 
   return { guides: visible, snapDelta, clear, store }
+}
+
+// Coalesce rapid guide updates into one per animation frame so the SVG layer
+// re-renders at most 60fps no matter how fast pointermove fires (spec §7.6).
+// Falls back to a synchronous commit where requestAnimationFrame is absent
+// (e.g. non-browser test environments) so the math stays exercisable.
+function createFramePublisher(commit) {
+  const schedule = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : null
+  const unschedule = typeof cancelAnimationFrame === 'function' ? cancelAnimationFrame : null
+  let pending = null
+  let frame = null
+  const flush = () => {
+    frame = null
+    commit(pending)
+  }
+  return {
+    publish(lines) {
+      pending = lines
+      if (!schedule) return commit(lines)
+      if (frame === null) frame = schedule(flush)
+    },
+    cancel() {
+      if (unschedule && frame !== null) unschedule(frame)
+      frame = null
+      pending = null
+    },
+  }
 }
 
 // The combined axis-aligned box of the dragged selection after a raw delta.
@@ -55,7 +87,7 @@ function movedBBox(store, ids, originals, delta) {
 }
 
 function shiftedBBox(store, id, originals, delta) {
-  const original = originals.find((o) => o.id === id)
+  const original = (originals || []).find((o) => o.id === id)
   const box = axisAlignedBBox(original || store.shapeById(id))
   return { x: box.x + delta.x, y: box.y + delta.y, w: box.w, h: box.h }
 }

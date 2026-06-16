@@ -10,6 +10,7 @@ import { createEditorUi, provideEditorUi } from '@/stores/useEditorUi.js'
 import { useKeyboard } from '@/composables/useKeyboard.js'
 import { useClipboard } from '@/composables/useClipboard.js'
 import { useAutosave } from '@/composables/useAutosave.js'
+import { useThumbnail } from '@/composables/useThumbnail.js'
 import TopToolbar from '@/components/toolbar/TopToolbar.vue'
 import LeftPalette from '@/components/palette-left/LeftPalette.vue'
 import DiagramCanvas from '@/components/canvas/DiagramCanvas.vue'
@@ -28,8 +29,18 @@ provideEditorUi(editorUi)
 
 const dark = ref(false)
 const autosave = useAutosave(store, diagram)
+const thumbnail = useThumbnail(store, diagram)
 useKeyboard(store, editorUi)
 useClipboard(store)
+
+// Regenerate the thumbnail after each successful save; generate() self-throttles
+// to at most once / 30s (spec §11.2/§11.4).
+watch(
+  () => autosave.status.value,
+  (status) => {
+    if (status === 'saved') thumbnail.generate()
+  },
+)
 
 // The doc may arrive after mount; load it into the store once it lands.
 watch(

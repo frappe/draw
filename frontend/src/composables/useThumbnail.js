@@ -2,6 +2,7 @@
 // document->SVG-markup builder reused by home tiles for a live preview.
 // Building markup is cheap; rasterizing to PNG is throttled to <= once / 30s.
 
+import { createResource } from 'frappe-ui'
 import { themeVarStyle, findThemePreset } from '@/diagram/theme.js'
 import { parseDiagramDocument } from '@/diagram/schema.js'
 
@@ -91,18 +92,21 @@ export function isDocumentEmpty(rawDocument) {
   return (doc.shapes || []).length === 0 && (doc.connectors || []).length === 0
 }
 
-// Rasterize a store's current document to a PNG data URL, throttled per store.
+// Rasterize a store's current document to a PNG data URL, throttled per store,
+// and persist it via the backend save_thumbnail method (which decodes the data
+// URL into a private File and links it — spec §11.2/§11.4).
 export function useThumbnail(store, diagramResource) {
   let lastRunAt = 0
+  const saver = createResource({ url: 'frappe_draw.api.diagram.save_thumbnail' })
 
   async function generate() {
     const now = Date.now()
     if (now - lastRunAt < THROTTLE_MS) return null
+    const name = diagramResource?.doc?.name
+    if (!name) return null
     lastRunAt = now
     const dataUrl = await rasterize(documentToSvg(store.getDocument()))
-    if (dataUrl && diagramResource?.setValue) {
-      diagramResource.setValue.submit({ thumbnail: dataUrl })
-    }
+    if (dataUrl) saver.submit({ name, thumbnail: dataUrl })
     return dataUrl
   }
 

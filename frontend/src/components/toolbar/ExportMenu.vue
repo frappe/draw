@@ -1,6 +1,7 @@
 <script setup>
-// Export dropdown: PNG/JPEG/SVG/PDF (spec §10). Stub: a Dropdown of formats
-// wired to useExport actions. The feature agent fills the export logic.
+// Export dropdown: PNG (1x/2x), JPEG, SVG, PDF, and Print (spec §10, §4.4).
+// Captures canvas bounds (not the viewport) and excludes the grid via useExport,
+// which serializes the diagram document to a standalone SVG.
 import { Button, Dropdown, FeatherIcon } from 'frappe-ui'
 import { useExport } from '@/composables/useExport.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
@@ -8,10 +9,20 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 const exporter = useExport(useDiagramStore())
 
 const options = [
-  { label: 'PNG', onClick: exporter.exportPng },
-  { label: 'JPEG', onClick: exporter.exportJpeg },
-  { label: 'SVG', onClick: exporter.exportSvg },
-  { label: 'PDF', onClick: exporter.exportPdf },
+  {
+    group: 'Export',
+    items: [
+      { label: 'PNG', icon: 'image', onClick: exporter.exportPng },
+      { label: 'PNG (2x)', icon: 'image', onClick: exporter.exportPng2x },
+      { label: 'JPEG', icon: 'image', onClick: exporter.exportJpeg },
+      { label: 'SVG', icon: 'code', onClick: exporter.exportSvg },
+      { label: 'PDF', icon: 'file-text', onClick: exporter.exportPdf },
+    ],
+  },
+  {
+    group: 'Output',
+    items: [{ label: 'Print…', icon: 'printer', onClick: exporter.printDiagram }],
+  },
 ]
 </script>
 

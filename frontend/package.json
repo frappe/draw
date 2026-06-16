@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "frappe-ui": "latest",
+    "jspdf": "^4.2.1",
     "vue": "^3.4.0",
     "vue-router": "^4.3.0"
   },

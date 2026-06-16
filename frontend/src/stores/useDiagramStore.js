@@ -141,17 +141,26 @@ function duplicateShapes(store, state, ids, newIds) {
   return idMap
 }
 
+// Duplicate a connector when each endpoint is either free or attached to a shape
+// being duplicated; remap attached endpoints to the new ids and offset free ones
+// by +10/+10. Mirrors useClipboard so duplicate (Cmd+D) and copy/paste agree.
 function duplicateConnectors(state, ids, idMap) {
   for (const c of state.connectors) {
-    const fromIn = idMap[c.from?.shapeId]
-    const toIn = idMap[c.to?.shapeId]
-    const bothEndsAttached = c.from?.shapeId && c.to?.shapeId
-    if (!bothEndsAttached || !ids.includes(c.from.shapeId) || !ids.includes(c.to.shapeId)) continue
+    if (!endpointDuplicated(c.from, ids) || !endpointDuplicated(c.to, ids)) continue
     const copy = createConnector({ ...clone(c), id: undefined })
-    copy.from = { ...c.from, shapeId: fromIn }
-    copy.to = { ...c.to, shapeId: toIn }
+    copy.from = remapDuplicatedEndpoint(c.from, idMap)
+    copy.to = remapDuplicatedEndpoint(c.to, idMap)
     state.connectors.push(copy)
   }
+}
+
+function endpointDuplicated(endpoint, ids) {
+  return !endpoint?.shapeId || ids.includes(endpoint.shapeId)
+}
+
+function remapDuplicatedEndpoint(endpoint, idMap) {
+  if (endpoint?.shapeId) return { ...endpoint, shapeId: idMap[endpoint.shapeId] }
+  return { ...endpoint, x: (endpoint?.x || 0) + 10, y: (endpoint?.y || 0) + 10 }
 }
 
 function attachConnectorMutations(store, state, history) {
@@ -227,20 +236,28 @@ function attachGrouping(store, state, history) {
 function attachThemeAndCanvas(store, state, history) {
   store.applyTheme = (presetName) =>
     history.commit('Apply theme', () => {
+      const previousPreset = state.themePreset
       state.themePreset = presetName
-      restyleShapes(state, presetName)
+      restyleShapes(state, presetName, previousPreset)
     })
   store.setCanvas = (patch) => history.commit('Canvas', () => Object.assign(state.canvas, patch))
 }
 
-// Re-paint shapes that still wear a theme triad with the new preset's primary.
-function restyleShapes(state, presetName) {
-  const triad = findThemePreset(presetName).t
+// Re-paint only shapes that still wear the PREVIOUS preset's triad, so a user's
+// deliberate fill/border/text-color overrides survive a theme change (the
+// CONVENTIONS contract: applyTheme restyles shapes that use theme triads).
+function restyleShapes(state, presetName, previousPreset) {
+  const next = findThemePreset(presetName).t
+  const previous = findThemePreset(previousPreset).t
   for (const shape of state.shapes) {
     if (shape.type === 'text') continue
-    shape.fill = triad.fill
-    shape.border = { ...shape.border, color: triad.stroke }
-    shape.text = { ...shape.text, style: { ...shape.text.style, color: triad.ink } }
+    if (shape.fill === previous.fill) shape.fill = next.fill
+    if (shape.border?.color === previous.stroke) {
+      shape.border = { ...shape.border, color: next.stroke }
+    }
+    if (shape.text?.style?.color === previous.ink) {
+      shape.text = { ...shape.text, style: { ...shape.text.style, color: next.ink } }
+    }
   }
 }
 

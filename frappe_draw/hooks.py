@@ -154,23 +154,12 @@ website_route_rules = [
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"frappe_draw.tasks.all"
-# 	],
-# 	"daily": [
-# 		"frappe_draw.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"frappe_draw.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"frappe_draw.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"frappe_draw.tasks.monthly"
-# 	],
-# }
+# Daily: permanently delete diagrams trashed more than 30 days ago (SPEC §2).
+scheduler_events = {
+	"daily": [
+		"frappe_draw.api.diagram.purge_old_trashed_diagrams",
+	],
+}
 
 # Testing
 # -------

@@ -2,6 +2,7 @@
 // Live mutations give 60fps feedback; the whole gesture is wrapped in a single
 // history step on release. Arrow-key nudging is a discrete history step each.
 import { rotatePoint, shapeCenter } from '@/diagram/geometry.js'
+import { useSmartGuides } from '@/composables/useSmartGuides.js'
 
 const ROTATION_SNAP = [0, 30, 45, 60, 90]
 const NUDGE_SMALL = 1
@@ -51,15 +52,23 @@ function runDrag(toLogical, onMove, onEnd) {
 }
 
 // Drag the selection body to translate every selected shape together.
+// The raw drag delta is snapped to alignment guides before being applied.
 function createMover(store) {
+  const smartGuides = useSmartGuides(store)
   return ({ toLogical, start, ids }) => {
     const originals = snapshotShapes(store, ids)
-    const apply = (point) =>
-      originals.map((o) => ({ id: o.id, x: o.x + (point.x - start.x), y: o.y + (point.y - start.y) }))
+    const apply = (point) => {
+      const raw = { x: point.x - start.x, y: point.y - start.y }
+      const snapped = smartGuides.snapDelta(ids, originals, raw)
+      return originals.map((o) => ({ id: o.id, x: o.x + snapped.x, y: o.y + snapped.y }))
+    }
     runDrag(
       toLogical,
       (event, point) => applyLive(store, apply(point)),
-      (event, point) => finishGesture(store, 'Move', originals, apply(point)),
+      (event, point) => {
+        finishGesture(store, 'Move', originals, apply(point))
+        smartGuides.clear()
+      },
     )
   }
 }
