@@ -36,6 +36,10 @@ venv.bak/
 node_modules/
 jspm_packages/
 
+# Generated SPA build output (reproduced by `yarn build` / `bench build`)
+frappe_draw/public/frontend/
+frappe_draw/www/frappe_draw.html
+
 # IDEs and editors
 .vscode/
 .vs/

@@ -1,0 +1,22 @@
+// Data access for Draw Folder documents, via frappe-ui resources. Keeps folder
+// API wiring in one place so the home sidebar stays declarative (spec §2).
+import { createListResource } from 'frappe-ui'
+
+export const folders = createListResource({
+  doctype: 'Draw Folder',
+  fields: ['name', 'folder_name', 'sort_order'],
+  orderBy: 'sort_order asc',
+})
+
+// Create a new folder, returning its name. Reloads the list so the sidebar
+// reflects the addition immediately.
+export async function createFolder(folderName) {
+  const created = await folders.insert.submit({ folder_name: folderName })
+  await folders.reload()
+  return created.name
+}
+
+// Move a diagram into (or out of, with null) a folder. Used by drag-to-file.
+export function moveDiagramToFolder(diagrams, diagramName, folderName) {
+  return diagrams.setValue.submit({ name: diagramName, folder: folderName || null })
+}

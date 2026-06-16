@@ -1,0 +1,280 @@
+// THE diagram document store (CONVENTIONS "useDiagramStore.js — THE store API").
+// createDiagramStore(initialDocument) returns a reactive object owned by
+// EditorShell and provided as 'diagramStore'. useDiagramStore() injects it.
+// All shape/connector mutations are history-tracked via commit().
+
+import { reactive, computed, provide, inject } from 'vue'
+import { createShape, createConnector } from '@/diagram/factories.js'
+import { createHistory } from '@/stores/history.js'
+import { findThemePreset } from '@/diagram/theme.js'
+import { createDiagramDocument, SCHEMA_VERSION } from '@/diagram/schema.js'
+
+const STORE_KEY = 'diagramStore'
+
+export function createDiagramStore(initialDocument) {
+  const document = initialDocument || createDiagramDocument()
+  const state = reactive({
+    canvas: { ...document.canvas },
+    shapes: clone(document.shapes || []),
+    connectors: clone(document.connectors || []),
+    selection: [],
+    themePreset: document.themePreset || 'ocean',
+  })
+  const history = createHistory(state)
+  return assembleStore(state, history)
+}
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value))
+}
+
+// Build the full method surface around reactive state + history.
+function assembleStore(state, history) {
+  const store = reactive({ state })
+  attachQueries(store, state)
+  attachShapeMutations(store, state, history)
+  attachConnectorMutations(store, state, history)
+  attachSelection(store, state)
+  attachOrdering(store, state, history)
+  attachGrouping(store, state, history)
+  attachThemeAndCanvas(store, state, history)
+  attachDocumentIo(store, state, history)
+  attachHistory(store, history)
+  return store
+}
+
+// Read helpers that features lean on.
+function attachQueries(store, state) {
+  store.shapeById = (id) => state.shapes.find((shape) => shape.id === id)
+  store.connectorById = (id) => state.connectors.find((c) => c.id === id)
+  store.selectedShapes = computed(() =>
+    state.shapes.filter((shape) => state.selection.includes(shape.id)),
+  )
+}
+
+function maxZIndex(shapes) {
+  return shapes.reduce((max, shape) => Math.max(max, shape.zIndex || 0), 0)
+}
+
+function attachShapeMutations(store, state, history) {
+  store.addShape = (partial) => {
+    const shape = createShape({ zIndex: maxZIndex(state.shapes) + 1, ...partial }, state.themePreset)
+    history.commit('Add shape', () => state.shapes.push(shape))
+    return shape.id
+  }
+  store.updateShape = (id, patch) =>
+    history.commit('Update shape', () => applyPatch(store.shapeById(id), patch))
+  store.updateShapes = (ids, patch) =>
+    history.commit('Update shapes', () =>
+      ids.forEach((id) => applyPatch(store.shapeById(id), patch)),
+    )
+  store.removeShapes = (ids) =>
+    history.commit('Delete shapes', () => removeShapesInternal(state, ids))
+  store.removeConnectors = (ids) =>
+    history.commit('Delete connectors', () => removeConnectorsInternal(state, ids))
+  store.removeSelectionOrIds = (ids) => removeMixed(store, state, history, ids || state.selection)
+  store.duplicate = (ids) => duplicateInternal(store, state, history, ids)
+}
+
+// Shallow-merge a patch, deep-merging known nested objects so callers can
+// update e.g. only border.width without dropping the rest.
+function applyPatch(target, patch) {
+  if (!target) return
+  for (const [key, value] of Object.entries(patch)) {
+    if (isPlainObject(value) && isPlainObject(target[key])) {
+      Object.assign(target[key], value)
+    } else {
+      target[key] = value
+    }
+  }
+}
+
+function isPlainObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value)
+}
+
+function removeShapesInternal(state, ids) {
+  state.shapes = state.shapes.filter((shape) => !ids.includes(shape.id))
+  state.connectors = state.connectors.filter(
+    (c) => !ids.includes(c.from?.shapeId) && !ids.includes(c.to?.shapeId),
+  )
+  state.selection = state.selection.filter((id) => !ids.includes(id))
+}
+
+function removeConnectorsInternal(state, ids) {
+  state.connectors = state.connectors.filter((c) => !ids.includes(c.id))
+  state.selection = state.selection.filter((id) => !ids.includes(id))
+}
+
+function removeMixed(store, state, history, ids) {
+  const shapeIds = ids.filter((id) => store.shapeById(id))
+  const connectorIds = ids.filter((id) => store.connectorById(id))
+  history.commit('Delete', () => {
+    if (shapeIds.length) removeShapesInternal(state, shapeIds)
+    if (connectorIds.length) removeConnectorsInternal(state, connectorIds)
+  })
+}
+
+// Duplicate shapes (+10/+10); copy connectors only if both endpoints duplicated.
+function duplicateInternal(store, state, history, ids) {
+  const newIds = []
+  history.commit('Duplicate', () => {
+    const idMap = duplicateShapes(store, state, ids, newIds)
+    duplicateConnectors(state, ids, idMap)
+  })
+  store.select(newIds)
+  return newIds
+}
+
+function duplicateShapes(store, state, ids, newIds) {
+  const idMap = {}
+  let zIndex = maxZIndex(state.shapes)
+  for (const id of ids) {
+    const source = store.shapeById(id)
+    if (!source) continue
+    zIndex += 1
+    const copy = createShape({ ...clone(source), id: undefined, x: source.x + 10, y: source.y + 10, zIndex }, state.themePreset)
+    idMap[id] = copy.id
+    newIds.push(copy.id)
+    state.shapes.push(copy)
+  }
+  return idMap
+}
+
+function duplicateConnectors(state, ids, idMap) {
+  for (const c of state.connectors) {
+    const fromIn = idMap[c.from?.shapeId]
+    const toIn = idMap[c.to?.shapeId]
+    const bothEndsAttached = c.from?.shapeId && c.to?.shapeId
+    if (!bothEndsAttached || !ids.includes(c.from.shapeId) || !ids.includes(c.to.shapeId)) continue
+    const copy = createConnector({ ...clone(c), id: undefined })
+    copy.from = { ...c.from, shapeId: fromIn }
+    copy.to = { ...c.to, shapeId: toIn }
+    state.connectors.push(copy)
+  }
+}
+
+function attachConnectorMutations(store, state, history) {
+  store.addConnector = (partial) => {
+    const connector = createConnector(partial)
+    history.commit('Add connector', () => state.connectors.push(connector))
+    return connector.id
+  }
+  store.updateConnector = (id, patch) =>
+    history.commit('Update connector', () => applyPatch(store.connectorById(id), patch))
+}
+
+function attachSelection(store, state) {
+  store.select = (ids) => (state.selection = Array.isArray(ids) ? [...ids] : [ids])
+  store.addToSelection = (ids) => {
+    const next = Array.isArray(ids) ? ids : [ids]
+    state.selection = [...new Set([...state.selection, ...next])]
+  }
+  store.toggleInSelection = (id) => {
+    state.selection = state.selection.includes(id)
+      ? state.selection.filter((existing) => existing !== id)
+      : [...state.selection, id]
+  }
+  store.clearSelection = () => (state.selection = [])
+  store.selectAll = () => {
+    state.selection = [
+      ...state.shapes.map((shape) => shape.id),
+      ...state.connectors.map((c) => c.id),
+    ]
+  }
+}
+
+// z-order operations operate on selected shapes and re-pack indices afterwards.
+function attachOrdering(store, state, history) {
+  store.bringToFront = (ids) => reorder(state, history, 'To front', ids, (s) => 1e6 + (ids.indexOf(s.id)))
+  store.sendToBack = (ids) => reorder(state, history, 'To back', ids, (s) => -1e6 - (ids.length - ids.indexOf(s.id)))
+  store.bringForward = (ids) => reorder(state, history, 'Forward', ids, (s) => s.zIndex + 1.5)
+  store.sendBackward = (ids) => reorder(state, history, 'Backward', ids, (s) => s.zIndex - 1.5)
+}
+
+function reorder(state, history, label, ids, scoreFn) {
+  history.commit(label, () => {
+    for (const shape of state.shapes) {
+      if (ids.includes(shape.id)) shape.zIndex = scoreFn(shape)
+    }
+    repackZIndex(state)
+  })
+}
+
+// Normalise zIndex to a dense 1..n ordering after a move.
+function repackZIndex(state) {
+  const ordered = [...state.shapes].sort((a, b) => a.zIndex - b.zIndex)
+  ordered.forEach((shape, index) => (shape.zIndex = index + 1))
+}
+
+function attachGrouping(store, state, history) {
+  store.group = (ids) => {
+    const groupId = `g${Date.now().toString(36)}`
+    history.commit('Group', () =>
+      state.shapes.forEach((shape) => {
+        if (ids.includes(shape.id)) shape.groupId = groupId
+      }),
+    )
+  }
+  store.ungroup = (ids) =>
+    history.commit('Ungroup', () =>
+      state.shapes.forEach((shape) => {
+        if (ids.includes(shape.id)) delete shape.groupId
+      }),
+    )
+}
+
+function attachThemeAndCanvas(store, state, history) {
+  store.applyTheme = (presetName) =>
+    history.commit('Apply theme', () => {
+      state.themePreset = presetName
+      restyleShapes(state, presetName)
+    })
+  store.setCanvas = (patch) => history.commit('Canvas', () => Object.assign(state.canvas, patch))
+}
+
+// Re-paint shapes that still wear a theme triad with the new preset's primary.
+function restyleShapes(state, presetName) {
+  const triad = findThemePreset(presetName).t
+  for (const shape of state.shapes) {
+    if (shape.type === 'text') continue
+    shape.fill = triad.fill
+    shape.border = { ...shape.border, color: triad.stroke }
+    shape.text = { ...shape.text, style: { ...shape.text.style, color: triad.ink } }
+  }
+}
+
+function attachDocumentIo(store, state, history) {
+  store.getDocument = () => ({
+    schemaVersion: SCHEMA_VERSION,
+    canvas: clone(state.canvas),
+    shapes: clone(state.shapes),
+    connectors: clone(state.connectors),
+    themePreset: state.themePreset,
+  })
+  store.loadDocument = (document) => {
+    state.canvas = { ...document.canvas }
+    state.shapes = clone(document.shapes || [])
+    state.connectors = clone(document.connectors || [])
+    state.themePreset = document.themePreset || 'ocean'
+    state.selection = []
+    history.clear()
+  }
+}
+
+function attachHistory(store, history) {
+  store.undo = history.undo
+  store.redo = history.redo
+  store.commit = history.commit
+  store.canUndo = computed(() => history.canUndo())
+  store.canRedo = computed(() => history.canRedo())
+}
+
+export function provideDiagramStore(store) {
+  provide(STORE_KEY, store)
+  return store
+}
+
+export function useDiagramStore() {
+  return inject(STORE_KEY)
+}

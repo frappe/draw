@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="colors_and_type.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font-family: var(--es-font-sans); -webkit-font-smoothing: antialiased; }
+  ::-webkit-scrollbar { width: 12px; height: 12px; }
+  ::-webkit-scrollbar-thumb { background: var(--es-gray-300); border-radius: 8px; border: 3px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--es-gray-400); background-clip: padding-box; border: 3px solid transparent; }
+  /* canvas theme-preset token sets (attribute-scoped, like data-theme) */
+  [data-fdpreset] { --t-fill:#EFF6FF; --t-stroke:#4F94FF; --t-ink:#0A2F58; --t2-fill:#F4FFF6; --t2-stroke:#88D5A5; --t2-ink:#16794C; --t3-fill:#FDFAED; --t3-stroke:#FBCC55; --t3-ink:#91400D; }
+  [data-fdpreset="slate"] { --t-fill:#F3F3F3; --t-stroke:#C7C7C7; --t-ink:#171717; --t2-fill:#E2E2E2; --t2-stroke:#999999; --t2-ink:#383838; --t3-fill:#FFFFFF; --t3-stroke:#7C7C7C; --t3-ink:#525252; }
+  [data-fdpreset="violet"] { --t-fill:#EFEAFE; --t-stroke:#8A6BF0; --t-ink:#3A2A8C; --t2-fill:#E7F8FB; --t2-stroke:#5BC8E0; --t2-ink:#0B6E84; --t3-fill:#FCEAF5; --t3-stroke:#E68AC4; --t3-ink:#A8327E; }
+  [data-fdpreset="sunset"] { --t-fill:#FFF1E6; --t-stroke:#F6A360; --t-ink:#9A4B0E; --t2-fill:#FDECEC; --t2-stroke:#F08A8A; --t2-ink:#B52A2A; --t3-fill:#FFF7D8; --t3-stroke:#EFC53F; --t3-ink:#86600A; }
+  .fd-paper-shape { cursor: pointer; }
+  .fd-tile-card:hover .fd-tile-menu { opacity: 1; }
+  .fd-iconbtn:hover { background: var(--es-surface-gray-2); }
+  .fd-rtile:hover { background: var(--es-surface-gray-1); border-color: var(--es-outline-gray-3) !important; }
+  .fd-listrow:hover { background: var(--es-surface-gray-1); }
+</style>
+</helmet>
+
+<div data-theme="{{ themeAttr }}" style="height:100vh;width:100%;overflow:hidden;background:var(--es-surface-page);color:var(--es-ink-9);font-family:var(--es-font-sans);position:relative;">
+
+  <!-- ════════════════ HOME ════════════════ -->
+  <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+  <div data-screen-label="Home" style="display:flex;height:100vh;">
+    <aside style="width:240px;flex:0 0 240px;background:var(--es-surface-sidebar);border-right:1px solid var(--es-outline-gray-1);display:flex;flex-direction:column;padding:14px 12px 12px;">
+      <div style="display:flex;align-items:center;gap:9px;padding:2px 6px 16px;">
+        <svg width="26" height="26" viewBox="0 0 100 100" style="border-radius:8px;flex:0 0 auto;"><rect width="100" height="100" rx="28" fill="#6846E3"/><rect x="28" y="28" width="20" height="20" rx="4" fill="#fff"/><rect x="55" y="55" width="20" height="20" rx="4" fill="#fff"/><path d="M48 38h10a4 4 0 0 1 4 4v13" stroke="#fff" stroke-width="5" fill="none"/></svg>
+        <span style="font:700 15px/1 var(--es-font-sans);color:var(--es-ink-9);letter-spacing:-0.01em;">Frappe Draw</span>
+      </div>
+      <div style="position:relative;margin-bottom:14px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--es-ink-5)" stroke-width="1.8" stroke-linecap="round" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input placeholder="Search diagrams" style="width:100%;height:30px;padding:0 10px 0 30px;background:var(--es-surface-white);border:1px solid var(--es-outline-gray-1);border-radius:var(--es-radius-2);font:500 13px var(--es-font-sans);color:var(--es-ink-9);outline:none;">
+      </div>
+      <nav style="display:flex;flex-direction:column;gap:2px;">
+        <div style="display:flex;align-items:center;gap:9px;height:32px;padding:0 9px;border-radius:var(--es-radius-2);background:var(--es-surface-gray-2);color:var(--es-ink-9);font:600 13px var(--es-font-sans);cursor:pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>All diagrams
+        </div>
+        <div class="fd-listrow" style="display:flex;align-items:center;gap:9px;height:32px;padding:0 9px;border-radius:var(--es-radius-2);color:var(--es-ink-7);font:500 13px var(--es-font-sans);cursor:pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a3 3 0 1 0-2.8-4M2 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M22 21v-2a4 4 0 0 0-3-3.85"/></svg>Shared with me
+        </div>
+        <div class="fd-listrow" onClick="{{ openTrash }}" style="display:flex;align-items:center;gap:9px;height:32px;padding:0 9px;border-radius:var(--es-radius-2);color:var(--es-ink-7);font:500 13px var(--es-font-sans);cursor:pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>Trash
+        </div>
+      </nav>
+      <div style="margin-top:20px;padding:0 9px 6px;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font:600 11px var(--es-font-sans);letter-spacing:0.04em;text-transform:uppercase;color:var(--es-ink-5);">Folders</span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--es-ink-5)" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </div>
+      <nav style="display:flex;flex-direction:column;gap:2px;">
+        <div class="fd-listrow" style="display:flex;align-items:center;gap:9px;height:32px;padding:0 9px;border-radius:var(--es-radius-2);color:var(--es-ink-7);font:500 13px var(--es-font-sans);cursor:pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7a2 2 0 0 1 2-2h3l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>Product specs
+        </div>
+        <div class="fd-listrow" style="display:flex;align-items:center;gap:9px;height:32px;padding:0 9px;border-radius:var(--es-radius-2);color:var(--es-ink-7);font:500 13px var(--es-font-sans);cursor:pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7a2 2 0 0 1 2-2h3l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>Client work
+        </div>
+      </nav>
+      <div style="margin-top:auto;display:flex;align-items:center;gap:9px;padding:8px 8px 0;border-top:1px solid var(--es-outline-gray-1);">
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--es-violet-500);color:#fff;display:flex;align-items:center;justify-content:center;font:600 12px var(--es-font-sans);">TS</div>
+        <div style="display:flex;flex-direction:column;line-height:1.2;"><span style="font:600 12px var(--es-font-sans);color:var(--es-ink-9);">Tarun S.</span><span style="font:500 11px var(--es-font-sans);color:var(--es-ink-5);">Frappe Cloud</span></div>
+      </div>
+    </aside>
+
+    <main style="flex:1;overflow:auto;padding:26px 34px 60px;">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;">
+        <div>
+          <h1 style="margin:0;font:700 22px/1.1 var(--es-font-sans);color:var(--es-ink-9);letter-spacing:-0.01em;">All diagrams</h1>
+          <p style="margin:5px 0 0;font:500 13px var(--es-font-sans);color:var(--es-ink-5);">7 diagrams · last edited 3 hours ago</p>
+        </div>
+        <button onClick="{{ openNew }}" style="display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;background:var(--es-gray-900);color:#fff;border:none;border-radius:var(--es-radius-2);font:600 13px var(--es-font-sans);cursor:pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>New diagram
+        </button>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+        <span style="font:600 12px var(--es-font-sans);letter-spacing:0.03em;text-transform:uppercase;color:var(--es-ink-6);">Recent</span>
+        <div style="flex:1;height:1px;background:var(--es-outline-gray-1);"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(224px,1fr));gap:18px;">
+        <!-- create tile -->
+        <button onClick="{{ openNew }}" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:166px;background:transparent;border:1.5px dashed var(--es-outline-gray-3);border-radius:var(--es-radius-4);color:var(--es-ink-5);cursor:pointer;font-family:var(--es-font-sans);">
+          <div style="width:42px;height:42px;border-radius:50%;background:var(--es-surface-gray-2);display:flex;align-items:center;justify-content:center;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--es-ink-6)" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+          <span style="font:600 13px var(--es-font-sans);color:var(--es-ink-7);">New diagram</span>
+        </button>
+
+        {{ recentTiles }}
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;margin:34px 0 14px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--es-ink-6)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7a2 2 0 0 1 2-2h3l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>
+        <span style="font:600 13px var(--es-font-sans);color:var(--es-ink-8);">Client work</span>
+        <span style="font:500 12px var(--es-font-sans);color:var(--es-ink-5);">2</span>
+        <div style="flex:1;height:1px;background:var(--es-outline-gray-1);"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(224px,1fr));gap:18px;">
+        {{ folderTiles }}
+      </div>
+    </main>
+  </div>
+  </sc-if>
+
+  <!-- ════════════════ TRASH ════════════════ -->
+  <sc-if value="{{ isTrash }}" hint-placeholder-val="{{ true }}">
+  <div data-screen-label="Trash" style="display:flex;height:100vh;">
+    <aside style="width:240px;flex:0 0 240px;background:var(--es-surface-sidebar);border-right:1px solid var(--es-outline-gray-1);display:flex;flex-direction:column;padding:14px 12px;">
+      <div style="display:flex;align-items:center;gap:9px;padding:2px 6px 16px;">
+        <svg width="26" height="26" viewBox="0 0 100 100" style="border-radius:8px;"><rect width="100" height="100" rx="28" fill="#6846E3"/><rect x="28" y="28" width="20" height="20" rx="4" fill="#fff"/><rect x="55" y="55" width="20" height="20" rx="4" fill="#fff"/><path d="M48 38h10a4 4 0 0 1 4 4v13" stroke="#fff" stroke-width="5" fill="none"/></svg>
+        <span style="font:700 15px var(--es-font-sans);color:var(--es-ink-9);">Frappe Draw</span>
+      </div>
+      <button onClick="{{ goHome }}" style="display:flex;align-items:center;gap:8px;height:32px;padding:0 9px;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-7);font:600 13px var(--es-font-sans);cursor:pointer;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>Back to diagrams
+      </button>
+    </aside>
+    <main style="flex:1;overflow:auto;padding:26px 34px;">
+      <h1 style="margin:0 0 5px;font:700 22px var(--es-font-sans);color:var(--es-ink-9);">Trash</h1>
+      <div style="display:flex;align-items:center;gap:8px;margin:14px 0 20px;padding:10px 12px;background:var(--es-surface-amber-subtle);border:1px solid var(--es-outline-amber);border-radius:var(--es-radius-3);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--es-amber-700)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+        <span style="font:500 13px var(--es-font-sans);color:var(--es-amber-800);">Items in trash are permanently deleted after 30 days.</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(224px,1fr));gap:18px;">
+        {{ trashTiles }}
+      </div>
+    </main>
+  </div>
+  </sc-if>
+
+  <!-- ════════════════ EDITOR ════════════════ -->
+  <sc-if value="{{ isEditor }}" hint-placeholder-val="{{ true }}">
+  <div data-screen-label="Editor" style="display:flex;flex-direction:column;height:100vh;">
+    <!-- toolbar -->
+    <div style="height:48px;flex:0 0 48px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:var(--es-surface-white);border-bottom:1px solid var(--es-outline-gray-1);z-index:5;">
+      <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+        <button class="fd-iconbtn" onClick="{{ goHome }}" title="Back to dashboard" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-8);cursor:pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button>
+        <svg width="22" height="22" viewBox="0 0 100 100" style="border-radius:6px;flex:0 0 auto;"><rect width="100" height="100" rx="28" fill="#6846E3"/><rect x="28" y="28" width="20" height="20" rx="4" fill="#fff"/><rect x="55" y="55" width="20" height="20" rx="4" fill="#fff"/><path d="M48 38h10a4 4 0 0 1 4 4v13" stroke="#fff" stroke-width="5" fill="none"/></svg>
+        <div style="display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:var(--es-radius-2);cursor:text;" title="Rename diagram">
+          <span style="font:600 14px var(--es-font-sans);color:var(--es-ink-9);">Frappe Draw — request flow</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--es-ink-4)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        </div>
+        <div style="display:flex;align-items:center;gap:5px;margin-left:4px;color:var(--es-ink-5);font:500 12px var(--es-font-sans);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--es-green-600)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Saved
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;">
+        <button style="display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;background:var(--es-surface-white);color:var(--es-ink-9);border:1px solid var(--es-outline-gray-2);border-radius:var(--es-radius-2);font:600 13px var(--es-font-sans);cursor:pointer;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export</button>
+        <button style="display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;background:var(--es-surface-white);color:var(--es-ink-9);border:1px solid var(--es-outline-gray-2);border-radius:var(--es-radius-2);font:600 13px var(--es-font-sans);cursor:pointer;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5 8.6 10.5"/></svg>Share</button>
+        <button class="fd-iconbtn" title="Print" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid var(--es-outline-gray-2);background:var(--es-surface-white);border-radius:var(--es-radius-2);color:var(--es-ink-8);cursor:pointer;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg></button>
+        <div style="width:1px;height:20px;background:var(--es-outline-gray-1);margin:0 2px;"></div>
+        <button class="fd-iconbtn" onClick="{{ toggleDark }}" title="Toggle dark chrome" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid var(--es-outline-gray-2);background:var(--es-surface-white);border-radius:var(--es-radius-2);color:var(--es-ink-8);cursor:pointer;">
+          <sc-if value="{{ dark }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M5 5l1.5 1.5M17.5 17.5 19 19M2 12h2M20 12h2M5 19l1.5-1.5M17.5 6.5 19 5"/></svg></sc-if>
+          <sc-if value="{{ light }}" hint-placeholder-val="{{ true }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></sc-if>
+        </button>
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--es-violet-500);color:#fff;display:flex;align-items:center;justify-content:center;font:600 11px var(--es-font-sans);margin-left:2px;">TS</div>
+      </div>
+    </div>
+
+    <div style="flex:1;display:flex;min-height:0;">
+      <!-- LEFT creation palette -->
+      <div style="width:56px;flex:0 0 56px;background:var(--es-surface-white);border-right:1px solid var(--es-outline-gray-1);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:3px;overflow-y:auto;z-index:4;">
+        <button class="fd-iconbtn" title="Search shapes & icons" style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-7);cursor:pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></button>
+        <div style="width:24px;height:1px;background:var(--es-outline-gray-1);margin:3px 0;"></div>
+        <button title="Rectangle" style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:none;background:var(--es-surface-gray-2);border-radius:var(--es-radius-2);color:var(--es-ink-9);cursor:pointer;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="6" width="16" height="12" rx="1.5"/></svg></button>
+        <button class="fd-iconbtn" title="Ellipse" style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-7);cursor:pointer;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><ellipse cx="12" cy="12" rx="9" ry="7"/></svg></button>
+        <button class="fd-iconbtn" title="Triangle" style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-7);cursor:pointer;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 4 21 19H3z"/></svg></button>
+        <button class="fd-iconbtn" title="Diamond" style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-7);cursor:pointer;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3 21 12 12 21 3 12z"/></svg></button>
+        <button class="fd-iconbtn" title="Text box" style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-7);cursor:pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h16v2M9 19h6M12 5v14"/></svg></button>
+        <div style="width:24px;height:1px;background:var(--es-outline-gray-1);margin:3px 0;"></div>
+        <button class="fd-iconbtn" title="Connector" style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-7);cursor:pointer;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 19 5M19 5h-6M19 5v6"/></svg></button>
+        <button class="fd-iconbtn" title="Elbow connector" style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-7);cursor:pointer;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5v8a3 3 0 0 0 3 3h7M15 12l4 4-4 4"/></svg></button>
+        <button class="fd-iconbtn" title="Curved connector" style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-7);cursor:pointer;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20C4 11 11 4 20 4"/></svg></button>
+        <div style="width:24px;height:1px;background:var(--es-outline-gray-1);margin:3px 0;"></div>
+        <button class="fd-iconbtn" title="Icons (Espresso library)" style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-7);cursor:pointer;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="16.5" r="3.3"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M11 4 14.5 10h-7z"/></svg></button>
+        <button class="fd-iconbtn" title="Emoji" style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-7);cursor:pointer;"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5s1.3 1.5 3.5 1.5 3.5-1.5 3.5-1.5"/><path d="M9 9.5h.01M15 9.5h.01"/></svg></button>
+      </div>
+
+      <!-- CANVAS area -->
+      <div onClick="{{ deselect }}" style="flex:1;position:relative;overflow:auto;background:#EEEEF0;display:flex;align-items:center;justify-content:center;min-width:0;">
+        <div data-fdpreset="{{ presetAttr }}" style="width:880px;height:495px;flex:0 0 auto;margin:48px;background:#fff;border:1px solid #E2E2E2;box-shadow:0 1px 3px rgba(0,0,0,.10),0 12px 36px rgba(0,0,0,.07);position:relative;">
+          <svg viewBox="0 0 1280 720" width="880" height="495" style="display:block;font-family:var(--es-font-sans);">
+            <defs>
+              <marker id="fd-arrow" markerWidth="11" markerHeight="11" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#7C7C7C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker>
+              <pattern id="fd-dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.5" fill="#DCDCDF"/></pattern>
+            </defs>
+            <sc-if value="{{ grid }}" hint-placeholder-val="{{ true }}"><rect x="0" y="0" width="1280" height="720" fill="url(#fd-dots)"/></sc-if>
+
+            <!-- connectors -->
+            <path d="M310 160 H424" fill="none" stroke="#7C7C7C" stroke-width="2.2" marker-end="url(#fd-arrow)"/>
+            <path d="M620 160 H734" fill="none" stroke="#7C7C7C" stroke-width="2.2" marker-end="url(#fd-arrow)"/>
+            <path d="M960 160 H1054" fill="none" stroke="#7C7C7C" stroke-width="2.2" marker-end="url(#fd-arrow)"/>
+            <path d="M525 210 V256" fill="none" stroke="#7C7C7C" stroke-width="2.2" marker-end="url(#fd-arrow)"/>
+            <path d="M615 330 H734" fill="none" stroke="#7C7C7C" stroke-width="2.2" marker-end="url(#fd-arrow)"/>
+            <path d="M850 210 V294" fill="none" stroke="#7C7C7C" stroke-width="2.2" marker-end="url(#fd-arrow)"/>
+            <!-- connector label pill -->
+            <g><rect x="333" y="146" width="68" height="26" rx="13" fill="#fff" stroke="#E2E2E2" stroke-width="1"/><text x="367" y="163" fill="#525252" font-size="14" font-weight="600" text-anchor="middle">GET /api</text></g>
+
+            <!-- shapes -->
+            <g class="fd-paper-shape" onClick="{{ sel_browser }}" onMouseEnter="{{ enter_browser }}" onMouseLeave="{{ clearHover }}">
+              <rect x="90" y="110" width="220" height="100" rx="8" style="fill:var(--t-fill);stroke:var(--t-stroke);stroke-width:2;"/>
+              <text x="200" y="155" text-anchor="middle" font-size="22" font-weight="600" style="fill:var(--t-ink);">Browser SPA</text>
+              <text x="200" y="180" text-anchor="middle" font-size="16" font-weight="500" style="fill:var(--t-ink);opacity:.72;">Vue 3 · frappe-ui</text>
+            </g>
+            <g class="fd-paper-shape" onClick="{{ sel_rest }}" onMouseEnter="{{ enter_rest }}" onMouseLeave="{{ clearHover }}">
+              <rect x="430" y="110" width="190" height="100" rx="8" style="fill:var(--t-fill);stroke:var(--t-stroke);stroke-width:2;"/>
+              <text x="525" y="155" text-anchor="middle" font-size="22" font-weight="600" style="fill:var(--t-ink);">REST API</text>
+              <text x="525" y="180" text-anchor="middle" font-size="16" font-weight="500" style="fill:var(--t-ink);opacity:.72;">/api/method</text>
+            </g>
+            <g class="fd-paper-shape" onClick="{{ sel_doctype }}" onMouseEnter="{{ enter_doctype }}" onMouseLeave="{{ clearHover }}">
+              <rect x="740" y="110" width="220" height="100" rx="8" style="fill:var(--t2-fill);stroke:var(--t2-stroke);stroke-width:2;"/>
+              <text x="850" y="155" text-anchor="middle" font-size="22" font-weight="600" style="fill:var(--t2-ink);">Draw Diagram</text>
+              <text x="850" y="180" text-anchor="middle" font-size="16" font-weight="500" style="fill:var(--t2-ink);opacity:.72;">DocType · JSON</text>
+            </g>
+            <g class="fd-paper-shape" onClick="{{ sel_db }}" onMouseEnter="{{ enter_db }}" onMouseLeave="{{ clearHover }}">
+              <rect x="1060" y="110" width="150" height="100" rx="16" style="fill:var(--t2-fill);stroke:var(--t2-stroke);stroke-width:2;"/>
+              <text x="1135" y="166" text-anchor="middle" font-size="22" font-weight="600" style="fill:var(--t2-ink);">MariaDB</text>
+            </g>
+            <g class="fd-paper-shape" onClick="{{ sel_decide }}" onMouseEnter="{{ enter_decide }}" onMouseLeave="{{ clearHover }}">
+              <path d="M525 262 L615 330 L525 398 L435 330 Z" style="fill:var(--t3-fill);stroke:var(--t3-stroke);stroke-width:2;"/>
+              <text x="525" y="326" text-anchor="middle" font-size="18" font-weight="600" style="fill:var(--t3-ink);">Online?</text>
+              <text x="525" y="348" text-anchor="middle" font-size="14" font-weight="500" style="fill:var(--t3-ink);opacity:.72;">auto-save</text>
+            </g>
+            <g class="fd-paper-shape" onClick="{{ sel_thumb }}" onMouseEnter="{{ enter_thumb }}" onMouseLeave="{{ clearHover }}">
+              <rect x="740" y="300" width="220" height="96" rx="8" style="fill:var(--t3-fill);stroke:var(--t3-stroke);stroke-width:2;"/>
+              <text x="850" y="343" text-anchor="middle" font-size="22" font-weight="600" style="fill:var(--t3-ink);">Thumbnail</text>
+              <text x="850" y="368" text-anchor="middle" font-size="16" font-weight="500" style="fill:var(--t3-ink);opacity:.72;">SVG → PNG</text>
+            </g>
+
+            {{ guidesOverlay }}
+            {{ hoverOverlay }}
+            {{ selectionOverlay }}
+          </svg>
+        </div>
+
+        <!-- floating bottom-center palette -->
+        <div onClick="{{ stop }}" style="position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:3px;padding:5px;background:var(--es-surface-white);border:1px solid var(--es-outline-gray-1);border-radius:var(--es-radius-3);box-shadow:var(--es-elev-xl);">
+          <button title="Select (V)" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:none;background:var(--es-surface-gray-2);border-radius:var(--es-radius-2);color:var(--es-ink-9);cursor:pointer;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="m4 4 6 16 2.2-6.2L18 11z"/></svg></button>
+          <button class="fd-iconbtn" title="Hand / pan (H)" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-7);cursor:pointer;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6.5a1.5 1.5 0 0 0-3 0M15 6.5V5a1.5 1.5 0 0 0-3 0v1.5M12 6.5V5.5a1.5 1.5 0 0 0-3 0V13M9 9a1.5 1.5 0 0 0-3 0v3c0 4 2.7 7 6.5 7s6.5-3 6.5-7v-1"/></svg></button>
+          <button class="fd-iconbtn" title="Draw" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-7);cursor:pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5" stroke-dasharray="3 3"/><path d="M12 8.5v7M8.5 12h7"/></svg></button>
+          <div style="width:1px;height:22px;background:var(--es-outline-gray-1);margin:0 3px;"></div>
+          <button class="fd-iconbtn" onClick="{{ toggleGrid }}" title="Grid guides" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-7);cursor:pointer;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg></button>
+          <div style="width:1px;height:22px;background:var(--es-outline-gray-1);margin:0 3px;"></div>
+          <button class="fd-iconbtn" title="Zoom out" style="width:30px;height:34px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-7);cursor:pointer;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+          <button title="Reset to 100%" style="height:34px;padding:0 6px;min-width:48px;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-8);font:600 13px var(--es-font-sans);cursor:pointer;">100%</button>
+          <button class="fd-iconbtn" title="Zoom in" style="width:30px;height:34px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-7);cursor:pointer;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+          <button class="fd-iconbtn" title="Fit to screen" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-7);cursor:pointer;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/></svg></button>
+        </div>
+
+        <!-- prototype review switcher -->
+        <div onClick="{{ stop }}" style="position:absolute;bottom:18px;left:18px;display:flex;flex-direction:column;gap:7px;padding:9px;background:var(--es-surface-white);border:1px solid var(--es-outline-gray-1);border-radius:var(--es-radius-3);box-shadow:var(--es-elev-lg);">
+          <span style="font:600 9px var(--es-font-sans);letter-spacing:0.07em;text-transform:uppercase;color:var(--es-ink-4);">Prototype — review</span>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font:500 11px var(--es-font-sans);color:var(--es-ink-6);width:48px;">Palette</span>
+            <div style="display:flex;background:var(--es-surface-gray-2);border-radius:var(--es-radius-2);padding:2px;gap:2px;">
+              {{ layoutSeg }}
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font:500 11px var(--es-font-sans);color:var(--es-ink-6);width:48px;">Guides</span>
+            {{ guidesSeg }}
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT modification palette -->
+      <div style="width:268px;flex:0 0 268px;background:var(--es-surface-white);border-left:1px solid var(--es-outline-gray-1);display:flex;flex-direction:column;min-height:0;z-index:4;">
+        <div style="flex:0 0 auto;padding:11px 14px;border-bottom:1px solid var(--es-outline-gray-1);display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;flex-direction:column;line-height:1.25;">
+            <span style="font:600 13px var(--es-font-sans);color:var(--es-ink-9);">{{ selName }}</span>
+            <span style="font:500 11px var(--es-font-sans);color:var(--es-ink-5);">1 selected</span>
+          </div>
+          <sc-if value="{{ painter }}" hint-placeholder-val="{{ false }}">
+            <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:var(--es-radius-8);background:var(--es-surface-blue-subtle);color:var(--es-blue-800);font:600 10px var(--es-font-sans);"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.4 2.6a2 2 0 0 1 3 3L10 17l-4 1 1-4z"/></svg>Painter on</span>
+          </sc-if>
+        </div>
+        <div style="flex:1;overflow-y:auto;">
+          <sc-if value="{{ gridLayout }}" hint-placeholder-val="{{ true }}">{{ paletteGrid }}</sc-if>
+          <sc-if value="{{ listLayout }}" hint-placeholder-val="{{ false }}">{{ paletteList }}</sc-if>
+          <sc-if value="{{ compactLayout }}" hint-placeholder-val="{{ false }}">{{ paletteCompact }}</sc-if>
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ════════════════ NEW DIAGRAM POPUP ════════════════ -->
+  <sc-if value="{{ showNew }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeNew }}" style="position:fixed;inset:0;background:var(--es-surface-scrim);display:flex;align-items:center;justify-content:center;z-index:50;padding:24px;">
+    <div onClick="{{ stop }}" style="width:680px;max-width:100%;max-height:90vh;overflow:auto;background:var(--es-surface-modal);border:1px solid var(--es-outline-gray-modal);border-radius:var(--es-radius-5);box-shadow:var(--es-elev-2xl);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:20px 22px 0;">
+        <div>
+          <h2 style="margin:0;font:700 19px var(--es-font-sans);color:var(--es-ink-9);">Create a new diagram</h2>
+          <p style="margin:5px 0 0;font:500 13px var(--es-font-sans);color:var(--es-ink-5);">Pick a type, or start from a template.</p>
+        </div>
+        <button class="fd-iconbtn" onClick="{{ closeNew }}" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:var(--es-radius-2);color:var(--es-ink-6);cursor:pointer;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div style="padding:18px 22px 6px;">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+          <button onClick="{{ goEditor }}" style="display:flex;flex-direction:column;gap:9px;padding:13px 12px;background:var(--es-surface-white);border:1.5px solid var(--es-gray-900);border-radius:var(--es-radius-3);cursor:pointer;text-align:left;font-family:var(--es-font-sans);position:relative;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--es-ink-9)" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4" width="8" height="6" rx="1.5"/><rect x="13" y="14" width="8" height="6" rx="1.5"/><path d="M7 10v2a2 2 0 0 0 2 2h6"/></svg>
+            <span style="font:600 13px var(--es-font-sans);color:var(--es-ink-9);">Block diagram</span>
+            <span style="font:500 11px var(--es-font-sans);color:var(--es-ink-5);">Boxes, arrows, flows</span>
+          </button>
+          {{ comingSoonTypes }}
+        </div>
+      </div>
+      <div style="padding:14px 22px 4px;">
+        <span style="font:600 11px var(--es-font-sans);letter-spacing:0.04em;text-transform:uppercase;color:var(--es-ink-5);">Start from a template</span>
+      </div>
+      <div style="padding:10px 22px 22px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+        {{ templateCards }}
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    screen: 'home', trash: false, dark: false, showNew: false,
+    layout: 'grid', sel: 'doctype', hover: null, painter: false,
+    guides: false, grid: true, preset: 'ocean', ctx: null,
+  };
+
+  renderVals() {
+    const s = this.state;
+    const h = React.createElement;
+    const BLUE = '#006EDB', PINK = '#E34AA6';
+    const BB = {
+      browser:{x:90,y:110,w:220,h:100}, rest:{x:430,y:110,w:190,h:100},
+      doctype:{x:740,y:110,w:220,h:100}, db:{x:1060,y:110,w:150,h:100},
+      decide:{x:435,y:262,w:180,h:136}, thumb:{x:740,y:300,w:220,h:96},
+    };
+    const names = { browser:'Rectangle', rest:'Rectangle', doctype:'Rectangle', db:'Rounded rectangle', thumb:'Rectangle', decide:'Diamond' };
+
+    // selection overlay (resize handles + rotation handle)
+    const sb = BB[s.sel];
+    const selectionOverlay = sb ? h('g', { key:'sel', style:{pointerEvents:'none'} },
+      h('rect', { x:sb.x-1.5, y:sb.y-1.5, width:sb.w+3, height:sb.h+3, rx:4, fill:'none', stroke:BLUE, strokeWidth:1.5, strokeDasharray:'6 4' }),
+      h('line', { x1:sb.x+sb.w/2, y1:sb.y, x2:sb.x+sb.w/2, y2:sb.y-36, stroke:BLUE, strokeWidth:1.5 }),
+      h('circle', { cx:sb.x+sb.w/2, cy:sb.y-42, r:9, fill:'#fff', stroke:BLUE, strokeWidth:1.5 }),
+      [[sb.x,sb.y],[sb.x+sb.w,sb.y],[sb.x,sb.y+sb.h],[sb.x+sb.w,sb.y+sb.h],[sb.x+sb.w/2,sb.y],[sb.x+sb.w/2,sb.y+sb.h],[sb.x,sb.y+sb.h/2],[sb.x+sb.w,sb.y+sb.h/2]]
+        .map((p,i)=>h('rect',{ key:i, x:p[0]-7, y:p[1]-7, width:14, height:14, rx:2.5, fill:'#fff', stroke:BLUE, strokeWidth:1.5 }))
+    ) : null;
+
+    // hover-arrows overlay
+    const hb = (s.hover && s.hover !== s.sel) ? BB[s.hover] : null;
+    let hoverOverlay = null;
+    if (hb) {
+      const cx = hb.x+hb.w/2, cy = hb.y+hb.h/2;
+      const pts = [[cx,hb.y-34,'up'],[cx,hb.y+hb.h+34,'down'],[hb.x-34,cy,'left'],[hb.x+hb.w+34,cy,'right']];
+      const glyph = { up:'M0 5 V-4 M-4.5 0.5 L0 -4 L4.5 0.5', down:'M0 -5 V4 M-4.5 -0.5 L0 4 L4.5 -0.5', left:'M5 0 H-4 M0.5 -4.5 L-4 0 L0.5 4.5', right:'M-5 0 H4 M-0.5 -4.5 L4 0 L-0.5 4.5' };
+      hoverOverlay = h('g', { key:'hov', style:{pointerEvents:'none'} },
+        pts.map((p,i)=>h('g',{ key:i, transform:`translate(${p[0]},${p[1]})` },
+          h('circle',{ r:16, fill:'#fff', stroke:BLUE, strokeWidth:1.5 }),
+          h('path',{ d:glyph[p[2]], fill:'none', stroke:BLUE, strokeWidth:2, strokeLinecap:'round', strokeLinejoin:'round' })
+        ))
+      );
+    }
+
+    // smart-guides overlay
+    const guidesOverlay = s.guides ? h('g', { key:'g', style:{pointerEvents:'none'} },
+      h('line',{ x1:850, y1:24, x2:850, y2:696, stroke:PINK, strokeWidth:1.2, strokeDasharray:'5 4' }),
+      h('line',{ x1:40, y1:160, x2:1240, y2:160, stroke:PINK, strokeWidth:1.2, strokeDasharray:'5 4' }),
+      h('g',{ transform:'translate(850,250)' },
+        h('rect',{ x:-34, y:-12, width:68, height:24, rx:5, fill:PINK }),
+        h('text',{ x:0, y:5, fill:'#fff', fontSize:13, fontWeight:700, textAnchor:'middle' }, 'centre')
+      )
+    ) : null;
+
+    // segmented controls (review panel)
+    const segBtn = (label, val, key) => h('button', {
+      key, onClick:()=>this.setState({layout:val}),
+      style:{ padding:'3px 8px', border:'none', cursor:'pointer', borderRadius:'4px',
+        font:'600 11px var(--es-font-sans)',
+        background: s.layout===val ? 'var(--es-surface-white)' : 'transparent',
+        color: s.layout===val ? 'var(--es-ink-9)' : 'var(--es-ink-5)',
+        boxShadow: s.layout===val ? 'var(--es-elev-md)' : 'none' }
+    }, label);
+    const layoutSeg = [segBtn('Grid','grid','a'), segBtn('List','list','b'), segBtn('Compact','compact','c')];
+
+    const guidesSeg = h('button', {
+      onClick:()=>this.setState(st=>({guides:!st.guides})),
+      style:{ display:'inline-flex', alignItems:'center', gap:'5px', padding:'3px 9px', cursor:'pointer',
+        borderRadius:'var(--es-radius-8)', border:'none', font:'600 11px var(--es-font-sans)',
+        background: s.guides ? 'var(--es-surface-blue-subtle)' : 'var(--es-surface-gray-2)',
+        color: s.guides ? 'var(--es-blue-800)' : 'var(--es-ink-6)' }
+    }, h('span',{ style:{ width:'7px', height:'7px', borderRadius:'50%', background: s.guides ? '#E34AA6' : 'var(--es-gray-400)' }}), s.guides ? 'On' : 'Off');
+
+    // ── right palettes ──────────────────────────────────────────
+    const ic = (d, sw) => h('svg',{ width:18, height:18, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth: sw||1.7, strokeLinecap:'round', strokeLinejoin:'round' }, h('path',{ d }));
+    const icRaw = (children, sw) => h('svg',{ width:18, height:18, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth: sw||1.7, strokeLinecap:'round', strokeLinejoin:'round' }, children);
+
+    const ICONS = {
+      toFront: icRaw([h('rect',{key:1,x:8,y:8,width:12,height:12,rx:2}),h('path',{key:2,d:'M4 16V6a2 2 0 0 1 2-2h10'})]),
+      toBack: icRaw([h('rect',{key:1,x:4,y:4,width:12,height:12,rx:2}),h('path',{key:2,d:'M20 8v10a2 2 0 0 1-2 2H8'})]),
+      forward: ic('M12 19V5M5 12l7-7 7 7'),
+      backward: ic('M12 5v14M5 12l7 7 7-7'),
+      group: icRaw([h('rect',{key:1,x:3,y:3,width:7,height:7,rx:1}),h('rect',{key:2,x:14,y:14,width:7,height:7,rx:1}),h('rect',{key:3,x:14,y:3,width:7,height:7,rx:1}),h('rect',{key:4,x:3,y:14,width:7,height:7,rx:1})]),
+      ungroup: icRaw([h('rect',{key:1,x:3,y:3,width:7,height:7,rx:1}),h('rect',{key:2,x:14,y:14,width:7,height:7,rx:1})]),
+      alignL: icRaw([h('path',{key:1,d:'M4 4v16'}),h('rect',{key:2,x:7,y:7,width:12,height:4,rx:1}),h('rect',{key:3,x:7,y:14,width:7,height:4,rx:1})]),
+      alignCH: icRaw([h('path',{key:1,d:'M12 4v16'}),h('rect',{key:2,x:6,y:7,width:12,height:4,rx:1}),h('rect',{key:3,x:8,y:14,width:8,height:4,rx:1})]),
+      alignR: icRaw([h('path',{key:1,d:'M20 4v16'}),h('rect',{key:2,x:5,y:7,width:12,height:4,rx:1}),h('rect',{key:3,x:10,y:14,width:7,height:4,rx:1})]),
+      alignT: icRaw([h('path',{key:1,d:'M4 4h16'}),h('rect',{key:2,x:7,y:7,width:4,height:12,rx:1}),h('rect',{key:3,x:14,y:7,width:4,height:7,rx:1})]),
+      alignM: icRaw([h('path',{key:1,d:'M4 12h16'}),h('rect',{key:2,x:7,y:6,width:4,height:12,rx:1}),h('rect',{key:3,x:14,y:8,width:4,height:8,rx:1})]),
+      alignB: icRaw([h('path',{key:1,d:'M4 20h16'}),h('rect',{key:2,x:7,y:5,width:4,height:12,rx:1}),h('rect',{key:3,x:14,y:10,width:4,height:7,rx:1})]),
+      distH: icRaw([h('path',{key:1,d:'M4 4v16M20 4v16'}),h('rect',{key:2,x:9,y:8,width:6,height:8,rx:1})]),
+      distV: icRaw([h('path',{key:1,d:'M4 4h16M4 20h16'}),h('rect',{key:2,x:8,y:9,width:8,height:6,rx:1})]),
+      stack: ic('M3 12h18M3 6h18M3 18h18'),
+      sizeW: icRaw([h('path',{key:1,d:'M3 12h18M3 8v8M21 8v8'})]),
+      sizeH: icRaw([h('path',{key:1,d:'M12 3v18M8 3h8M8 21h8'})]),
+      sizeB: icRaw([h('path',{key:1,d:'M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3'})]),
+      swap: ic('M8 3 4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4'),
+      rotL: icRaw([h('path',{key:1,d:'M3 12a9 9 0 1 0 2.6-6.3'}),h('path',{key:2,d:'M3 4v5h5'})]),
+      rotR: icRaw([h('path',{key:1,d:'M21 12a9 9 0 1 1-2.6-6.3'}),h('path',{key:2,d:'M21 4v5h-5'})]),
+      flipH: icRaw([h('path',{key:1,d:'M12 3v18'}),h('path',{key:2,d:'M7 8 4 12l3 4z'}),h('path',{key:3,d:'M17 8l3 4-3 4z'})]),
+      flipV: icRaw([h('path',{key:1,d:'M3 12h18'}),h('path',{key:2,d:'M8 7 12 4l4 3z'}),h('path',{key:3,d:'M8 17l4 3 4-3z'})]),
+      bold: ic('M6 4h7a4 4 0 0 1 0 8H6zM6 12h8a4 4 0 0 1 0 8H6z', 1.8),
+      italic: ic('M19 4h-9M14 20H5M15 4 9 20', 1.8),
+      under: ic('M6 4v6a6 6 0 0 0 12 0V4M5 21h14', 1.8),
+      painter: ic('M18.4 2.6a2 2 0 0 1 3 3L10 17l-4 1 1-4z', 1.8),
+      canvas: ic('M4 7h16M4 17h16M7 3v18M17 3v18'),
+    };
+
+    const tile = (key, label, icon, onClick, active) => h('button', {
+      key, onClick: onClick||(()=>{}), title: label, className:'fd-rtile',
+      style:{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'4px',
+        height:'48px', borderRadius:'var(--es-radius-2)', cursor:'pointer', minWidth:0, overflow:'hidden',
+        border:'1px solid ' + (active ? 'var(--es-gray-900)' : 'var(--es-outline-gray-1)'),
+        background: active ? 'var(--es-surface-gray-2)' : 'var(--es-surface-white)',
+        color:'var(--es-ink-8)', fontFamily:'var(--es-font-sans)' }
+    }, icon, h('span',{ style:{ font:'500 9px var(--es-font-sans)', color:'var(--es-ink-6)', letterSpacing:'0.01em', maxWidth:'100%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}, label));
+
+    const sectionLabel = (t) => h('div',{ style:{ font:'600 10px var(--es-font-sans)', letterSpacing:'0.05em', textTransform:'uppercase', color:'var(--es-ink-5)', margin:'0 0 8px' }}, t);
+    const section = (key, title, body) => h('div',{ key, style:{ padding:'13px 14px', borderBottom:'1px solid var(--es-outline-gray-1)' }}, sectionLabel(title), body);
+    const grid3 = (kids) => h('div',{ style:{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'6px' }}, kids);
+    const grid6 = (kids) => h('div',{ style:{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:'5px' }}, kids);
+
+    const swatchRow = (colors, label) => h('div',{ style:{ display:'flex', alignItems:'center', gap:'5px', marginTop: label?'8px':'0' }},
+      label ? h('span',{ style:{ font:'500 11px var(--es-font-sans)', color:'var(--es-ink-6)', width:'42px' }}, label) : null,
+      colors.map((c,i)=>h('button',{ key:i, title:c, style:{ width:'22px', height:'22px', borderRadius:'5px', border:'1px solid rgba(0,0,0,.10)', background:c, cursor:'pointer', padding:0 }})),
+      h('button',{ title:'More colours', style:{ width:'22px', height:'22px', borderRadius:'5px', border:'1px dashed var(--es-outline-gray-3)', background:'transparent', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--es-ink-5)' }}, icRaw(h('path',{d:'M12 5v14M5 12h14'}),2))
+    );
+
+    const FILLS = ['#EFF6FF','#F4FFF6','#FDFAED','#FCEAF5','#F3F3F3','#171717'];
+    const BORDERS = ['#4F94FF','#88D5A5','#FBCC55','#E68AC4','#999999','#171717'];
+
+    const presets = [
+      { id:'ocean', name:'Ocean', cols:['#EFF6FF','#F4FFF6','#FDFAED'] },
+      { id:'slate', name:'Slate', cols:['#F3F3F3','#E2E2E2','#C7C7C7'] },
+      { id:'violet', name:'Violet', cols:['#EFEAFE','#E7F8FB','#FCEAF5'] },
+      { id:'sunset', name:'Sunset', cols:['#FFF1E6','#FDECEC','#FFF7D8'] },
+    ];
+    const presetCards = (cardW) => h('div',{ style:{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'7px' }},
+      presets.map(p=>h('button',{ key:p.id, onClick:()=>this.setState({preset:p.id}),
+        style:{ display:'flex', alignItems:'center', gap:'7px', padding:'7px 8px', cursor:'pointer',
+          borderRadius:'var(--es-radius-2)', border:'1.5px solid ' + (s.preset===p.id ? 'var(--es-gray-900)' : 'var(--es-outline-gray-1)'),
+          background:'var(--es-surface-white)', fontFamily:'var(--es-font-sans)' }},
+        h('div',{ style:{ display:'flex', gap:'2px' }}, p.cols.map((c,i)=>h('span',{ key:i, style:{ width:'12px', height:'18px', borderRadius:'3px', background:c, border:'1px solid rgba(0,0,0,.08)' }}))),
+        h('span',{ style:{ font:'600 11px var(--es-font-sans)', color:'var(--es-ink-8)' }}, p.name)
+      ))
+    );
+
+    const transSlider = h('div',{ style:{ display:'flex', alignItems:'center', gap:'9px' }},
+      h('div',{ style:{ position:'relative', flex:1, height:'5px', borderRadius:'3px', background:'var(--es-surface-gray-3)' }},
+        h('div',{ style:{ position:'absolute', left:0, top:0, bottom:0, width:'100%', borderRadius:'3px', background:'var(--es-gray-800)' }}),
+        h('div',{ style:{ position:'absolute', left:'calc(100% - 7px)', top:'-5px', width:'15px', height:'15px', borderRadius:'50%', background:'#fff', border:'1px solid var(--es-outline-gray-3)', boxShadow:'var(--es-elev-md)' }})
+      ),
+      h('span',{ style:{ font:'600 11px var(--es-font-sans)', color:'var(--es-ink-8)', width:'34px', textAlign:'right' }}, '100%')
+    );
+
+    // GRID palette (hero)
+    const paletteGrid = h('div',{ key:'pg' },
+      section('arr','Arrange', h('div',null,
+        grid3([tile('a1','To front',ICONS.toFront), tile('a2','Forward',ICONS.forward), tile('a3','Backward',ICONS.backward)]),
+        h('div',{ style:{ height:'6px' }}),
+        grid3([tile('a4','To back',ICONS.toBack), tile('a5','Group',ICONS.group), tile('a6','Ungroup',ICONS.ungroup)])
+      )),
+      section('al','Align', grid6([
+        tile('l1','Left',ICONS.alignL), tile('l2','Center',ICONS.alignCH), tile('l3','Right',ICONS.alignR),
+        tile('l4','Top',ICONS.alignT), tile('l5','Middle',ICONS.alignM), tile('l6','Bottom',ICONS.alignB)
+      ])),
+      section('di','Distribute & size', grid3([
+        tile('d1','Dist. H',ICONS.distH), tile('d2','Dist. V',ICONS.distV), tile('d3','Remove gaps',ICONS.stack),
+        tile('d4','Width',ICONS.sizeW), tile('d5','Height',ICONS.sizeH), tile('d6','Same size',ICONS.sizeB)
+      ])),
+      section('tr','Transform', grid6([
+        tile('t1','Swap',ICONS.swap), tile('t2','Rotate L',ICONS.rotL), tile('t3','Rotate R',ICONS.rotR),
+        tile('t4','Flip H',ICONS.flipH), tile('t5','Flip V',ICONS.flipV),
+        tile('t6','Painter',ICONS.painter, ()=>this.setState(st=>({painter:!st.painter})), s.painter)
+      ])),
+      section('fi','Fill & border', h('div',null,
+        swatchRow(FILLS,'Fill'),
+        swatchRow(BORDERS,'Border'),
+        h('div',{ style:{ display:'flex', gap:'6px', marginTop:'9px' }},
+          h('div',{ style:{ flex:1, display:'flex', alignItems:'center', justifyContent:'space-between', height:'30px', padding:'0 9px', borderRadius:'var(--es-radius-2)', border:'1px solid var(--es-outline-gray-1)', font:'500 12px var(--es-font-sans)', color:'var(--es-ink-8)' }}, 'Weight', h('span',{style:{color:'var(--es-ink-5)'}},'2 px')),
+          h('div',{ style:{ flex:1, display:'flex', alignItems:'center', justifyContent:'space-between', height:'30px', padding:'0 9px', borderRadius:'var(--es-radius-2)', border:'1px solid var(--es-outline-gray-1)', font:'500 12px var(--es-font-sans)', color:'var(--es-ink-8)' }}, 'Solid', icRaw(h('path',{d:'m6 9 6 6 6-6'}),1.7))
+        )
+      )),
+      section('tx','Text', h('div',null,
+        h('div',{ style:{ display:'flex', gap:'6px' }},
+          h('div',{ style:{ flex:1, display:'flex', alignItems:'center', justifyContent:'space-between', height:'30px', padding:'0 9px', borderRadius:'var(--es-radius-2)', border:'1px solid var(--es-outline-gray-1)', font:'500 12px var(--es-font-sans)', color:'var(--es-ink-8)' }}, 'Inter', icRaw(h('path',{d:'m6 9 6 6 6-6'}),1.7)),
+          h('div',{ style:{ width:'58px', display:'flex', alignItems:'center', justifyContent:'space-between', height:'30px', padding:'0 9px', borderRadius:'var(--es-radius-2)', border:'1px solid var(--es-outline-gray-1)', font:'500 12px var(--es-font-sans)', color:'var(--es-ink-8)' }}, '16', icRaw(h('path',{d:'m6 9 6 6 6-6'}),1.7))
+        ),
+        h('div',{ style:{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:'5px', marginTop:'7px' }},
+          tile('x1','Bold',ICONS.bold), tile('x2','Italic',ICONS.italic), tile('x3','Under',ICONS.under),
+          tile('x4','Left',ICONS.alignL), tile('x5','Center',ICONS.alignCH), tile('x6','Right',ICONS.alignR)
+        )
+      )),
+      section('op','Transparency', transSlider),
+      section('th','Theme presets', presetCards()),
+      h('div',{ style:{ padding:'13px 14px' }}, sectionLabel('Canvas'),
+        h('div',{ style:{ display:'flex', alignItems:'center', justifyContent:'space-between', height:'32px', padding:'0 10px', borderRadius:'var(--es-radius-2)', border:'1px solid var(--es-outline-gray-1)', font:'500 12px var(--es-font-sans)', color:'var(--es-ink-8)', marginBottom:'7px' }}, h('span',null,'Widescreen 16:9'), h('span',{style:{color:'var(--es-ink-5)'}},'1280 × 720')),
+        swatchRow(['#FFFFFF','#FAFAFA','#F4FFF6','#EFF6FF','#171717'],'Bg')
+      )
+    );
+
+    // LIST palette
+    const listRow = (key, label, icon, right, onClick, active) => h('button',{
+      key, onClick: onClick||(()=>{}), className:'fd-listrow',
+      style:{ display:'flex', alignItems:'center', gap:'10px', width:'100%', height:'34px', padding:'0 10px', cursor:'pointer',
+        border:'none', borderRadius:'var(--es-radius-2)', background: active?'var(--es-surface-gray-2)':'transparent', fontFamily:'var(--es-font-sans)' }},
+      h('span',{ style:{ color:'var(--es-ink-7)', display:'flex' }}, icon),
+      h('span',{ style:{ flex:1, textAlign:'left', font:'500 13px var(--es-font-sans)', color:'var(--es-ink-9)' }}, label),
+      right || null
+    );
+    const rowChevron = icRaw(h('path',{d:'m9 6 6 6-6 6'}),1.7);
+    const paletteList = h('div',{ key:'pl' },
+      section('arr','Arrange', h('div',null,
+        listRow('a1','Bring to front',ICONS.toFront,rowChevron),
+        listRow('a2','Send to back',ICONS.toBack,rowChevron),
+        listRow('a3','Group selection',ICONS.group),
+        listRow('a4','Ungroup',ICONS.ungroup)
+      )),
+      section('al','Align & distribute', h('div',null,
+        listRow('l1','Align horizontally',ICONS.alignCH,rowChevron),
+        listRow('l2','Align vertically',ICONS.alignM,rowChevron),
+        listRow('l3','Distribute spacing',ICONS.distH,rowChevron),
+        listRow('l4','Make same size',ICONS.sizeB,rowChevron)
+      )),
+      section('tr','Transform', h('div',null,
+        listRow('t1','Swap positions',ICONS.swap),
+        listRow('t2','Rotate / flip',ICONS.rotR,rowChevron),
+        listRow('t3','Format painter',ICONS.painter, h('span',{style:{font:'600 11px var(--es-font-sans)',color: s.painter?'var(--es-blue-800)':'var(--es-ink-5)'}}, s.painter?'On':'Off'), ()=>this.setState(st=>({painter:!st.painter})), s.painter)
+      )),
+      section('fi','Fill & border', h('div',null, swatchRow(FILLS,'Fill'), swatchRow(BORDERS,'Border'))),
+      section('tx','Text', h('div',null,
+        listRow('x1','Font — Inter',ICONS.canvas,h('span',{style:{font:'500 12px var(--es-font-sans)',color:'var(--es-ink-5)'}},'16')),
+        h('div',{ style:{ display:'flex', gap:'5px', marginTop:'4px' }}, tile('x2','Bold',ICONS.bold), tile('x3','Italic',ICONS.italic), tile('x4','Under',ICONS.under))
+      )),
+      section('op','Transparency', transSlider),
+      h('div',{ style:{ padding:'13px 14px' }}, sectionLabel('Theme presets'), presetCards())
+    );
+
+    // COMPACT palette
+    const cbtn = (key, label, icon, onClick, active) => h('button',{
+      key, onClick:onClick||(()=>{}), title:label, className:'fd-rtile',
+      style:{ width:'30px', height:'30px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer',
+        borderRadius:'var(--es-radius-2)', border:'1px solid ' + (active?'var(--es-gray-900)':'var(--es-outline-gray-1)'),
+        background: active?'var(--es-surface-gray-2)':'var(--es-surface-white)', color:'var(--es-ink-8)' }}, icon);
+    const cRow = (kids) => h('div',{ style:{ display:'flex', flexWrap:'wrap', gap:'4px' }}, kids);
+    const cSec = (key,title,body) => h('div',{ key, style:{ padding:'10px 14px', borderBottom:'1px solid var(--es-outline-gray-1)' }},
+      h('div',{ style:{ font:'600 9px var(--es-font-sans)', letterSpacing:'0.05em', textTransform:'uppercase', color:'var(--es-ink-5)', marginBottom:'6px' }}, title), body);
+    const paletteCompact = h('div',{ key:'pc' },
+      cSec('arr','Arrange', cRow([cbtn('a1','To front',ICONS.toFront),cbtn('a2','Forward',ICONS.forward),cbtn('a3','Backward',ICONS.backward),cbtn('a4','To back',ICONS.toBack),cbtn('a5','Group',ICONS.group),cbtn('a6','Ungroup',ICONS.ungroup)])),
+      cSec('al','Align', cRow([cbtn('l1','Left',ICONS.alignL),cbtn('l2','Center',ICONS.alignCH),cbtn('l3','Right',ICONS.alignR),cbtn('l4','Top',ICONS.alignT),cbtn('l5','Middle',ICONS.alignM),cbtn('l6','Bottom',ICONS.alignB)])),
+      cSec('tr','Distribute & transform', cRow([cbtn('t1','Dist H',ICONS.distH),cbtn('t2','Dist V',ICONS.distV),cbtn('t3','Same size',ICONS.sizeB),cbtn('t4','Swap',ICONS.swap),cbtn('t5','Rotate',ICONS.rotR),cbtn('t6','Flip',ICONS.flipH),cbtn('t7','Painter',ICONS.painter,()=>this.setState(st=>({painter:!st.painter})),s.painter)])),
+      cSec('tx','Text', cRow([cbtn('x1','Bold',ICONS.bold),cbtn('x2','Italic',ICONS.italic),cbtn('x3','Under',ICONS.under),cbtn('x4','Left',ICONS.alignL),cbtn('x5','Center',ICONS.alignCH),cbtn('x6','Right',ICONS.alignR)])),
+      cSec('fi','Fill & border', h('div',null, swatchRow(FILLS), h('div',{style:{height:'5px'}}), swatchRow(BORDERS))),
+      h('div',{ style:{ padding:'10px 14px' }}, h('div',{ style:{ font:'600 9px var(--es-font-sans)', letterSpacing:'0.05em', textTransform:'uppercase', color:'var(--es-ink-5)', marginBottom:'6px' }}, 'Theme'),
+        h('div',{ style:{ display:'flex', gap:'5px' }}, presets.map(p=>h('button',{ key:p.id, onClick:()=>this.setState({preset:p.id}), title:p.name,
+          style:{ display:'flex', gap:'2px', padding:'5px', cursor:'pointer', borderRadius:'var(--es-radius-2)', border:'1.5px solid '+(s.preset===p.id?'var(--es-gray-900)':'var(--es-outline-gray-1)'), background:'var(--es-surface-white)' }},
+          p.cols.map((c,i)=>h('span',{key:i,style:{width:'9px',height:'16px',borderRadius:'2px',background:c,border:'1px solid rgba(0,0,0,.08)'}})))))
+      )
+    );
+
+    // ── coming-soon type cards ──
+    const soon = [
+      { name:'Mind map', d:'M12 3v6m0 0a3 3 0 1 0 0 6m0-6 7 4M5 13l7-4' },
+      { name:'Process chart', d:'M3 6h7l3 4 3-4h5M3 18h7l3-4' },
+      { name:'Whiteboard', d:'M4 6h16v9H4zM9 19h6M12 15v4' },
+    ];
+    const comingSoonTypes = soon.map((t,i)=>h('div',{ key:i,
+      style:{ display:'flex', flexDirection:'column', gap:'9px', padding:'13px 12px', background:'var(--es-surface-gray-1)', border:'1px solid var(--es-outline-gray-1)', borderRadius:'var(--es-radius-3)', position:'relative', opacity:.72 }},
+      h('svg',{ width:22, height:22, viewBox:'0 0 24 24', fill:'none', stroke:'var(--es-ink-5)', strokeWidth:1.7, strokeLinecap:'round', strokeLinejoin:'round' }, h('path',{ d:t.d })),
+      h('span',{ style:{ font:'600 13px var(--es-font-sans)', color:'var(--es-ink-7)' }}, t.name),
+      h('span',{ style:{ font:'600 9px var(--es-font-sans)', letterSpacing:'0.04em', textTransform:'uppercase', color:'var(--es-ink-5)', background:'var(--es-surface-gray-3)', borderRadius:'var(--es-radius-8)', padding:'2px 6px', alignSelf:'flex-start' }}, 'Coming soon')
+    ));
+
+    // ── template cards ──
+    const thumbWrap = (kids) => h('svg',{ width:'100%', height:74, viewBox:'0 0 200 100', preserveAspectRatio:'xMidYMid meet', style:{ display:'block' }}, kids);
+    const T = {
+      blank: thumbWrap(h('rect',{ x:30, y:14, width:140, height:72, rx:4, fill:'none', stroke:'#D8D8DB', strokeWidth:2, strokeDasharray:'5 5' })),
+      flow: thumbWrap([h('rect',{key:1,x:78,y:10,width:44,height:18,rx:9,fill:'#EFF6FF',stroke:'#80B6FF',strokeWidth:1.6}),h('rect',{key:2,x:78,y:40,width:44,height:18,rx:3,fill:'#F4FFF6',stroke:'#88D5A5',strokeWidth:1.6}),h('path',{key:3,d:'M100 28v12',stroke:'#9AA',strokeWidth:1.6}),h('path',{key:4,d:'M100 58 L100 66 L130 66',stroke:'#9AA',strokeWidth:1.6,fill:'none'}),h('rect',{key:5,x:126,y:58,width:44,height:18,rx:3,fill:'#FDFAED',stroke:'#FBCC55',strokeWidth:1.6})]),
+      org: thumbWrap([h('rect',{key:1,x:80,y:10,width:40,height:16,rx:3,fill:'#EFF6FF',stroke:'#80B6FF',strokeWidth:1.6}),h('path',{key:2,d:'M100 26v10M60 46v-10h80v10',stroke:'#9AA',strokeWidth:1.4,fill:'none'}),h('rect',{key:3,x:42,y:46,width:36,height:15,rx:3,fill:'#F4FFF6',stroke:'#88D5A5',strokeWidth:1.6}),h('rect',{key:4,x:82,y:46,width:36,height:15,rx:3,fill:'#F4FFF6',stroke:'#88D5A5',strokeWidth:1.6}),h('rect',{key:5,x:122,y:46,width:36,height:15,rx:3,fill:'#F4FFF6',stroke:'#88D5A5',strokeWidth:1.6})]),
+      swot: thumbWrap([h('rect',{key:1,x:42,y:12,width:55,height:34,rx:3,fill:'#EFF6FF',stroke:'#80B6FF',strokeWidth:1.4}),h('rect',{key:2,x:103,y:12,width:55,height:34,rx:3,fill:'#F4FFF6',stroke:'#88D5A5',strokeWidth:1.4}),h('rect',{key:3,x:42,y:52,width:55,height:34,rx:3,fill:'#FDFAED',stroke:'#FBCC55',strokeWidth:1.4}),h('rect',{key:4,x:103,y:52,width:55,height:34,rx:3,fill:'#FCEAF5',stroke:'#E68AC4',strokeWidth:1.4})]),
+      mind: thumbWrap([h('circle',{key:1,cx:100,cy:50,r:14,fill:'#EFEAFE',stroke:'#8A6BF0',strokeWidth:1.6}),h('path',{key:2,d:'M114 44C140 30 150 28 168 26M114 56C140 70 150 72 168 74M86 50H40',stroke:'#C7C7C7',strokeWidth:1.4,fill:'none'}),h('rect',{key:3,x:150,y:18,width:34,height:14,rx:7,fill:'#E7F8FB',stroke:'#5BC8E0',strokeWidth:1.4}),h('rect',{key:4,x:150,y:67,width:34,height:14,rx:7,fill:'#FCEAF5',stroke:'#E68AC4',strokeWidth:1.4}),h('rect',{key:5,x:14,y:43,width:28,height:14,rx:7,fill:'#FFF1E6',stroke:'#F6A360',strokeWidth:1.4})]),
+      timeline: thumbWrap([h('path',{key:1,d:'M20 50h160',stroke:'#C7C7C7',strokeWidth:2}),h('circle',{key:2,cx:50,cy:50,r:7,fill:'#EFF6FF',stroke:'#80B6FF',strokeWidth:1.8}),h('circle',{key:3,cx:100,cy:50,r:7,fill:'#F4FFF6',stroke:'#88D5A5',strokeWidth:1.8}),h('circle',{key:4,cx:150,cy:50,r:7,fill:'#FDFAED',stroke:'#FBCC55',strokeWidth:1.8})]),
+    };
+    const tpl = [['Blank canvas',T.blank],['Flowchart',T.flow],['Org chart',T.org],['SWOT grid',T.swot],['Mind map',T.mind],['Timeline',T.timeline]];
+    const templateCards = tpl.map((t,i)=>h('button',{ key:i, onClick:()=>this.setState({showNew:false, screen:'editor'}),
+      className:'fd-rtile',
+      style:{ display:'flex', flexDirection:'column', padding:0, overflow:'hidden', cursor:'pointer', borderRadius:'var(--es-radius-3)', border:'1px solid var(--es-outline-gray-1)', background:'var(--es-surface-white)', fontFamily:'var(--es-font-sans)' }},
+      h('div',{ style:{ background:'var(--es-surface-gray-1)', borderBottom:'1px solid var(--es-outline-gray-1)', padding:'8px 0' }}, t[1]),
+      h('span',{ style:{ font:'600 12px var(--es-font-sans)', color:'var(--es-ink-8)', padding:'8px 10px', textAlign:'left' }}, t[0])
+    ));
+
+    // ── home tiles ──
+    const homeThumb = (kids) => h('div',{ style:{ height:'120px', background:'var(--es-surface-white)', borderBottom:'1px solid var(--es-outline-gray-1)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }},
+      h('svg',{ width:'88%', height:'82%', viewBox:'0 0 200 100', preserveAspectRatio:'xMidYMid meet' }, kids));
+    const tileThumbs = {
+      arch: [h('rect',{key:1,x:14,y:16,width:42,height:22,rx:3,fill:'#EFF6FF',stroke:'#80B6FF',strokeWidth:1.6}),h('rect',{key:2,x:79,y:16,width:42,height:22,rx:3,fill:'#F4FFF6',stroke:'#88D5A5',strokeWidth:1.6}),h('rect',{key:3,x:144,y:16,width:42,height:22,rx:3,fill:'#FDFAED',stroke:'#FBCC55',strokeWidth:1.6}),h('path',{key:4,d:'M56 27h23M121 27h23',stroke:'#9AA',strokeWidth:1.6}),h('path',{key:5,d:'M100 38v14h-65v12',stroke:'#9AA',strokeWidth:1.4,fill:'none'}),h('rect',{key:6,x:14,y:64,width:50,height:20,rx:3,fill:'#FCEAF5',stroke:'#E68AC4',strokeWidth:1.6})],
+      flow: T && null,
+    };
+    const homeTile = (id, title, when, kids, badge) => h('div',{ key:id, className:'fd-tile-card', onClick:()=>this.setState({screen:'editor'}),
+      style:{ position:'relative', borderRadius:'var(--es-radius-4)', border:'1px solid var(--es-outline-gray-1)', background:'var(--es-surface-white)', overflow:'hidden', cursor:'pointer', boxShadow:'var(--es-elev-base)' }},
+      homeThumb(kids),
+      h('div',{ style:{ padding:'9px 11px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px' }},
+        h('div',{ style:{ minWidth:0, display:'flex', flexDirection:'column', lineHeight:1.3 }},
+          h('span',{ style:{ font:'600 13px var(--es-font-sans)', color:'var(--es-ink-9)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}, title),
+          h('span',{ style:{ font:'500 11px var(--es-font-sans)', color:'var(--es-ink-5)' }}, when)
+        ),
+        h('div',{ className:'fd-tile-menu', onClick:(e)=>{ e.stopPropagation(); this.setState(st=>({ctx: st.ctx===id?null:id})); },
+          style:{ width:'26px', height:'26px', flex:'0 0 auto', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:'var(--es-radius-2)', background: s.ctx===id?'var(--es-surface-gray-2)':'transparent', opacity: s.ctx===id?1:0, transition:'opacity .12s', color:'var(--es-ink-6)' }},
+          icRaw([h('circle',{key:1,cx:5,cy:12,r:1.6,fill:'currentColor',stroke:'none'}),h('circle',{key:2,cx:12,cy:12,r:1.6,fill:'currentColor',stroke:'none'}),h('circle',{key:3,cx:19,cy:12,r:1.6,fill:'currentColor',stroke:'none'})])
+        )
+      ),
+      s.ctx===id ? h('div',{ onClick:(e)=>e.stopPropagation(),
+        style:{ position:'absolute', right:'10px', bottom:'44px', width:'168px', padding:'5px', background:'var(--es-surface-modal)', border:'1px solid var(--es-outline-gray-1)', borderRadius:'var(--es-radius-3)', boxShadow:'var(--es-elev-xl)', zIndex:10 }},
+        [['Rename','M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z'],['Edit description','M4 7V5h16v2M9 19h6M12 5v14'],['Duplicate','M9 9h11v11H9zM5 15V5a2 2 0 0 1 2-2h10']].map((m,i)=>h('div',{ key:i, className:'fd-listrow', style:{ display:'flex', alignItems:'center', gap:'9px', height:'30px', padding:'0 8px', borderRadius:'var(--es-radius-1)', font:'500 12px var(--es-font-sans)', color:'var(--es-ink-8)', cursor:'pointer' }},
+          h('svg',{ width:14, height:14, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:1.7, strokeLinecap:'round', strokeLinejoin:'round' }, h('path',{ d:m[1] })), m[0])),
+        h('div',{ style:{ height:'1px', background:'var(--es-outline-gray-1)', margin:'4px 0' }}),
+        h('div',{ className:'fd-listrow', style:{ display:'flex', alignItems:'center', gap:'9px', height:'30px', padding:'0 8px', borderRadius:'var(--es-radius-1)', font:'500 12px var(--es-font-sans)', color:'var(--es-red-600)', cursor:'pointer' }},
+          h('svg',{ width:14, height:14, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:1.7, strokeLinecap:'round', strokeLinejoin:'round' }, h('path',{ d:'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14' })), 'Delete')
+      ) : null
+    );
+
+    const recentTiles = [
+      homeTile('t1','Frappe Draw — request flow','Edited 3h ago', tileThumbs.arch),
+      homeTile('t2','Q3 launch flowchart','Edited yesterday', T.flow.props.children),
+      homeTile('t3','Engineering org chart','Edited 2 days ago', T.org.props.children),
+      homeTile('t4','Helpdesk SWOT','Edited 4 days ago', T.swot.props.children),
+      homeTile('t5','Onboarding mind map','Edited last week', T.mind.props.children),
+    ];
+    const folderTiles = [
+      homeTile('f1','Acme — data model','Edited 6 days ago', T.timeline.props.children),
+      homeTile('f2','Acme — review board','Edited 2 weeks ago', tileThumbs.arch),
+    ];
+
+    // trash tiles
+    const trashTile = (id, title, kids) => h('div',{ key:id,
+      style:{ position:'relative', borderRadius:'var(--es-radius-4)', border:'1px solid var(--es-outline-gray-1)', background:'var(--es-surface-white)', overflow:'hidden' }},
+      h('div',{ style:{ opacity:.55 }}, homeThumb(kids)),
+      h('div',{ style:{ padding:'9px 11px' }},
+        h('span',{ style:{ font:'600 13px var(--es-font-sans)', color:'var(--es-ink-8)', display:'block' }}, title),
+        h('span',{ style:{ font:'500 11px var(--es-font-sans)', color:'var(--es-ink-5)' }}, 'Deleted 2 days ago'),
+        h('div',{ style:{ display:'flex', gap:'6px', marginTop:'9px' }},
+          h('button',{ style:{ flex:1, height:'28px', borderRadius:'var(--es-radius-2)', border:'1px solid var(--es-outline-gray-2)', background:'var(--es-surface-white)', font:'600 12px var(--es-font-sans)', color:'var(--es-ink-9)', cursor:'pointer' }}, 'Restore'),
+          h('button',{ style:{ height:'28px', padding:'0 10px', borderRadius:'var(--es-radius-2)', border:'1px solid var(--es-outline-red)', background:'var(--es-surface-white)', font:'600 12px var(--es-font-sans)', color:'var(--es-red-600)', cursor:'pointer' }}, 'Delete')
+        )
+      )
+    );
+    const trashTiles = [
+      trashTile('z1','Old sitemap v2', T.flow.props.children),
+      trashTile('z2','Scratch ideas', tileThumbs.arch),
+    ];
+
+    return {
+      isHome: s.screen==='home' && !s.trash,
+      isTrash: s.screen==='home' && s.trash,
+      isEditor: s.screen==='editor',
+      themeAttr: s.dark ? 'dark' : '',
+      dark: s.dark, light: !s.dark,
+      presetAttr: s.preset,
+      gridLayout: s.layout==='grid', listLayout: s.layout==='list', compactLayout: s.layout==='compact',
+      selName: names[s.sel] || 'Shape',
+      painter: s.painter, grid: s.grid, showNew: s.showNew,
+      selectionOverlay, hoverOverlay, guidesOverlay,
+      layoutSeg, guidesSeg,
+      paletteGrid, paletteList, paletteCompact,
+      comingSoonTypes, templateCards, recentTiles, folderTiles, trashTiles,
+      // handlers
+      goEditor: () => this.setState({ screen:'editor', showNew:false }),
+      goHome: () => this.setState({ screen:'home', trash:false, ctx:null }),
+      openTrash: () => this.setState({ screen:'home', trash:true }),
+      openNew: () => this.setState({ showNew:true }),
+      closeNew: () => this.setState({ showNew:false }),
+      toggleDark: () => this.setState(st=>({ dark:!st.dark })),
+      toggleGrid: () => this.setState(st=>({ grid:!st.grid })),
+      clearHover: () => this.setState({ hover:null }),
+      deselect: () => this.setState({ ctx:null }),
+      stop: (e) => { e && e.stopPropagation && e.stopPropagation(); },
+      sel_browser: (e)=>{ e&&e.stopPropagation&&e.stopPropagation(); this.setState({sel:'browser'}); },
+      sel_rest: (e)=>{ e&&e.stopPropagation&&e.stopPropagation(); this.setState({sel:'rest'}); },
+      sel_doctype: (e)=>{ e&&e.stopPropagation&&e.stopPropagation(); this.setState({sel:'doctype'}); },
+      sel_db: (e)=>{ e&&e.stopPropagation&&e.stopPropagation(); this.setState({sel:'db'}); },
+      sel_decide: (e)=>{ e&&e.stopPropagation&&e.stopPropagation(); this.setState({sel:'decide'}); },
+      sel_thumb: (e)=>{ e&&e.stopPropagation&&e.stopPropagation(); this.setState({sel:'thumb'}); },
+      enter_browser: ()=>this.setState({hover:'browser'}),
+      enter_rest: ()=>this.setState({hover:'rest'}),
+      enter_doctype: ()=>this.setState({hover:'doctype'}),
+      enter_db: ()=>this.setState({hover:'db'}),
+      enter_decide: ()=>this.setState({hover:'decide'}),
+      enter_thumb: ()=>this.setState({hover:'thumb'}),
+    };
+  }
+}
+</script>
+</body>
+</html>

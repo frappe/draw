@@ -1,0 +1,362 @@
+/* ────────────────────────────────────────────────────────────────
+   Espresso — Frappe Design System v1.0
+   Tokens + semantic helpers
+   Source: Figma "Espresso by Frappe (Community)"
+   ──────────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /* ── Neutral / gray ───────────────────────────────────────── */
+  --es-white:        #FFFFFF;
+  --es-black:        #000000;
+  --es-gray-50:      #F8F8F8;
+  --es-gray-100:     #F3F3F3;
+  --es-gray-200:     #EDEDED;
+  --es-gray-300:     #E2E2E2;
+  --es-gray-400:     #C7C7C7;
+  --es-gray-500:     #999999;
+  --es-gray-600:     #7C7C7C;
+  --es-gray-700:     #525252;
+  --es-gray-800:     #383838;
+  --es-gray-900:     #171717;
+
+  /* ── Red (error / destructive) ────────────────────────────── */
+  --es-red-50:       #FFF7F7;
+  --es-red-100:      #FFE7E7;
+  --es-red-200:      #FFD8D8;
+  --es-red-300:      #FDC2C2;
+  --es-red-400:      #F79596;
+  --es-red-500:      #E03636;
+  --es-red-600:      #CC2929;
+  --es-red-700:      #B52A2A;
+  --es-red-800:      #941F1F;
+  --es-red-900:      #6B1515;
+
+  /* ── Green (success) ─────────────────────────────────────── */
+  --es-green-50:     #F4FFF6;
+  --es-green-100:    #DFFCE8;
+  --es-green-200:    #CBF3D7;
+  --es-green-300:    #B0E7C4;
+  --es-green-400:    #88D5A5;
+  --es-green-500:    #59BA8B;
+  --es-green-600:    #30A66D;
+  --es-green-700:    #278F5E;
+  --es-green-800:    #16794C;
+  --es-green-900:    #173B2C;
+
+  /* ── Amber (warning) ─────────────────────────────────────── */
+  --es-amber-50:     #FDFAED;
+  --es-amber-100:    #FFF7D3;
+  --es-amber-200:    #FEEDA9;
+  --es-amber-300:    #FBDB73;
+  --es-amber-400:    #FBCC55;
+  --es-amber-500:    #E79913;
+  --es-amber-600:    #DB7706;
+  --es-amber-700:    #B35309;
+  --es-amber-800:    #91400D;
+  --es-amber-900:    #763813;
+
+  /* ── Blue (information) ──────────────────────────────────── */
+  --es-blue-50:      #EFF8FF;
+  --es-blue-100:     #DAEAFF;
+  --es-blue-200:     #B3D5FF;
+  --es-blue-300:     #80B6FF;
+  --es-blue-400:     #4F94FF;
+  --es-blue-500:     #2271DE;
+  --es-blue-600:     #006EDB;
+  --es-blue-700:     #075EA8;
+  --es-blue-800:     #074782;
+  --es-blue-900:     #0A2F58;
+
+  /* ── Brand-palette ramps (pick-one-per-product) ──────────── */
+  --es-yellow-500:   #EDBA13;
+  --es-yellow-600:   #D1930D;
+  --es-teal-500:     #36BAAD;
+  --es-teal-600:     #0B9E92;
+  --es-violet-500:   #6846E3;
+  --es-violet-600:   #5F46C7;
+  --es-cyan-500:     #3BBDE5;
+  --es-cyan-600:     #32A4C7;
+  --es-pink-500:     #E34AA6;
+  --es-pink-600:     #CF3A96;
+  --es-purple-500:   #9C45E3;
+  --es-purple-600:   #8642C2;
+
+  /* ── Overlays (for scrims / modal backdrops) ─────────────── */
+  --es-white-100:    rgba(255,255,255,0.18);
+  --es-white-200:    rgba(255,255,255,0.27);
+  --es-white-300:    rgba(255,255,255,0.36);
+  --es-white-500:    rgba(255,255,255,0.54);
+  --es-white-900:    rgba(255,255,255,0.90);
+  --es-black-100:    rgba(0,0,0,0.18);
+  --es-black-300:    rgba(0,0,0,0.36);
+  --es-black-500:    rgba(0,0,0,0.54);
+  --es-black-700:    rgba(0,0,0,0.72);
+  --es-black-900:    rgba(0,0,0,0.90);
+
+  /* ── Spinner / angular ───────────────────────────────────── */
+  --es-spinner-black: #383838;
+  --es-spinner-green: #17754B;
+  --es-spinner-red:   #CD2929;
+  --es-spinner-blue:  #006EDB;
+
+  /* ── Semantic — TEXT / ICONS (light mode) ────────────────── */
+  /* "gray-N" semantic names map to roles for text + icons */
+  --es-ink-1:        var(--es-gray-200); /* faintest text — disabled placeholder */
+  --es-ink-2:        var(--es-gray-300);
+  --es-ink-3:        var(--es-gray-400);
+  --es-ink-4:        var(--es-gray-500); /* placeholder / disabled label */
+  --es-ink-5:        var(--es-gray-600); /* secondary muted */
+  --es-ink-6:        var(--es-gray-700); /* secondary */
+  --es-ink-7:        var(--es-gray-700);
+  --es-ink-8:        var(--es-gray-800); /* body */
+  --es-ink-9:        var(--es-gray-900); /* primary heading */
+
+  --es-ink-red:      var(--es-red-600);
+  --es-ink-green:    var(--es-green-800);
+  --es-ink-amber:    var(--es-amber-600);
+  --es-ink-blue:     var(--es-blue-800);
+
+  /* ── Semantic — SURFACE (light mode) ─────────────────────── */
+  --es-surface-white:        var(--es-white);   /* cards, sheets */
+  --es-surface-page:         var(--es-gray-50); /* page background */
+  --es-surface-sidebar:      var(--es-gray-50); /* menu bar */
+  --es-surface-gray-1:       var(--es-gray-50);
+  --es-surface-gray-2:       var(--es-gray-100); /* hover on white cells */
+  --es-surface-gray-3:       var(--es-gray-200);
+  --es-surface-gray-4:       var(--es-gray-300);
+  --es-surface-inverted:     var(--es-gray-900); /* solid button bg, tooltip bg */
+  --es-surface-modal:        var(--es-white);
+  --es-surface-scrim:        var(--es-black-500);
+
+  --es-surface-red-subtle:    var(--es-red-100);
+  --es-surface-red-strong:    var(--es-red-600);
+  --es-surface-green-subtle:  var(--es-green-50);
+  --es-surface-green-strong:  var(--es-green-600);
+  --es-surface-amber-subtle:  var(--es-amber-100);
+  --es-surface-amber-strong:  var(--es-amber-600);
+  --es-surface-blue-subtle:   var(--es-blue-100);
+  --es-surface-blue-strong:   var(--es-blue-500);
+
+  /* ── Semantic — OUTLINE (light mode) ─────────────────────── */
+  --es-outline-gray-1:       var(--es-gray-200); /* hairline divider */
+  --es-outline-gray-2:       var(--es-gray-300); /* card border */
+  --es-outline-gray-3:       var(--es-gray-400);
+  --es-outline-gray-4:       var(--es-gray-500); /* active input border */
+  --es-outline-gray-modal:   var(--es-gray-200);
+  --es-outline-red:           var(--es-red-300);
+  --es-outline-green:         var(--es-green-300);
+  --es-outline-amber:         var(--es-amber-200);
+  --es-outline-blue:          var(--es-blue-300);
+
+  /* ── Focus rings (2px halo around inputs / buttons) ──────── */
+  --es-focus-blue:    0 0 0 2px rgba(0,110,219,0.36);
+  --es-focus-green:   0 0 0 2px rgba(48,166,109,0.36);
+  --es-focus-red:     0 0 0 2px rgba(224,54,54,0.36);
+  --es-focus-amber:   0 0 0 2px rgba(231,153,19,0.36);
+
+  /* ── Elevation ────────────────────────────────────────────── */
+  --es-elev-base:   none;
+  --es-elev-md:     0 1px 4px 0 rgba(0,0,0,0.10);
+  --es-elev-lg:     0 4px 4px 0 rgba(0,0,0,0.10);
+  --es-elev-xl:     0 8px 24px -4px rgba(0,0,0,0.12), 0 2px 4px 0 rgba(0,0,0,0.06);
+  --es-elev-2xl:    0 24px 48px -8px rgba(0,0,0,0.18), 0 4px 8px 0 rgba(0,0,0,0.08);
+  /* "subtle drop" used on focused/hover inputs */
+  --es-elev-input:  0 1px 4px 0 rgba(0,0,0,0.10);
+
+  /* ── Radius ───────────────────────────────────────────────── */
+  --es-radius-1: 4px;
+  --es-radius-2: 6px;
+  --es-radius-3: 10px;
+  --es-radius-4: 12px;
+  --es-radius-5: 16px;
+  --es-radius-6: 20px;
+  --es-radius-7: 22px;
+  --es-radius-8: 100px; /* pill */
+
+  /* ── Spacing (1-px increments) ───────────────────────────── */
+  --es-sp-1: 1px;   --es-sp-2: 2px;   --es-sp-3: 3px;
+  --es-sp-4: 4px;   --es-sp-5: 5px;   --es-sp-6: 6px;
+  --es-sp-7: 7px;   --es-sp-8: 8px;   --es-sp-9: 9px;
+  --es-sp-10: 10px; --es-sp-11: 11px; --es-sp-12: 12px;
+  --es-sp-13: 13px; --es-sp-14: 14px; --es-sp-15: 15px;
+  --es-sp-16: 16px; --es-sp-17: 17px;
+  /* Macro spacing for layouts (informal — Espresso does not formalise these) */
+  --es-sp-20: 20px; --es-sp-24: 24px; --es-sp-32: 32px;
+  --es-sp-40: 40px; --es-sp-56: 56px; --es-sp-64: 64px;
+
+  /* ── Typography — primary typeface ───────────────────────── */
+  --es-font-sans: 'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --es-font-display: 'Inter', 'Inter Variable', system-ui, sans-serif; /* same family, used at display sizes */
+  --es-font-mono: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+
+  /* Font weights */
+  --es-fw-regular:  400;
+  --es-fw-medium:   500;
+  --es-fw-semibold: 600;
+  --es-fw-bold:     700;
+  --es-fw-black:    800;
+
+  /* ── Type scale (web) ────────────────────────────────────── */
+  --es-text-tiny:  11px;
+  --es-text-2xs:   11px;
+  --es-text-xs:    12px;
+  --es-text-sm:    13px;
+  --es-text-base:  14px;
+  --es-text-lg:    16px;
+  --es-text-xl:    18px;
+  --es-text-2xl:   20px;
+  --es-text-3xl:   24px;
+  --es-text-4xl:   26px;
+  --es-text-5xl:   28px;
+  --es-text-6xl:   32px;
+  --es-text-7xl:   40px;
+  --es-text-8xl:   44px;
+  --es-text-9xl:   48px;
+  --es-text-10xl:  52px;
+  --es-text-11xl:  56px;
+  --es-text-12xl:  64px;
+  --es-text-13xl:  72px;
+  --es-text-14xl:  80px;
+  --es-text-15xl:  88px;
+
+  --es-lh-tight:    1.15;
+  --es-lh-snug:     1.3;
+  --es-lh-normal:   1.4;
+  --es-lh-relaxed:  1.48;
+  --es-lh-loose:    1.6;
+
+  --es-tracking-tight:  -0.005em;
+  --es-tracking-normal:  0;
+  --es-tracking-ui:      0.005em;
+  --es-tracking-label:   0.010em;
+  --es-tracking-caps:    0.020em;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Dark mode — toggle by setting [data-theme="dark"] on <html>/<body>
+   ──────────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --es-surface-white:    #1C1C1C;
+  --es-surface-page:     #141414;
+  --es-surface-sidebar:  #1C1C1C;
+  --es-surface-gray-1:   #1C1C1C;
+  --es-surface-gray-2:   #242424;
+  --es-surface-gray-3:   #2E2E2E;
+  --es-surface-gray-4:   #3A3A3A;
+  --es-surface-inverted: #F3F3F3;
+  --es-surface-modal:    #1C1C1C;
+
+  --es-ink-1: #404040;
+  --es-ink-4: #707070;
+  --es-ink-5: #888888;
+  --es-ink-6: #ADADAD;
+  --es-ink-8: #D4D4D4;
+  --es-ink-9: #F3F3F3;
+
+  --es-outline-gray-1: #2E2E2E;
+  --es-outline-gray-2: #343434;
+  --es-outline-gray-4: #555555;
+
+  --es-elev-md:  0 1px 4px 0 rgba(0,0,0,0.4);
+  --es-elev-lg:  0 4px 8px 0 rgba(0,0,0,0.5);
+  --es-elev-xl:  0 8px 24px -4px rgba(0,0,0,0.6);
+  --es-elev-2xl: 0 24px 48px -8px rgba(0,0,0,0.7);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Semantic helpers — element-level defaults
+   ──────────────────────────────────────────────────────────────── */
+html { font-family: var(--es-font-sans); color: var(--es-ink-9); }
+body { background: var(--es-surface-page); color: var(--es-ink-9); }
+
+.es-h1, h1.es { font: var(--es-fw-bold) var(--es-text-12xl)/var(--es-lh-snug) var(--es-font-display); letter-spacing: var(--es-tracking-normal); }
+.es-h2, h2.es { font: var(--es-fw-bold) var(--es-text-8xl)/var(--es-lh-normal) var(--es-font-display); }
+.es-h3, h3.es { font: var(--es-fw-bold) var(--es-text-6xl)/var(--es-lh-snug) var(--es-font-display); }
+.es-h4, h4.es { font: var(--es-fw-bold) var(--es-text-5xl)/var(--es-lh-loose) var(--es-font-display); letter-spacing: var(--es-tracking-ui); }
+.es-h5, h5.es { font: var(--es-fw-bold) var(--es-text-3xl)/var(--es-lh-normal) var(--es-font-sans); }
+.es-h6, h6.es { font: var(--es-fw-semibold) var(--es-text-xl)/var(--es-lh-normal) var(--es-font-sans); letter-spacing: var(--es-tracking-label); }
+
+.es-eyebrow { font: var(--es-fw-medium) var(--es-text-2xl)/var(--es-lh-tight) var(--es-font-sans); letter-spacing: var(--es-tracking-label); color: var(--es-ink-5); }
+
+.es-p, p.es     { font: var(--es-fw-medium) var(--es-text-3xl)/var(--es-lh-normal) var(--es-font-sans); letter-spacing: var(--es-tracking-ui); color: var(--es-ink-8); }
+.es-body       { font: var(--es-fw-regular) var(--es-text-base)/var(--es-lh-relaxed) var(--es-font-sans); color: var(--es-ink-8); }
+.es-body-sm    { font: var(--es-fw-regular) var(--es-text-sm)/var(--es-lh-relaxed) var(--es-font-sans); color: var(--es-ink-8); }
+.es-label      { font: var(--es-fw-medium) var(--es-text-base)/var(--es-lh-tight) var(--es-font-sans); letter-spacing: var(--es-tracking-ui); color: var(--es-ink-9); }
+.es-label-sm   { font: var(--es-fw-medium) var(--es-text-sm)/var(--es-lh-tight) var(--es-font-sans); letter-spacing: var(--es-tracking-caps); color: var(--es-ink-9); }
+.es-caption    { font: var(--es-fw-medium) var(--es-text-xs)/var(--es-lh-tight) var(--es-font-sans); letter-spacing: var(--es-tracking-caps); color: var(--es-ink-5); }
+.es-hint       { font: var(--es-fw-regular) var(--es-text-sm)/var(--es-lh-relaxed) var(--es-font-sans); color: var(--es-ink-5); }
+.es-code       { font: var(--es-fw-medium) var(--es-text-sm)/var(--es-lh-tight) var(--es-font-mono); background: var(--es-surface-gray-2); padding: 1px 6px; border-radius: var(--es-radius-1); color: var(--es-ink-9); }
+
+/* ────────────────────────────────────────────────────────────────
+   Core component classes — minimal, used across kits & preview
+   ──────────────────────────────────────────────────────────────── */
+.es-btn {
+  font-family: var(--es-font-sans);
+  font-weight: var(--es-fw-medium);
+  letter-spacing: var(--es-tracking-ui);
+  border-radius: var(--es-radius-2);
+  border: 1px solid transparent;
+  display: inline-flex; align-items: center; gap: 6px;
+  cursor: pointer;
+  transition: background-color .12s ease, border-color .12s ease, color .12s ease, box-shadow .12s ease;
+  user-select: none;
+  white-space: nowrap;
+}
+.es-btn:focus-visible { outline: none; box-shadow: var(--es-focus-blue); }
+.es-btn--sm  { height: 28px; padding: 0 8px;  font-size: var(--es-text-sm); }
+.es-btn--md  { height: 32px; padding: 0 10px; font-size: var(--es-text-base); }
+.es-btn--lg  { height: 36px; padding: 0 12px; font-size: var(--es-text-base); }
+.es-btn--xl  { height: 40px; padding: 0 14px; font-size: var(--es-text-lg); }
+.es-btn--solid   { background: var(--es-gray-900); color: var(--es-white); }
+.es-btn--solid:hover  { background: #000; }
+.es-btn--outline { background: var(--es-white); color: var(--es-gray-900); border-color: var(--es-gray-200); }
+.es-btn--outline:hover { background: var(--es-gray-50); }
+.es-btn--subtle  { background: var(--es-gray-100); color: var(--es-gray-900); }
+.es-btn--subtle:hover { background: var(--es-gray-200); }
+.es-btn--ghost   { background: transparent; color: var(--es-gray-900); }
+.es-btn--ghost:hover { background: var(--es-gray-100); }
+.es-btn--danger  { background: var(--es-red-600); color: var(--es-white); }
+.es-btn--danger:hover { background: var(--es-red-700); }
+
+.es-input {
+  font-family: var(--es-font-sans);
+  font-size: var(--es-text-base); letter-spacing: var(--es-tracking-caps);
+  color: var(--es-ink-9);
+  height: 32px; padding: 0 10px;
+  background: var(--es-white);
+  border: 1px solid var(--es-gray-200);
+  border-radius: var(--es-radius-2);
+  outline: none;
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.es-input::placeholder { color: var(--es-ink-5); }
+.es-input:hover { border-color: var(--es-gray-300); }
+.es-input:focus { border-color: var(--es-gray-500); box-shadow: var(--es-elev-input); }
+.es-input--subtle { background: var(--es-gray-100); border-color: transparent; }
+.es-input--subtle:focus { background: var(--es-white); border-color: var(--es-gray-500); }
+
+.es-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 6px; border-radius: var(--es-radius-8);
+  font: var(--es-fw-medium) var(--es-text-xs)/1 var(--es-font-sans);
+  letter-spacing: var(--es-tracking-caps);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.es-badge--default { background: var(--es-gray-900); color: var(--es-white); }
+.es-badge--subtle  { background: var(--es-gray-100); color: var(--es-gray-800); }
+.es-badge--green   { background: var(--es-green-100); color: var(--es-green-800); }
+.es-badge--red     { background: var(--es-red-100);   color: var(--es-red-700); }
+.es-badge--amber   { background: var(--es-amber-100); color: var(--es-amber-800); }
+.es-badge--blue    { background: var(--es-blue-100);  color: var(--es-blue-800); }
+
+.es-card {
+  background: var(--es-surface-white);
+  border: 1px solid var(--es-outline-gray-1);
+  border-radius: var(--es-radius-4);
+  padding: 12px;
+}
+
+.es-divider { height: 1px; background: var(--es-outline-gray-1); border: 0; }

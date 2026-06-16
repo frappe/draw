@@ -1,0 +1,156 @@
+// Shape + connector creation for the canvas (spec §7.1, §4.2). Supports two
+// flows that both end in store.addShape / store.addConnector:
+//   1. Click-to-draw: arm a tool in the left palette, then press-drag-release on
+//      the canvas to size the new shape (a default size if it was just a click).
+//   2. Drag-and-drop: drag a palette tile onto the canvas; the drop point becomes
+//      the new element's centre.
+// Both read the armed type from editorUi (state.tool === 'draw' + drawShapeType).
+// Connectors are drawn as a straight press-drag-release segment of the armed type.
+//
+// Integration: attach the returned handlers to the canvas surface element
+// (DiagramCanvas owns it). This composable is element-agnostic and derives
+// logical coordinates from event.currentTarget + the viewport transform. The
+// store fills the designed default style via its factories, so every spawned
+// shape is beautiful by default (spec §5.1). Render `preview` as a dashed ghost
+// for a live size hint if desired.
+
+import { ref } from 'vue'
+
+const DATA_TRANSFER_KEY = 'application/x-frappe-draw-tool'
+const CONNECTOR_TYPES = ['straight', 'elbow', 'curved']
+const DEFAULT_SIZE = { w: 180, h: 96 }
+const MIN_SIZE = 24
+
+export function useShapeCreation(store, editorUi) {
+  const preview = ref(null)
+  const drag = { active: false, start: { x: 0, y: 0 } }
+
+  function logicalPoint(event) {
+    return toLogicalPoint(event, editorUi.viewport.state)
+  }
+
+  function onCanvasPointerDown(event) {
+    if (editorUi.state.tool !== 'draw' || event.button !== 0) return
+    beginDraft(drag, preview, logicalPoint(event))
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+
+  function onCanvasPointerMove(event) {
+    if (!drag.active) return
+    updateDraft(drag, preview, editorUi.state.drawShapeType, logicalPoint(event))
+  }
+
+  function onCanvasPointerUp(event) {
+    if (!drag.active) return
+    finishDraft(drag, preview, store, editorUi, logicalPoint(event))
+  }
+
+  function onCanvasDragOver(event) {
+    if (hasToolPayload(event)) event.preventDefault()
+  }
+
+  function onCanvasDrop(event) {
+    const type = readToolPayload(event)
+    if (!type) return
+    event.preventDefault()
+    dropAt(store, editorUi, type, logicalPoint(event))
+  }
+
+  return {
+    preview,
+    onCanvasPointerDown,
+    onCanvasPointerMove,
+    onCanvasPointerUp,
+    onCanvasDragOver,
+    onCanvasDrop,
+  }
+}
+
+export function isConnectorType(type) {
+  return CONNECTOR_TYPES.includes(type)
+}
+
+// Convert a pointer event to logical canvas units by undoing the SVG <g> pan +
+// zoom transform applied by DiagramCanvas (translate(panX panY) scale(zoom)).
+function toLogicalPoint(event, viewport) {
+  const bounds = event.currentTarget.getBoundingClientRect()
+  return {
+    x: (event.clientX - bounds.left - viewport.panX) / viewport.zoom,
+    y: (event.clientY - bounds.top - viewport.panY) / viewport.zoom,
+  }
+}
+
+function beginDraft(drag, preview, point) {
+  drag.active = true
+  drag.start = point
+  preview.value = { box: true, x: point.x, y: point.y, w: 0, h: 0 }
+}
+
+function updateDraft(drag, preview, type, point) {
+  preview.value = isConnectorType(type)
+    ? { line: true, x1: drag.start.x, y1: drag.start.y, x2: point.x, y2: point.y }
+    : { box: true, ...boxBetween(drag.start, point) }
+}
+
+// A normalised rectangle spanning the two pointer corners.
+function boxBetween(start, end) {
+  return {
+    x: Math.min(start.x, end.x),
+    y: Math.min(start.y, end.y),
+    w: Math.abs(end.x - start.x),
+    h: Math.abs(end.y - start.y),
+  }
+}
+
+function finishDraft(drag, preview, store, editorUi, end) {
+  const type = editorUi.state.drawShapeType
+  if (isConnectorType(type)) commitConnector(store, type, drag.start, end)
+  else commitShape(store, type, drag.start, end)
+  drag.active = false
+  preview.value = null
+  editorUi.setTool('select')
+}
+
+// A bare click (no real drag) yields a default-sized shape centred on the click.
+function commitShape(store, type, start, end) {
+  const box = boxBetween(start, end)
+  const sized = box.w < MIN_SIZE || box.h < MIN_SIZE ? centeredDefaultBox(start) : box
+  store.select(store.addShape({ type, ...sized }))
+}
+
+function commitConnector(store, type, start, end) {
+  store.select(store.addConnector({ type, from: { ...start }, to: { ...end } }))
+}
+
+function centeredDefaultBox(point) {
+  const { w, h } = DEFAULT_SIZE
+  return { x: point.x - w / 2, y: point.y - h / 2, w, h }
+}
+
+// Drop-to-create: centre a default element on the drop point so a quick drag
+// still yields a usable element.
+function dropAt(store, editorUi, type, point) {
+  if (isConnectorType(type)) {
+    const half = DEFAULT_SIZE.w / 2
+    commitConnector(store, type, { x: point.x - half, y: point.y }, { x: point.x + half, y: point.y })
+  } else {
+    store.select(store.addShape({ type, ...centeredDefaultBox(point) }))
+  }
+  editorUi.setTool('select')
+}
+
+// Palette tiles call this on dragstart to carry the chosen tool type and arm
+// draw mode, so a drop, a pointer-draw, and the active highlight all agree.
+export function startPaletteDrag(event, type, editorUi) {
+  editorUi.setDrawShape(type)
+  event.dataTransfer?.setData(DATA_TRANSFER_KEY, type)
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy'
+}
+
+function hasToolPayload(event) {
+  return Array.from(event.dataTransfer?.types || []).includes(DATA_TRANSFER_KEY)
+}
+
+function readToolPayload(event) {
+  return event.dataTransfer?.getData(DATA_TRANSFER_KEY) || null
+}

@@ -1,0 +1,67 @@
+<script setup>
+// Right modification palette (268px, the GRID layout — README 4d). Header shows
+// the selected-shape name + count (+ "Painter on" pill), then the 9 sections.
+// Multi-select intersection logic is layered in by feature agents per section.
+import { computed } from 'vue'
+import { useDiagramStore } from '@/stores/useDiagramStore.js'
+import { useEditorUi } from '@/stores/useEditorUi.js'
+import ArrangeSection from './ArrangeSection.vue'
+import AlignSection from './AlignSection.vue'
+import DistributeSizeSection from './DistributeSizeSection.vue'
+import TransformSection from './TransformSection.vue'
+import FillBorderSection from './FillBorderSection.vue'
+import TextSection from './TextSection.vue'
+import TransparencySection from './TransparencySection.vue'
+import ThemePresetsSection from './ThemePresetsSection.vue'
+import CanvasSection from './CanvasSection.vue'
+
+const store = useDiagramStore()
+const editorUi = useEditorUi()
+
+const count = computed(() => store.state.selection.length)
+
+// Header title: the single shape's type, or a count, or "Canvas" when empty.
+const headerTitle = computed(() => {
+  if (count.value === 0) return 'Canvas'
+  if (count.value === 1) {
+    const shape = store.shapeById(store.state.selection[0])
+    return shape ? capitalize(shape.type) : 'Connector'
+  }
+  return `${count.value} selected`
+})
+
+const headerMeta = computed(() => (count.value ? `${count.value} selected` : 'Nothing selected'))
+
+function capitalize(value) {
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
+</script>
+
+<template>
+  <aside
+    class="flex w-[268px] flex-none flex-col overflow-y-auto border-l border-outline-gray-1 bg-surface-white"
+  >
+    <header class="flex items-center gap-2 border-b border-outline-gray-1 px-3.5 py-2.5">
+      <div>
+        <div class="text-sm font-semibold text-ink-gray-9">{{ headerTitle }}</div>
+        <div class="text-[11px] text-ink-gray-5">{{ headerMeta }}</div>
+      </div>
+      <span
+        v-if="editorUi.state.formatPainter.active"
+        class="ml-auto rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700"
+      >
+        Painter on
+      </span>
+    </header>
+
+    <ArrangeSection />
+    <AlignSection />
+    <DistributeSizeSection />
+    <TransformSection />
+    <FillBorderSection />
+    <TextSection />
+    <TransparencySection />
+    <ThemePresetsSection />
+    <CanvasSection />
+  </aside>
+</template>

@@ -5,6 +5,11 @@ app_description = "A diagram creation app"
 app_email = "vibhav@frappe.io"
 app_license = "mit"
 
+# Serve the Vue SPA at /frappe_draw (built into www/frappe_draw.html).
+website_route_rules = [
+    {"from_route": "/frappe_draw/<path:app_path>", "to_route": "frappe_draw"},
+]
+
 # Apps
 # ------------------
 
