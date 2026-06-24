@@ -8,7 +8,7 @@ import { computed } from 'vue'
 import { axisAlignedBBox } from '@/diagram/geometry.js'
 
 export function useDistribute(store) {
-  const shapes = computed(() => store.selectedShapes.value)
+  const shapes = computed(() => store.selectedShapes)
 
   // Shapes sorted by their bbox position along an axis (x or y).
   function sortedAlong(axis) {

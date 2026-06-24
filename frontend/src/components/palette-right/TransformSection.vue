@@ -22,7 +22,7 @@ function togglePainter() {
   else if (shapes.value.length) painter.copyFrom(shapes.value[0].id)
 }
 
-const shapes = computed(() => store.selectedShapes.value)
+const shapes = computed(() => store.selectedShapes)
 const hasShapes = computed(() => shapes.value.length > 0)
 const canSwap = computed(() => shapes.value.length === 2)
 

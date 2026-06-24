@@ -9,7 +9,7 @@ import ActionTile from './ActionTile.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 
 const store = useDiagramStore()
-const shapes = computed(() => store.selectedShapes.value)
+const shapes = computed(() => store.selectedShapes)
 const shapeIds = computed(() => shapes.value.map((shape) => shape.id))
 
 const hasShapes = computed(() => shapes.value.length > 0)

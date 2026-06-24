@@ -9,7 +9,7 @@ import { computed } from 'vue'
 import { axisAlignedBBox } from '@/diagram/geometry.js'
 
 export function useAlignment(store) {
-  const shapes = computed(() => store.selectedShapes.value)
+  const shapes = computed(() => store.selectedShapes)
 
   // The reference rect: canvas bounds, or the last-selected shape's bbox.
   function referenceRect(alignToCanvas) {

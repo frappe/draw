@@ -9,8 +9,8 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 
 const store = useDiagramStore()
 
-const selectedIds = computed(() => store.selectedShapes.value.map((shape) => shape.id))
-const reference = computed(() => store.selectedShapes.value[0])
+const selectedIds = computed(() => store.selectedShapes.map((shape) => shape.id))
+const reference = computed(() => store.selectedShapes[0])
 const style = computed(() => reference.value?.text?.style || {})
 const align = computed(() => reference.value?.text?.align || 'center')
 

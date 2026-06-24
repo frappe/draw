@@ -11,7 +11,7 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 const store = useDiagramStore()
 const dist = useDistribute(store)
 
-const count = computed(() => store.selectedShapes.value.length)
+const count = computed(() => store.selectedShapes.length)
 const canDistribute = computed(() => count.value >= 3)
 const canMatch = computed(() => count.value >= 2)
 const visible = computed(() => canMatch.value)

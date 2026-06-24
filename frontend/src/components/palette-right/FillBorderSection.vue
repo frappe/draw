@@ -23,10 +23,10 @@ const moreColors = [
 const dashStyles = ['solid', 'dashed', 'dotted']
 
 // Selected shape ids (fill/border apply to all of them at once, §4.3).
-const selectedIds = computed(() => store.selectedShapes.value.map((shape) => shape.id))
+const selectedIds = computed(() => store.selectedShapes.map((shape) => shape.id))
 
 // Reference shape drives the field readouts (first in selection).
-const reference = computed(() => store.selectedShapes.value[0])
+const reference = computed(() => store.selectedShapes[0])
 const weight = computed(() => reference.value?.border?.width ?? 1.5)
 const dash = computed(() => reference.value?.border?.dash ?? 'solid')
 

@@ -29,7 +29,7 @@ const transform = useShapeTransform(store, editorUi)
 // provide; falls back to no marquee when absent so the layer renders standalone.
 const marquee = inject('selectionMarquee', null)
 
-const selected = computed(() => store.selectedShapes.value)
+const selected = computed(() => store.selectedShapes)
 const single = computed(() => (selected.value.length === 1 ? selected.value[0] : null))
 const zoom = computed(() => editorUi.viewport.state.zoom || 1)
 const handleSize = computed(() => HANDLE / zoom.value)

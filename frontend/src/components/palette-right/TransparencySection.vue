@@ -7,8 +7,8 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 
 const store = useDiagramStore()
 
-const selectedIds = computed(() => store.selectedShapes.value.map((shape) => shape.id))
-const reference = computed(() => store.selectedShapes.value[0])
+const selectedIds = computed(() => store.selectedShapes.map((shape) => shape.id))
+const reference = computed(() => store.selectedShapes[0])
 
 // Opacity is the inverse of transparency; the readout shows opacity percent.
 const opacityPercent = computed(() => Math.round((reference.value?.opacity ?? 1) * 100))

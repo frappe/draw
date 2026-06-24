@@ -18,7 +18,7 @@ export function useClipboard(store) {
 
 // Snapshot the selected shapes plus connectors whose endpoints are all selected.
 function copySelection(store) {
-  const shapes = store.selectedShapes.value
+  const shapes = store.selectedShapes
   if (!shapes.length) return
   const shapeIds = new Set(shapes.map((shape) => shape.id))
   buffer = { shapes: clone(shapes), connectors: copyableConnectors(store, shapeIds) }

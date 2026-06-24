@@ -12,7 +12,7 @@ const store = useDiagramStore()
 const align = useAlignment(store)
 const toCanvas = ref(false)
 
-const shapeCount = computed(() => store.selectedShapes.value.length)
+const shapeCount = computed(() => store.selectedShapes.length)
 const visible = computed(() => (toCanvas.value ? shapeCount.value >= 1 : shapeCount.value >= 2))
 </script>
 
