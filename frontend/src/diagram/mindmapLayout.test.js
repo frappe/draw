@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { createMindMap, addChild } from './mindmapModel.js'
-import { layoutMindMap } from './mindmapLayout.js'
+import { createMindMap, addChild, toggleCollapsed } from './mindmapModel.js'
+import {
+  layoutMindMap,
+  branchPath,
+  isNodeHidden,
+  hiddenDescendantCount,
+} from './mindmapLayout.js'
 
 // Two boxes overlap if they intersect on both axes (touching edges is allowed).
 function overlaps(a, b) {
@@ -75,4 +80,44 @@ describe('mindmapLayout', () => {
     const { positions } = layoutMindMap(model)
     expect(Object.keys(positions)).toHaveLength(model.nodes.length)
   })
+
+  it('gives a collapsed subtree zero vertical space', () => {
+    const model = createMindMap()
+    const branch = addChild(model, model.rootId)
+    const sibling = addChild(model, model.rootId)
+    for (let i = 0; i < 5; i += 1) addChild(model, branch)
+    const expandedSpan = span(layoutMindMap(model).positions, model)
+    toggleCollapsed(model, branch)
+    const collapsedSpan = span(layoutMindMap(model).positions, model)
+    expect(collapsedSpan).toBeLessThan(expandedSpan)
+    // The collapsed branch's children are not placed at all.
+    expect(layoutMindMap(model).positions[sibling]).toBeTruthy()
+  })
+
+  it('reports hidden descendants and badge counts for a collapsed node', () => {
+    const model = createMindMap()
+    const branch = addChild(model, model.rootId)
+    const child = addChild(model, branch)
+    addChild(model, child)
+    toggleCollapsed(model, branch)
+    expect(isNodeHidden(model, child)).toBe(true)
+    expect(isNodeHidden(model, branch)).toBe(false)
+    expect(hiddenDescendantCount(model, branch)).toBe(2)
+  })
+
+  it('builds a bezier branch path that starts at the parent and ends at the child', () => {
+    const parent = { x: 0, y: 0, w: 100, h: 40 }
+    const child = { x: 200, y: 100, w: 80, h: 40 }
+    const d = branchPath(parent, child)
+    expect(d).toMatch(/^M 100 20 C/) // right edge of parent
+    expect(d.trim().endsWith('200 120')).toBe(true) // left edge of child
+  })
 })
+
+// Total vertical extent of all placed boxes (a proxy for layout space used).
+function span(positions, model) {
+  const boxes = model.nodes.map((n) => positions[n.id]).filter(Boolean)
+  const top = Math.min(...boxes.map((b) => b.y))
+  const bottom = Math.max(...boxes.map((b) => b.y + b.h))
+  return bottom - top
+}

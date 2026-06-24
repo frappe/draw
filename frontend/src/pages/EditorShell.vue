@@ -8,6 +8,7 @@ import { parseDiagramDocument } from '@/diagram/schema.js'
 import { createDiagramStore, provideDiagramStore } from '@/stores/useDiagramStore.js'
 import { createEditorUi, provideEditorUi } from '@/stores/useEditorUi.js'
 import { provideModeStrategy, getModeStrategy } from '@/stores/useModeStrategy.js'
+import { provideModeInteraction } from '@/composables/useModeInteraction.js'
 import { useKeyboard } from '@/composables/useKeyboard.js'
 import { useClipboard } from '@/composables/useClipboard.js'
 import { useAutosave } from '@/composables/useAutosave.js'
@@ -31,6 +32,12 @@ provideEditorUi(editorUi)
 // Active mode module for this diagram's type (spec diagram-types §0/G1).
 const modeStrategy = computed(() => getModeStrategy(store.state.diagramType))
 provideModeStrategy(modeStrategy)
+
+// Surface-interaction delegation seam (spec diagram-types Part G1/G4). The active
+// type's interaction composable registers its handler object into this ref via
+// registerModeInteraction(); DiagramCanvas injects + delegates to it. Provided
+// here so it lives for the editor's lifetime regardless of which type loads.
+provideModeInteraction()
 
 const dark = ref(false)
 const autosave = useAutosave(store, diagram)

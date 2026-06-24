@@ -8,13 +8,15 @@
 // small margin, stretched to enclose any shape that leaves the canvas and
 // auto-shrunk when it returns. Native scrollbars appear when that region (in
 // screen pixels) exceeds the viewport. Browser ctrl-zoom is intercepted.
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick, provide } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick, provide, inject } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import { themeVarStyle } from '@/diagram/theme.js'
 import { axisAlignedBBox, anchorPoint, pointInShape } from '@/diagram/geometry.js'
 import { layoutMindMap } from '@/diagram/mindmapLayout.js'
+import { flowchartContentBounds } from '@/diagram/flowchartLayout.js'
+import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
 import { useSelection } from '@/composables/useSelection.js'
 import { useShapeCreation } from '@/composables/useShapeCreation.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
@@ -27,20 +29,48 @@ import HoverArrows from './HoverArrows.vue'
 import SelectionLayer from './SelectionLayer.vue'
 import TextEditor from './TextEditor.vue'
 import MindMapNodeLayer from './MindMapNodeLayer.vue'
+import FlowchartLayer from './FlowchartLayer.vue'
+import WhiteboardLayer from './WhiteboardLayer.vue'
 import Rulers from './Rulers.vue'
+import { useModeInteraction } from '@/composables/useModeInteraction.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
 const modeStrategy = useModeStrategy()
 const viewport = editorUi.viewport
 
-// Mind-map mode renders its own laid-out layer instead of the block shape/
-// connector loops; the canvas is unbounded (no white paper). Layout is derived
-// from the model (Part G6/G8) and reused for fit + the scroll region.
-const isMindmap = computed(() => modeStrategy.value.rendersOwnLayer)
+// Surface-interaction delegation seam (Part G1/G4): when the active strategy sets
+// handlesSurfaceInteraction (flowchart/whiteboard), the type's interaction object
+// registered here owns pointer/dblclick/wheel; otherwise we fall back to the
+// shared block/mindmap handling below.
+const modeInteraction = useModeInteraction()
+
+// A type that renders its own layer replaces the block shape/connector loops.
+// Each such type frames its own content bbox for fit + the scroll region (G8).
+const rendersOwnLayer = computed(() => modeStrategy.value.rendersOwnLayer)
+const activeType = computed(() => modeStrategy.value.type)
+
+// Kept as `isMindmap` for the existing block/mindmap branches below; true only
+// for the mind-map auto-layout type (block stays false; flowchart/whiteboard get
+// their own branches via activeType).
+const isMindmap = computed(() => activeType.value === 'mindmap')
+const isFlowchart = computed(() => activeType.value === 'flowchart')
+const isWhiteboard = computed(() => activeType.value === 'whiteboard')
+
 const mindmapLayout = computed(() =>
   isMindmap.value && store.state.mindmap ? layoutMindMap(store.state.mindmap) : null,
 )
+
+// Derived content bbox per own-layer type, reused for fit-to-view + scroll region
+// (Part G8). Null for block (which uses the bounded paper rect).
+const ownLayerBounds = computed(() => {
+  if (isMindmap.value && mindmapLayout.value) return mindmapLayout.value.bbox
+  if (isFlowchart.value && store.state.flowchart) return flowchartContentBounds(store.state.flowchart)
+  if (isWhiteboard.value && store.state.whiteboard) {
+    return whiteboardContentBounds(store.state.whiteboard, store.state.shapes)
+  }
+  return null
+})
 
 // Canvas interaction layers. Each composable attaches its own window listeners
 // during a gesture; here we only route the surface's pointer/drag/dblclick.
@@ -75,11 +105,17 @@ const groupTransform = computed(
 // shape's axis-aligned box, padded by a small margin. Shrinks back to the
 // canvas + margin when shapes return inside (spec §4.1 net rule).
 const contentExtent = computed(() => {
-  // Mind map: the laid-out tree (already normalised to start at 0,0) is the
-  // whole content; there is no bounded paper.
-  if (isMindmap.value && mindmapLayout.value) {
-    const { w, h } = mindmapLayout.value.bbox
-    return { x: -PAN_MARGIN, y: -PAN_MARGIN, w: w + PAN_MARGIN * 2, h: h + PAN_MARGIN * 2 }
+  // Own-layer types (mindmap/flowchart/whiteboard) have no bounded paper: their
+  // derived content bbox is the whole reachable content. Mind-map bbox starts at
+  // 0,0; flowchart/whiteboard bboxes carry their own x/y. PAN_MARGIN pads each.
+  const bounds = ownLayerBounds.value
+  if (rendersOwnLayer.value && bounds) {
+    return {
+      x: (bounds.x ?? 0) - PAN_MARGIN,
+      y: (bounds.y ?? 0) - PAN_MARGIN,
+      w: bounds.w + PAN_MARGIN * 2,
+      h: bounds.h + PAN_MARGIN * 2,
+    }
   }
   let minX = 0
   let minY = 0
@@ -132,7 +168,8 @@ const stageStyle = computed(() => ({
 // Feed container + canvas size to the viewport, then fit-to-view centered.
 // The box fit-to-view should frame: the mind-map tree's bbox, else the paper.
 function fitContentSize() {
-  if (isMindmap.value && mindmapLayout.value) return mindmapLayout.value.bbox
+  const bounds = ownLayerBounds.value
+  if (rendersOwnLayer.value && bounds) return { w: bounds.w, h: bounds.h }
   return { w: canvas.value.width, h: canvas.value.height }
 }
 
@@ -230,13 +267,14 @@ watch(
   () => nextTick(fitToView),
 )
 
-// As the mind-map tree grows, keep the viewport's fit measure current so the
-// Fit control frames the whole tree (we don't auto-refit on every add, to avoid
-// a jarring zoom jump while the user is building).
+// As an own-layer type's content grows (tree nodes, flowchart nodes, strokes),
+// keep the viewport's fit measure current so the Fit control frames the whole
+// content (we don't auto-refit on every change, to avoid a jarring zoom jump
+// while the user is building).
 watch(
-  () => mindmapLayout.value && [mindmapLayout.value.bbox.w, mindmapLayout.value.bbox.h],
+  () => ownLayerBounds.value && [ownLayerBounds.value.w, ownLayerBounds.value.h],
   () => {
-    if (!isMindmap.value) return
+    if (!rendersOwnLayer.value) return
     const size = fitContentSize()
     viewport.setMeasure({ canvasW: size.w, canvasH: size.h })
   },
@@ -247,7 +285,32 @@ function pointerPosition(event) {
   return { x: event.clientX - bounds.left, y: event.clientY - bounds.top }
 }
 
+// Whether the active strategy delegates surface events to a registered mode
+// interaction object (flowchart/whiteboard). Hand-tool panning is never
+// delegated — it stays shared so every type pans the same way.
+function delegatesSurface() {
+  return modeStrategy.value.handlesSurfaceInteraction && modeInteraction.value
+}
+
+// Context handed to mode interaction handlers; `point` is already in canvas units
+// (Part G4) via the shared viewport transform.
+function interactionContext(event) {
+  const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
+  return { point, event, viewport, store, editorUi }
+}
+
+// Try delegating one surface event to the mode interaction's handler. Returns
+// true when the type owns the event so the shared fallback is skipped.
+function delegateSurfaceEvent(handlerName, event) {
+  if (!delegatesSurface()) return false
+  const handler = modeInteraction.value[handlerName]
+  if (typeof handler !== 'function') return false
+  handler(event, interactionContext(event))
+  return true
+}
+
 function onWheel(event) {
+  if (delegateSurfaceEvent('onWheel', event)) return
   const { x, y } = pointerPosition(event)
   viewport.handleWheel(event, x, y)
 }
@@ -273,13 +336,14 @@ const panning = computed(() => editorUi.state.tool === 'hand')
 // select either applies the format painter to a clicked shape or runs the
 // normal click/move/marquee selection (spec §7.1/§7.2/§4.3).
 function onSurfacePointerDown(event) {
-  // Mind map is auto-layout: no free shape select/draw/move on the surface
-  // (node interactions live on the nodes themselves). Panning still works.
-  if (isMindmap.value) {
-    if (editorUi.state.tool === 'hand') viewport.startPan(event)
-    return
-  }
+  // Hand tool always pans, for every type (shared transform, Part G4).
   if (editorUi.state.tool === 'hand') return viewport.startPan(event)
+  // Flowchart/whiteboard own the surface (+ handles, drag-to-empty, pen, sticky):
+  // delegate to the registered mode interaction (Part G1).
+  if (delegateSurfaceEvent('onPointerDown', event)) return
+  // Mind map is auto-layout: no free shape select/draw/move on the surface
+  // (node interactions live on the nodes themselves).
+  if (isMindmap.value) return
   if (editorUi.state.tool === 'draw') return creation.onCanvasPointerDown(event)
   if (painter.isActive()) return applyPainterAt(event)
   selection.onSurfacePointerdown(event)
@@ -296,18 +360,23 @@ function applyPainterAt(event) {
 }
 
 function onSurfacePointerMove(event) {
-  if (panning.value) viewport.movePan(event)
-  else if (!isMindmap.value && editorUi.state.tool === 'draw') creation.onCanvasPointerMove(event)
+  if (panning.value) return viewport.movePan(event)
+  if (delegateSurfaceEvent('onPointerMove', event)) return
+  if (!isMindmap.value && editorUi.state.tool === 'draw') creation.onCanvasPointerMove(event)
 }
 
 function onSurfacePointerUp(event) {
   viewport.endPan()
+  if (delegateSurfaceEvent('onPointerUp', event)) return
   if (!isMindmap.value && editorUi.state.tool === 'draw') creation.onCanvasPointerUp(event)
 }
 
 // Double-click: edit the text of a hit shape, the label of a hit connector, or
 // spawn the last-used shape in edit mode on empty canvas (spec §6/§7.1).
 function onSurfaceDoubleClick(event) {
+  // Whiteboard double-click-to-type / flowchart double-click handling is owned by
+  // the type's mode interaction (Part G5: double-click empty = textbox vs shape).
+  if (delegateSurfaceEvent('onDoubleClick', event)) return
   if (isMindmap.value) return // node text editing arrives in M2
   const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
   const shape = topShapeAt(point)
@@ -388,7 +457,7 @@ const surfaceCursor = computed(() => {
     <svg class="pointer-events-none absolute left-0 top-0 h-full w-full">
       <g :transform="groupTransform" class="[&_*]:pointer-events-auto">
         <!-- Block mode: bounded white paper + shapes/connectors + overlays. -->
-        <template v-if="!isMindmap">
+        <template v-if="!rendersOwnLayer">
           <!-- Soft paper shadow approximated with a slightly offset gray rect. -->
           <rect :x="2" :y="3" :width="canvas.width" :height="canvas.height" fill="rgba(0,0,0,0.06)" />
           <rect
@@ -447,9 +516,21 @@ const surfaceCursor = computed(() => {
 
         <!-- Mind-map mode: the laid-out tree (spec diagram-types Part A). -->
         <MindMapNodeLayer
-          v-else-if="mindmapLayout"
+          v-else-if="isMindmap && mindmapLayout"
           :mindmap="store.state.mindmap"
           :positions="mindmapLayout.positions"
+        />
+
+        <!-- Flowchart mode: typed nodes + orthogonal edges (spec Part B). -->
+        <FlowchartLayer
+          v-else-if="isFlowchart && store.state.flowchart"
+          :flowchart="store.state.flowchart"
+        />
+
+        <!-- Whiteboard mode: strokes + stickies + objects (spec Part C). -->
+        <WhiteboardLayer
+          v-else-if="isWhiteboard && store.state.whiteboard"
+          :whiteboard="store.state.whiteboard"
         />
       </g>
     </svg>

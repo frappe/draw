@@ -5,6 +5,8 @@
 
 import { DEFAULT_PRESET_NAME, findPreset } from './canvasPresets.js'
 import { createMindMap } from './mindmapModel.js'
+import { createFlowchart } from './flowchartModel.js'
+import { createWhiteboard } from './whiteboardModel.js'
 
 export const SCHEMA_VERSION = 1
 
@@ -32,6 +34,8 @@ export function createDiagramDocument(presetName = DEFAULT_PRESET_NAME, diagramT
     connectors: [],
     // Per-type sub-objects; only the active type's is populated.
     mindmap: diagramType === 'mindmap' ? createMindMap() : null,
+    flowchart: diagramType === 'flowchart' ? createFlowchart() : null,
+    whiteboard: diagramType === 'whiteboard' ? createWhiteboard() : null,
   }
 }
 
@@ -48,5 +52,7 @@ export function parseDiagramDocument(raw) {
 function migrateDocument(document) {
   if (!document.diagramType) document.diagramType = DEFAULT_DIAGRAM_TYPE
   if (document.mindmap === undefined) document.mindmap = null
+  if (document.flowchart === undefined) document.flowchart = null
+  if (document.whiteboard === undefined) document.whiteboard = null
   return document
 }

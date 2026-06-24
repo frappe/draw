@@ -2,17 +2,26 @@
 // Floating bottom-center palette (spec §7.1, README 4c): pointer modes (select /
 // hand / draw), grid-guide toggle, and zoom controls (out / 100% reset / in /
 // fit). Wired to editorUi tool/grid and the viewport.
+import { computed } from 'vue'
 import { Tooltip, FeatherIcon } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
+import { useModeStrategy } from '@/stores/useModeStrategy.js'
 
 const editorUi = useEditorUi()
 const viewport = editorUi.viewport
+const modeStrategy = useModeStrategy()
 
 const modes = [
   { tool: 'select', icon: 'mouse-pointer', label: 'Select' },
   { tool: 'hand', icon: 'move', label: 'Pan' },
   { tool: 'draw', icon: 'plus', label: 'Draw' },
 ]
+
+// Mode-specific tool seam (spec diagram-types C6): the active strategy may
+// declare extra pointer modes (whiteboard pen/highlighter/eraser/text/sticky/
+// laser). They render as additional buttons that set editorUi.state.tool; the
+// type's mode-interaction composable acts on the selected tool.
+const surfaceTools = computed(() => modeStrategy?.value?.surfaceTools || [])
 
 const buttonBase =
   'flex h-[34px] w-[34px] items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2'
@@ -34,6 +43,20 @@ function toggleClass(active) {
         <FeatherIcon :name="mode.icon" class="h-4 w-4" />
       </button>
     </Tooltip>
+
+    <!-- Mode-specific tools (whiteboard pen/sticky/laser/…). Seam only; the
+         type agent wires the actual surface behavior to editorUi.state.tool. -->
+    <template v-if="surfaceTools.length">
+      <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
+      <Tooltip v-for="modeTool in surfaceTools" :key="modeTool.tool" :text="modeTool.label">
+        <button
+          :class="[buttonBase, toggleClass(editorUi.state.tool === modeTool.tool)]"
+          @click="editorUi.setTool(modeTool.tool)"
+        >
+          <FeatherIcon :name="modeTool.icon" class="h-4 w-4" />
+        </button>
+      </Tooltip>
+    </template>
 
     <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
 

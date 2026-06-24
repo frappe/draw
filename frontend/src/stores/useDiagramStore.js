@@ -9,6 +9,22 @@ import { createHistory } from '@/stores/history.js'
 import { findThemePreset } from '@/diagram/theme.js'
 import { createDiagramDocument, SCHEMA_VERSION, DEFAULT_DIAGRAM_TYPE } from '@/diagram/schema.js'
 import { addChild, addSibling } from '@/diagram/mindmapModel.js'
+import {
+  addFlowchartNode,
+  addFlowchartEdge,
+  removeFlowchartNode,
+  removeFlowchartEdge,
+  flowchartNodeById,
+  flowchartEdgeById,
+} from '@/diagram/flowchartModel.js'
+import {
+  addStroke,
+  removeStroke,
+  addStickyNote,
+  removeStickyNote,
+  strokeById,
+  stickyNoteById,
+} from '@/diagram/whiteboardModel.js'
 
 const STORE_KEY = 'diagramStore'
 
@@ -20,6 +36,8 @@ export function createDiagramStore(initialDocument) {
     shapes: clone(document.shapes || []),
     connectors: clone(document.connectors || []),
     mindmap: document.mindmap ? clone(document.mindmap) : null,
+    flowchart: document.flowchart ? clone(document.flowchart) : null,
+    whiteboard: document.whiteboard ? clone(document.whiteboard) : null,
     selection: [],
     themePreset: document.themePreset || 'ocean',
   })
@@ -42,6 +60,8 @@ function assembleStore(state, history) {
   attachGrouping(store, state, history)
   attachThemeAndCanvas(store, state, history)
   attachMindMap(store, state, history)
+  attachFlowchart(store, state, history)
+  attachWhiteboard(store, state, history)
   attachDocumentIo(store, state, history)
   attachHistory(store, history)
   return store
@@ -68,6 +88,90 @@ function attachMindMap(store, state, history) {
       const node = state.mindmap?.nodes.find((n) => n.id === id)
       if (node) applyPatch(node, patch)
     })
+}
+
+// Flowchart mutations (spec diagram-types Part B). Each runs the pure model
+// helper inside commit() so it is one undoable unit (Part G6). Positions live on
+// the model (manual placement is allowed, B7); layout reflow is a model edit too.
+// No-ops for non-flowchart diagrams. The F-step agent calls these helpers.
+function attachFlowchart(store, state, history) {
+  store.addFlowchartNode = (nodeType, text = '', x = 0, y = 0) => {
+    if (!state.flowchart) return null
+    let id = null
+    history.commit('Add node', () => (id = addFlowchartNode(state.flowchart, nodeType, text, x, y)))
+    return id
+  }
+  store.updateFlowchartNode = (id, patch) =>
+    history.commit('Update node', () => {
+      const node = flowchartNodeById(state.flowchart || {}, id)
+      if (node) applyPatch(node, patch)
+    })
+  store.removeFlowchartNode = (id) => {
+    if (!state.flowchart) return
+    history.commit('Delete node', () => removeFlowchartNode(state.flowchart, id))
+  }
+  store.addFlowchartEdge = (fromNodeId, toNodeId, partial = {}) => {
+    if (!state.flowchart) return null
+    let id = null
+    history.commit('Connect', () => (id = addFlowchartEdge(state.flowchart, fromNodeId, toNodeId, partial)))
+    return id
+  }
+  store.updateFlowchartEdge = (id, patch) =>
+    history.commit('Update edge', () => {
+      const edge = flowchartEdgeById(state.flowchart || {}, id)
+      if (edge) applyPatch(edge, patch)
+    })
+  store.removeFlowchartEdge = (id) => {
+    if (!state.flowchart) return
+    history.commit('Delete edge', () => removeFlowchartEdge(state.flowchart, id))
+  }
+  // Generic per-type model update so the agent can run a custom multi-step edit
+  // (Tidy up, insert-reflow, direction toggle) as one undoable unit (Part G6).
+  store.updateFlowchartModel = (label, mutatorFn) => {
+    if (!state.flowchart) return
+    history.commit(label, () => mutatorFn(state.flowchart))
+  }
+}
+
+// Whiteboard mutations (spec diagram-types Part C). Strokes are simplified by the
+// agent on pointer-up before they reach addStroke (Part G7). Each mutation is one
+// undoable unit (Part G6); no-ops for non-whiteboard diagrams.
+function attachWhiteboard(store, state, history) {
+  store.addStroke = (points, partial = {}) => {
+    if (!state.whiteboard) return null
+    let id = null
+    history.commit('Draw', () => (id = addStroke(state.whiteboard, points, partial)))
+    return id
+  }
+  store.updateStroke = (id, patch) =>
+    history.commit('Update stroke', () => {
+      const stroke = strokeById(state.whiteboard || {}, id)
+      if (stroke) applyPatch(stroke, patch)
+    })
+  store.removeStroke = (id) => {
+    if (!state.whiteboard) return
+    history.commit('Erase', () => removeStroke(state.whiteboard, id))
+  }
+  store.addStickyNote = (x, y, partial = {}) => {
+    if (!state.whiteboard) return null
+    let id = null
+    history.commit('Add sticky', () => (id = addStickyNote(state.whiteboard, x, y, partial)))
+    return id
+  }
+  store.updateStickyNote = (id, patch) =>
+    history.commit('Update sticky', () => {
+      const note = stickyNoteById(state.whiteboard || {}, id)
+      if (note) applyPatch(note, patch)
+    })
+  store.removeStickyNote = (id) => {
+    if (!state.whiteboard) return
+    history.commit('Delete sticky', () => removeStickyNote(state.whiteboard, id))
+  }
+  // Generic per-type model update (e.g. sketch-style toggle) as one undoable unit.
+  store.updateWhiteboardModel = (label, mutatorFn) => {
+    if (!state.whiteboard) return
+    history.commit(label, () => mutatorFn(state.whiteboard))
+  }
 }
 
 // Read helpers that features lean on.
@@ -296,6 +400,8 @@ function attachDocumentIo(store, state, history) {
     shapes: clone(state.shapes),
     connectors: clone(state.connectors),
     mindmap: state.mindmap ? clone(state.mindmap) : null,
+    flowchart: state.flowchart ? clone(state.flowchart) : null,
+    whiteboard: state.whiteboard ? clone(state.whiteboard) : null,
     themePreset: state.themePreset,
   })
   store.loadDocument = (document) => {
@@ -304,6 +410,8 @@ function attachDocumentIo(store, state, history) {
     state.shapes = clone(document.shapes || [])
     state.connectors = clone(document.connectors || [])
     state.mindmap = document.mindmap ? clone(document.mindmap) : null
+    state.flowchart = document.flowchart ? clone(document.flowchart) : null
+    state.whiteboard = document.whiteboard ? clone(document.whiteboard) : null
     state.themePreset = document.themePreset || 'ocean'
     state.selection = []
     history.clear()

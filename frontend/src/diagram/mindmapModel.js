@@ -84,3 +84,128 @@ export function descendantCount(model, id) {
     0,
   )
 }
+
+// The parent node of `id`, or null for the root / unknown ids.
+export function parentOf(model, id) {
+  const node = nodeById(model, id)
+  return node && node.parentId ? nodeById(model, node.parentId) : null
+}
+
+// Ids of a node and every descendant (the whole subtree, pre-order).
+export function subtreeIds(model, id) {
+  const ids = [id]
+  for (const child of childrenOf(model, id)) ids.push(...subtreeIds(model, child.id))
+  return ids
+}
+
+// True when `targetId` is `nodeId` itself or one of its descendants. Used to
+// block re-parenting a node into its own subtree (cycle prevention, A12).
+export function isDescendant(model, nodeId, targetId) {
+  return subtreeIds(model, nodeId).includes(targetId)
+}
+
+// Delete a node and its whole subtree. The root cannot be deleted (A12); callers
+// offer "clear map" instead. Returns the deleted ids (empty when refused).
+export function deleteSubtree(model, id) {
+  if (isRoot(model, id)) return []
+  const node = nodeById(model, id)
+  if (!node) return []
+  const ids = subtreeIds(model, id)
+  const removed = new Set(ids)
+  model.nodes = model.nodes.filter((candidate) => !removed.has(candidate.id))
+  model.crosslinks = model.crosslinks.filter(
+    (link) => !removed.has(link.fromId) && !removed.has(link.toId),
+  )
+  renumberChildren(model, node.parentId)
+  return ids
+}
+
+// Promote (outdent): make `id` a sibling of its parent, placed right after it.
+// No-op for the root and for direct children of the root (nowhere to go).
+export function promote(model, id) {
+  const node = nodeById(model, id)
+  if (!node || isRoot(model, id)) return false
+  const parent = nodeById(model, node.parentId)
+  if (!parent || isRoot(model, parent.id)) return false
+  const oldParentId = node.parentId
+  reattach(model, node, parent.parentId, parent.order)
+  renumberChildren(model, oldParentId)
+  return true
+}
+
+// Re-parent `id` under `newParentId` (appended), blocking cycles (A12). Returns
+// false when the move is illegal (unknown nodes, root, or self/descendant target).
+export function reparent(model, id, newParentId) {
+  const node = nodeById(model, id)
+  const target = nodeById(model, newParentId)
+  if (!node || !target || isRoot(model, id)) return false
+  if (id === newParentId || isDescendant(model, id, newParentId)) return false
+  const oldParentId = node.parentId
+  const order = childrenOf(model, newParentId).length
+  reattach(model, node, newParentId, order - 0.5)
+  if (oldParentId !== newParentId) renumberChildren(model, oldParentId)
+  return true
+}
+
+// Move `id` among its siblings by one step (-1 up, +1 down). Returns false at the
+// ends. Implemented by nudging the order value and renumbering densely.
+export function reorderSibling(model, id, direction) {
+  const node = nodeById(model, id)
+  if (!node || isRoot(model, id)) return false
+  const siblings = childrenOf(model, node.parentId)
+  const index = siblings.findIndex((sibling) => sibling.id === id)
+  const target = index + direction
+  if (target < 0 || target >= siblings.length) return false
+  node.order += direction * 1.5
+  renumberChildren(model, node.parentId)
+  return true
+}
+
+// Reparent and renumber the subtree's depths in one place (shared by promote /
+// reparent). `order` may be fractional; renumberChildren densifies afterwards.
+function reattach(model, node, newParentId, order) {
+  node.parentId = newParentId
+  node.order = order
+  renumberChildren(model, newParentId)
+  refreshDepths(model)
+}
+
+// Recompute every node's depth from the root down (cheap, O(n)).
+export function refreshDepths(model) {
+  const setDepth = (id, depth) => {
+    const node = nodeById(model, id)
+    if (node) node.depth = depth
+    for (const child of childrenOf(model, id)) setDepth(child.id, depth + 1)
+  }
+  setDepth(model.rootId, 0)
+}
+
+// Toggle a node's collapsed flag (collapsed subtrees occupy zero layout space).
+export function toggleCollapsed(model, id) {
+  const node = nodeById(model, id)
+  if (node) node.collapsed = !node.collapsed
+}
+
+// Set the collapsed flag on every node that has children (collapse/expand all).
+export function setAllCollapsed(model, collapsed) {
+  for (const node of model.nodes) {
+    if (childrenOf(model, node.id).length) node.collapsed = collapsed
+  }
+}
+
+// Add a cross-link (non-tree dotted connector) between two distinct nodes.
+// Refuses duplicates and self-links. Returns the new link id or null.
+export function addCrosslink(model, fromId, toId, label = '') {
+  if (fromId === toId || !nodeById(model, fromId) || !nodeById(model, toId)) return null
+  const exists = model.crosslinks.some(
+    (link) => link.fromId === fromId && link.toId === toId,
+  )
+  if (exists) return null
+  const link = { id: nextId('x'), fromId, toId, label }
+  model.crosslinks.push(link)
+  return link.id
+}
+
+export function removeCrosslink(model, id) {
+  model.crosslinks = model.crosslinks.filter((link) => link.id !== id)
+}

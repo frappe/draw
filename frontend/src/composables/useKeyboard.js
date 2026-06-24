@@ -6,9 +6,31 @@ import { onMounted, onBeforeUnmount } from 'vue'
 import { useClipboard } from '@/composables/useClipboard.js'
 import { useShapeTransform } from '@/composables/useShapeTransform.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
+import { getModeStrategy } from '@/stores/useModeStrategy.js'
+import { flowchartKeydown } from '@/composables/useFlowchartKeys.js'
+import { whiteboardKeydown } from '@/composables/useWhiteboardKeys.js'
 
 const ARROW_DELTAS = {
   ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
+}
+
+// Per-mode keyboard handlers (spec diagram-types Part G5), keyed by the
+// strategy's keyboardMode. Each handler is (event, store, editorUi) and returns
+// true when it consumed the key (so the global dispatcher calls preventDefault).
+// `block` is null (it uses the shared shape shortcuts below). `mindmap` is owned
+// by the M2 agent; its handler registers here when built (left null for now so
+// the seam exists without forcing a dependency).
+const MODE_KEYBOARD_HANDLERS = {
+  block: null,
+  mindmap: null,
+  flowchart: flowchartKeydown,
+  whiteboard: whiteboardKeydown,
+}
+
+// Allow the mind-map agent (M2) to register its handler without editing this
+// file: registerModeKeyboardHandler('mindmap', fn).
+export function registerModeKeyboardHandler(keyboardMode, handler) {
+  MODE_KEYBOARD_HANDLERS[keyboardMode] = handler
 }
 
 export function useKeyboard(store, editorUi) {
@@ -21,13 +43,38 @@ export function useKeyboard(store, editorUi) {
 }
 
 // Route a keydown to the right action, ignoring keys typed into editable fields.
+// Mode-aware (Part G5): cut/copy/paste/undo/redo modifier shortcuts stay shared
+// across all types; non-modifier keys are first offered to the active type's
+// per-mode handler (mindmap navigation, flowchart letters, whiteboard numbers),
+// then fall back to the shared block shortcuts only for the block type.
 function handleKeydown(event, store, editorUi, clipboard, transform) {
   if (isEditingText(event.target)) return
   const modifier = event.metaKey || event.ctrlKey
-  const handled = modifier
-    ? handleModifierKey(event, store, clipboard)
-    : handlePlainKey(event, store, editorUi, transform)
-  if (handled) event.preventDefault()
+  if (modifier) {
+    if (handleModifierKey(event, store, clipboard)) event.preventDefault()
+    return
+  }
+  if (dispatchModeKey(event, store, editorUi)) {
+    event.preventDefault()
+    return
+  }
+  // The block type keeps the shared shape shortcuts (delete/escape/nudge). Other
+  // types delegate fully to their per-mode handler above (and its no-op stub).
+  if (modeKeyboardFor(store) !== null) return
+  if (handlePlainKey(event, store, editorUi, transform)) event.preventDefault()
+}
+
+// The per-mode handler for the active diagram type (or null for block/unset).
+function modeKeyboardFor(store) {
+  const strategy = getModeStrategy(store.state.diagramType)
+  return MODE_KEYBOARD_HANDLERS[strategy.keyboardMode] ?? null
+}
+
+// Offer a non-modifier key to the active type's handler; returns true if consumed.
+function dispatchModeKey(event, store, editorUi) {
+  const handler = modeKeyboardFor(store)
+  if (!handler) return false
+  return handler(event, store, editorUi) === true
 }
 
 // Skip shortcuts while the user types in an input, textarea, or contentEditable.

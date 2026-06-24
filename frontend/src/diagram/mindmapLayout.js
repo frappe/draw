@@ -5,7 +5,7 @@
 // never stored (Part G6). Built simplest-correct: a one-sided placer, applied
 // rightward and (mirrored) leftward, with the root centred between the sides.
 
-import { childrenOf } from './mindmapModel.js'
+import { childrenOf, nodeById, subtreeIds } from './mindmapModel.js'
 
 const H_GAP = 70 // horizontal gap between depth columns
 const V_GAP = 18 // vertical gap between sibling subtrees
@@ -22,10 +22,15 @@ const ROOT_SCALE = 1.25
 // Deterministic node box from its text (no DOM measurement, so it is unit
 // testable). Long text wraps to more lines, growing height not width.
 export function measureNodeSize(node, isRoot = false) {
-  const contentWidth = node.text.length * CHAR_W + PAD_X
-  const width = clamp(contentWidth, MIN_W, MAX_W)
-  const lines = Math.max(1, Math.ceil((node.text.length * CHAR_W) / (MAX_W - PAD_X)))
-  const height = lines * LINE_H + PAD_Y
+  // Scale the character/line metrics by the node's chosen font size (default 14)
+  // so a larger pill grows to fit bigger text (spec A9 font-size control).
+  const fontScale = (node.fontSize || (isRoot ? 17 : 14)) / 14
+  const charWidth = CHAR_W * fontScale
+  const lineHeight = LINE_H * fontScale
+  const contentWidth = node.text.length * charWidth + PAD_X
+  const width = clamp(contentWidth, MIN_W, MAX_W * fontScale)
+  const lines = Math.max(1, Math.ceil((node.text.length * charWidth) / (MAX_W * fontScale - PAD_X)))
+  const height = lines * lineHeight + PAD_Y
   const scale = isRoot ? ROOT_SCALE : 1
   return { w: Math.round(width * scale), h: Math.round(height * scale) }
 }
@@ -112,6 +117,42 @@ function place(model, node, attachX, centerY, dir, sizes, metrics, positions) {
     place(model, child, childAttachX, top + height / 2, dir, sizes, metrics, positions)
     top += height + V_GAP
   }
+}
+
+// True when a node is hidden because one of its ancestors is collapsed. The node
+// itself being collapsed does not hide it (only its descendants). Used by the
+// renderer so collapsed subtrees draw nothing (and the layout gave them no space).
+export function isNodeHidden(model, id) {
+  let node = nodeById(model, id)
+  while (node && node.parentId) {
+    const parent = nodeById(model, node.parentId)
+    if (parent?.collapsed) return true
+    node = parent
+  }
+  return false
+}
+
+// Count of descendants hidden under a collapsed node (for its count badge).
+export function hiddenDescendantCount(model, id) {
+  const node = nodeById(model, id)
+  if (!node?.collapsed) return 0
+  return subtreeIds(model, id).length - 1
+}
+
+// A smooth cubic-bezier path from a parent box edge to a child box edge, fanning
+// horizontally (control points pulled toward each other on x). `side` is +1 when
+// the child sits to the right of the parent, -1 to the left (spec A4 curves).
+export function branchPath(parentBox, childBox) {
+  const side = childBox.x >= parentBox.x ? 1 : -1
+  const start = edgePoint(parentBox, side)
+  const end = edgePoint(childBox, -side)
+  const midX = (start.x + end.x) / 2
+  return `M ${start.x} ${start.y} C ${midX} ${start.y} ${midX} ${end.y} ${end.x} ${end.y}`
+}
+
+// The middle of a box's left (side<0) or right (side>0) edge.
+function edgePoint(box, side) {
+  return { x: side > 0 ? box.x + box.w : box.x, y: box.y + box.h / 2 }
 }
 
 // Shift all positions so the content's top-left is at (0,0) plus a margin, and

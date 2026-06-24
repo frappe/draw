@@ -17,11 +17,16 @@ const emit = defineEmits(['update:modelValue', 'create'])
 const types = [
   { key: 'block', name: 'Block diagram', hint: 'Boxes, arrows, flows', icon: 'box', enabled: true },
   { key: 'mindmap', name: 'Mind map', hint: 'Trees, ideas', icon: 'git-branch', enabled: true },
-  { key: 'process', name: 'Process chart', hint: 'Steps, gateways', icon: 'activity', enabled: false },
-  { key: 'whiteboard', name: 'Whiteboard', hint: 'Freeform', icon: 'edit-3', enabled: false },
+  { key: 'flowchart', name: 'Flowchart', hint: 'Steps, decisions', icon: 'activity', enabled: true },
+  { key: 'whiteboard', name: 'Whiteboard', hint: 'Freeform', icon: 'edit-3', enabled: true },
 ]
 
-const TYPE_TITLE = { block: 'Untitled diagram', mindmap: 'Untitled mind map' }
+const TYPE_TITLE = {
+  block: 'Untitled diagram',
+  mindmap: 'Untitled mind map',
+  flowchart: 'Untitled flowchart',
+  whiteboard: 'Untitled whiteboard',
+}
 
 // Pre-rendered SVG previews keep the template grid in sync with the canvas.
 const previews = computed(() =>

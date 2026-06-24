@@ -15,6 +15,25 @@ describe('schema diagramType', () => {
     expect(doc.mindmap.nodes).toHaveLength(1)
   })
 
+  it('seeds a flowchart document with a pre-placed Start terminator', () => {
+    const doc = createDiagramDocument(undefined, 'flowchart')
+    expect(doc.diagramType).toBe('flowchart')
+    expect(doc.flowchart.direction).toBe('TB')
+    expect(doc.flowchart.nodes).toHaveLength(1)
+    expect(doc.flowchart.nodes[0].nodeType).toBe('terminator')
+    expect(doc.flowchart.edges).toEqual([])
+    expect(doc.whiteboard).toBeNull()
+  })
+
+  it('seeds a whiteboard document with empty strokes and stickies', () => {
+    const doc = createDiagramDocument(undefined, 'whiteboard')
+    expect(doc.diagramType).toBe('whiteboard')
+    expect(doc.whiteboard.sketchStyle).toBe(false)
+    expect(doc.whiteboard.strokes).toEqual([])
+    expect(doc.whiteboard.stickyNotes).toEqual([])
+    expect(doc.flowchart).toBeNull()
+  })
+
   it('backward-compat: a v1 document without diagramType parses as block', () => {
     const v1 = {
       schemaVersion: 1,
@@ -25,6 +44,8 @@ describe('schema diagramType', () => {
     const parsed = parseDiagramDocument(v1)
     expect(parsed.diagramType).toBe('block')
     expect(parsed.mindmap).toBeNull()
+    expect(parsed.flowchart).toBeNull()
+    expect(parsed.whiteboard).toBeNull()
   })
 
   it('parses a JSON string document', () => {
