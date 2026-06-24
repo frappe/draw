@@ -29,17 +29,34 @@ function branchAncestor(model, id) {
   return node || null
 }
 
-// Resolve a node's display color: explicit override wins; the root is the brand
-// color; otherwise inherit the branch's palette color, lightened by depth.
+// Resolve a node's display color: an explicit override on the node itself wins;
+// the root is the brand color; otherwise inherit the nearest ancestor's explicit
+// override (if any), or the branch's palette color, lightened by depth so the
+// cascade reaches every descendant (spec A3 "descendants inherit; overridable").
 export function resolveNodeColor(model, node, themePreset) {
   if (node.color) return node.color
   if (isRoot(model, node.id)) return ROOT_COLOR
+  const inherited = inheritedOverride(model, node)
+  if (inherited) {
+    return lighten(inherited.color, Math.max(0, node.depth - inherited.depth))
+  }
   const branch = branchAncestor(model, node.id)
   if (!branch) return ROOT_COLOR
   const palette = branchPalette(themePreset)
   const index = firstLevelIndex(model, branch.id)
   const base = palette[index % palette.length]
   return lighten(base, Math.max(0, node.depth - 1))
+}
+
+// Nearest ancestor (walking parents, not counting the node itself) carrying an
+// explicit node.color, or null. Drives the inheritance cascade for descendants.
+function inheritedOverride(model, node) {
+  let ancestor = parentOf(model, node.id)
+  while (ancestor) {
+    if (ancestor.color) return ancestor
+    ancestor = parentOf(model, ancestor.id)
+  }
+  return null
 }
 
 // Position of a first-level branch among the root's children (drives its hue).

@@ -52,10 +52,20 @@ function setFill(color) {
   if (node.value) store.updateFlowchartNode(node.value.id, { fill: color })
 }
 
+// Rename a decision branch: update the branch label AND every outgoing edge on
+// that branch port within one undoable mutation, so the connector's midpoint
+// label stays attached (spec B8/B11 "decision branch labels stay attached").
 function setBranchLabel(port, label) {
   if (!node.value) return
-  const branches = node.value.branches.map((b) => (b.port === port ? { ...b, label } : b))
-  store.updateFlowchartNode(node.value.id, { branches })
+  const id = node.value.id
+  store.updateFlowchartModel('Branch label', (m) => {
+    const target = flowchartNodeById(m, id)
+    if (!target) return
+    target.branches = target.branches.map((b) => (b.port === port ? { ...b, label } : b))
+    for (const edge of m.edges) {
+      if (edge.from.nodeId === id && edge.from.port === port) edge.label = label
+    }
+  })
 }
 
 function addBranch() {

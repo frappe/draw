@@ -30,6 +30,23 @@ describe('mindmapColors', () => {
     expect(resolveNodeColor(model, node, 'ocean')).toBe('#123456')
   })
 
+  it('cascades a branch color override to descendants, lightened by depth', () => {
+    const model = createMindMap()
+    const branch = addChild(model, model.rootId)
+    const child = addChild(model, branch)
+    const grandchild = addChild(model, child)
+    const branchNode = model.nodes.find((n) => n.id === branch)
+    branchNode.color = '#4F94FF'
+    // Child (depth 2, override at depth 1) and grandchild (depth 3) both inherit
+    // the override, lightened by their depth delta from the overriding ancestor.
+    expect(resolveNodeColor(model, model.nodes.find((n) => n.id === child), 'ocean')).toBe(
+      lighten('#4F94FF', 1),
+    )
+    expect(resolveNodeColor(model, model.nodes.find((n) => n.id === grandchild), 'ocean')).toBe(
+      lighten('#4F94FF', 2),
+    )
+  })
+
   it('switches palette with the theme preset', () => {
     const model = createMindMap()
     const a = addChild(model, model.rootId)
