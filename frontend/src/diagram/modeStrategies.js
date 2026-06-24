@@ -28,6 +28,7 @@ const BLOCK = {
   paletteMode: 'block',
   keyboardMode: 'block',
   surfaceTools: [],
+  showsShapeTools: true, // left creation palette (shapes/connectors/icons)
 }
 
 const MINDMAP = {
@@ -39,6 +40,7 @@ const MINDMAP = {
   paletteMode: 'mindmap',
   keyboardMode: 'mindmap',
   surfaceTools: [],
+  showsShapeTools: false, // mind maps grow by keyboard (Tab/Enter), not shape drag
 }
 
 const FLOWCHART = {
@@ -50,6 +52,7 @@ const FLOWCHART = {
   paletteMode: 'flowchart',
   keyboardMode: 'flowchart',
   surfaceTools: [], // flowchart builds via + handles / keyboard, not bottom tools
+  showsShapeTools: false, // flowchart builds via + handles / keyboard
 }
 
 const WHITEBOARD = {
@@ -71,6 +74,7 @@ const WHITEBOARD = {
     { tool: 'sticky', icon: 'square', label: 'Sticky note' },
     { tool: 'laser', icon: 'zap', label: 'Laser pointer' },
   ],
+  showsShapeTools: true, // whiteboards include the full base shapes/connectors (spec C3)
 }
 
 const STRATEGIES = {
