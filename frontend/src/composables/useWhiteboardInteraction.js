@@ -14,7 +14,6 @@ import { registerModeInteraction, useModeInteraction } from '@/composables/useMo
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { simplifyStroke } from '@/diagram/strokeSimplify.js'
 import { strokeAt } from '@/diagram/whiteboardModel.js'
-import { useTextEditing } from '@/composables/useTextEditing.js'
 import { HIGHLIGHTER_WIDTH } from '@/diagram/whiteboardColors.js'
 
 const ERASER_TOLERANCE = 6 // canvas units of slack around a stroke path
@@ -127,5 +126,7 @@ function onDoubleClick(context, store) {
     text: { content: '', align: 'left', valign: 'top' },
   })
   context.editorUi.setTool('select')
-  useTextEditing()?.beginTextEdit(id)
+  // Use the setup-scoped editing API passed via the interaction context;
+  // calling useTextEditing() here (outside setup) would not resolve.
+  context.editing?.beginTextEdit(id)
 }

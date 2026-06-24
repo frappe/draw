@@ -302,7 +302,10 @@ function delegatesSurface() {
 // (Part G4) via the shared viewport transform.
 function interactionContext(event) {
   const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
-  return { point, event, viewport, store, editorUi }
+  // `editing` is the shared text-editing API (setup-scoped here) so mode
+  // interactions can begin inline text edits without re-calling the composable
+  // outside setup (e.g. whiteboard double-click-to-type, spec C1/W1).
+  return { point, event, viewport, store, editorUi, editing }
 }
 
 // Try delegating one surface event to the mode interaction's handler. Returns
@@ -533,11 +536,13 @@ const surfaceCursor = computed(() => {
           :flowchart="store.state.flowchart"
         />
 
-        <!-- Whiteboard mode: strokes + stickies + objects (spec Part C). -->
-        <WhiteboardLayer
-          v-else-if="isWhiteboard && store.state.whiteboard"
-          :whiteboard="store.state.whiteboard"
-        />
+        <!-- Whiteboard mode: strokes + stickies + objects (spec Part C). Whiteboard
+             text lives in the shared shapes[] (C9), so it reuses the block
+             TextEditor overlay for inline double-click-to-type (W1). -->
+        <template v-else-if="isWhiteboard && store.state.whiteboard">
+          <WhiteboardLayer :whiteboard="store.state.whiteboard" />
+          <TextEditor />
+        </template>
       </g>
     </svg>
 
