@@ -2,11 +2,12 @@
 // Editor page — owns the diagram store. Loads the Draw Diagram doc, parses its
 // document, creates + provides the store and editor UI, then composes the
 // toolbar, palettes, canvas, and floating palette (CONVENTIONS integration).
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { loadDiagram } from '@/data/diagrams.js'
 import { parseDiagramDocument } from '@/diagram/schema.js'
 import { createDiagramStore, provideDiagramStore } from '@/stores/useDiagramStore.js'
 import { createEditorUi, provideEditorUi } from '@/stores/useEditorUi.js'
+import { provideModeStrategy, getModeStrategy } from '@/stores/useModeStrategy.js'
 import { useKeyboard } from '@/composables/useKeyboard.js'
 import { useClipboard } from '@/composables/useClipboard.js'
 import { useAutosave } from '@/composables/useAutosave.js'
@@ -26,6 +27,10 @@ const store = createDiagramStore(parseDiagramDocument(diagram.doc?.document))
 const editorUi = createEditorUi()
 provideDiagramStore(store)
 provideEditorUi(editorUi)
+
+// Active mode module for this diagram's type (spec diagram-types §0/G1).
+const modeStrategy = computed(() => getModeStrategy(store.state.diagramType))
+provideModeStrategy(modeStrategy)
 
 const dark = ref(false)
 const autosave = useAutosave(store, diagram)

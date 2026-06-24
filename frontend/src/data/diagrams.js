@@ -12,11 +12,16 @@ export const diagrams = createListResource({
 })
 
 // Create a new diagram, returning its name. A template's pre-filled document may
-// be supplied (NewDiagramDialog); otherwise it starts empty.
-export async function createDiagram(title = 'Untitled diagram', document = createDiagramDocument()) {
+// be supplied (NewDiagramDialog); otherwise a fresh document for `diagramType` is
+// built (e.g. a mind map seeded with a root node). diagramType is carried inside
+// the document JSON; the backend mirrors it to the diagram_type field on save.
+export async function createDiagram(title = 'Untitled diagram', document = null, diagramType = 'block') {
+  const finalDocument = document || createDiagramDocument(undefined, diagramType)
+  if (!finalDocument.diagramType) finalDocument.diagramType = diagramType
   const created = await diagrams.insert.submit({
     title,
-    document,
+    document: finalDocument,
+    diagram_type: finalDocument.diagramType,
   })
   return created.name
 }

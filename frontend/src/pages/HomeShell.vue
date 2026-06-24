@@ -25,7 +25,7 @@ const list = computed(() => diagrams.data || [])
 const isEmpty = computed(() => list.value.length === 0)
 
 async function create(payload = {}) {
-  const name = await createDiagram(payload.title, payload.document)
+  const name = await createDiagram(payload.title, payload.document, payload.type || 'block')
   diagrams.reload()
   router.push({ name: 'Editor', params: { name } })
 }

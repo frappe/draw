@@ -1,0 +1,131 @@
+// Balanced mind-map auto-layout — pure, O(n) (spec diagram-types A6, Part G7).
+// layoutMindMap(model) returns { positions: { [id]: {x,y,w,h} }, bbox: {w,h} }
+// with coordinates normalised so the content's top-left sits at (0,0), letting
+// the canvas reuse its existing fit-to-view centring. Positions are derived,
+// never stored (Part G6). Built simplest-correct: a one-sided placer, applied
+// rightward and (mirrored) leftward, with the root centred between the sides.
+
+import { childrenOf } from './mindmapModel.js'
+
+const H_GAP = 70 // horizontal gap between depth columns
+const V_GAP = 18 // vertical gap between sibling subtrees
+const PAD = 60 // margin around the whole tree after normalising
+
+const CHAR_W = 8.5
+const PAD_X = 28
+const PAD_Y = 18
+const LINE_H = 22
+const MIN_W = 70
+const MAX_W = 260
+const ROOT_SCALE = 1.25
+
+// Deterministic node box from its text (no DOM measurement, so it is unit
+// testable). Long text wraps to more lines, growing height not width.
+export function measureNodeSize(node, isRoot = false) {
+  const contentWidth = node.text.length * CHAR_W + PAD_X
+  const width = clamp(contentWidth, MIN_W, MAX_W)
+  const lines = Math.max(1, Math.ceil((node.text.length * CHAR_W) / (MAX_W - PAD_X)))
+  const height = lines * LINE_H + PAD_Y
+  const scale = isRoot ? ROOT_SCALE : 1
+  return { w: Math.round(width * scale), h: Math.round(height * scale) }
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value))
+}
+
+export function layoutMindMap(model) {
+  if (!model || !model.rootId) return { positions: {}, bbox: { w: 0, h: 0 } }
+  const sizes = sizeNodes(model)
+  const metrics = makeSubtreeMetrics(model, sizes)
+  const positions = {}
+  placeRoot(model, sizes, metrics, positions)
+  return normalise(positions)
+}
+
+function sizeNodes(model) {
+  const sizes = {}
+  for (const node of model.nodes) {
+    sizes[node.id] = measureNodeSize(node, node.id === model.rootId)
+  }
+  return sizes
+}
+
+// Memoised subtree heights + the stacked-band height of a sibling group.
+// A node's subtree height is its own height or its children band, whichever is
+// taller; collapsed nodes count as leaves.
+function makeSubtreeMetrics(model, sizes) {
+  const memo = new Map()
+  function height(node) {
+    if (memo.has(node.id)) return memo.get(node.id)
+    const children = node.collapsed ? [] : childrenOf(model, node.id)
+    let value = sizes[node.id].h
+    if (children.length) value = Math.max(value, band(children))
+    memo.set(node.id, value)
+    return value
+  }
+  function band(children) {
+    const total = children.reduce((sum, child) => sum + height(child), 0)
+    return total + (children.length - 1) * V_GAP
+  }
+  return { height, band }
+}
+
+// Root centred at the origin; first-level branches split left/right (alternating
+// by order for a deterministic, roughly balanced split), each side mirrored.
+function placeRoot(model, sizes, metrics, positions) {
+  const rootSize = sizes[model.rootId]
+  positions[model.rootId] = { x: -rootSize.w / 2, y: -rootSize.h / 2, ...rootSize }
+
+  const branches = childrenOf(model, model.rootId)
+  const right = branches.filter((_, index) => index % 2 === 0)
+  const left = branches.filter((_, index) => index % 2 === 1)
+
+  placeSide(model, right, rootSize.w / 2 + H_GAP, 1, sizes, metrics, positions)
+  placeSide(model, left, -rootSize.w / 2 - H_GAP, -1, sizes, metrics, positions)
+}
+
+// Stack a side's branch subtrees, vertically centred on the root (y=0).
+function placeSide(model, branches, attachX, dir, sizes, metrics, positions) {
+  if (!branches.length) return
+  let top = -metrics.band(branches) / 2
+  for (const branch of branches) {
+    const height = metrics.height(branch)
+    place(model, branch, attachX, top + height / 2, dir, sizes, metrics, positions)
+    top += height + V_GAP
+  }
+}
+
+// Position one node (its edge nearest the root at `attachX`), then recurse to its
+// children one column further out in direction `dir` (+1 right, -1 left).
+function place(model, node, attachX, centerY, dir, sizes, metrics, positions) {
+  const size = sizes[node.id]
+  const x = dir > 0 ? attachX : attachX - size.w
+  positions[node.id] = { x, y: centerY - size.h / 2, ...size }
+
+  const children = node.collapsed ? [] : childrenOf(model, node.id)
+  if (!children.length) return
+  const childAttachX = dir > 0 ? x + size.w + H_GAP : x - H_GAP
+  let top = centerY - metrics.band(children) / 2
+  for (const child of children) {
+    const height = metrics.height(child)
+    place(model, child, childAttachX, top + height / 2, dir, sizes, metrics, positions)
+    top += height + V_GAP
+  }
+}
+
+// Shift all positions so the content's top-left is at (0,0) plus a margin, and
+// report the bounding-box size for fit-to-view.
+function normalise(positions) {
+  const boxes = Object.values(positions)
+  if (!boxes.length) return { positions, bbox: { w: 0, h: 0 } }
+  const minX = Math.min(...boxes.map((b) => b.x))
+  const minY = Math.min(...boxes.map((b) => b.y))
+  const maxX = Math.max(...boxes.map((b) => b.x + b.w))
+  const maxY = Math.max(...boxes.map((b) => b.y + b.h))
+  const shifted = {}
+  for (const [id, box] of Object.entries(positions)) {
+    shifted[id] = { ...box, x: box.x - minX + PAD, y: box.y - minY + PAD }
+  }
+  return { positions: shifted, bbox: { w: maxX - minX + PAD * 2, h: maxY - minY + PAD * 2 } }
+}

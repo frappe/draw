@@ -7,9 +7,15 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value))
 }
 
-// Capture the document slice that participates in history.
+// Capture the document slice that participates in history. `mindmap` is included
+// so mind-map edits are undoable; it is null for non-mindmap diagrams.
 function snapshot(state) {
-  return clone({ canvas: state.canvas, shapes: state.shapes, connectors: state.connectors })
+  return clone({
+    canvas: state.canvas,
+    shapes: state.shapes,
+    connectors: state.connectors,
+    mindmap: state.mindmap,
+  })
 }
 
 // Apply a snapshot back onto the reactive state.
@@ -17,6 +23,7 @@ function restore(state, snap) {
   state.canvas = clone(snap.canvas)
   state.shapes = clone(snap.shapes)
   state.connectors = clone(snap.connectors)
+  state.mindmap = clone(snap.mindmap)
 }
 
 export function createHistory(state) {

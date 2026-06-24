@@ -11,8 +11,10 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick, provide } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
+import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import { themeVarStyle } from '@/diagram/theme.js'
 import { axisAlignedBBox, anchorPoint, pointInShape } from '@/diagram/geometry.js'
+import { layoutMindMap } from '@/diagram/mindmapLayout.js'
 import { useSelection } from '@/composables/useSelection.js'
 import { useShapeCreation } from '@/composables/useShapeCreation.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
@@ -24,11 +26,21 @@ import SmartGuidesLayer from './SmartGuidesLayer.vue'
 import HoverArrows from './HoverArrows.vue'
 import SelectionLayer from './SelectionLayer.vue'
 import TextEditor from './TextEditor.vue'
+import MindMapNodeLayer from './MindMapNodeLayer.vue'
 import Rulers from './Rulers.vue'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
+const modeStrategy = useModeStrategy()
 const viewport = editorUi.viewport
+
+// Mind-map mode renders its own laid-out layer instead of the block shape/
+// connector loops; the canvas is unbounded (no white paper). Layout is derived
+// from the model (Part G6/G8) and reused for fit + the scroll region.
+const isMindmap = computed(() => modeStrategy.value.rendersOwnLayer)
+const mindmapLayout = computed(() =>
+  isMindmap.value && store.state.mindmap ? layoutMindMap(store.state.mindmap) : null,
+)
 
 // Canvas interaction layers. Each composable attaches its own window listeners
 // during a gesture; here we only route the surface's pointer/drag/dblclick.
@@ -63,6 +75,12 @@ const groupTransform = computed(
 // shape's axis-aligned box, padded by a small margin. Shrinks back to the
 // canvas + margin when shapes return inside (spec §4.1 net rule).
 const contentExtent = computed(() => {
+  // Mind map: the laid-out tree (already normalised to start at 0,0) is the
+  // whole content; there is no bounded paper.
+  if (isMindmap.value && mindmapLayout.value) {
+    const { w, h } = mindmapLayout.value.bbox
+    return { x: -PAN_MARGIN, y: -PAN_MARGIN, w: w + PAN_MARGIN * 2, h: h + PAN_MARGIN * 2 }
+  }
   let minX = 0
   let minY = 0
   let maxX = canvas.value.width
@@ -112,16 +130,23 @@ const stageStyle = computed(() => ({
 }))
 
 // Feed container + canvas size to the viewport, then fit-to-view centered.
+// The box fit-to-view should frame: the mind-map tree's bbox, else the paper.
+function fitContentSize() {
+  if (isMindmap.value && mindmapLayout.value) return mindmapLayout.value.bbox
+  return { w: canvas.value.width, h: canvas.value.height }
+}
+
 function fitToView() {
   if (!surface.value) return
   const bounds = surface.value.getBoundingClientRect()
   viewWidth.value = bounds.width
   viewHeight.value = bounds.height
+  const size = fitContentSize()
   viewport.setMeasure({
     containerW: bounds.width,
     containerH: bounds.height,
-    canvasW: canvas.value.width,
-    canvasH: canvas.value.height,
+    canvasW: size.w,
+    canvasH: size.h,
   })
   viewport.fit()
 }
@@ -205,6 +230,18 @@ watch(
   () => nextTick(fitToView),
 )
 
+// As the mind-map tree grows, keep the viewport's fit measure current so the
+// Fit control frames the whole tree (we don't auto-refit on every add, to avoid
+// a jarring zoom jump while the user is building).
+watch(
+  () => mindmapLayout.value && [mindmapLayout.value.bbox.w, mindmapLayout.value.bbox.h],
+  () => {
+    if (!isMindmap.value) return
+    const size = fitContentSize()
+    viewport.setMeasure({ canvasW: size.w, canvasH: size.h })
+  },
+)
+
 function pointerPosition(event) {
   const bounds = surface.value.getBoundingClientRect()
   return { x: event.clientX - bounds.left, y: event.clientY - bounds.top }
@@ -236,6 +273,12 @@ const panning = computed(() => editorUi.state.tool === 'hand')
 // select either applies the format painter to a clicked shape or runs the
 // normal click/move/marquee selection (spec §7.1/§7.2/§4.3).
 function onSurfacePointerDown(event) {
+  // Mind map is auto-layout: no free shape select/draw/move on the surface
+  // (node interactions live on the nodes themselves). Panning still works.
+  if (isMindmap.value) {
+    if (editorUi.state.tool === 'hand') viewport.startPan(event)
+    return
+  }
   if (editorUi.state.tool === 'hand') return viewport.startPan(event)
   if (editorUi.state.tool === 'draw') return creation.onCanvasPointerDown(event)
   if (painter.isActive()) return applyPainterAt(event)
@@ -254,17 +297,18 @@ function applyPainterAt(event) {
 
 function onSurfacePointerMove(event) {
   if (panning.value) viewport.movePan(event)
-  else if (editorUi.state.tool === 'draw') creation.onCanvasPointerMove(event)
+  else if (!isMindmap.value && editorUi.state.tool === 'draw') creation.onCanvasPointerMove(event)
 }
 
 function onSurfacePointerUp(event) {
   viewport.endPan()
-  if (editorUi.state.tool === 'draw') creation.onCanvasPointerUp(event)
+  if (!isMindmap.value && editorUi.state.tool === 'draw') creation.onCanvasPointerUp(event)
 }
 
 // Double-click: edit the text of a hit shape, the label of a hit connector, or
 // spawn the last-used shape in edit mode on empty canvas (spec §6/§7.1).
 function onSurfaceDoubleClick(event) {
+  if (isMindmap.value) return // node text editing arrives in M2
   const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
   const shape = topShapeAt(point)
   if (shape) return editing.beginTextEdit(shape.id)
@@ -343,66 +387,70 @@ const surfaceCursor = computed(() => {
     <!-- The SVG is pinned to the viewport; the <g> transform handles pan/zoom. -->
     <svg class="pointer-events-none absolute left-0 top-0 h-full w-full">
       <g :transform="groupTransform" class="[&_*]:pointer-events-auto">
-        <!-- Soft paper shadow approximated with a slightly offset gray rect. -->
-        <rect
-          :x="2"
-          :y="3"
-          :width="canvas.width"
-          :height="canvas.height"
-          fill="rgba(0,0,0,0.06)"
-        />
-        <rect
-          :width="canvas.width"
-          :height="canvas.height"
-          :fill="paperBackground"
-          stroke="#E2E2E2"
-          stroke-width="1"
-        />
+        <!-- Block mode: bounded white paper + shapes/connectors + overlays. -->
+        <template v-if="!isMindmap">
+          <!-- Soft paper shadow approximated with a slightly offset gray rect. -->
+          <rect :x="2" :y="3" :width="canvas.width" :height="canvas.height" fill="rgba(0,0,0,0.06)" />
+          <rect
+            :width="canvas.width"
+            :height="canvas.height"
+            :fill="paperBackground"
+            stroke="#E2E2E2"
+            stroke-width="1"
+          />
 
-        <GridLayer
-          v-if="editorUi.state.gridVisible"
-          :width="canvas.width"
-          :height="canvas.height"
-          :density="editorUi.state.gridDensity"
+          <GridLayer
+            v-if="editorUi.state.gridVisible"
+            :width="canvas.width"
+            :height="canvas.height"
+            :density="editorUi.state.gridDensity"
+          />
+
+          <ConnectorView
+            v-for="connector in store.state.connectors"
+            :key="connector.id"
+            :connector="connector"
+          />
+
+          <ShapeView v-for="shape in orderedShapes" :key="shape.id" :shape="shape" />
+
+          <SmartGuidesLayer />
+          <HoverArrows />
+          <SelectionLayer />
+
+          <!-- Dashed ghost of the shape/connector being drawn (spec §7.1). -->
+          <rect
+            v-if="creation.preview.value?.box"
+            :x="creation.preview.value.x"
+            :y="creation.preview.value.y"
+            :width="creation.preview.value.w"
+            :height="creation.preview.value.h"
+            fill="none"
+            stroke="#006EDB"
+            stroke-width="1.5"
+            stroke-dasharray="6 4"
+          />
+          <line
+            v-else-if="creation.preview.value?.line"
+            :x1="creation.preview.value.x1"
+            :y1="creation.preview.value.y1"
+            :x2="creation.preview.value.x2"
+            :y2="creation.preview.value.y2"
+            stroke="#006EDB"
+            stroke-width="2"
+            stroke-dasharray="6 4"
+            stroke-linecap="round"
+          />
+
+          <TextEditor />
+        </template>
+
+        <!-- Mind-map mode: the laid-out tree (spec diagram-types Part A). -->
+        <MindMapNodeLayer
+          v-else-if="mindmapLayout"
+          :mindmap="store.state.mindmap"
+          :positions="mindmapLayout.positions"
         />
-
-        <ConnectorView
-          v-for="connector in store.state.connectors"
-          :key="connector.id"
-          :connector="connector"
-        />
-
-        <ShapeView v-for="shape in orderedShapes" :key="shape.id" :shape="shape" />
-
-        <SmartGuidesLayer />
-        <HoverArrows />
-        <SelectionLayer />
-
-        <!-- Dashed ghost of the shape/connector being drawn (spec §7.1). -->
-        <rect
-          v-if="creation.preview.value?.box"
-          :x="creation.preview.value.x"
-          :y="creation.preview.value.y"
-          :width="creation.preview.value.w"
-          :height="creation.preview.value.h"
-          fill="none"
-          stroke="#006EDB"
-          stroke-width="1.5"
-          stroke-dasharray="6 4"
-        />
-        <line
-          v-else-if="creation.preview.value?.line"
-          :x1="creation.preview.value.x1"
-          :y1="creation.preview.value.y1"
-          :x2="creation.preview.value.x2"
-          :y2="creation.preview.value.y2"
-          stroke="#006EDB"
-          stroke-width="2"
-          stroke-dasharray="6 4"
-          stroke-linecap="round"
-        />
-
-        <TextEditor />
       </g>
     </svg>
 

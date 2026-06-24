@@ -25,6 +25,7 @@ declare module 'vue' {
     HoverArrows: typeof import('./src/components/canvas/HoverArrows.vue')['default']
     LeftPalette: typeof import('./src/components/palette-left/LeftPalette.vue')['default']
     Logomark: typeof import('./src/components/Logomark.vue')['default']
+    MindMapNodeLayer: typeof import('./src/components/canvas/MindMapNodeLayer.vue')['default']
     NewDiagramDialog: typeof import('./src/components/home/NewDiagramDialog.vue')['default']
     PaletteSearch: typeof import('./src/components/palette-left/PaletteSearch.vue')['default']
     PaletteSection: typeof import('./src/components/palette-right/PaletteSection.vue')['default']

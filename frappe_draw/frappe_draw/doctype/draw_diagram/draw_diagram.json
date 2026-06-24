@@ -10,6 +10,7 @@
   "description",
   "folder",
   "canvas_size",
+  "diagram_type",
   "column_break_settings",
   "is_public",
   "revision",
@@ -47,6 +48,15 @@
    "fieldtype": "Select",
    "label": "Canvas Size",
    "options": "Widescreen 16:9\nStandard 4:3\nA4 Landscape\nA4 Portrait\nLetter Landscape\nLetter Portrait\nSquare"
+  },
+  {
+   "default": "block",
+   "fieldname": "diagram_type",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Diagram Type",
+   "options": "block\nmindmap\nflowchart\nwhiteboard",
+   "description": "Mirrored from the document JSON's diagramType; selects the editor mode."
   },
   {
    "fieldname": "column_break_settings",

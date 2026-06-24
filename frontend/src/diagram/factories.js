@@ -6,8 +6,9 @@ import { primaryTriad, CONNECTOR_DEFAULT_STYLE } from './theme.js'
 
 let idCounter = 0
 
-// Short, unique, monotonic ids. Prefix keeps shapes/connectors distinguishable.
-function nextId(prefix) {
+// Short, unique, monotonic ids. Prefix keeps shapes/connectors/nodes
+// distinguishable (exported so the mind-map model reuses one id source).
+export function nextId(prefix) {
   idCounter += 1
   return `${prefix}${idCounter.toString(36)}`
 }

@@ -16,10 +16,12 @@ const emit = defineEmits(['update:modelValue', 'create'])
 
 const types = [
   { key: 'block', name: 'Block diagram', hint: 'Boxes, arrows, flows', icon: 'box', enabled: true },
-  { key: 'mindmap', name: 'Mind map', hint: 'Trees, ideas', icon: 'git-branch', enabled: false },
+  { key: 'mindmap', name: 'Mind map', hint: 'Trees, ideas', icon: 'git-branch', enabled: true },
   { key: 'process', name: 'Process chart', hint: 'Steps, gateways', icon: 'activity', enabled: false },
   { key: 'whiteboard', name: 'Whiteboard', hint: 'Freeform', icon: 'edit-3', enabled: false },
 ]
+
+const TYPE_TITLE = { block: 'Untitled diagram', mindmap: 'Untitled mind map' }
 
 // Pre-rendered SVG previews keep the template grid in sync with the canvas.
 const previews = computed(() =>
@@ -30,9 +32,13 @@ function close() {
   emit('update:modelValue', false)
 }
 
+// Choosing a type creates a fresh diagram of that type; createDiagram builds the
+// right starter document (e.g. a mind map with a root node). Templates remain
+// block-only pre-filled documents.
 function chooseType(type) {
   if (!type.enabled) return
-  chooseTemplate(TEMPLATES[0])
+  emit('create', { type: type.key, title: TYPE_TITLE[type.key] || 'Untitled diagram', document: null })
+  close()
 }
 
 function chooseTemplate(template) {

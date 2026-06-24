@@ -7,16 +7,19 @@ import { reactive, computed, provide, inject } from 'vue'
 import { createShape, createConnector } from '@/diagram/factories.js'
 import { createHistory } from '@/stores/history.js'
 import { findThemePreset } from '@/diagram/theme.js'
-import { createDiagramDocument, SCHEMA_VERSION } from '@/diagram/schema.js'
+import { createDiagramDocument, SCHEMA_VERSION, DEFAULT_DIAGRAM_TYPE } from '@/diagram/schema.js'
+import { addChild, addSibling } from '@/diagram/mindmapModel.js'
 
 const STORE_KEY = 'diagramStore'
 
 export function createDiagramStore(initialDocument) {
   const document = initialDocument || createDiagramDocument()
   const state = reactive({
+    diagramType: document.diagramType || DEFAULT_DIAGRAM_TYPE,
     canvas: { ...document.canvas },
     shapes: clone(document.shapes || []),
     connectors: clone(document.connectors || []),
+    mindmap: document.mindmap ? clone(document.mindmap) : null,
     selection: [],
     themePreset: document.themePreset || 'ocean',
   })
@@ -38,9 +41,33 @@ function assembleStore(state, history) {
   attachOrdering(store, state, history)
   attachGrouping(store, state, history)
   attachThemeAndCanvas(store, state, history)
+  attachMindMap(store, state, history)
   attachDocumentIo(store, state, history)
   attachHistory(store, history)
   return store
+}
+
+// Mind-map tree mutations (spec diagram-types Part A). They run the pure model
+// helpers inside commit() so each is one undoable unit (Part G6); layout is
+// derived from the model, never stored. No-ops for non-mindmap diagrams.
+function attachMindMap(store, state, history) {
+  store.addChildNode = (parentId) => {
+    if (!state.mindmap) return null
+    let id = null
+    history.commit('Add child', () => (id = addChild(state.mindmap, parentId)))
+    return id
+  }
+  store.addSiblingNode = (nodeId) => {
+    if (!state.mindmap) return null
+    let id = null
+    history.commit('Add sibling', () => (id = addSibling(state.mindmap, nodeId)))
+    return id
+  }
+  store.updateNode = (id, patch) =>
+    history.commit('Update node', () => {
+      const node = state.mindmap?.nodes.find((n) => n.id === id)
+      if (node) applyPatch(node, patch)
+    })
 }
 
 // Read helpers that features lean on.
@@ -264,15 +291,19 @@ function restyleShapes(state, presetName, previousPreset) {
 function attachDocumentIo(store, state, history) {
   store.getDocument = () => ({
     schemaVersion: SCHEMA_VERSION,
+    diagramType: state.diagramType,
     canvas: clone(state.canvas),
     shapes: clone(state.shapes),
     connectors: clone(state.connectors),
+    mindmap: state.mindmap ? clone(state.mindmap) : null,
     themePreset: state.themePreset,
   })
   store.loadDocument = (document) => {
+    state.diagramType = document.diagramType || DEFAULT_DIAGRAM_TYPE
     state.canvas = { ...document.canvas }
     state.shapes = clone(document.shapes || [])
     state.connectors = clone(document.connectors || [])
+    state.mindmap = document.mindmap ? clone(document.mindmap) : null
     state.themePreset = document.themePreset || 'ocean'
     state.selection = []
     history.clear()
