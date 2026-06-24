@@ -179,11 +179,14 @@ function fitToView() {
   viewWidth.value = bounds.width
   viewHeight.value = bounds.height
   const size = fitContentSize()
+  const origin = ownLayerBounds.value || { x: 0, y: 0 }
   viewport.setMeasure({
     containerW: bounds.width,
     containerH: bounds.height,
     canvasW: size.w,
     canvasH: size.h,
+    originX: rendersOwnLayer.value ? origin.x ?? 0 : 0,
+    originY: rendersOwnLayer.value ? origin.y ?? 0 : 0,
   })
   viewport.fit()
 }
@@ -272,11 +275,14 @@ watch(
 // content (we don't auto-refit on every change, to avoid a jarring zoom jump
 // while the user is building).
 watch(
-  () => ownLayerBounds.value && [ownLayerBounds.value.w, ownLayerBounds.value.h],
+  () => ownLayerBounds.value && [
+    ownLayerBounds.value.w, ownLayerBounds.value.h, ownLayerBounds.value.x, ownLayerBounds.value.y,
+  ],
   () => {
     if (!rendersOwnLayer.value) return
     const size = fitContentSize()
-    viewport.setMeasure({ canvasW: size.w, canvasH: size.h })
+    const origin = ownLayerBounds.value || { x: 0, y: 0 }
+    viewport.setMeasure({ canvasW: size.w, canvasH: size.h, originX: origin.x ?? 0, originY: origin.y ?? 0 })
   },
 )
 

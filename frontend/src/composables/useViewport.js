@@ -22,8 +22,11 @@ function snapZoom(value) {
 export function useViewport() {
   const state = reactive({ panX: FIT_MARGIN, panY: FIT_MARGIN, zoom: 1 })
   const drag = { active: false, startX: 0, startY: 0, originX: 0, originY: 0 }
-  // Container + canvas dimensions, set by the canvas so fit()/reset() can compute.
-  const measure = { containerW: 0, containerH: 0, canvasW: 1280, canvasH: 720 }
+  // Container + content dimensions, set by the canvas so fit()/reset() can
+  // compute. originX/originY are the content's top-left in logical units (0 for
+  // the bounded paper + normalised mind map; the actual bbox corner for
+  // flowchart/whiteboard, whose content lives at absolute coords).
+  const measure = { containerW: 0, containerH: 0, canvasW: 1280, canvasH: 720, originX: 0, originY: 0 }
 
   function startPan(event) {
     drag.active = true
@@ -86,20 +89,24 @@ export function useViewport() {
     Object.assign(measure, next)
   }
 
-  // Centre the canvas in the container at the given scale.
+  // Centre the content (top-left at originX/originY, size canvasW×canvasH) in the
+  // container at the given scale.
   function centerAt(scale) {
     state.zoom = scale
-    state.panX = (measure.containerW - measure.canvasW * scale) / 2
-    state.panY = (measure.containerH - measure.canvasH * scale) / 2
+    state.panX = (measure.containerW - measure.canvasW * scale) / 2 - measure.originX * scale
+    state.panY = (measure.containerH - measure.canvasH * scale) / 2 - measure.originY * scale
   }
 
-  // Fit the paper into the container, centred, with a small margin.
+  // Fit the content into the container, centred, with a small margin. Never
+  // magnifies past 100% — small content (e.g. a single mind-map root) stays
+  // its natural size rather than ballooning to 400%.
   function fit() {
     if (!measure.containerW || !measure.containerH) return
     const scale = clampZoom(
       Math.min(
         (measure.containerW - FIT_MARGIN * 2) / measure.canvasW,
         (measure.containerH - FIT_MARGIN * 2) / measure.canvasH,
+        1,
       ),
     )
     centerAt(scale)
