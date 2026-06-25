@@ -35,6 +35,53 @@ const diamondPoints = computed(() => {
   return `${x + w / 2},${y} ${x + w},${y + h / 2} ${x + w / 2},${y + h} ${x},${y + h / 2}`
 })
 
+// Polygon shapes described by normalized (0..1) points scaled to the box.
+const POLYGONS = {
+  pentagon: [[0.5, 0], [1, 0.38], [0.82, 1], [0.18, 1], [0, 0.38]],
+  hexagon: [[0.25, 0], [0.75, 0], [1, 0.5], [0.75, 1], [0.25, 1], [0, 0.5]],
+  arrow: [[0, 0.3], [0.62, 0.3], [0.62, 0.05], [1, 0.5], [0.62, 0.95], [0.62, 0.7], [0, 0.7]],
+}
+function scale(points) {
+  const { x, y, w, h } = props.shape
+  return points.map(([nx, ny]) => `${x + nx * w},${y + ny * h}`).join(' ')
+}
+const polygonPoints = computed(() => (POLYGONS[props.shape.type] ? scale(POLYGONS[props.shape.type]) : ''))
+
+// Five-pointed star generated around the box centre.
+const starPoints = computed(() => {
+  const { x, y, w, h } = props.shape
+  const cx = x + w / 2
+  const cy = y + h / 2
+  const pts = []
+  for (let i = 0; i < 10; i += 1) {
+    const angle = (-90 + i * 36) * (Math.PI / 180)
+    const rx = (i % 2 ? 0.2 : 0.5) * w
+    const ry = (i % 2 ? 0.2 : 0.5) * h
+    pts.push(`${cx + rx * Math.cos(angle)},${cy + ry * Math.sin(angle)}`)
+  }
+  return pts.join(' ')
+})
+
+// Cylinder: a body path; the top rim ellipse is drawn separately for the lid.
+const cylinderRy = computed(() => Math.min(props.shape.h * 0.16, 18))
+const cylinderBody = computed(() => {
+  const { x, y, w, h } = props.shape
+  const ry = cylinderRy.value
+  return `M ${x} ${y + ry} A ${w / 2} ${ry} 0 0 1 ${x + w} ${y + ry} L ${x + w} ${y + h - ry} A ${w / 2} ${ry} 0 0 1 ${x} ${y + h - ry} Z`
+})
+
+// Callout: a rounded body with a small tail at the bottom-left.
+const calloutPath = computed(() => {
+  const { x, y, w, h } = props.shape
+  const bodyH = h * 0.78
+  const r = Math.min(14, bodyH / 2, w / 2)
+  return (
+    `M ${x + r} ${y} H ${x + w - r} Q ${x + w} ${y} ${x + w} ${y + r} V ${y + bodyH - r} ` +
+    `Q ${x + w} ${y + bodyH} ${x + w - r} ${y + bodyH} H ${x + w * 0.34} L ${x + w * 0.2} ${y + h} ` +
+    `L ${x + w * 0.22} ${y + bodyH} H ${x + r} Q ${x} ${y + bodyH} ${x} ${y + bodyH - r} V ${y + r} Q ${x} ${y} ${x + r} ${y} Z`
+  )
+})
+
 const fill = computed(() => props.shape.fill || 'none')
 const textStyle = computed(() => props.shape.text?.style || {})
 </script>
@@ -42,12 +89,12 @@ const textStyle = computed(() => props.shape.text?.style || {})
 <template>
   <g :transform="transform" :data-shape-id="shape.id">
     <rect
-      v-if="shape.type === 'rectangle' || shape.type === 'square'"
+      v-if="shape.type === 'rectangle' || shape.type === 'square' || shape.type === 'rounded'"
       :x="shape.x"
       :y="shape.y"
       :width="shape.w"
       :height="shape.h"
-      :rx="8"
+      :rx="shape.type === 'rounded' ? 20 : 8"
       :fill="fill"
       :fill-opacity="shape.opacity"
       :stroke="border.color"
@@ -78,6 +125,50 @@ const textStyle = computed(() => props.shape.text?.style || {})
     <polygon
       v-else-if="shape.type === 'diamond'"
       :points="diamondPoints"
+      :fill="fill"
+      :fill-opacity="shape.opacity"
+      :stroke="border.color"
+      :stroke-width="border.width"
+      :stroke-dasharray="dashArray"
+    />
+    <polygon
+      v-else-if="shape.type === 'pentagon' || shape.type === 'hexagon' || shape.type === 'arrow'"
+      :points="polygonPoints"
+      :fill="fill"
+      :fill-opacity="shape.opacity"
+      :stroke="border.color"
+      :stroke-width="border.width"
+      :stroke-dasharray="dashArray"
+    />
+    <polygon
+      v-else-if="shape.type === 'star'"
+      :points="starPoints"
+      :fill="fill"
+      :fill-opacity="shape.opacity"
+      :stroke="border.color"
+      :stroke-width="border.width"
+      :stroke-dasharray="dashArray"
+    />
+    <g v-else-if="shape.type === 'cylinder'">
+      <path
+        :d="cylinderBody"
+        :fill="fill"
+        :fill-opacity="shape.opacity"
+        :stroke="border.color"
+        :stroke-width="border.width"
+        :stroke-dasharray="dashArray"
+      />
+      <path
+        :d="`M ${shape.x} ${shape.y + cylinderRy} A ${shape.w / 2} ${cylinderRy} 0 0 1 ${shape.x + shape.w} ${shape.y + cylinderRy}`"
+        fill="none"
+        :stroke="border.color"
+        :stroke-width="border.width"
+        :stroke-dasharray="dashArray"
+      />
+    </g>
+    <path
+      v-else-if="shape.type === 'callout'"
+      :d="calloutPath"
       :fill="fill"
       :fill-opacity="shape.opacity"
       :stroke="border.color"

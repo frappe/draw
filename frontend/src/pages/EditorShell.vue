@@ -14,7 +14,6 @@ import { useClipboard } from '@/composables/useClipboard.js'
 import { useAutosave } from '@/composables/useAutosave.js'
 import { useThumbnail } from '@/composables/useThumbnail.js'
 import TopToolbar from '@/components/toolbar/TopToolbar.vue'
-import LeftPalette from '@/components/palette-left/LeftPalette.vue'
 import DiagramCanvas from '@/components/canvas/DiagramCanvas.vue'
 import BottomPalette from '@/components/floating/BottomPalette.vue'
 import RightPalette from '@/components/palette-right/RightPalette.vue'
@@ -92,7 +91,6 @@ function rename(title) {
     />
 
     <div class="flex min-h-0 flex-1">
-      <LeftPalette v-if="modeStrategy.showsShapeTools" />
       <main class="relative min-h-0 min-w-0 flex-1">
         <DiagramCanvas />
         <BottomPalette />

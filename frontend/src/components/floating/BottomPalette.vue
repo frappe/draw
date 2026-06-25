@@ -3,13 +3,42 @@
 // hand / draw), grid-guide toggle, and zoom controls (out / 100% reset / in /
 // fit). Wired to editorUi tool/grid and the viewport.
 import { computed } from 'vue'
-import { Tooltip, FeatherIcon } from 'frappe-ui'
+import { Tooltip, FeatherIcon, Popover } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
 
 const editorUi = useEditorUi()
 const viewport = editorUi.viewport
 const modeStrategy = useModeStrategy()
+
+// Block diagrams create from here (no left palette). A categorised popover of
+// shapes + a connectors popover + a text tool, each arming draw mode.
+const isBlock = computed(() => modeStrategy?.value?.type === 'block')
+const SHAPES = [
+  { type: 'rectangle', icon: 'square', label: 'Rectangle' },
+  { type: 'rounded', icon: 'square', label: 'Rounded rectangle' },
+  { type: 'ellipse', icon: 'circle', label: 'Ellipse' },
+  { type: 'triangle', icon: 'triangle', label: 'Triangle' },
+  { type: 'diamond', icon: 'square', label: 'Diamond' },
+  { type: 'pentagon', icon: 'hexagon', label: 'Pentagon' },
+  { type: 'hexagon', icon: 'hexagon', label: 'Hexagon' },
+  { type: 'star', icon: 'star', label: 'Star' },
+  { type: 'arrow', icon: 'arrow-right', label: 'Block arrow' },
+  { type: 'cylinder', icon: 'database', label: 'Cylinder' },
+  { type: 'callout', icon: 'message-square', label: 'Callout' },
+]
+const CONNECTORS = [
+  { type: 'straight', icon: 'arrow-right', label: 'Straight' },
+  { type: 'elbow', icon: 'corner-down-right', label: 'Elbow' },
+  { type: 'curved', icon: 'git-commit', label: 'Curved' },
+]
+function arm(type, close) {
+  editorUi.setDrawShape(type)
+  close?.()
+}
+function isArmed(type) {
+  return editorUi.state.tool === 'draw' && editorUi.state.drawShapeType === type
+}
 
 // Just the two universal pointer modes. The generic "Draw" plus was removed: it
 // duplicated the zoom-in "+" and is redundant with the left palette (block) and
@@ -60,6 +89,56 @@ function cycleGuides() {
         <FeatherIcon :name="mode.icon" class="h-4 w-4" />
       </button>
     </Tooltip>
+
+    <!-- Block creation tools: Shapes + Connectors popovers + Text. -->
+    <template v-if="isBlock">
+      <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
+      <Popover>
+        <template #target="{ togglePopover }">
+          <Tooltip text="Shapes">
+            <button :class="buttonBase" @click="togglePopover()"><FeatherIcon name="square" class="h-4 w-4" /></button>
+          </Tooltip>
+        </template>
+        <template #body-main="{ togglePopover }">
+          <div class="grid grid-cols-4 gap-1 p-2">
+            <Tooltip v-for="s in SHAPES" :key="s.type" :text="s.label">
+              <button
+                class="flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-gray-2"
+                :class="isArmed(s.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
+                @click="arm(s.type, togglePopover)"
+              >
+                <FeatherIcon :name="s.icon" class="h-[18px] w-[18px]" :class="s.type === 'diamond' ? 'rotate-45' : ''" />
+              </button>
+            </Tooltip>
+          </div>
+        </template>
+      </Popover>
+      <Popover>
+        <template #target="{ togglePopover }">
+          <Tooltip text="Connectors">
+            <button :class="buttonBase" @click="togglePopover()"><FeatherIcon name="arrow-up-right" class="h-4 w-4" /></button>
+          </Tooltip>
+        </template>
+        <template #body-main="{ togglePopover }">
+          <div class="flex gap-1 p-2">
+            <Tooltip v-for="con in CONNECTORS" :key="con.type" :text="con.label">
+              <button
+                class="flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-gray-2"
+                :class="isArmed(con.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
+                @click="arm(con.type, togglePopover)"
+              >
+                <FeatherIcon :name="con.icon" class="h-[18px] w-[18px]" />
+              </button>
+            </Tooltip>
+          </div>
+        </template>
+      </Popover>
+      <Tooltip text="Text">
+        <button :class="[buttonBase, toggleClass(isArmed('text'))]" @click="arm('text')">
+          <FeatherIcon name="type" class="h-4 w-4" />
+        </button>
+      </Tooltip>
+    </template>
 
     <!-- Mode-specific tools (whiteboard pen/sticky/laser/…). Seam only; the
          type agent wires the actual surface behavior to editorUi.state.tool. -->
