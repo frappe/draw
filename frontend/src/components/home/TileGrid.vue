@@ -67,13 +67,32 @@ function clearSelection() {
   selected.clear()
 }
 
-async function deleteSelected() {
-  const names = [...selected]
-  for (const name of names) {
+// Deletes (single + bulk) route through a confirmation dialog before moving the
+// chosen diagrams to Trash.
+const confirmDelete = reactive({ open: false, names: [] })
+
+function askDelete(names) {
+  confirmDelete.names = names
+  confirmDelete.open = true
+}
+
+const confirmMessage = computed(() => {
+  const n = confirmDelete.names.length
+  return `Move ${n} diagram${n === 1 ? '' : 's'} to Trash? You can restore ${n === 1 ? 'it' : 'them'} from Trash.`
+})
+
+async function performDelete() {
+  for (const name of confirmDelete.names) {
     await enriched.setValue.submit({ name, is_trashed: 1, trashed_on: frappeNow() })
   }
+  confirmDelete.open = false
+  confirmDelete.names = []
   clearSelection()
   refresh()
+}
+
+function deleteSelected() {
+  askDelete([...selected])
 }
 
 // --- single-item CRUD (⋯ menu) --------------------------------------------
@@ -104,9 +123,8 @@ async function duplicate(diagram) {
   refresh()
 }
 
-async function trash(diagram) {
-  await enriched.setValue.submit({ name: diagram.name, is_trashed: 1, trashed_on: frappeNow() })
-  refresh()
+function trash(diagram) {
+  askDelete([diagram.name])
 }
 
 async function dropOnFolder(folderName, diagramName) {
@@ -228,6 +246,16 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       @delete="trash"
       @drop-diagram="dropOnFolder(group.folder.name, $event)"
     />
+
+    <Dialog v-model="confirmDelete.open" :options="{ title: 'Move to Trash?' }">
+      <template #body-content>
+        <p class="text-base text-ink-gray-7">{{ confirmMessage }}</p>
+      </template>
+      <template #actions>
+        <Button variant="solid" theme="red" @click="performDelete">Delete</Button>
+        <Button variant="subtle" @click="confirmDelete.open = false">Cancel</Button>
+      </template>
+    </Dialog>
 
     <Dialog v-model="editor.open" :options="{ title: `Edit ${editor.label.toLowerCase()}` }">
       <template #body-content>

@@ -126,6 +126,57 @@ function hasChildren(id) {
   return props.mindmap.nodes.some((node) => node.parentId === id)
 }
 
+// --- add-a-child affordance (hover ghost node) -----------------------------
+const ADD_GAP = 26
+const ADD_W = 88
+
+function rootCenterX() {
+  const root = box(props.mindmap.rootId)
+  return root ? root.x + root.w / 2 : 0
+}
+
+// The branch side(s) a node grows on: the root grows both ways; any other node
+// grows on the side it already sits relative to the root.
+function addSidesFor(node, b) {
+  if (isRoot(props.mindmap, node.id)) return ['right', 'left']
+  return [b.x + b.w / 2 >= rootCenterX() ? 'right' : 'left']
+}
+
+// A dashed ghost pill (+ a connector stub and a plus) shown on hover, in node-
+// local coordinates, so clicking it adds a child on that side.
+function ghostsFor(node, b) {
+  return addSidesFor(node, b).map((side) => {
+    const x = side === 'right' ? b.w + ADD_GAP : -ADD_GAP - ADD_W
+    return {
+      side,
+      line: { x1: side === 'right' ? b.w : 0, y1: b.h / 2, x2: side === 'right' ? x : x + ADD_W, y2: b.h / 2 },
+      rect: { x, y: 0, w: ADD_W, h: b.h },
+      cx: x + ADD_W / 2,
+      cy: b.h / 2,
+    }
+  })
+}
+
+function addChild(event, parentId) {
+  startEdit(event, store.addChildNode(parentId))
+}
+
+// Edit-field style matches the node's static text and centres a single line via
+// line-height = node height (so the caret sits in the vertical middle, not top).
+function nodeFontSize(node) {
+  return node.fontSize || (isRoot(props.mindmap, node.id) ? 17 : 14)
+}
+
+function editStyle(node, b) {
+  return {
+    height: b.h + 'px',
+    lineHeight: b.h + 'px',
+    fontSize: nodeFontSize(node) + 'px',
+    fontWeight: isRoot(props.mindmap, node.id) ? 700 : 500,
+    color: inkOf(node),
+  }
+}
+
 function surfaceRect(event) {
   const surface = event.target.closest('[data-fdpreset]')
   return surface ? surface.getBoundingClientRect() : { left: 0, top: 0 }
@@ -315,7 +366,7 @@ function isDropTarget(id) {
           :ref="(el) => (editFields[node.id] = el)"
           contenteditable="true"
           class="fd-mm-edit"
-          :style="{ height: box.h + 'px', color: inkOf(node) }"
+          :style="editStyle(node, box)"
           @keydown="onEditKeydown($event, node.id)"
           @paste="onPaste($event, node.id)"
           @blur="commitText(node.id)"
@@ -342,18 +393,31 @@ function isDropTarget(id) {
         >{{ childCount(node.id) }}</text>
       </g>
 
-      <!-- Hover "+" to add a child quickly (mouse affordance alongside Tab). -->
+      <!-- Hover a node's edge: a dashed ghost node appears on the branch side;
+           clicking it adds a child there (mouse affordance alongside Tab). -->
+      <template v-if="!node.collapsed">
       <g
-        v-if="!node.collapsed"
+        v-for="ghost in ghostsFor(node, box)"
+        :key="`add-${ghost.side}`"
         class="fd-mm-add"
-        :transform="`translate(${box.w + 24} ${box.h / 2})`"
         style="cursor: pointer; opacity: 0; transition: opacity 120ms ease"
-        @click.stop="startEdit($event, store.addChildNode(node.id))"
+        @click.stop="addChild($event, node.id)"
         @pointerdown.stop
       >
-        <circle r="9" fill="#FFFFFF" stroke="#006EDB" stroke-width="1.5" />
-        <path d="M-4 0 H4 M0 -4 V4" stroke="#006EDB" stroke-width="1.6" stroke-linecap="round" />
+        <line
+          :x1="ghost.line.x1" :y1="ghost.line.y1" :x2="ghost.line.x2" :y2="ghost.line.y2"
+          stroke="#9AA5B1" stroke-width="1.5" stroke-dasharray="3 3"
+        />
+        <rect
+          :x="ghost.rect.x" :y="ghost.rect.y" :width="ghost.rect.w" :height="ghost.rect.h"
+          :rx="ghost.rect.h / 2" fill="#F5F8FF" stroke="#006EDB" stroke-width="1.5" stroke-dasharray="4 4"
+        />
+        <path
+          :d="`M${ghost.cx - 5} ${ghost.cy} H${ghost.cx + 5} M${ghost.cx} ${ghost.cy - 5} V${ghost.cy + 5}`"
+          stroke="#006EDB" stroke-width="1.8" stroke-linecap="round"
+        />
       </g>
+      </template>
 
       <!-- Note indicator (hover shows the note text, M5). -->
       <g v-if="node.note" :transform="`translate(${box.w - 12} 10)`">
@@ -369,14 +433,10 @@ function isDropTarget(id) {
   opacity: 1;
 }
 .fd-mm-edit {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
   text-align: center;
+  white-space: nowrap;
   font-family: Inter, sans-serif;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.2;
   outline: none;
   overflow: hidden;
 }

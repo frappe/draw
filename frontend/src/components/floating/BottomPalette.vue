@@ -11,11 +11,17 @@ const editorUi = useEditorUi()
 const viewport = editorUi.viewport
 const modeStrategy = useModeStrategy()
 
-const modes = [
-  { tool: 'select', icon: 'mouse-pointer', label: 'Select' },
-  { tool: 'hand', icon: 'move', label: 'Pan' },
-  { tool: 'draw', icon: 'plus', label: 'Draw' },
-]
+// Free-draw only applies to types with shape tools (block/whiteboard); mind map
+// and flowchart auto-layout, so the "Draw" plus is hidden there (it otherwise
+// reads as a confusing second "+" next to the zoom-in control).
+const modes = computed(() => {
+  const base = [
+    { tool: 'select', icon: 'mouse-pointer', label: 'Select' },
+    { tool: 'hand', icon: 'move', label: 'Pan' },
+  ]
+  if (modeStrategy?.value?.showsShapeTools) base.push({ tool: 'draw', icon: 'plus', label: 'Draw' })
+  return base
+})
 
 // Mode-specific tool seam (spec diagram-types C6): the active strategy may
 // declare extra pointer modes (whiteboard pen/highlighter/eraser/text/sticky/

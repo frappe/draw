@@ -2,8 +2,8 @@
 // Trash view (spec §2, README "Trash view"): an amber 30-day warning banner
 // over a grid of trashed diagrams, each with Restore and permanent Delete.
 // Loads only trashed diagrams; restore clears the flag, delete removes the doc.
-import { computed, onMounted } from 'vue'
-import { createListResource, FeatherIcon, Button } from 'frappe-ui'
+import { computed, onMounted, reactive } from 'vue'
+import { createListResource, FeatherIcon, Button, Dialog } from 'frappe-ui'
 import { documentToSvg, isDocumentEmpty } from '@/composables/useThumbnail.js'
 
 const emit = defineEmits(['changed'])
@@ -30,8 +30,18 @@ async function restore(diagram) {
   refresh()
 }
 
-async function purge(diagram) {
-  await trashed.delete.submit(diagram.name)
+// Permanent delete is irreversible, so it always asks first.
+const confirmPurge = reactive({ open: false, diagram: null })
+
+function askPurge(diagram) {
+  confirmPurge.diagram = diagram
+  confirmPurge.open = true
+}
+
+async function performPurge() {
+  await trashed.delete.submit(confirmPurge.diagram.name)
+  confirmPurge.open = false
+  confirmPurge.diagram = null
   refresh()
 }
 
@@ -72,10 +82,22 @@ function refresh() {
           <div class="truncate text-[13px] font-semibold text-ink-gray-9">{{ diagram.title }}</div>
           <div class="mt-2 flex gap-2">
             <Button variant="outline" @click="restore(diagram)">Restore</Button>
-            <Button variant="outline" theme="red" @click="purge(diagram)">Delete</Button>
+            <Button variant="outline" theme="red" @click="askPurge(diagram)">Delete</Button>
           </div>
         </div>
       </div>
     </div>
+
+    <Dialog v-model="confirmPurge.open" :options="{ title: 'Delete permanently?' }">
+      <template #body-content>
+        <p class="text-base text-ink-gray-7">
+          “{{ confirmPurge.diagram?.title }}” will be permanently deleted. This cannot be undone.
+        </p>
+      </template>
+      <template #actions>
+        <Button variant="solid" theme="red" @click="performPurge">Delete forever</Button>
+        <Button variant="subtle" @click="confirmPurge.open = false">Cancel</Button>
+      </template>
+    </Dialog>
   </div>
 </template>

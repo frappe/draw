@@ -8,12 +8,11 @@
 import { computed } from 'vue'
 import { Tooltip, FeatherIcon } from 'frappe-ui'
 import PaletteSection from './PaletteSection.vue'
-import MindMapOutline from '@/components/canvas/MindMapOutline.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { branchPalette } from '@/diagram/mindmapColors.js'
 import { collapseAll, reassignBranchColors, clearMap } from '@/diagram/mindmapOperations.js'
 import { THEME_PRESET_NAMES, findThemePreset } from '@/diagram/theme.js'
-import { mindmapUi, toggleOutline, toggleFocus, selectedNodeId } from '@/stores/mindmapUi.js'
+import { mindmapUi, selectedNodeId } from '@/stores/mindmapUi.js'
 
 const store = useDiagramStore()
 
@@ -82,14 +81,6 @@ const isEmpty = computed(() => (store.state.mindmap?.nodes.length ?? 0) <= 1)
 <template>
   <PaletteSection label="View">
     <div class="flex flex-wrap gap-1.5">
-      <button class="fd-mm-chip" :class="{ 'fd-mm-chip-on': mindmapUi.outlineVisible }" @click="toggleOutline()">
-        <FeatherIcon name="list" class="h-3.5 w-3.5" /> Outline
-      </button>
-      <button class="fd-mm-chip" :class="{ 'fd-mm-chip-on': mindmapUi.focusId }" @click="toggleFocus(store)">
-        <FeatherIcon name="target" class="h-3.5 w-3.5" /> Focus
-      </button>
-    </div>
-    <div class="mt-2 flex flex-wrap gap-1.5">
       <button class="fd-mm-chip" @click="collapseAll(store, true)">
         <FeatherIcon name="minimize-2" class="h-3.5 w-3.5" /> Collapse all
       </button>
@@ -198,16 +189,15 @@ const isEmpty = computed(() => (store.state.mindmap?.nodes.length ?? 0) <= 1)
     </button>
   </PaletteSection>
 
-  <!-- Outline side panel (own Teleport overlay so it needs no shell change). -->
-  <MindMapOutline />
-
-  <!-- Empty-state hint (A10), shown over the canvas when only the root exists. -->
+  <!-- Empty-state hint (A10), shown over the canvas when only the root exists.
+       Solid dark pill (explicit color so it never washes out on the canvas). -->
   <Teleport to="body">
     <div
       v-if="isEmpty"
-      class="pointer-events-none fixed bottom-[86px] left-1/2 z-10 -translate-x-1/2 rounded-full bg-ink-gray-9/85 px-3.5 py-1.5 text-[12px] text-white shadow"
+      class="pointer-events-none fixed bottom-[86px] left-1/2 z-10 -translate-x-1/2 rounded-full px-3.5 py-1.5 text-[12px] text-white shadow-lg"
+      style="background-color: #171717"
     >
-      Press <b>Tab</b> to add a branch, <b>Enter</b> for a sibling.
+      Hover a node's edge and click <b>+</b> to add a branch, or press <b>Tab</b>.
     </div>
   </Teleport>
 </template>

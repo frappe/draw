@@ -54,6 +54,14 @@ function handleKeydown(event, store, editorUi, clipboard, transform) {
     if (handleModifierKey(event, store, clipboard)) event.preventDefault()
     return
   }
+  // Escape is universal across every mode: it cancels an armed draw tool (so the
+  // crosshair disappears), exits painter, or deselects — before any per-mode key
+  // handling gets a chance to swallow it.
+  if (event.key === 'Escape') {
+    escape(store, editorUi)
+    event.preventDefault()
+    return
+  }
   if (dispatchModeKey(event, store, editorUi)) {
     event.preventDefault()
     return
@@ -104,7 +112,6 @@ function handlePlainKey(event, store, editorUi, transform) {
   if (event.key === 'Delete' || event.key === 'Backspace') {
     return runAction(() => store.removeSelectionOrIds())
   }
-  if (event.key === 'Escape') return runAction(() => escape(store, editorUi))
   return handleArrow(event, transform)
 }
 
@@ -115,11 +122,12 @@ function handleArrow(event, transform) {
   return runAction(() => transform.nudge(delta[0], delta[1], event.shiftKey))
 }
 
-// Esc exits text-edit, then draw/painter modes, else deselects (§7.2).
+// Esc exits text-edit, then any armed tool (draw/pen/hand…), then painter,
+// else deselects (§7.2).
 function escape(store, editorUi) {
   const text = useTextEditing()
   if (text?.isEditing?.value) return cancelTextEdit(text)
-  if (editorUi.state.tool === 'draw') return editorUi.setTool('select')
+  if (editorUi.state.tool !== 'select') return editorUi.setTool('select')
   if (editorUi.state.formatPainter.active) return editorUi.toggleFormatPainter()
   store.clearSelection()
 }
