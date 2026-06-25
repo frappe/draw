@@ -1,24 +1,13 @@
 <script setup>
-// Fill & border controls (spec §4.3, README 4d). Espresso swatch rows commit
-// fill / border colour to the selected shapes; "+ more" opens an Espresso-only
-// picker (no arbitrary hex in v1). Weight + dash-style fields update the border.
+// Fill & border controls (spec §4.3, README 4d). Continuous colour pickers set
+// fill / border colour across the whole selection; a compact weight + dash row
+// updates the border. Field text/heights match the rest of the palette.
 import { computed } from 'vue'
-import { Popover } from 'frappe-ui'
 import PaletteSection from './PaletteSection.vue'
+import ColorPicker from './ColorPicker.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 
 const store = useDiagramStore()
-
-const fillSwatches = ['#EFF6FF', '#F4FFF6', '#FDFAED', '#FCEAF5', '#F3F3F3', '#171717']
-const borderSwatches = ['#4F94FF', '#88D5A5', '#FBCC55', '#E68AC4', '#999999', '#171717']
-
-// Espresso-only extended palette for the "+ more" picker (curated, no free hex).
-const moreColors = [
-  '#FFFFFF', '#F8F8F8', '#F3F3F3', '#E2E2E2', '#C7C7C7', '#999999',
-  '#7C7C7C', '#525252', '#383838', '#171717', '#EFF6FF', '#4F94FF',
-  '#006EDB', '#F4FFF6', '#88D5A5', '#30A66D', '#FDFAED', '#FBCC55',
-  '#FCEAF5', '#E68AC4', '#FDECEC', '#CC2929', '#EFEAFE', '#6846E3',
-]
 
 const dashStyles = ['solid', 'dashed', 'dotted']
 
@@ -27,8 +16,15 @@ const selectedIds = computed(() => store.selectedShapes.map((shape) => shape.id)
 
 // Reference shape drives the field readouts (first in selection).
 const reference = computed(() => store.selectedShapes[0])
+const fill = computed(() => colorOr(reference.value?.fill, '#FFFFFF'))
+const borderColor = computed(() => colorOr(reference.value?.border?.color, '#171717'))
 const weight = computed(() => reference.value?.border?.width ?? 1.5)
 const dash = computed(() => reference.value?.border?.dash ?? 'solid')
+
+// A concrete colour for the picker (shapes may store 'none' or be unset).
+function colorOr(value, fallback) {
+  return value && value !== 'none' ? value : fallback
+}
 
 function setFill(color) {
   if (selectedIds.value.length) store.updateShapes(selectedIds.value, { fill: color })
@@ -50,84 +46,25 @@ function setDash(value) {
 
 <template>
   <PaletteSection label="Fill & border">
-    <div class="mb-1 text-[10px] text-ink-gray-5">Fill</div>
-    <div class="mb-2.5 flex flex-wrap gap-1.5">
-      <button
-        v-for="color in fillSwatches"
-        :key="color"
-        class="h-[22px] w-[22px] rounded-[5px] border border-black/10"
-        :style="{ background: color }"
-        @click="setFill(color)"
-      />
-      <Popover>
-        <template #target="{ togglePopover }">
-          <button
-            class="h-[22px] w-[22px] rounded-[5px] border border-dashed border-outline-gray-3 text-[12px] leading-none text-ink-gray-5"
-            @click="togglePopover()"
-          >
-            +
-          </button>
-        </template>
-        <template #body-main>
-          <div class="grid grid-cols-6 gap-1.5 p-2">
-            <button
-              v-for="color in moreColors"
-              :key="`fill-${color}`"
-              class="h-[22px] w-[22px] rounded-[5px] border border-black/10"
-              :style="{ background: color }"
-              @click="setFill(color)"
-            />
-          </div>
-        </template>
-      </Popover>
+    <div class="space-y-2">
+      <ColorPicker label="Fill" :model-value="fill" @update:model-value="setFill" />
+      <ColorPicker label="Border" :model-value="borderColor" @update:model-value="setBorderColor" />
     </div>
 
-    <div class="mb-1 text-[10px] text-ink-gray-5">Border</div>
-    <div class="mb-2.5 flex flex-wrap gap-1.5">
-      <button
-        v-for="color in borderSwatches"
-        :key="color"
-        class="h-[22px] w-[22px] rounded-[5px] border border-black/10"
-        :style="{ background: color }"
-        @click="setBorderColor(color)"
-      />
-      <Popover>
-        <template #target="{ togglePopover }">
-          <button
-            class="h-[22px] w-[22px] rounded-[5px] border border-dashed border-outline-gray-3 text-[12px] leading-none text-ink-gray-5"
-            @click="togglePopover()"
-          >
-            +
-          </button>
-        </template>
-        <template #body-main>
-          <div class="grid grid-cols-6 gap-1.5 p-2">
-            <button
-              v-for="color in moreColors"
-              :key="`border-${color}`"
-              class="h-[22px] w-[22px] rounded-[5px] border border-black/10"
-              :style="{ background: color }"
-              @click="setBorderColor(color)"
-            />
-          </div>
-        </template>
-      </Popover>
-    </div>
-
-    <div class="flex gap-1.5">
-      <label class="flex flex-1 items-center gap-1 rounded-md border border-outline-gray-1 px-2 py-1 text-xs text-ink-gray-7">
+    <div class="mt-2.5 flex gap-1.5">
+      <label class="flex h-8 flex-1 items-center gap-1 rounded-md border border-outline-gray-2 px-2">
         <input
           type="number"
           min="0"
           step="0.5"
           :value="weight"
-          class="w-full bg-transparent outline-none"
+          class="w-full bg-transparent text-xs leading-none text-ink-gray-7 outline-none"
           @change="setWeight($event.target.value)"
         />
-        <span class="text-ink-gray-5">px</span>
+        <span class="text-[11px] text-ink-gray-5">px</span>
       </label>
       <select
-        class="flex-1 rounded-md border border-outline-gray-1 px-2 py-1 text-xs capitalize text-ink-gray-7"
+        class="h-8 flex-1 rounded-md border border-outline-gray-2 bg-surface-white px-2 text-xs capitalize text-ink-gray-7 outline-none"
         :value="dash"
         @change="setDash($event.target.value)"
       >

@@ -35,15 +35,15 @@ function updateStyle(patch) {
 <template>
   <PaletteSection label="Text">
     <div class="mb-2 flex gap-1.5">
-      <div class="flex-[2] rounded-md border border-outline-gray-1 px-2 py-1 text-xs text-ink-gray-7">
+      <div class="flex h-8 flex-[2] items-center rounded-md border border-outline-gray-2 px-2 text-xs text-ink-gray-7">
         Inter
       </div>
-      <label class="flex flex-1 items-center rounded-md border border-outline-gray-1 px-2 py-1 text-xs text-ink-gray-7">
+      <label class="flex h-8 flex-1 items-center rounded-md border border-outline-gray-2 px-2">
         <input
           type="number"
           min="1"
           :value="style.size ?? 16"
-          class="w-full bg-transparent outline-none"
+          class="w-full bg-transparent text-xs leading-none text-ink-gray-7 outline-none"
           @change="setSize($event.target.value)"
         />
       </label>

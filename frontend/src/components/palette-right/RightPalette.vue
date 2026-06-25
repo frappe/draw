@@ -13,7 +13,6 @@ import TransformSection from './TransformSection.vue'
 import FillBorderSection from './FillBorderSection.vue'
 import TextSection from './TextSection.vue'
 import TransparencySection from './TransparencySection.vue'
-import ThemePresetsSection from './ThemePresetsSection.vue'
 import CanvasSection from './CanvasSection.vue'
 import MindMapPalette from './MindMapPalette.vue'
 import FlowchartPalette from './FlowchartPalette.vue'
@@ -71,14 +70,17 @@ function capitalize(value) {
     </header>
 
     <template v-if="isBlock">
-      <ArrangeSection />
-      <AlignSection />
-      <DistributeSizeSection />
-      <TransformSection />
-      <FillBorderSection />
-      <TextSection />
-      <TransparencySection />
-      <ThemePresetsSection />
+      <!-- Object-editing sections are disabled + dimmed when nothing is
+           selected; the Canvas section stays active (it needs no selection). -->
+      <div :class="count === 0 ? 'pointer-events-none select-none opacity-40' : ''">
+        <ArrangeSection />
+        <AlignSection />
+        <DistributeSizeSection />
+        <TransformSection />
+        <FillBorderSection />
+        <TextSection />
+        <TransparencySection />
+      </div>
       <CanvasSection />
     </template>
     <component :is="modePalette" v-else-if="modePalette" />

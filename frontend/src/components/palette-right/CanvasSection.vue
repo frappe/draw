@@ -19,7 +19,7 @@ function applyPreset(name) {
 <template>
   <PaletteSection label="Canvas">
     <select
-      class="mb-2.5 w-full rounded-md border border-outline-gray-1 px-2 py-1 text-xs text-ink-gray-7"
+      class="mb-2.5 h-8 w-full rounded-md border border-outline-gray-2 bg-surface-white px-2 text-xs text-ink-gray-7 outline-none"
       :value="store.state.canvas.sizePreset"
       @change="applyPreset($event.target.value)"
     >
