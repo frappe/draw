@@ -27,7 +27,7 @@ onMounted(() => enriched.fetch())
 const rows = computed(() => enriched.data || [])
 
 // --- view / type filter / sort --------------------------------------------
-const view = ref('tile')
+const view = ref('list')
 const typeFilter = ref('all')
 const sortKey = ref('modified')
 
@@ -73,7 +73,10 @@ const unfiled = computed(() => unpinned.value.filter((d) => !d.folder))
 // then omitted from "All" so nothing is listed twice.
 const RECENT_THRESHOLD = 8
 const RECENT_COUNT = 6
-const showRecent = computed(() => unfiled.value.length > RECENT_THRESHOLD)
+// Tie Recent's visibility to the overall (filtered) library size, NOT the
+// unfiled-unpinned count — otherwise pinning a diagram shrinks that count and
+// makes the whole Recent section vanish.
+const showRecent = computed(() => visibleRows.value.length > RECENT_THRESHOLD)
 const recent = computed(() =>
   showRecent.value ? [...unfiled.value].sort(byNewest).slice(0, RECENT_COUNT) : [],
 )
