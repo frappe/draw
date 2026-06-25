@@ -62,13 +62,13 @@ watch(
   },
 )
 
-// Whiteboards open on a plain background (guides off by default); the type is
-// only known once the document loads, so default it then. Fires once — the user
-// can re-enable guides via the Guides control and it sticks.
+// Only block diagrams open with dotted guides; every other type starts on a
+// plain white canvas (guides can be turned on from the bottom palette). The type
+// is only known once the document loads, so default it then.
 watch(
   () => store.state.diagramType,
   (type) => {
-    if (type === 'whiteboard') editorUi.state.gridVisible = false
+    if (type && type !== 'block') editorUi.state.gridVisible = false
   },
   { immediate: true },
 )

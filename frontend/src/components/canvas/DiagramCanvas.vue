@@ -57,10 +57,6 @@ const isMindmap = computed(() => activeType.value === 'mindmap')
 const isFlowchart = computed(() => activeType.value === 'flowchart')
 const isWhiteboard = computed(() => activeType.value === 'whiteboard')
 
-// Block and whiteboard sit on a bounded white paper (canvas rect); mind map and
-// flowchart frame their own derived content bbox instead.
-const usesBoundedPaper = computed(() => !rendersOwnLayer.value || isWhiteboard.value)
-
 const mindmapLayout = computed(() =>
   isMindmap.value && store.state.mindmap ? layoutMindMap(store.state.mindmap) : null,
 )
@@ -94,7 +90,6 @@ const PAN_MARGIN = 80 // logical units of breathing room around the content
 
 const canvas = computed(() => store.state.canvas)
 const themeStyle = computed(() => themeVarStyle(store.state.themePreset))
-const paperBackground = computed(() => canvas.value.background || '#FFFFFF')
 
 // Shapes render in ascending zIndex order so later items sit on top.
 const orderedShapes = computed(() =>
@@ -462,7 +457,7 @@ const surfaceCursor = computed(() => {
     ref="surface"
     :data-fdpreset="store.state.themePreset"
     :style="[themeStyle, { cursor: surfaceCursor }]"
-    class="relative h-full w-full overflow-auto bg-[#EEEEF0]"
+    class="relative h-full w-full overflow-auto bg-surface-white"
     @wheel.prevent="onWheel"
     @scroll="onScroll"
     @pointerdown="onSurfacePointerDown"
@@ -479,27 +474,19 @@ const surfaceCursor = computed(() => {
     <!-- The SVG is pinned to the viewport; the <g> transform handles pan/zoom. -->
     <svg class="pointer-events-none absolute left-0 top-0 h-full w-full">
       <g :transform="groupTransform" class="[&_*]:pointer-events-auto">
-        <!-- Bounded white paper (block + whiteboard): shadow, sheet, grid. -->
-        <template v-if="usesBoundedPaper">
-          <!-- Soft paper shadow approximated with a slightly offset gray rect. -->
-          <rect :x="2" :y="3" :width="canvas.width" :height="canvas.height" fill="rgba(0,0,0,0.06)" />
-          <rect
-            :width="canvas.width"
-            :height="canvas.height"
-            :fill="paperBackground"
-            stroke="#E2E2E2"
-            stroke-width="1"
-          />
+        <!-- Dotted guides (all types) on the plain white canvas — no paper/
+             background separation; the guide density is the only differentiator.
+             Covers the reachable content extent. -->
+        <GridLayer
+          v-if="editorUi.state.gridVisible"
+          :x="contentExtent.x"
+          :y="contentExtent.y"
+          :width="contentExtent.w"
+          :height="contentExtent.h"
+          :density="editorUi.state.gridDensity"
+        />
 
-          <GridLayer
-            v-if="editorUi.state.gridVisible"
-            :width="canvas.width"
-            :height="canvas.height"
-            :density="editorUi.state.gridDensity"
-          />
-        </template>
-
-        <!-- Block mode: shapes/connectors + overlays on the paper. -->
+        <!-- Block mode: shapes/connectors + overlays on the canvas. -->
         <template v-if="!rendersOwnLayer">
           <ConnectorView
             v-for="connector in store.state.connectors"

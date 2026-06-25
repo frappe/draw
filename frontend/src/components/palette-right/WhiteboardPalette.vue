@@ -12,7 +12,6 @@ import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { PEN_COLORS, PEN_WIDTHS, STICKY_COLORS } from '@/diagram/whiteboardColors.js'
 import PaletteSection from './PaletteSection.vue'
-import GuidesControl from './GuidesControl.vue'
 import WhiteboardMinimap from '@/components/canvas/WhiteboardMinimap.vue'
 
 const store = useDiagramStore()
@@ -112,8 +111,6 @@ function applyLink() {
         @blur="applyLink"
       />
     </PaletteSection>
-
-    <GuidesControl />
 
     <WhiteboardMinimap />
   </div>

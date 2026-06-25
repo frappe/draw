@@ -6,6 +6,8 @@
 import { computed } from 'vue'
 
 const props = defineProps({
+  x: { type: Number, default: 0 },
+  y: { type: Number, default: 0 },
   width: { type: Number, required: true },
   height: { type: Number, required: true },
   density: { type: String, default: 'dense' },
@@ -41,6 +43,6 @@ const patternUrl = computed(() => `url(#${patternId.value})`)
         />
       </pattern>
     </defs>
-    <rect :width="width" :height="height" :fill="patternUrl" />
+    <rect :x="x" :y="y" :width="width" :height="height" :fill="patternUrl" />
   </g>
 </template>

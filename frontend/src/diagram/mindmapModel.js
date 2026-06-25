@@ -7,7 +7,7 @@
 
 import { nextId } from './factories.js'
 
-const ROOT_TEXT = 'Central idea'
+const ROOT_TEXT = ''
 
 function makeNode(parentId, text, order, depth) {
   return {

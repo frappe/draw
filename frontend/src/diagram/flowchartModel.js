@@ -9,8 +9,6 @@
 
 import { nextId } from './factories.js'
 
-const START_TEXT = 'Start'
-
 // Curated node-type set (spec B3). nodeType selects the SVG shape at render.
 export const NODE_TYPES = ['terminator', 'process', 'decision', 'inputOutput', 'connector']
 
@@ -23,10 +21,6 @@ export const NODE_TYPE_META = {
   inputOutput: { label: 'Input / Output', text: 'Input', w: 160, h: 72 },
   connector: { label: 'Junction', text: '', w: 36, h: 36 },
 }
-
-// A pre-placed Start terminator centred near the top of the default flow (B4/B9).
-const START_X = 560
-const START_Y = 80
 
 export function defaultNodeText(nodeType) {
   return NODE_TYPE_META[nodeType]?.text ?? ''
@@ -74,9 +68,10 @@ export function makeFlowchartEdge(fromNodeId, toNodeId, partial = {}) {
   }
 }
 
+// Start empty — the user builds from scratch (double-click the canvas to drop
+// the first node, then grow it with the + handles).
 export function createFlowchart(direction = 'TB') {
-  const start = makeFlowchartNode('terminator', START_TEXT, START_X, START_Y)
-  return { direction, nodes: [start], edges: [] }
+  return { direction, nodes: [], edges: [] }
 }
 
 export function flowchartNodeById(model, id) {

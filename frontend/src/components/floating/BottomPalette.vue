@@ -31,6 +31,21 @@ const buttonBase =
 function toggleClass(active) {
   return active ? 'bg-surface-gray-2 text-ink-gray-9' : ''
 }
+
+// Dotted guides cycle through three states: No → Rare → Dense → No.
+const guidesState = computed(() => {
+  if (!editorUi.state.gridVisible) return 'no'
+  return editorUi.state.gridDensity === 'sparse' ? 'rare' : 'dense'
+})
+const guidesLabel = computed(() =>
+  ({ no: 'Guides: off', rare: 'Guides: rare', dense: 'Guides: dense' })[guidesState.value],
+)
+function cycleGuides() {
+  const next = { no: 'rare', rare: 'dense', dense: 'no' }[guidesState.value]
+  editorUi.state.gridVisible = next !== 'no'
+  if (next === 'rare') editorUi.setGridDensity('sparse')
+  if (next === 'dense') editorUi.setGridDensity('dense')
+}
 </script>
 
 <template>
@@ -62,12 +77,12 @@ function toggleClass(active) {
 
     <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
 
-    <Tooltip text="Grid guides">
+    <Tooltip :text="guidesLabel">
       <button
-        :class="[buttonBase, toggleClass(editorUi.state.gridVisible)]"
-        @click="editorUi.toggleGrid()"
+        :class="[buttonBase, toggleClass(guidesState !== 'no')]"
+        @click="cycleGuides()"
       >
-        <FeatherIcon name="grid" class="h-4 w-4" />
+        <FeatherIcon :name="guidesState === 'rare' ? 'more-horizontal' : 'grid'" class="h-4 w-4" />
       </button>
     </Tooltip>
 

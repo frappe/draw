@@ -64,9 +64,11 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
     if (link.active) return endLink(context.point)
   }
 
-  function onDoubleClick() {
-    // Node text editing is handled inline by the layer's text inputs; an empty
-    // double-click does nothing in flowchart mode (no free shapes, spec B1).
+  function onDoubleClick(event, context) {
+    // Node text editing is owned by the layer (it stops propagation), so a
+    // surface double-click is always on empty canvas: drop a process node there
+    // so an empty flowchart can be started from scratch.
+    createConnectedNode('process', null, context.point.x, context.point.y)
     return true
   }
 
