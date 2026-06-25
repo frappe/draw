@@ -8,6 +8,7 @@ defineProps({
   diagrams: { type: Array, default: () => [] },
   view: { type: String, default: 'tile' },
   selected: { type: Object, default: () => new Set() },
+  pinLimitReached: { type: Boolean, default: false },
 })
 const emit = defineEmits(['open', 'toggle-select', 'toggle-pin', 'rename', 'duplicate', 'delete'])
 
@@ -22,6 +23,7 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       :diagram="diagram"
       :selected="selected.has(diagram.name)"
       :selection-active="selected.size > 0"
+      :pin-limit-reached="pinLimitReached"
       @open="emit('open', $event)"
       @toggle-select="emit('toggle-select', $event)"
       @toggle-pin="emit('toggle-pin', $event)"
@@ -40,6 +42,7 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       view="list"
       :selected="selected.has(diagram.name)"
       :selection-active="selected.size > 0"
+      :pin-limit-reached="pinLimitReached"
       @open="emit('open', $event)"
       @toggle-select="emit('toggle-select', $event)"
       @toggle-pin="emit('toggle-pin', $event)"

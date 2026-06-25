@@ -13,6 +13,7 @@ const props = defineProps({
   view: { type: String, default: 'tile' }, // 'tile' | 'list'
   selected: { type: Boolean, default: false },
   selectionActive: { type: Boolean, default: false },
+  pinLimitReached: { type: Boolean, default: false },
 })
 const emit = defineEmits(['open', 'toggle-select', 'toggle-pin', 'rename', 'duplicate', 'delete'])
 
@@ -28,11 +29,18 @@ const isPinned = computed(() => Boolean(props.diagram.is_pinned))
 const createdLabel = computed(() => relativeTime(props.diagram.creation))
 const editedLabel = computed(() => relativeTime(props.diagram.modified))
 
+// Pinning is capped (5). An unpinned diagram can't be pinned once the cap is
+// hit — its menu item greys out and says why.
+const pinBlocked = computed(() => !isPinned.value && props.pinLimitReached)
+
 const menuItems = computed(() => [
   {
-    label: isPinned.value ? 'Unpin' : 'Pin',
+    label: isPinned.value ? 'Unpin' : pinBlocked.value ? 'Pin · max 5 reached' : 'Pin',
     icon: 'bookmark',
-    onClick: () => emit('toggle-pin', props.diagram),
+    disabled: pinBlocked.value,
+    onClick: () => {
+      if (!pinBlocked.value) emit('toggle-pin', props.diagram)
+    },
   },
   { label: 'Rename', icon: 'edit-2', onClick: () => emit('rename', props.diagram) },
   { label: 'Duplicate', icon: 'copy', onClick: () => emit('duplicate', props.diagram) },

@@ -25,7 +25,7 @@ declare module 'vue' {
     FlowchartLayer: typeof import('./src/components/canvas/FlowchartLayer.vue')['default']
     FlowchartNodeTypePicker: typeof import('./src/components/canvas/FlowchartNodeTypePicker.vue')['default']
     FlowchartPalette: typeof import('./src/components/palette-right/FlowchartPalette.vue')['default']
-    FolderSection: typeof import('./src/components/home/FolderSection.vue')['default']
+    FolderItem: typeof import('./src/components/home/FolderItem.vue')['default']
     GridLayer: typeof import('./src/components/canvas/GridLayer.vue')['default']
     GuidesControl: typeof import('./src/components/palette-right/GuidesControl.vue')['default']
     HoverArrows: typeof import('./src/components/canvas/HoverArrows.vue')['default']

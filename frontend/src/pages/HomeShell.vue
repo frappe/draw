@@ -13,7 +13,8 @@ import { diagrams, createDiagram } from '@/data/diagrams.js'
 import { folders } from '@/data/folders.js'
 
 const router = useRouter()
-const view = ref('all')
+const view = ref('home')
+const currentFolder = ref(null) // open folder while drilled into Home
 const showNewDiagram = ref(false)
 
 onMounted(() => {
@@ -23,6 +24,15 @@ onMounted(() => {
 
 const list = computed(() => diagrams.data || [])
 const isEmpty = computed(() => list.value.length === 0)
+
+const VIEW_TITLES = { home: 'Home', recent: 'Recent', all: 'All diagrams' }
+const title = computed(() => VIEW_TITLES[view.value] || 'Home')
+
+// Switching sidebar views always returns to the folder root.
+function navigate(next) {
+  view.value = next
+  currentFolder.value = null
+}
 
 async function create(payload = {}) {
   try {
@@ -45,16 +55,28 @@ function open(name) {
 
 <template>
   <div class="flex h-screen">
-    <Sidebar :active="view" @navigate="view = $event" />
+    <Sidebar :active="view" @navigate="navigate" />
 
     <main class="min-h-0 flex-1 overflow-y-auto px-9 py-7">
       <TrashView v-if="view === 'trash'" />
 
       <template v-else>
-        <div class="mb-6 flex items-end justify-between">
-          <div>
-            <h1 class="text-[22px] font-bold text-ink-gray-9">Diagrams</h1>
-            <p class="mt-1 text-[13px] text-ink-gray-5">{{ list.length }} diagrams</p>
+        <div class="mb-6 flex items-center justify-between">
+          <!-- Location breadcrumb (Home › Folder); a view name elsewhere. -->
+          <div class="flex items-center gap-1.5 text-[22px] font-bold text-ink-gray-9">
+            <template v-if="view === 'home'">
+              <button
+                :class="currentFolder ? 'text-ink-gray-5 hover:text-ink-gray-8' : ''"
+                @click="currentFolder = null"
+              >
+                Home
+              </button>
+              <template v-if="currentFolder">
+                <FeatherIcon name="chevron-right" class="h-5 w-5 text-ink-gray-4" />
+                <span>{{ currentFolder.folder_name || currentFolder.name }}</span>
+              </template>
+            </template>
+            <span v-else>{{ title }}</span>
           </div>
           <Button variant="solid" @click="showNewDiagram = true">
             <template #prefix><FeatherIcon name="plus" class="h-4 w-4" /></template>
@@ -63,7 +85,14 @@ function open(name) {
         </div>
 
         <EmptyState v-if="isEmpty" @create="showNewDiagram = true" />
-        <TileGrid v-else @create="showNewDiagram = true" @open="open" />
+        <TileGrid
+          v-else
+          :mode="view"
+          :folder="currentFolder"
+          @create="showNewDiagram = true"
+          @open="open"
+          @open-folder="currentFolder = $event"
+        />
       </template>
     </main>
 

@@ -1,18 +1,28 @@
 <script setup>
-// Home diagram browser (spec §2). A toolbar offers a type filter, a sort, and a
-// tile/list view toggle, turning into a bulk-action bar when diagrams are
-// selected. Below it the diagrams are grouped: Pinned, Recent (only once there
-// are enough), All diagrams (+ the dashed create tile), then folder sections,
-// and a quiet end-of-page graphic. CRUD runs through the shared resources.
+// Home diagram browser (spec §2). Modes chosen from the sidebar:
+//   home   — a file-explorer: Pinned (root only) + loose files + folder tiles;
+//            opening a folder drills in (HomeShell tracks the path + breadcrumb)
+//   recent — a flat list of the most-recently-edited diagrams
+//   all    — a flat list of every diagram
+// Toolbar offers a type filter, sort, and tile/list toggle, becoming a bulk-
+// action bar on selection. Creation is the top-right CTA only (no inline tile).
+// At most MAX_PINNED diagrams can be pinned.
 import { computed, onMounted, reactive, ref } from 'vue'
 import { createListResource, FeatherIcon, Dialog, Button, FormControl, Dropdown } from 'frappe-ui'
 import DiagramCollection from './DiagramCollection.vue'
-import FolderSection from './FolderSection.vue'
+import FolderItem from './FolderItem.vue'
 import { folders, moveDiagramToFolder } from '@/data/folders.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
 import { DIAGRAM_TYPES, typeLabel } from '@/data/diagramTypes.js'
 
-const emit = defineEmits(['create', 'open', 'changed'])
+const props = defineProps({
+  mode: { type: String, default: 'home' }, // 'home' | 'recent' | 'all'
+  folder: { type: Object, default: null }, // the open folder when drilled in (home)
+})
+const emit = defineEmits(['create', 'open', 'open-folder', 'changed'])
+
+const MAX_PINNED = 5
+const RECENT_LIMIT = 24
 
 const enriched = createListResource({
   doctype: 'Draw Diagram',
@@ -25,6 +35,8 @@ const enriched = createListResource({
 onMounted(() => enriched.fetch())
 
 const rows = computed(() => enriched.data || [])
+const pinnedTotal = computed(() => rows.value.filter((d) => d.is_pinned).length)
+const pinLimitReached = computed(() => pinnedTotal.value >= MAX_PINNED)
 
 // --- view / type filter / sort --------------------------------------------
 const view = ref('list')
@@ -55,47 +67,33 @@ function bySort(a, b) {
 function byNewest(a, b) {
   return ts(b.modified) - ts(a.modified)
 }
-
 function matchesType(diagram) {
   return typeFilter.value === 'all' || (diagram.diagram_type || 'block') === typeFilter.value
 }
 
 const visibleRows = computed(() => rows.value.filter(matchesType))
 
-// Pinned across the whole library; everything else excludes pinned so each
-// diagram appears once outside the Pinned section.
+// Home root: pinned group + loose files + folder tiles. Inside a folder: that
+// folder's files. Pinned items show only in the Pinned group.
 const pinned = computed(() => visibleRows.value.filter((d) => d.is_pinned).sort(bySort))
-const unpinned = computed(() => visibleRows.value.filter((d) => !d.is_pinned))
-const unfiled = computed(() => unpinned.value.filter((d) => !d.folder))
-
-// Recent is a quick-access shortcut that only earns its place once the unfiled
-// list is large; it shows the 6 most-recently-edited unfiled diagrams, which are
-// then omitted from "All" so nothing is listed twice.
-const RECENT_THRESHOLD = 8
-const RECENT_COUNT = 6
-// Tie Recent's visibility to the overall (filtered) library size, NOT the
-// unfiled-unpinned count — otherwise pinning a diagram shrinks that count and
-// makes the whole Recent section vanish.
-const showRecent = computed(() => visibleRows.value.length > RECENT_THRESHOLD)
-const recent = computed(() =>
-  showRecent.value ? [...unfiled.value].sort(byNewest).slice(0, RECENT_COUNT) : [],
+const looseFiles = computed(() => visibleRows.value.filter((d) => !d.is_pinned && !d.folder).sort(bySort))
+const folderFiles = computed(() =>
+  props.folder ? visibleRows.value.filter((d) => d.folder === props.folder.name).sort(bySort) : [],
 )
-const allList = computed(() => {
-  const recentNames = new Set(recent.value.map((d) => d.name))
-  return unfiled.value.filter((d) => !recentNames.has(d.name)).sort(bySort)
-})
-
-const byFolder = computed(() =>
+const folderTiles = computed(() =>
   (folders.data || []).map((folder) => ({
     folder,
-    diagrams: unpinned.value.filter((d) => d.folder === folder.name).sort(bySort),
+    count: rows.value.filter((d) => d.folder === folder.name).length,
   })),
 )
+
+// Recent + All are flat across the whole (filtered) library.
+const recentList = computed(() => [...visibleRows.value].sort(byNewest).slice(0, RECENT_LIMIT))
+const allFlat = computed(() => [...visibleRows.value].sort(bySort))
 
 // --- selection + bulk delete ----------------------------------------------
 const selected = reactive(new Set())
 const selectedCount = computed(() => selected.size)
-
 function toggleSelect(name) {
   if (selected.has(name)) selected.delete(name)
   else selected.add(name)
@@ -131,6 +129,7 @@ function trash(diagram) {
 
 // --- pin / rename / duplicate ---------------------------------------------
 async function togglePin(diagram) {
+  if (!diagram.is_pinned && pinLimitReached.value) return
   await enriched.setValue.submit({ name: diagram.name, is_pinned: diagram.is_pinned ? 0 : 1 })
   refresh()
 }
@@ -147,11 +146,7 @@ async function saveEditor() {
 
 async function duplicate(diagram) {
   const document = diagram.document || createDiagramDocument()
-  await enriched.insert.submit({
-    title: `${diagram.title} copy`,
-    folder: diagram.folder || null,
-    document,
-  })
+  await enriched.insert.submit({ title: `${diagram.title} copy`, folder: diagram.folder || null, document })
   refresh()
 }
 
@@ -167,6 +162,16 @@ function refresh() {
 function frappeNow() {
   return new Date().toISOString().slice(0, 19).replace('T', ' ')
 }
+
+const collectionHandlers = {
+  open: (name) => emit('open', name),
+  'toggle-select': toggleSelect,
+  'toggle-pin': togglePin,
+  rename: startRename,
+  duplicate,
+  delete: trash,
+}
+const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
 </script>
 
 <template>
@@ -212,76 +217,60 @@ function frappeNow() {
       </div>
     </div>
 
-    <!-- Pinned -->
-    <section v-if="pinned.length" class="mb-8">
-      <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
-        <FeatherIcon name="bookmark" class="h-3.5 w-3.5" /> Pinned
-      </h2>
-      <DiagramCollection
-        :diagrams="pinned" :view="view" :selected="selected"
-        @open="emit('open', $event)" @toggle-select="toggleSelect" @toggle-pin="togglePin"
-        @rename="startRename" @duplicate="duplicate" @delete="trash"
-      />
-    </section>
+    <!-- HOME, inside a folder: just that folder's files. -->
+    <template v-if="mode === 'home' && folder">
+      <DiagramCollection :diagrams="folderFiles" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
+      <p v-if="!folderFiles.length" class="py-10 text-center text-[13px] text-ink-gray-5">This folder is empty.</p>
+    </template>
 
-    <!-- Recent -->
-    <section v-if="recent.length" class="mb-8">
-      <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
-        <FeatherIcon name="clock" class="h-3.5 w-3.5" /> Recent
-      </h2>
-      <DiagramCollection
-        :diagrams="recent" :view="view" :selected="selected"
-        @open="emit('open', $event)" @toggle-select="toggleSelect" @toggle-pin="togglePin"
-        @rename="startRename" @duplicate="duplicate" @delete="trash"
-      />
-    </section>
+    <!-- HOME root: Pinned + loose files + folders. -->
+    <template v-else-if="mode === 'home'">
+      <section v-if="pinned.length" class="mb-8">
+        <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
+          <FeatherIcon name="bookmark" class="h-3.5 w-3.5" /> Pinned
+        </h2>
+        <DiagramCollection :diagrams="pinned" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
+      </section>
 
-    <!-- All diagrams (+ create affordance at the end) -->
-    <section>
-      <h2 v-if="pinned.length || recent.length" class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
-        <FeatherIcon name="grid" class="h-3.5 w-3.5" /> All diagrams
-      </h2>
-      <DiagramCollection
-        :diagrams="allList" :view="view" :selected="selected"
-        @open="emit('open', $event)" @toggle-select="toggleSelect" @toggle-pin="togglePin"
-        @rename="startRename" @duplicate="duplicate" @delete="trash"
-      >
-        <template #append>
-          <button
-            v-if="view === 'tile'"
-            class="flex h-[166px] flex-col items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-outline-gray-3 text-ink-gray-7 hover:bg-surface-gray-1"
-            @click="emit('create')"
-          >
-            <div class="flex h-[42px] w-[42px] items-center justify-center rounded-full bg-surface-gray-2">
-              <FeatherIcon name="plus" class="h-5 w-5" />
-            </div>
-            <span class="text-[13px] font-semibold">New diagram</span>
-          </button>
-          <button
-            v-else
-            class="flex items-center justify-center gap-2 rounded-lg border-[1.5px] border-dashed border-outline-gray-3 py-3 text-[13px] font-semibold text-ink-gray-7 hover:bg-surface-gray-1"
-            @click="emit('create')"
-          >
-            <FeatherIcon name="plus" class="h-4 w-4" /> New diagram
-          </button>
-        </template>
-      </DiagramCollection>
-    </section>
+      <DiagramCollection :diagrams="looseFiles" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
 
-    <FolderSection
-      v-for="group in byFolder"
-      :key="group.folder.name"
-      :folder="group.folder"
-      :diagrams="group.diagrams"
+      <section v-if="folderTiles.length" class="mt-8">
+        <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
+          <FeatherIcon name="folder" class="h-3.5 w-3.5" /> Folders
+        </h2>
+        <div v-if="view === 'tile'" class="grid gap-[18px]" :style="TILE_COLS">
+          <FolderItem
+            v-for="group in folderTiles"
+            :key="group.folder.name"
+            :folder="group.folder"
+            :count="group.count"
+            view="tile"
+            @open="emit('open-folder', group.folder)"
+            @drop-diagram="dropOnFolder(group.folder.name, $event)"
+          />
+        </div>
+        <div v-else class="flex flex-col gap-1.5">
+          <FolderItem
+            v-for="group in folderTiles"
+            :key="group.folder.name"
+            :folder="group.folder"
+            :count="group.count"
+            view="list"
+            @open="emit('open-folder', group.folder)"
+            @drop-diagram="dropOnFolder(group.folder.name, $event)"
+          />
+        </div>
+      </section>
+    </template>
+
+    <!-- RECENT / ALL: a single flat list. -->
+    <DiagramCollection
+      v-else
+      :diagrams="mode === 'recent' ? recentList : allFlat"
       :view="view"
       :selected="selected"
-      @open="emit('open', $event)"
-      @toggle-select="toggleSelect"
-      @toggle-pin="togglePin"
-      @rename="startRename"
-      @duplicate="duplicate"
-      @delete="trash"
-      @drop-diagram="dropOnFolder(group.folder.name, $event)"
+      :pin-limit-reached="pinLimitReached"
+      v-on="collectionHandlers"
     />
 
     <!-- Quiet end-of-page marker. -->

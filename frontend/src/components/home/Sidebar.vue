@@ -22,7 +22,9 @@ const userMenu = [
 ]
 
 const nav = [
-  { key: 'all', icon: 'grid', label: 'All diagrams' },
+  { key: 'home', icon: 'home', label: 'Home' },
+  { key: 'recent', icon: 'clock', label: 'Recent' },
+  { key: 'all', icon: 'layers', label: 'All diagrams' },
   { key: 'trash', icon: 'trash-2', label: 'Trash' },
 ]
 
@@ -88,7 +90,7 @@ function removeFolder(folder) {
     <template v-if="active === 'trash'">
       <button
         class="flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] text-ink-gray-7 hover:bg-surface-gray-2"
-        @click="emit('navigate', 'all')"
+        @click="emit('navigate', 'home')"
       >
         <FeatherIcon name="arrow-left" class="h-4 w-4" />
         Back to diagrams
@@ -148,7 +150,7 @@ function removeFolder(folder) {
           <template v-else>
             <button
               class="flex h-8 flex-1 items-center gap-2.5 rounded-md px-2 text-[13px] text-ink-gray-7 hover:bg-surface-gray-2"
-              @click="emit('navigate', 'all')"
+              @click="emit('navigate', 'home')"
             >
               <FeatherIcon name="folder" class="h-4 w-4 shrink-0" />
               <span class="truncate">{{ folder.folder_name || folder.name }}</span>
