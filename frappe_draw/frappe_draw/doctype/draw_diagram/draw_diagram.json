@@ -13,6 +13,7 @@
   "diagram_type",
   "column_break_settings",
   "is_public",
+  "is_pinned",
   "revision",
   "sort_order",
   "section_break_trash",
@@ -67,6 +68,13 @@
    "fieldname": "is_public",
    "fieldtype": "Check",
    "label": "Is Public"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_pinned",
+   "fieldtype": "Check",
+   "in_standard_filter": 1,
+   "label": "Is Pinned"
   },
   {
    "default": "0",

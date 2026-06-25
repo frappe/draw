@@ -14,6 +14,7 @@ import FillBorderSection from './FillBorderSection.vue'
 import TextSection from './TextSection.vue'
 import TransparencySection from './TransparencySection.vue'
 import CanvasSection from './CanvasSection.vue'
+import GuidesControl from './GuidesControl.vue'
 import MindMapPalette from './MindMapPalette.vue'
 import FlowchartPalette from './FlowchartPalette.vue'
 import WhiteboardPalette from './WhiteboardPalette.vue'
@@ -82,6 +83,7 @@ function capitalize(value) {
         <TransparencySection />
       </div>
       <CanvasSection />
+      <GuidesControl />
     </template>
     <component :is="modePalette" v-else-if="modePalette" />
   </aside>

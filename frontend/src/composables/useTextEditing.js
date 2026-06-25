@@ -11,6 +11,9 @@ import { shapeCenter } from '@/diagram/geometry.js'
 const INSCRIBED_FACTOR = { diamond: 0.5, triangle: 0.5 }
 const INSCRIBED_PAD = 6
 const FONT_FAMILY = 'Inter, sans-serif'
+// A casual, handwritten-feel stack (no web font needed) used by whiteboard text
+// to read closer to TLDraw's hand-drawn style.
+const HANDWRITTEN_FONT = "'Bradley Hand', 'Chalkboard SE', 'Comic Sans MS', 'Segoe Print', cursive"
 const LINE_HEIGHT = 1.3
 
 let singleton = null
@@ -84,7 +87,7 @@ export function shapeTextArea(shape) {
 // CSS for the contentEditable, derived from the shape's text.style.
 export function textStyleCss(style = {}, valign = 'middle', align = 'center') {
   return {
-    fontFamily: FONT_FAMILY,
+    fontFamily: style.font || FONT_FAMILY,
     fontSize: `${style.size || 16}px`,
     lineHeight: String(LINE_HEIGHT),
     fontWeight: style.bold ? 700 : 500,
@@ -104,4 +107,4 @@ function justifyFor(valign) {
   return 'center'
 }
 
-export { LINE_HEIGHT, FONT_FAMILY }
+export { LINE_HEIGHT, FONT_FAMILY, HANDWRITTEN_FONT }

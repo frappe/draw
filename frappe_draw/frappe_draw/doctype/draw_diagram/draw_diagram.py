@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import json
+import re
 
 import frappe
 from frappe.model.document import Document
@@ -11,6 +12,12 @@ DEFAULT_DIAGRAM_TYPE = "block"
 
 
 class DrawDiagram(Document):
+	# Name diagrams from their title so URLs read nicely (/d/my-architecture)
+	# instead of a random hash, de-duplicating with a -2/-3 suffix.
+	def autoname(self):
+		base = slugify(self.title) or "diagram"
+		self.name = unique_diagram_name(base)
+
 	def before_save(self):
 		self.increment_revision()
 		self.stamp_trashed_on()
@@ -36,3 +43,17 @@ class DrawDiagram(Document):
 			self.trashed_on = now_datetime()
 		elif not self.is_trashed:
 			self.trashed_on = None
+
+
+def slugify(text):
+	slug = re.sub(r"[^a-z0-9]+", "-", (text or "").strip().lower()).strip("-")
+	return slug[:140]
+
+
+def unique_diagram_name(base):
+	candidate = base
+	suffix = 2
+	while frappe.db.exists("Draw Diagram", candidate):
+		candidate = f"{base}-{suffix}"
+		suffix += 1
+	return candidate

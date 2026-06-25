@@ -10,8 +10,7 @@ import { Tooltip, FeatherIcon } from 'frappe-ui'
 import PaletteSection from './PaletteSection.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { branchPalette } from '@/diagram/mindmapColors.js'
-import { collapseAll, reassignBranchColors, clearMap } from '@/diagram/mindmapOperations.js'
-import { THEME_PRESET_NAMES, findThemePreset } from '@/diagram/theme.js'
+import { collapseAll, clearMap } from '@/diagram/mindmapOperations.js'
 import { mindmapUi, selectedNodeId } from '@/stores/mindmapUi.js'
 
 const store = useDiagramStore()
@@ -61,17 +60,8 @@ const branchSwatches = computed(() => branchPalette(store.state.themePreset))
 const fontSize = computed(() => reference.value?.fontSize ?? 14)
 const note = computed(() => reference.value?.note ?? '')
 
-function applyTheme(name) {
-  store.applyTheme(name)
-  reassignBranchColors(store)
-}
-
 function startCrosslink() {
   mindmapUi.pendingLinkSource = selectedNodeId(store)
-}
-
-function presetSwatch(name) {
-  return findThemePreset(name).t.stroke
 }
 
 // Empty state (A10): only the root exists — show the keyboard hint over the map.
@@ -168,19 +158,6 @@ const isEmpty = computed(() => (store.state.mindmap?.nodes.length ?? 0) <= 1)
       :disabled="!hasSelection"
       @change="setNote($event.target.value)"
     />
-  </PaletteSection>
-
-  <PaletteSection label="Theme presets">
-    <div class="flex gap-1.5">
-      <Tooltip v-for="name in THEME_PRESET_NAMES" :key="name" :text="name">
-        <button
-          class="h-[26px] flex-1 rounded-md border"
-          :class="store.state.themePreset === name ? 'border-blue-500' : 'border-outline-gray-1'"
-          :style="{ background: presetSwatch(name) }"
-          @click="applyTheme(name)"
-        />
-      </Tooltip>
-    </div>
   </PaletteSection>
 
   <PaletteSection label="Map">

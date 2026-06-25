@@ -9,7 +9,6 @@ import { FeatherIcon } from 'frappe-ui'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import PaletteSection from './PaletteSection.vue'
 import ActionTile from './ActionTile.vue'
-import ThemePresetsSection from './ThemePresetsSection.vue'
 import {
   NODE_TYPES,
   NODE_TYPE_META,
@@ -149,7 +148,5 @@ const TYPE_ICONS = {
         </button>
       </div>
     </PaletteSection>
-
-    <ThemePresetsSection />
   </div>
 </template>

@@ -10,6 +10,7 @@
 // stroke (spec W2/C10). Each store mutation is one undoable unit (Part G6).
 
 import { onBeforeUnmount } from 'vue'
+import { HANDWRITTEN_FONT } from '@/composables/useTextEditing.js'
 import { registerModeInteraction, useModeInteraction } from '@/composables/useModeInteraction.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { simplifyStroke } from '@/diagram/strokeSimplify.js'
@@ -123,7 +124,7 @@ function onDoubleClick(context, store) {
     y: point.y - h / 2,
     w,
     h,
-    text: { content: '', align: 'left', valign: 'top' },
+    text: { content: '', align: 'left', valign: 'top', style: { font: HANDWRITTEN_FONT } },
   })
   context.editorUi.setTool('select')
   // Use the setup-scoped editing API passed via the interaction context;

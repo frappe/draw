@@ -62,6 +62,17 @@ watch(
   },
 )
 
+// Whiteboards open on a plain background (guides off by default); the type is
+// only known once the document loads, so default it then. Fires once — the user
+// can re-enable guides via the Guides control and it sticks.
+watch(
+  () => store.state.diagramType,
+  (type) => {
+    if (type === 'whiteboard') editorUi.state.gridVisible = false
+  },
+  { immediate: true },
+)
+
 function rename(title) {
   diagram.setValue.submit({ title })
 }

@@ -97,7 +97,7 @@ const textStyle = computed(() => props.shape.text?.style || {})
       :font-style="textStyle.italic ? 'italic' : 'normal'"
       :text-decoration="textStyle.underline ? 'underline' : 'none'"
       :opacity="shape.opacity"
-      font-family="Inter, sans-serif"
+      :font-family="textStyle.font || 'Inter, sans-serif'"
     >
       {{ shape.text.content }}
     </text>
