@@ -1,11 +1,12 @@
 <script setup>
-// One diagram, rendered as a grid tile or a compact list row (spec §2). Both
-// carry a live SVG thumbnail, title + edited time, a type badge, a selection
-// checkbox, and a ⋯ menu (Rename / Edit description / Duplicate / Delete).
+// One diagram, rendered as a grid tile or a compact list row (spec §2). Tiles
+// show a live thumbnail; list rows show the diagram-type icon instead. Both
+// carry the title, created + edited times, a selection checkbox, and a ⋯ menu
+// (Pin/Unpin · Rename · Duplicate · Delete).
 import { computed } from 'vue'
 import { Dropdown, FeatherIcon } from 'frappe-ui'
 import { documentToSvg, isDocumentEmpty } from '@/composables/useThumbnail.js'
-import { typeLabel } from '@/data/diagramTypes.js'
+import { typeIcon, typeLabel } from '@/data/diagramTypes.js'
 
 const props = defineProps({
   diagram: { type: Object, required: true },
@@ -13,33 +14,39 @@ const props = defineProps({
   selected: { type: Boolean, default: false },
   selectionActive: { type: Boolean, default: false },
 })
-const emit = defineEmits(['open', 'toggle-select', 'rename', 'edit-description', 'duplicate', 'delete'])
+const emit = defineEmits(['open', 'toggle-select', 'toggle-pin', 'rename', 'duplicate', 'delete'])
 
-// Prefer the live document preview; fall back to a placeholder icon.
 const previewSvg = computed(() => {
   const document = props.diagram.document
   if (!document || isDocumentEmpty(document)) return null
   return documentToSvg(document)
 })
 
-const editedLabel = computed(() => relativeTime(props.diagram.modified))
+const icon = computed(() => typeIcon(props.diagram.diagram_type))
 const typeName = computed(() => typeLabel(props.diagram.diagram_type))
+const isPinned = computed(() => Boolean(props.diagram.is_pinned))
+const createdLabel = computed(() => relativeTime(props.diagram.creation))
+const editedLabel = computed(() => relativeTime(props.diagram.modified))
 
 const menuItems = computed(() => [
+  {
+    label: isPinned.value ? 'Unpin' : 'Pin',
+    icon: 'bookmark',
+    onClick: () => emit('toggle-pin', props.diagram),
+  },
   { label: 'Rename', icon: 'edit-2', onClick: () => emit('rename', props.diagram) },
-  { label: 'Edit description', icon: 'file-text', onClick: () => emit('edit-description', props.diagram) },
   { label: 'Duplicate', icon: 'copy', onClick: () => emit('duplicate', props.diagram) },
   { label: 'Delete', icon: 'trash-2', theme: 'red', onClick: () => emit('delete', props.diagram) },
 ])
 
-// Compact "Edited 3h ago" style label from an ISO/Frappe datetime string.
+// Compact "3h ago" style label from an ISO/Frappe datetime string.
 function relativeTime(value) {
-  if (!value) return ''
+  if (!value) return '—'
   const elapsedSeconds = (Date.now() - new Date(value.replace(' ', 'T')).getTime()) / 1000
   for (const [limit, divisor, unit] of TIME_UNITS) {
-    if (elapsedSeconds < limit) return `Edited ${Math.max(1, Math.round(elapsedSeconds / divisor))}${unit} ago`
+    if (elapsedSeconds < limit) return `${Math.max(1, Math.round(elapsedSeconds / divisor))}${unit} ago`
   }
-  return 'Edited just now'
+  return 'just now'
 }
 
 const TIME_UNITS = [
@@ -76,16 +83,15 @@ function onDragStart(event) {
     </button>
 
     <button class="flex min-w-0 flex-1 items-center gap-3 text-left" @click="emit('open', diagram.name)">
-      <div class="flex h-9 w-12 flex-none items-center justify-center overflow-hidden rounded border border-outline-gray-1 bg-surface-white">
-        <div v-if="previewSvg" class="h-full w-full [&>svg]:h-full [&>svg]:w-full" v-html="previewSvg" />
-        <FeatherIcon v-else name="image" class="h-4 w-4 text-ink-gray-3" />
+      <div class="flex h-8 w-8 flex-none items-center justify-center rounded-md bg-surface-gray-2 text-ink-gray-7">
+        <FeatherIcon :name="icon" class="h-4 w-4" />
       </div>
-      <div class="min-w-0 flex-1">
-        <div class="truncate text-[13px] font-medium text-ink-gray-9">{{ diagram.title }}</div>
-        <div class="truncate text-[11px] text-ink-gray-5">{{ diagram.description || '—' }}</div>
-      </div>
-      <span class="hidden flex-none rounded-full bg-surface-gray-2 px-2 py-0.5 text-[10px] font-medium text-ink-gray-6 sm:inline">{{ typeName }}</span>
-      <span class="hidden w-28 flex-none text-[11px] text-ink-gray-5 md:inline">{{ editedLabel }}</span>
+      <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-ink-gray-9">
+        {{ diagram.title }}
+        <FeatherIcon v-if="isPinned" name="bookmark" class="ml-1 inline h-3 w-3 text-ink-gray-5" />
+      </span>
+      <span class="hidden w-28 flex-none text-[11px] text-ink-gray-5 md:inline">Created {{ createdLabel }}</span>
+      <span class="hidden w-28 flex-none text-[11px] text-ink-gray-5 sm:inline">Edited {{ editedLabel }}</span>
     </button>
 
     <Dropdown :options="menuItems" placement="bottom-end">
@@ -114,17 +120,23 @@ function onDragStart(event) {
       <FeatherIcon name="check" class="h-3 w-3" />
     </button>
 
+    <FeatherIcon
+      v-if="isPinned"
+      name="bookmark"
+      class="absolute right-2 top-2 z-10 h-4 w-4 fill-ink-gray-5 text-ink-gray-5"
+    />
+
     <button class="block w-full" @click="emit('open', diagram.name)">
       <div class="flex h-[120px] items-center justify-center border-b border-outline-gray-1 bg-surface-white p-2">
         <div v-if="previewSvg" class="h-full w-full [&>svg]:h-full [&>svg]:w-full" v-html="previewSvg" />
-        <FeatherIcon v-else name="image" class="h-7 w-7 text-ink-gray-3" />
+        <FeatherIcon v-else :name="icon" class="h-7 w-7 text-ink-gray-3" />
       </div>
     </button>
 
     <div class="flex items-center gap-1 bg-surface-white px-3 py-2.5">
       <button class="min-w-0 flex-1 text-left" @click="emit('open', diagram.name)">
         <div class="truncate text-[13px] font-semibold text-ink-gray-9">{{ diagram.title }}</div>
-        <div class="text-[11px] text-ink-gray-5">{{ editedLabel }}</div>
+        <div class="text-[11px] text-ink-gray-5">Created {{ createdLabel }} · Edited {{ editedLabel }}</div>
       </button>
 
       <Dropdown :options="menuItems" placement="bottom-end">

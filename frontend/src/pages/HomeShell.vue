@@ -53,7 +53,7 @@ function open(name) {
       <template v-else>
         <div class="mb-6 flex items-end justify-between">
           <div>
-            <h1 class="text-[22px] font-bold text-ink-gray-9">All diagrams</h1>
+            <h1 class="text-[22px] font-bold text-ink-gray-9">Diagrams</h1>
             <p class="mt-1 text-[13px] text-ink-gray-5">{{ list.length }} diagrams</p>
           </div>
           <Button variant="solid" @click="showNewDiagram = true">
@@ -63,7 +63,7 @@ function open(name) {
         </div>
 
         <EmptyState v-if="isEmpty" @create="showNewDiagram = true" />
-        <TileGrid v-else :diagrams="list" @create="showNewDiagram = true" @open="open" />
+        <TileGrid v-else @create="showNewDiagram = true" @open="open" />
       </template>
     </main>
 
