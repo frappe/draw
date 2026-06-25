@@ -503,8 +503,8 @@ const surfaceCursor = computed(() => {
   <div
     ref="surface"
     :data-fdpreset="store.state.themePreset"
-    :style="[themeStyle, { cursor: surfaceCursor }]"
-    class="relative h-full w-full overflow-auto bg-surface-white"
+    :style="[themeStyle, { cursor: surfaceCursor, background: canvas.background || '#FFFFFF' }]"
+    class="relative h-full w-full overflow-auto"
     @wheel.prevent="onWheel"
     @scroll="onScroll"
     @pointerdown="onSurfacePointerDown"

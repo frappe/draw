@@ -11,6 +11,7 @@
 
 import { onBeforeUnmount } from 'vue'
 import { HANDWRITTEN_FONT } from '@/composables/useTextEditing.js'
+import { contrastInk } from '@/diagram/whiteboardColors.js'
 import { registerModeInteraction, useModeInteraction } from '@/composables/useModeInteraction.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { simplifyStroke } from '@/diagram/strokeSimplify.js'
@@ -124,7 +125,12 @@ function onDoubleClick(context, store) {
     y: point.y - h / 2,
     w,
     h,
-    text: { content: '', align: 'left', valign: 'top', style: { font: HANDWRITTEN_FONT } },
+    text: {
+      content: '',
+      align: 'left',
+      valign: 'top',
+      style: { font: HANDWRITTEN_FONT, color: contrastInk(store.state.canvas.background || '#FFFFFF') },
+    },
   })
   context.editorUi.setTool('select')
   // Use the setup-scoped editing API passed via the interaction context;

@@ -10,7 +10,9 @@ import { Button } from 'frappe-ui'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
-import { PEN_COLORS, PEN_WIDTHS, STICKY_COLORS } from '@/diagram/whiteboardColors.js'
+import { CHALK_COLORS, PEN_WIDTHS, STICKY_COLORS, BOARD_BACKGROUNDS } from '@/diagram/whiteboardColors.js'
+
+const boardBackground = computed(() => store.state.canvas?.background || '#FFFFFF')
 import PaletteSection from './PaletteSection.vue'
 import WhiteboardMinimap from '@/components/canvas/WhiteboardMinimap.vue'
 
@@ -47,11 +49,27 @@ function applyLink() {
 
 <template>
   <div>
+    <!-- Board background: white or black (chalk colors read on both). -->
+    <PaletteSection label="Background">
+      <div class="flex gap-1.5">
+        <button
+          v-for="bg in BOARD_BACKGROUNDS"
+          :key="bg.value"
+          class="flex h-8 flex-1 items-center justify-center gap-2 rounded-md border text-xs"
+          :class="boardBackground === bg.value ? 'border-ink-gray-9 text-ink-gray-9' : 'border-outline-gray-2 text-ink-gray-7'"
+          @click="store.setCanvas({ background: bg.value })"
+        >
+          <span class="h-4 w-4 rounded border border-black/20" :style="{ background: bg.value }" />
+          {{ bg.label }}
+        </button>
+      </div>
+    </PaletteSection>
+
     <!-- Pen / highlighter: color + thickness (spec C7). -->
     <PaletteSection v-if="isPen" :label="tool === 'highlighter' ? 'Highlighter' : 'Pen'">
-      <div class="mb-2 grid grid-cols-9 gap-1.5">
+      <div class="mb-2 grid grid-cols-8 gap-1.5">
         <button
-          v-for="color in PEN_COLORS"
+          v-for="color in CHALK_COLORS"
           :key="color"
           class="h-5 w-5 rounded-full border"
           :class="ui.state.penColor === color ? 'border-[1.5px] border-ink-gray-9' : 'border-outline-gray-2'"

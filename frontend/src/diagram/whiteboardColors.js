@@ -29,6 +29,25 @@ export const STICKY_COLORS = [
   '#FEEDA9', // amber-200
 ]
 
+// Chalk palette for the whiteboard — soft colors that read like chalk on either
+// a white or black board.
+export const CHALK_COLORS = [
+  '#FFFFFF', // white chalk (for dark boards)
+  '#171717', // charcoal (for white boards)
+  '#FDE68A', // yellow
+  '#A7D8FF', // blue
+  '#A7F3D0', // green
+  '#FBCFE8', // pink
+  '#FDBA74', // orange
+  '#E5E7EB', // light gray
+]
+
+// The two board colors offered by the whiteboard Background control.
+export const BOARD_BACKGROUNDS = [
+  { value: '#FFFFFF', label: 'White' },
+  { value: '#171717', label: 'Black' },
+]
+
 export const PEN_WIDTHS = [2, 4, 8]
 export const HIGHLIGHTER_WIDTH = 18
 export const HIGHLIGHTER_OPACITY = 0.4
