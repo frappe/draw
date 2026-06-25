@@ -15,8 +15,9 @@ const editing = useTextEditing()
 
 const shown = computed(() => props.visible || Boolean(editing?.isEditing.value))
 
-const THICKNESS = 22
+const THICKNESS = 24
 const MIN_TICK_GAP = 60 // minimum screen px between major ticks
+const TICK_LINE = '1px solid #B6B6BD' // explicit so it reads on white paper too
 
 // Logical units between major ticks, snapped to a 1/2/5 ladder so the on-screen
 // gap never drops below MIN_TICK_GAP at the current zoom.
@@ -54,38 +55,38 @@ const verticalTicks = computed(() =>
   <div v-if="shown" data-rulers class="pointer-events-none absolute inset-0">
     <!-- Top ruler -->
     <div
-      class="absolute left-0 top-0 border-b border-outline-gray-1 bg-surface-white/95"
-      :style="{ height: THICKNESS + 'px', left: THICKNESS + 'px', right: 0 }"
+      class="absolute left-0 top-0 bg-surface-white shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+      :style="{ height: THICKNESS + 'px', left: THICKNESS + 'px', right: 0, borderBottom: TICK_LINE }"
     >
       <div
         v-for="tick in horizontalTicks"
         :key="'h' + tick.value"
-        class="absolute top-0 h-full border-l border-outline-gray-2"
-        :style="{ left: tick.screen - THICKNESS + 'px' }"
+        class="absolute bottom-0 h-2"
+        :style="{ left: tick.screen - THICKNESS + 'px', borderLeft: TICK_LINE }"
       >
-        <span class="absolute left-1 top-0.5 text-[9px] leading-none text-ink-gray-5">{{ Math.round(tick.value) }}</span>
+        <span class="absolute left-1 -top-[14px] text-[10px] font-medium leading-none text-ink-gray-6">{{ Math.round(tick.value) }}</span>
       </div>
     </div>
 
     <!-- Left ruler -->
     <div
-      class="absolute left-0 top-0 border-r border-outline-gray-1 bg-surface-white/95"
-      :style="{ width: THICKNESS + 'px', top: THICKNESS + 'px', bottom: 0 }"
+      class="absolute left-0 top-0 bg-surface-white shadow-[1px_0_2px_rgba(0,0,0,0.08)]"
+      :style="{ width: THICKNESS + 'px', top: THICKNESS + 'px', bottom: 0, borderRight: TICK_LINE }"
     >
       <div
         v-for="tick in verticalTicks"
         :key="'v' + tick.value"
-        class="absolute left-0 w-full border-t border-outline-gray-2"
-        :style="{ top: tick.screen - THICKNESS + 'px' }"
+        class="absolute right-0 w-2"
+        :style="{ top: tick.screen - THICKNESS + 'px', borderTop: TICK_LINE }"
       >
-        <span class="absolute left-0.5 top-0.5 text-[9px] leading-none text-ink-gray-5">{{ Math.round(tick.value) }}</span>
+        <span class="absolute left-0.5 top-0.5 text-[10px] font-medium leading-none text-ink-gray-6">{{ Math.round(tick.value) }}</span>
       </div>
     </div>
 
     <!-- Corner square -->
     <div
-      class="absolute left-0 top-0 border-b border-r border-outline-gray-1 bg-surface-white"
-      :style="{ width: THICKNESS + 'px', height: THICKNESS + 'px' }"
+      class="absolute left-0 top-0 bg-surface-white"
+      :style="{ width: THICKNESS + 'px', height: THICKNESS + 'px', borderBottom: TICK_LINE, borderRight: TICK_LINE }"
     />
   </div>
 </template>

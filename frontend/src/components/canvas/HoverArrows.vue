@@ -9,6 +9,7 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useHoverArrows } from '@/composables/useHoverArrows.js'
 import { useConnectorDrawing } from '@/composables/useConnectorDrawing.js'
+import { axisAlignedBBox } from '@/diagram/geometry.js'
 
 defineProps({ hoverShapeId: { type: String, default: null } })
 
@@ -16,6 +17,13 @@ const store = useDiagramStore()
 const editorUi = useEditorUi()
 const hover = useHoverArrows(store, editorUi)
 const drawing = useConnectorDrawing(store, editorUi)
+
+// Last logical pointer position while the connector tool is armed, so anchors
+// reveal as the cursor approaches a shape — before any drag starts (spec §5.3).
+const pointer = ref(null)
+// A shape reveals its anchors once the cursor comes within this many logical
+// units of its box; the nearest anchor highlights as the snap target.
+const REVEAL_MARGIN = 90
 
 const layer = ref(null)
 let svg = null
@@ -40,12 +48,23 @@ function onPointerDown(event) {
 
 function onPointerMove(event) {
   const point = toLogical(event)
-  if (drawing.draft.active) drawing.updateDraw(point, event.shiftKey)
-  else if (editorUi.state.tool === 'select') hover.setHover(point)
+  if (drawing.draft.active) {
+    drawing.updateDraw(point, event.shiftKey)
+    pointer.value = point
+  } else if (drawing.isDrawingConnector.value) {
+    pointer.value = point
+  } else if (editorUi.state.tool === 'select') {
+    hover.setHover(point)
+  }
 }
 
 function onPointerUp() {
   if (drawing.draft.active) drawing.commitDraw()
+}
+
+function onPointerLeave() {
+  hover.clearHover()
+  pointer.value = null
 }
 
 function onKeyDown(event) {
@@ -58,7 +77,7 @@ onMounted(() => {
   svg.addEventListener('pointerdown', onPointerDown, true)
   svg.addEventListener('pointermove', onPointerMove)
   svg.addEventListener('pointerup', onPointerUp)
-  svg.addEventListener('pointerleave', hover.clearHover)
+  svg.addEventListener('pointerleave', onPointerLeave)
   window.addEventListener('keydown', onKeyDown)
 })
 
@@ -67,14 +86,46 @@ onBeforeUnmount(() => {
   svg.removeEventListener('pointerdown', onPointerDown, true)
   svg.removeEventListener('pointermove', onPointerMove)
   svg.removeEventListener('pointerup', onPointerUp)
-  svg.removeEventListener('pointerleave', hover.clearHover)
+  svg.removeEventListener('pointerleave', onPointerLeave)
   window.removeEventListener('keydown', onKeyDown)
 })
 
-// Circular anchor hints on every shape while a connector is being drawn.
+// Shortest distance from a point to a shape's axis-aligned box (0 when inside).
+function distanceToBox(point, shape) {
+  const box = axisAlignedBBox(shape)
+  const dx = Math.max(box.x - point.x, 0, point.x - (box.x + box.w))
+  const dy = Math.max(box.y - point.y, 0, point.y - (box.y + box.h))
+  return Math.hypot(dx, dy)
+}
+
+// The anchor the draw would snap to right now (nearest within the snap radius),
+// so it can be highlighted as the live target. Null when none is in range.
+const snapTarget = computed(() => {
+  if (!drawing.isDrawingConnector.value) return null
+  const probe = drawing.draft.active ? drawing.draft.end?.point : pointer.value
+  return probe ? drawing.nearestAnchor(probe) : null
+})
+
+// Circular anchor hints, shown whenever the connector tool is armed: every
+// shape's anchors while actively drawing, else only shapes the cursor is near.
+// The current snap target is flagged so the template can highlight it.
 const anchorHints = computed(() => {
-  if (!drawing.draft.active) return []
-  return store.state.shapes.flatMap((shape) => drawing.shapeAnchors(shape))
+  if (!drawing.isDrawingConnector.value) return []
+  const active = drawing.draft.active
+  const probe = active ? drawing.draft.end?.point : pointer.value
+  if (!probe) return []
+  const shapes = active
+    ? store.state.shapes
+    : store.state.shapes.filter((shape) => distanceToBox(probe, shape) <= REVEAL_MARGIN)
+  const target = snapTarget.value
+  return shapes.flatMap((shape) =>
+    drawing.shapeAnchors(shape).map((anchor) => ({
+      x: anchor.x,
+      y: anchor.y,
+      key: `${shape.id}-${anchor.name}`,
+      active: Boolean(target && target.shapeId === shape.id && target.anchor === anchor.name),
+    })),
+  )
 })
 
 const draftPath = computed(() => {
@@ -104,14 +155,15 @@ function chevron(arrow) {
 
 <template>
   <g ref="layer" data-hover-arrows>
-    <!-- Circular anchors revealed on every shape while drawing a connector. -->
+    <!-- Anchors revealed on shapes while the connector tool is armed. The live
+         snap target is filled + enlarged so it reads as the attach point. -->
     <circle
-      v-for="(anchor, index) in anchorHints"
-      :key="`anchor-${index}`"
+      v-for="anchor in anchorHints"
+      :key="`anchor-${anchor.key}`"
       :cx="anchor.x"
       :cy="anchor.y"
-      r="4"
-      fill="#FFFFFF"
+      :r="anchor.active ? 6 : 4"
+      :fill="anchor.active ? '#006EDB' : '#FFFFFF'"
       stroke="#006EDB"
       stroke-width="1.5"
     />

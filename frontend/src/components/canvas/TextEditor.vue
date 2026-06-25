@@ -39,12 +39,16 @@ function resolve(endpoint) {
   return { x: endpoint?.x || 0, y: endpoint?.y || 0 }
 }
 
+// A blue inset ring marks the live edit region so an otherwise borderless text
+// box (no fill, no stroke) is clearly visible while typing.
+const EDIT_RING = { boxShadow: 'inset 0 0 0 1.5px #006EDB', borderRadius: '4px' }
+
 const fieldStyle = computed(() => {
   if (shape.value) {
     const text = shape.value.text || {}
-    return { ...textStyleCss(text.style, text.valign, text.align), padding: '4px 6px', height: '100%' }
+    return { ...textStyleCss(text.style, text.valign, text.align), ...EDIT_RING, padding: '4px 6px', height: '100%' }
   }
-  return { ...textStyleCss({ size: 12 }, 'middle', 'center'), padding: '2px 8px', height: '100%' }
+  return { ...textStyleCss({ size: 12 }, 'middle', 'center'), ...EDIT_RING, padding: '2px 8px', height: '100%' }
 })
 
 const currentText = computed(() =>

@@ -15,6 +15,7 @@
 // for a live size hint if desired.
 
 import { ref } from 'vue'
+import { useTextEditing } from '@/composables/useTextEditing.js'
 
 const DATA_TRANSFER_KEY = 'application/x-frappe-draw-tool'
 const CONNECTOR_TYPES = ['straight', 'elbow', 'curved']
@@ -112,10 +113,13 @@ function finishDraft(drag, preview, store, editorUi, end) {
 }
 
 // A bare click (no real drag) yields a default-sized shape centred on the click.
+// A text box opens straight into edit mode so the caret is ready to type.
 function commitShape(store, type, start, end) {
   const box = boxBetween(start, end)
   const sized = box.w < MIN_SIZE || box.h < MIN_SIZE ? centeredDefaultBox(start) : box
-  store.select(store.addShape({ type, ...sized }))
+  const id = store.addShape({ type, ...sized })
+  store.select(id)
+  if (type === 'text') useTextEditing().beginTextEdit(id)
 }
 
 function commitConnector(store, type, start, end) {
@@ -134,7 +138,9 @@ function dropAt(store, editorUi, type, point) {
     const half = DEFAULT_SIZE.w / 2
     commitConnector(store, type, { x: point.x - half, y: point.y }, { x: point.x + half, y: point.y })
   } else {
-    store.select(store.addShape({ type, ...centeredDefaultBox(point) }))
+    const id = store.addShape({ type, ...centeredDefaultBox(point) })
+    store.select(id)
+    if (type === 'text') useTextEditing().beginTextEdit(id)
   }
   editorUi.setTool('select')
 }

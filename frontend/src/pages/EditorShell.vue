@@ -82,7 +82,7 @@ function rename(title) {
 
     <div class="flex min-h-0 flex-1">
       <LeftPalette v-if="modeStrategy.showsShapeTools" />
-      <main class="relative min-h-0 flex-1">
+      <main class="relative min-h-0 min-w-0 flex-1">
         <DiagramCanvas />
         <BottomPalette />
       </main>

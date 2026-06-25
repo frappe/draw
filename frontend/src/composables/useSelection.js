@@ -46,18 +46,24 @@ function topShapeAt(store, point) {
   return hits.reduce((top, shape) => ((shape.zIndex || 0) >= (top.zIndex || 0) ? shape : top))
 }
 
-// Click selects (Shift toggles); a plain click on an unselected shape replaces
-// the selection, then the body drag moves whatever ends up selected.
+// Shift, Ctrl, or Cmd all act as the "add to selection" modifier.
+function isAdditive(event) {
+  return event.shiftKey || event.ctrlKey || event.metaKey
+}
+
+// Click selects (a modifier toggles); a plain click on an unselected shape
+// replaces the selection, then the body drag moves whatever ends up selected.
 function selectAndMove(store, transform, shape, event, toLogical, start) {
-  if (event.shiftKey) return store.toggleInSelection(shape.id)
+  if (isAdditive(event)) return store.toggleInSelection(shape.id)
   if (!store.state.selection.includes(shape.id)) store.select(shape.id)
   const ids = store.state.selection.filter((id) => store.shapeById(id))
   transform.startMove({ toLogical, start, ids })
 }
 
-// Empty-canvas press: Shift keeps the selection, plain press clears it; either
-// way a drag turns into a marquee that selects intersected shapes.
+// Empty-canvas press: a modifier keeps the selection, plain press clears it;
+// either way a drag turns into a marquee that selects intersected shapes.
 function beginMarquee(store, marquee, event, toLogical, start) {
-  if (!event.shiftKey) store.clearSelection()
-  marquee.begin({ toLogical, start, additive: event.shiftKey })
+  const additive = isAdditive(event)
+  if (!additive) store.clearSelection()
+  marquee.begin({ toLogical, start, additive })
 }
