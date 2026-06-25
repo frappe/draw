@@ -16,6 +16,18 @@ export async function createFolder(folderName) {
   return created.name
 }
 
+// Rename a folder (updates the display name; the doc name/Link stays stable).
+export async function renameFolder(name, folderName) {
+  await folders.setValue.submit({ name, folder_name: folderName })
+  await folders.reload()
+}
+
+// Delete a folder. Diagrams keep their data; their folder link just clears.
+export async function deleteFolder(name) {
+  await folders.delete.submit(name)
+  await folders.reload()
+}
+
 // Move a diagram into (or out of, with null) a folder. Used by drag-to-file.
 export function moveDiagramToFolder(diagrams, diagramName, folderName) {
   return diagrams.setValue.submit({ name: diagramName, folder: folderName || null })

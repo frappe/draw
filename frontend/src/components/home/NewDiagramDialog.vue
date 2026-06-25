@@ -1,13 +1,8 @@
 <script setup>
-// New-diagram popup (spec §2, README §2). Four type cards (only Block diagram
-// enabled; three "Coming soon", disabled) + six starter templates rendered as
-// live SVG mini-previews. Choosing either emits a `create` payload carrying the
-// pre-filled diagram document + a title, then closes. Templates are just
-// pre-filled JSON documents (spec §2/§11.3).
-import { computed } from 'vue'
+// New-diagram popup (spec §2): pick a diagram type — each starts from a blank
+// canvas of that type. Emits a `create` payload and closes. (Templates removed
+// for simplicity; every type begins blank.)
 import { Dialog, FeatherIcon } from 'frappe-ui'
-import { TEMPLATES } from '@/data/templates.js'
-import { documentToSvg } from '@/composables/useThumbnail.js'
 
 defineProps({
   modelValue: { type: Boolean, default: false },
@@ -28,74 +23,38 @@ const TYPE_TITLE = {
   whiteboard: 'Untitled whiteboard',
 }
 
-// Pre-rendered SVG previews keep the template grid in sync with the canvas.
-const previews = computed(() =>
-  TEMPLATES.map((template) => ({ ...template, svg: documentToSvg(template.document) })),
-)
-
-function close() {
-  emit('update:modelValue', false)
-}
-
-// Choosing a type creates a fresh diagram of that type; createDiagram builds the
-// right starter document (e.g. a mind map with a root node). Templates remain
-// block-only pre-filled documents.
+// A blank canvas of the chosen type (document: null → createDiagram seeds the
+// right empty document for that type).
 function chooseType(type) {
   if (!type.enabled) return
   emit('create', { type: type.key, title: TYPE_TITLE[type.key] || 'Untitled diagram', document: null })
-  close()
-}
-
-function chooseTemplate(template) {
-  emit('create', { type: 'block', template: template.key, title: template.title, document: template.document })
-  close()
+  emit('update:modelValue', false)
 }
 </script>
 
 <template>
   <Dialog
     :modelValue="modelValue"
-    :options="{ size: '2xl', title: 'Create a new diagram' }"
+    :options="{ size: 'xl', title: 'Create a new diagram' }"
     @update:modelValue="emit('update:modelValue', $event)"
   >
     <template #body-content>
-      <p class="-mt-1 mb-4 text-[13px] text-ink-gray-5">Pick a type, or start from a template.</p>
+      <p class="-mt-1 mb-4 text-[13px] text-ink-gray-5">Pick a diagram type to start from a blank canvas.</p>
 
-      <div class="mb-5 grid grid-cols-4 gap-2.5">
+      <div class="grid grid-cols-2 gap-2.5">
         <button
           v-for="type in types"
           :key="type.key"
           :disabled="!type.enabled"
-          class="relative flex flex-col gap-1.5 rounded-md border p-3 text-left transition-colors"
+          class="relative flex flex-col gap-1.5 rounded-md border p-3.5 text-left transition-colors"
           :class="type.enabled
-            ? 'border-[1.5px] border-ink-gray-9 hover:bg-surface-gray-1'
+            ? 'border-outline-gray-2 hover:border-ink-gray-9 hover:bg-surface-gray-1'
             : 'cursor-default border-outline-gray-1 bg-surface-gray-1 opacity-70'"
           @click="chooseType(type)"
         >
           <FeatherIcon :name="type.icon" class="h-[18px] w-[18px] text-ink-gray-8" />
           <div class="text-[13px] font-semibold text-ink-gray-9">{{ type.name }}</div>
           <div class="text-[11px] text-ink-gray-5">{{ type.hint }}</div>
-          <span
-            v-if="!type.enabled"
-            class="absolute right-2 top-2 rounded-full bg-surface-gray-3 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-ink-gray-6"
-          >
-            Coming soon
-          </span>
-        </button>
-      </div>
-
-      <div class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-gray-5">
-        Start from a template
-      </div>
-      <div class="grid grid-cols-3 gap-3">
-        <button
-          v-for="template in previews"
-          :key="template.key"
-          class="overflow-hidden rounded-md border border-outline-gray-1 text-left hover:border-outline-gray-3"
-          @click="chooseTemplate(template)"
-        >
-          <div class="h-16 border-b border-outline-gray-1 bg-surface-gray-1 p-1.5" v-html="template.svg" />
-          <div class="px-2 py-1.5 text-[12px] font-semibold text-ink-gray-8">{{ template.title }}</div>
         </button>
       </div>
     </template>

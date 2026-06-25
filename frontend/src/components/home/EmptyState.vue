@@ -15,6 +15,5 @@ defineEmits(['create'])
       </div>
       <span class="text-[13px] font-semibold">New diagram</span>
     </button>
-    <p class="text-[11px] text-ink-gray-5">Create your first diagram to get started.</p>
   </div>
 </template>
