@@ -25,9 +25,17 @@ const list = computed(() => diagrams.data || [])
 const isEmpty = computed(() => list.value.length === 0)
 
 async function create(payload = {}) {
-  const name = await createDiagram(payload.title, payload.document, payload.type || 'block')
-  diagrams.reload()
-  router.push({ name: 'Editor', params: { name } })
+  try {
+    const name = await createDiagram(payload.title, payload.document, payload.type || 'block')
+    if (!name) throw new Error('Server returned no diagram name')
+    diagrams.reload()
+    router.push({ name: 'Editor', params: { name } })
+  } catch (error) {
+    // Surface the real reason instead of failing silently (toasts aren't mounted).
+    const detail = error?.messages?.join('\n') || error?.exc_type || error?.message || String(error)
+    console.error('Create diagram failed:', error)
+    window.alert('Could not create the diagram:\n\n' + detail)
+  }
 }
 
 function open(name) {
