@@ -9,6 +9,13 @@ const MIN_ZOOM = 0.1
 const MAX_ZOOM = 4
 const ZOOM_STEP = 0.1
 const FIT_MARGIN = 48
+// Wheel/pinch zoom is proportional to the scroll delta (a trackpad pinch fires
+// many small-delta events per second, so a fixed 10% step per event zoomed far
+// too fast). Lower = slower; the per-event factor is clamped so one big mouse
+// notch can't lurch the zoom.
+const ZOOM_WHEEL_SENSITIVITY = 0.0015
+const ZOOM_WHEEL_MIN_FACTOR = 0.85
+const ZOOM_WHEEL_MAX_FACTOR = 1.18
 
 function clampZoom(value) {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value))
@@ -62,15 +69,19 @@ export function useViewport() {
     zoomTo(snapZoom(state.zoom + direction * ZOOM_STEP), px, py)
   }
 
-  // Ctrl/Cmd or Shift + scroll zooms (cursor-centred, 10% steps per §7.7);
-  // plain scroll pans (vertical via deltaY, horizontal via deltaX).
+  // Ctrl/Cmd or Shift + scroll zooms (cursor-centred, smooth + proportional to
+  // the delta per §7.7); plain scroll pans (vertical deltaY, horizontal deltaX).
   function handleWheel(event, pointerX, pointerY) {
     event.preventDefault()
     if (event.ctrlKey || event.metaKey || event.shiftKey) {
       // Shift+wheel may report the delta on deltaX in some browsers, so pick
-      // whichever axis carries the gesture to decide zoom-in vs zoom-out.
+      // whichever axis carries the gesture.
       const delta = event.deltaY || event.deltaX
-      zoomStep(delta < 0 ? 1 : -1, pointerX, pointerY)
+      const factor = Math.min(
+        ZOOM_WHEEL_MAX_FACTOR,
+        Math.max(ZOOM_WHEEL_MIN_FACTOR, Math.exp(-delta * ZOOM_WHEEL_SENSITIVITY)),
+      )
+      zoomTo(state.zoom * factor, pointerX, pointerY)
     } else {
       state.panX -= event.deltaX
       state.panY -= event.deltaY

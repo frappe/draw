@@ -59,7 +59,7 @@ const WHITEBOARD = {
   type: 'whiteboard',
   rendersOwnLayer: true, // WhiteboardLayer draws strokes + stickies + objects
   isAutoLayout: false,
-  hasBoundedPaper: false, // freely auto-expanding surface (spec C2)
+  hasBoundedPaper: true, // a bounded white canvas/paper, like block
   handlesSurfaceInteraction: true, // pen/highlighter/eraser/sticky/text/laser
   paletteMode: 'whiteboard',
   keyboardMode: 'whiteboard',

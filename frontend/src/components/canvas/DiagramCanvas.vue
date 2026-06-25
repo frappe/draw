@@ -57,6 +57,10 @@ const isMindmap = computed(() => activeType.value === 'mindmap')
 const isFlowchart = computed(() => activeType.value === 'flowchart')
 const isWhiteboard = computed(() => activeType.value === 'whiteboard')
 
+// Block and whiteboard sit on a bounded white paper (canvas rect); mind map and
+// flowchart frame their own derived content bbox instead.
+const usesBoundedPaper = computed(() => !rendersOwnLayer.value || isWhiteboard.value)
+
 const mindmapLayout = computed(() =>
   isMindmap.value && store.state.mindmap ? layoutMindMap(store.state.mindmap) : null,
 )
@@ -109,7 +113,10 @@ const contentExtent = computed(() => {
   // derived content bbox is the whole reachable content. Mind-map bbox starts at
   // 0,0; flowchart/whiteboard bboxes carry their own x/y. PAN_MARGIN pads each.
   const bounds = ownLayerBounds.value
-  if (rendersOwnLayer.value && bounds) {
+  // Mind map / flowchart frame their own derived bbox. Whiteboard now uses the
+  // bounded-paper path below (its content bbox is unioned in so strokes drawn
+  // past the paper edge stay reachable).
+  if (rendersOwnLayer.value && bounds && !isWhiteboard.value) {
     return {
       x: (bounds.x ?? 0) - PAN_MARGIN,
       y: (bounds.y ?? 0) - PAN_MARGIN,
@@ -127,6 +134,12 @@ const contentExtent = computed(() => {
     minY = Math.min(minY, box.y)
     maxX = Math.max(maxX, box.x + box.w)
     maxY = Math.max(maxY, box.y + box.h)
+  }
+  if (isWhiteboard.value && bounds) {
+    minX = Math.min(minX, bounds.x ?? 0)
+    minY = Math.min(minY, bounds.y ?? 0)
+    maxX = Math.max(maxX, (bounds.x ?? 0) + bounds.w)
+    maxY = Math.max(maxY, (bounds.y ?? 0) + bounds.h)
   }
   return {
     x: minX - PAN_MARGIN,
@@ -169,7 +182,7 @@ const stageStyle = computed(() => ({
 // The box fit-to-view should frame: the mind-map tree's bbox, else the paper.
 function fitContentSize() {
   const bounds = ownLayerBounds.value
-  if (rendersOwnLayer.value && bounds) return { w: bounds.w, h: bounds.h }
+  if (rendersOwnLayer.value && bounds && !isWhiteboard.value) return { w: bounds.w, h: bounds.h }
   return { w: canvas.value.width, h: canvas.value.height }
 }
 
@@ -179,14 +192,15 @@ function fitToView() {
   viewWidth.value = bounds.width
   viewHeight.value = bounds.height
   const size = fitContentSize()
-  const origin = ownLayerBounds.value || { x: 0, y: 0 }
+  const framesOwnBounds = rendersOwnLayer.value && !isWhiteboard.value
+  const origin = (framesOwnBounds && ownLayerBounds.value) || { x: 0, y: 0 }
   viewport.setMeasure({
     containerW: bounds.width,
     containerH: bounds.height,
     canvasW: size.w,
     canvasH: size.h,
-    originX: rendersOwnLayer.value ? origin.x ?? 0 : 0,
-    originY: rendersOwnLayer.value ? origin.y ?? 0 : 0,
+    originX: framesOwnBounds ? origin.x ?? 0 : 0,
+    originY: framesOwnBounds ? origin.y ?? 0 : 0,
   })
   viewport.fit()
 }
@@ -279,7 +293,7 @@ watch(
     ownLayerBounds.value.w, ownLayerBounds.value.h, ownLayerBounds.value.x, ownLayerBounds.value.y,
   ],
   () => {
-    if (!rendersOwnLayer.value) return
+    if (!rendersOwnLayer.value || isWhiteboard.value) return
     const size = fitContentSize()
     const origin = ownLayerBounds.value || { x: 0, y: 0 }
     viewport.setMeasure({ canvasW: size.w, canvasH: size.h, originX: origin.x ?? 0, originY: origin.y ?? 0 })
@@ -465,8 +479,8 @@ const surfaceCursor = computed(() => {
     <!-- The SVG is pinned to the viewport; the <g> transform handles pan/zoom. -->
     <svg class="pointer-events-none absolute left-0 top-0 h-full w-full">
       <g :transform="groupTransform" class="[&_*]:pointer-events-auto">
-        <!-- Block mode: bounded white paper + shapes/connectors + overlays. -->
-        <template v-if="!rendersOwnLayer">
+        <!-- Bounded white paper (block + whiteboard): shadow, sheet, grid. -->
+        <template v-if="usesBoundedPaper">
           <!-- Soft paper shadow approximated with a slightly offset gray rect. -->
           <rect :x="2" :y="3" :width="canvas.width" :height="canvas.height" fill="rgba(0,0,0,0.06)" />
           <rect
@@ -483,7 +497,10 @@ const surfaceCursor = computed(() => {
             :height="canvas.height"
             :density="editorUi.state.gridDensity"
           />
+        </template>
 
+        <!-- Block mode: shapes/connectors + overlays on the paper. -->
+        <template v-if="!rendersOwnLayer">
           <ConnectorView
             v-for="connector in store.state.connectors"
             :key="connector.id"
