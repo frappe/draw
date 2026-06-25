@@ -15,6 +15,7 @@ declare module 'vue' {
     CanvasSection: typeof import('./src/components/palette-right/CanvasSection.vue')['default']
     ColorPicker: typeof import('./src/components/palette-right/ColorPicker.vue')['default']
     ConnectorView: typeof import('./src/components/canvas/ConnectorView.vue')['default']
+    ContextMenu: typeof import('./src/components/canvas/ContextMenu.vue')['default']
     DiagramCanvas: typeof import('./src/components/canvas/DiagramCanvas.vue')['default']
     DiagramCollection: typeof import('./src/components/home/DiagramCollection.vue')['default']
     DiagramTile: typeof import('./src/components/home/DiagramTile.vue')['default']

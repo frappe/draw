@@ -8,7 +8,7 @@
 // small margin, stretched to enclose any shape that leaves the canvas and
 // auto-shrunk when it returns. Native scrollbars appear when that region (in
 // screen pixels) exceeds the viewport. Browser ctrl-zoom is intercepted.
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick, provide, inject } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick, provide, inject } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
@@ -21,6 +21,8 @@ import { useSelection } from '@/composables/useSelection.js'
 import { useShapeCreation } from '@/composables/useShapeCreation.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
 import { useFormatPainter } from '@/composables/useFormatPainter.js'
+import { useClipboard } from '@/composables/useClipboard.js'
+import ContextMenu from './ContextMenu.vue'
 import GridLayer from './GridLayer.vue'
 import ShapeView from './ShapeView.vue'
 import ConnectorView from './ConnectorView.vue'
@@ -78,6 +80,51 @@ const selection = useSelection(store, editorUi)
 const creation = useShapeCreation(store, editorUi)
 const editing = useTextEditing(store, editorUi)
 const painter = useFormatPainter(store, editorUi)
+const clipboard = useClipboard(store)
+
+// Right-click context menu (suppresses the browser default). Items differ for a
+// shape vs empty canvas.
+const contextMenu = reactive({ show: false, x: 0, y: 0, items: [] })
+
+function onContextMenu(event) {
+  const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
+  const shape = activeType.value === 'block' ? topShapeAt(point) : null
+  if (shape) {
+    if (!store.state.selection.includes(shape.id)) store.select(shape.id)
+    contextMenu.items = shapeMenuItems()
+  } else {
+    if (activeType.value === 'block') store.clearSelection()
+    contextMenu.items = emptyMenuItems()
+  }
+  contextMenu.x = event.clientX
+  contextMenu.y = event.clientY
+  contextMenu.show = true
+}
+
+function shapeMenuItems() {
+  const ids = store.state.selection
+  const items = []
+  if (ids.length === 1) items.push({ label: 'Edit text', icon: 'type', onClick: () => editing.beginTextEdit(ids[0]) })
+  items.push(
+    { label: 'Duplicate', icon: 'copy', shortcut: '⌘D', onClick: () => store.duplicate(ids) },
+    { label: 'Copy', icon: 'clipboard', shortcut: '⌘C', onClick: () => clipboard.copy() },
+    { divider: true },
+    { label: 'Bring to front', icon: 'chevrons-up', onClick: () => store.bringToFront(ids) },
+    { label: 'Send to back', icon: 'chevrons-down', onClick: () => store.sendToBack(ids) },
+    { divider: true },
+    { label: 'Delete', icon: 'trash-2', danger: true, shortcut: 'Del', onClick: () => store.removeSelectionOrIds(ids) },
+  )
+  return items
+}
+
+function emptyMenuItems() {
+  return [
+    { label: 'Paste', icon: 'clipboard', shortcut: '⌘V', onClick: () => clipboard.paste() },
+    { label: 'Select all', icon: 'maximize', shortcut: '⌘A', onClick: () => store.selectAll() },
+    { divider: true },
+    { label: 'Fit to view', icon: 'maximize-2', onClick: () => editorUi.fit() },
+  ]
+}
 
 // SelectionLayer renders the marquee rect via this provided handle (spec §7.2).
 provide('selectionMarquee', selection.marquee)
@@ -465,6 +512,7 @@ const surfaceCursor = computed(() => {
     @pointerup="onSurfacePointerUp"
     @pointerleave="viewport.endPan()"
     @dblclick="onSurfaceDoubleClick"
+    @contextmenu.prevent="onContextMenu"
     @dragover.prevent="creation.onCanvasDragOver"
     @drop="creation.onCanvasDrop"
   >
@@ -553,5 +601,13 @@ const surfaceCursor = computed(() => {
     <!-- Rulers in screen space (outside the viewport <g>), shown while editing
          text at any zoom (spec §6). -->
     <Rulers />
+
+    <ContextMenu
+      v-if="contextMenu.show"
+      :x="contextMenu.x"
+      :y="contextMenu.y"
+      :items="contextMenu.items"
+      @close="contextMenu.show = false"
+    />
   </div>
 </template>
