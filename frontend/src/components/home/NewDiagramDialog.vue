@@ -53,17 +53,13 @@ function chooseTemplate(template) {
 </script>
 
 <template>
-  <Dialog :modelValue="modelValue" :options="{ size: '2xl' }" @update:modelValue="emit('update:modelValue', $event)">
+  <Dialog
+    :modelValue="modelValue"
+    :options="{ size: '2xl', title: 'Create a new diagram' }"
+    @update:modelValue="emit('update:modelValue', $event)"
+  >
     <template #body-content>
-      <div class="mb-4 flex items-start justify-between">
-        <div>
-          <h2 class="text-[19px] font-bold text-ink-gray-9">Create a new diagram</h2>
-          <p class="mt-0.5 text-[13px] text-ink-gray-5">Pick a type, or start from a template.</p>
-        </div>
-        <button class="text-ink-gray-5 hover:text-ink-gray-8" @click="close">
-          <FeatherIcon name="x" class="h-4 w-4" />
-        </button>
-      </div>
+      <p class="-mt-1 mb-4 text-[13px] text-ink-gray-5">Pick a type, or start from a template.</p>
 
       <div class="mb-5 grid grid-cols-4 gap-2.5">
         <button

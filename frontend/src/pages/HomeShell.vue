@@ -50,7 +50,7 @@ function open(name) {
           </div>
           <Button variant="solid" @click="showNewDiagram = true">
             <template #prefix><FeatherIcon name="plus" class="h-4 w-4" /></template>
-            New diagram
+            Create
           </Button>
         </div>
 
