@@ -14,7 +14,11 @@ export function whiteboardContentBounds(model, shapes = []) {
   unionStrokes(box, model)
   unionStickies(box, model)
   unionShapes(box, shapes)
-  if (box.minX === Infinity) return { x: 0, y: 0, w: FALLBACK.w, h: FALLBACK.h }
+  // Empty board: center the fallback box on the canvas centre (1280×720 default)
+  // so fit-to-view frames the same point as the empty-state hint (spec C8).
+  if (box.minX === Infinity) {
+    return { x: 640 - FALLBACK.w / 2, y: 360 - FALLBACK.h / 2, w: FALLBACK.w, h: FALLBACK.h }
+  }
   return {
     x: box.minX - PAD,
     y: box.minY - PAD,
