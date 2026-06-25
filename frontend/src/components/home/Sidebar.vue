@@ -4,16 +4,19 @@
 // (All diagrams / Trash), and a Folders list. Folders add inline (icon + name
 // field, Enter to save) and each has a ⋯ menu to rename or delete.
 import { ref, computed, nextTick, onMounted } from 'vue'
-import { FeatherIcon, TextInput, Dropdown } from 'frappe-ui'
+import { FeatherIcon, Dropdown } from 'frappe-ui'
 import Logomark from '@/components/Logomark.vue'
 import { folders, createFolder, renameFolder, deleteFolder } from '@/data/folders.js'
 
 defineProps({
   active: { type: String, default: 'all' },
 })
-const emit = defineEmits(['navigate', 'search'])
+const emit = defineEmits(['navigate', 'collapse'])
 
 onMounted(() => folders.fetch())
+
+// Only top-level folders in the sidebar; nesting is browsed in the explorer.
+const topFolders = computed(() => (folders.data || []).filter((folder) => !folder.parent_folder))
 
 // Real logged-in user, injected into the page boot by www/frappe_draw.py.
 const fullName = computed(() => window.full_name || 'You')
@@ -98,15 +101,6 @@ function removeFolder(folder) {
     </template>
 
     <template v-else>
-      <TextInput
-        type="text"
-        placeholder="Search diagrams"
-        class="mb-3"
-        @input="emit('search', $event.target.value)"
-      >
-        <template #prefix><FeatherIcon name="search" class="h-3.5 w-3.5 text-ink-gray-5" /></template>
-      </TextInput>
-
       <nav class="flex flex-col gap-0.5">
         <button
           v-for="item in nav"
@@ -131,7 +125,7 @@ function removeFolder(folder) {
         </div>
 
         <div
-          v-for="folder in folders.data || []"
+          v-for="folder in topFolders"
           :key="folder.name"
           class="group relative flex items-center"
         >
@@ -186,5 +180,14 @@ function removeFolder(folder) {
         </div>
       </div>
     </template>
+
+    <!-- Collapse the sidebar (Drive-style), pinned to the bottom. -->
+    <button
+      class="mt-auto flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] text-ink-gray-6 hover:bg-surface-gray-2"
+      @click="emit('collapse')"
+    >
+      <FeatherIcon name="chevrons-left" class="h-4 w-4" />
+      Collapse
+    </button>
   </aside>
 </template>

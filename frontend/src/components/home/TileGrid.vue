@@ -8,7 +8,7 @@
 // action bar on selection. Creation is the top-right CTA only (no inline tile).
 // At most MAX_PINNED diagrams can be pinned.
 import { computed, onMounted, reactive, ref } from 'vue'
-import { createListResource, FeatherIcon, Dialog, Button, FormControl, Dropdown } from 'frappe-ui'
+import { createListResource, FeatherIcon, Dialog, Button, FormControl, Dropdown, TextInput } from 'frappe-ui'
 import DiagramCollection from './DiagramCollection.vue'
 import FolderItem from './FolderItem.vue'
 import { folders, moveDiagramToFolder, createFolder } from '@/data/folders.js'
@@ -38,10 +38,16 @@ const rows = computed(() => enriched.data || [])
 const pinnedTotal = computed(() => rows.value.filter((d) => d.is_pinned).length)
 const pinLimitReached = computed(() => pinnedTotal.value >= MAX_PINNED)
 
-// --- view / type filter / sort --------------------------------------------
+// --- view / search / type filter / sort -----------------------------------
 const view = ref('list')
+const query = ref('')
 const typeFilter = ref('all')
 const sortKey = ref('modified')
+
+function matchesQuery(diagram) {
+  const q = query.value.trim().toLowerCase()
+  return !q || (diagram.title || '').toLowerCase().includes(q)
+}
 
 const SORTS = [
   { key: 'modified', label: 'Last edited' },
@@ -71,7 +77,7 @@ function matchesType(diagram) {
   return typeFilter.value === 'all' || (diagram.diagram_type || 'block') === typeFilter.value
 }
 
-const visibleRows = computed(() => rows.value.filter(matchesType))
+const visibleRows = computed(() => rows.value.filter((d) => matchesType(d) && matchesQuery(d)))
 
 // Home root: pinned group + loose files + folder tiles. Inside a folder: that
 // folder's files. Pinned items show only in the Pinned group.
@@ -199,7 +205,8 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
 
 <template>
   <div>
-    <!-- Toolbar: bulk actions when something is selected, else filter + sort. -->
+    <!-- Toolbar: a Find bar + filter/sort/new-folder, or a bulk-action bar when
+         diagrams are selected; the view toggle sits at the far right. -->
     <div class="mb-5 flex h-9 items-center gap-2">
       <template v-if="selectedCount">
         <span class="text-[13px] font-semibold text-ink-gray-9">{{ selectedCount }} selected</span>
@@ -208,29 +215,30 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
           Delete
         </Button>
         <Button variant="ghost" @click="clearSelection">Clear</Button>
+        <div class="flex-1" />
       </template>
 
       <template v-else>
+        <TextInput v-model="query" type="text" placeholder="Find a diagram" class="max-w-md flex-1">
+          <template #prefix><FeatherIcon name="search" class="h-3.5 w-3.5 text-ink-gray-5" /></template>
+        </TextInput>
         <Dropdown :options="typeOptions" placement="bottom-start">
           <Button variant="subtle">
             <template #prefix><FeatherIcon name="filter" class="h-4 w-4" /></template>
             {{ typeFilterLabel }}
-            <template #suffix><FeatherIcon name="chevron-down" class="h-4 w-4" /></template>
           </Button>
         </Dropdown>
         <Dropdown :options="sortOptions" placement="bottom-start">
           <Button variant="subtle">
             <template #prefix><FeatherIcon name="bar-chart-2" class="h-4 w-4 rotate-90" /></template>
             {{ sortLabel }}
-            <template #suffix><FeatherIcon name="chevron-down" class="h-4 w-4" /></template>
           </Button>
         </Dropdown>
+        <Button v-if="mode === 'home'" variant="subtle" @click="openNewFolder">
+          <template #prefix><FeatherIcon name="folder-plus" class="h-4 w-4" /></template>
+          New folder
+        </Button>
       </template>
-
-      <Button v-if="mode === 'home'" variant="subtle" @click="openNewFolder">
-        <template #prefix><FeatherIcon name="folder-plus" class="h-4 w-4" /></template>
-        New folder
-      </Button>
 
       <div class="ml-auto flex items-center rounded-md border border-outline-gray-2 p-0.5">
         <button
@@ -243,6 +251,19 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
           <FeatherIcon :name="option.icon" class="h-4 w-4" />
         </button>
       </div>
+    </div>
+
+    <!-- List-view column header (mirrors the row columns). -->
+    <div
+      v-if="view === 'list'"
+      class="mb-2 flex items-center gap-3 px-3 text-[11px] font-medium uppercase tracking-wide text-ink-gray-5"
+    >
+      <span class="w-[18px] flex-none" />
+      <span class="h-8 w-8 flex-none" />
+      <span class="min-w-0 flex-1">Name</span>
+      <span class="hidden w-28 flex-none md:inline">Created</span>
+      <span class="hidden w-28 flex-none sm:inline">Last edited</span>
+      <span class="w-7 flex-none" />
     </div>
 
     <!-- HOME: a file explorer — Pinned (root only) + files + sub/folders. -->
