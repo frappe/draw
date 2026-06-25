@@ -1,8 +1,7 @@
 <script setup>
-// A named folder group on the home main pane (spec §2, README "Folder
-// section"): folder icon + title + count, a hairline rule, then its own tile
-// grid. Acts as a drop target so a tile dragged onto it is filed into the
-// folder. Empty folders are still shown so they remain a valid drop target.
+// A named folder group on the home main pane (spec §2). Folder header + count,
+// a hairline rule, then its diagrams in the active view (tile grid or list).
+// Acts as a drop target so a tile dragged onto it is filed into the folder.
 import { ref } from 'vue'
 import { FeatherIcon } from 'frappe-ui'
 import DiagramTile from './DiagramTile.vue'
@@ -10,8 +9,12 @@ import DiagramTile from './DiagramTile.vue'
 defineProps({
   folder: { type: Object, required: true },
   diagrams: { type: Array, default: () => [] },
+  view: { type: String, default: 'tile' },
+  selected: { type: Object, default: () => new Set() },
 })
-const emit = defineEmits(['open', 'rename', 'edit-description', 'duplicate', 'delete', 'drop-diagram'])
+const emit = defineEmits([
+  'open', 'toggle-select', 'rename', 'edit-description', 'duplicate', 'delete', 'drop-diagram',
+])
 
 const dragOver = ref(false)
 
@@ -37,7 +40,7 @@ function onDrop(event) {
     </div>
 
     <div
-      v-if="diagrams.length"
+      v-if="diagrams.length && view === 'tile'"
       class="grid gap-[18px]"
       style="grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))"
     >
@@ -45,13 +48,34 @@ function onDrop(event) {
         v-for="diagram in diagrams"
         :key="diagram.name"
         :diagram="diagram"
+        :selected="selected.has(diagram.name)"
+        :selection-active="selected.size > 0"
         @open="emit('open', $event)"
+        @toggle-select="emit('toggle-select', $event)"
         @rename="emit('rename', $event)"
         @edit-description="emit('edit-description', $event)"
         @duplicate="emit('duplicate', $event)"
         @delete="emit('delete', $event)"
       />
     </div>
+
+    <div v-else-if="diagrams.length" class="flex flex-col gap-1.5">
+      <DiagramTile
+        v-for="diagram in diagrams"
+        :key="diagram.name"
+        :diagram="diagram"
+        view="list"
+        :selected="selected.has(diagram.name)"
+        :selection-active="selected.size > 0"
+        @open="emit('open', $event)"
+        @toggle-select="emit('toggle-select', $event)"
+        @rename="emit('rename', $event)"
+        @edit-description="emit('edit-description', $event)"
+        @duplicate="emit('duplicate', $event)"
+        @delete="emit('delete', $event)"
+      />
+    </div>
+
     <p v-else class="py-3 text-[11px] text-ink-gray-5">Drag a diagram here to file it.</p>
   </section>
 </template>
