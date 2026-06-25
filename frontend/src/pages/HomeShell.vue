@@ -14,7 +14,7 @@ import { folders } from '@/data/folders.js'
 
 const router = useRouter()
 const view = ref('home')
-const currentFolder = ref(null) // open folder while drilled into Home
+const folderPath = ref([]) // ancestor chain of open folders (root → current)
 const showNewDiagram = ref(false)
 
 onMounted(() => {
@@ -24,6 +24,7 @@ onMounted(() => {
 
 const list = computed(() => diagrams.data || [])
 const isEmpty = computed(() => list.value.length === 0)
+const currentFolder = computed(() => folderPath.value[folderPath.value.length - 1] || null)
 
 const VIEW_TITLES = { home: 'Home', recent: 'Recent', all: 'All diagrams' }
 const title = computed(() => VIEW_TITLES[view.value] || 'Home')
@@ -31,7 +32,16 @@ const title = computed(() => VIEW_TITLES[view.value] || 'Home')
 // Switching sidebar views always returns to the folder root.
 function navigate(next) {
   view.value = next
-  currentFolder.value = null
+  folderPath.value = []
+}
+
+function openFolder(folder) {
+  folderPath.value = [...folderPath.value, folder]
+}
+
+// Jump to a breadcrumb crumb: -1 = Home (root), else truncate the path there.
+function crumbTo(index) {
+  folderPath.value = index < 0 ? [] : folderPath.value.slice(0, index + 1)
 }
 
 async function create(payload = {}) {
@@ -62,18 +72,23 @@ function open(name) {
 
       <template v-else>
         <div class="mb-6 flex items-center justify-between">
-          <!-- Location breadcrumb (Home › Folder); a view name elsewhere. -->
+          <!-- Location breadcrumb (Home › Folder › Subfolder); view name elsewhere. -->
           <div class="flex items-center gap-1.5 text-[22px] font-bold text-ink-gray-9">
             <template v-if="view === 'home'">
               <button
-                :class="currentFolder ? 'text-ink-gray-5 hover:text-ink-gray-8' : ''"
-                @click="currentFolder = null"
+                :class="folderPath.length ? 'text-ink-gray-5 hover:text-ink-gray-8' : ''"
+                @click="crumbTo(-1)"
               >
                 Home
               </button>
-              <template v-if="currentFolder">
+              <template v-for="(folder, index) in folderPath" :key="folder.name">
                 <FeatherIcon name="chevron-right" class="h-5 w-5 text-ink-gray-4" />
-                <span>{{ currentFolder.folder_name || currentFolder.name }}</span>
+                <button
+                  :class="index < folderPath.length - 1 ? 'text-ink-gray-5 hover:text-ink-gray-8' : ''"
+                  @click="crumbTo(index)"
+                >
+                  {{ folder.folder_name || folder.name }}
+                </button>
               </template>
             </template>
             <span v-else>{{ title }}</span>
@@ -91,7 +106,7 @@ function open(name) {
           :folder="currentFolder"
           @create="showNewDiagram = true"
           @open="open"
-          @open-folder="currentFolder = $event"
+          @open-folder="openFolder"
         />
       </template>
     </main>

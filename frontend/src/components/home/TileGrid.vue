@@ -11,7 +11,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { createListResource, FeatherIcon, Dialog, Button, FormControl, Dropdown } from 'frappe-ui'
 import DiagramCollection from './DiagramCollection.vue'
 import FolderItem from './FolderItem.vue'
-import { folders, moveDiagramToFolder } from '@/data/folders.js'
+import { folders, moveDiagramToFolder, createFolder } from '@/data/folders.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
 import { DIAGRAM_TYPES, typeLabel } from '@/data/diagramTypes.js'
 
@@ -76,15 +76,25 @@ const visibleRows = computed(() => rows.value.filter(matchesType))
 // Home root: pinned group + loose files + folder tiles. Inside a folder: that
 // folder's files. Pinned items show only in the Pinned group.
 const pinned = computed(() => visibleRows.value.filter((d) => d.is_pinned).sort(bySort))
-const looseFiles = computed(() => visibleRows.value.filter((d) => !d.is_pinned && !d.folder).sort(bySort))
-const folderFiles = computed(() =>
-  props.folder ? visibleRows.value.filter((d) => d.folder === props.folder.name).sort(bySort) : [],
+
+// Files shown depend on location: a folder's own diagrams, else the unfiled,
+// non-pinned diagrams at the root.
+const files = computed(() =>
+  props.folder
+    ? visibleRows.value.filter((d) => d.folder === props.folder.name).sort(bySort)
+    : visibleRows.value.filter((d) => !d.is_pinned && !d.folder).sort(bySort),
 )
+
+// Sub-folders of the current location (top-level when at the root).
+const parentFolderName = computed(() => props.folder?.name || null)
+function folderItemCount(folderName) {
+  const subs = (folders.data || []).filter((f) => f.parent_folder === folderName).length
+  return subs + rows.value.filter((d) => d.folder === folderName).length
+}
 const folderTiles = computed(() =>
-  (folders.data || []).map((folder) => ({
-    folder,
-    count: rows.value.filter((d) => d.folder === folder.name).length,
-  })),
+  (folders.data || [])
+    .filter((f) => (f.parent_folder || null) === parentFolderName.value)
+    .map((folder) => ({ folder, count: folderItemCount(folder.name) })),
 )
 
 // Recent + All are flat across the whole (filtered) library.
@@ -132,6 +142,19 @@ async function togglePin(diagram) {
   if (!diagram.is_pinned && pinLimitReached.value) return
   await enriched.setValue.submit({ name: diagram.name, is_pinned: diagram.is_pinned ? 0 : 1 })
   refresh()
+}
+
+// New folder, created in the current location (nested under the open folder).
+const newFolder = reactive({ open: false, value: '' })
+function openNewFolder() {
+  newFolder.value = ''
+  newFolder.open = true
+}
+async function saveNewFolder() {
+  const name = newFolder.value.trim()
+  if (name) await createFolder(name, parentFolderName.value)
+  newFolder.open = false
+  emit('changed')
 }
 
 const editor = reactive({ open: false, value: '', name: null })
@@ -204,6 +227,11 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
         </Dropdown>
       </template>
 
+      <Button v-if="mode === 'home'" variant="subtle" @click="openNewFolder">
+        <template #prefix><FeatherIcon name="folder-plus" class="h-4 w-4" /></template>
+        New folder
+      </Button>
+
       <div class="ml-auto flex items-center rounded-md border border-outline-gray-2 p-0.5">
         <button
           v-for="option in [{ key: 'tile', icon: 'grid' }, { key: 'list', icon: 'list' }]"
@@ -217,22 +245,16 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       </div>
     </div>
 
-    <!-- HOME, inside a folder: just that folder's files. -->
-    <template v-if="mode === 'home' && folder">
-      <DiagramCollection :diagrams="folderFiles" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
-      <p v-if="!folderFiles.length" class="py-10 text-center text-[13px] text-ink-gray-5">This folder is empty.</p>
-    </template>
-
-    <!-- HOME root: Pinned + loose files + folders. -->
-    <template v-else-if="mode === 'home'">
-      <section v-if="pinned.length" class="mb-8">
+    <!-- HOME: a file explorer — Pinned (root only) + files + sub/folders. -->
+    <template v-if="mode === 'home'">
+      <section v-if="!folder && pinned.length" class="mb-8">
         <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
           <FeatherIcon name="bookmark" class="h-3.5 w-3.5" /> Pinned
         </h2>
         <DiagramCollection :diagrams="pinned" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
       </section>
 
-      <DiagramCollection :diagrams="looseFiles" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
+      <DiagramCollection v-if="files.length" :diagrams="files" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
 
       <section v-if="folderTiles.length" class="mt-8">
         <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
@@ -261,6 +283,10 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
           />
         </div>
       </section>
+
+      <p v-if="folder && !files.length && !folderTiles.length" class="py-10 text-center text-[13px] text-ink-gray-5">
+        This folder is empty.
+      </p>
     </template>
 
     <!-- RECENT / ALL: a single flat list. -->
@@ -295,6 +321,15 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       </template>
       <template #actions>
         <Button variant="solid" @click="saveEditor">Save</Button>
+      </template>
+    </Dialog>
+
+    <Dialog v-model="newFolder.open" :options="{ title: folder ? `New folder in ${folder.folder_name || folder.name}` : 'New folder' }">
+      <template #body-content>
+        <FormControl type="text" label="Folder name" v-model="newFolder.value" @keydown.enter="saveNewFolder" />
+      </template>
+      <template #actions>
+        <Button variant="solid" @click="saveNewFolder">Create folder</Button>
       </template>
     </Dialog>
   </div>

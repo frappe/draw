@@ -7,6 +7,7 @@
  "engine": "InnoDB",
  "field_order": [
   "folder_name",
+  "parent_folder",
   "sort_order"
  ],
  "fields": [
@@ -16,6 +17,12 @@
    "in_list_view": 1,
    "label": "Folder Name",
    "reqd": 1
+  },
+  {
+   "fieldname": "parent_folder",
+   "fieldtype": "Link",
+   "label": "Parent Folder",
+   "options": "Draw Folder"
   },
   {
    "default": "0",

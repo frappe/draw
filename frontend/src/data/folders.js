@@ -4,14 +4,14 @@ import { createListResource } from 'frappe-ui'
 
 export const folders = createListResource({
   doctype: 'Draw Folder',
-  fields: ['name', 'folder_name', 'sort_order'],
+  fields: ['name', 'folder_name', 'parent_folder', 'sort_order'],
   orderBy: 'sort_order asc',
 })
 
-// Create a new folder, returning its name. Reloads the list so the sidebar
-// reflects the addition immediately.
-export async function createFolder(folderName) {
-  const created = await folders.insert.submit({ folder_name: folderName })
+// Create a new folder (optionally nested under parentFolder), returning its
+// name. Reloads the list so the sidebar/explorer reflect it immediately.
+export async function createFolder(folderName, parentFolder = null) {
+  const created = await folders.insert.submit({ folder_name: folderName, parent_folder: parentFolder || null })
   await folders.reload()
   return created.name
 }
