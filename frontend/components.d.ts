@@ -44,6 +44,7 @@ declare module 'vue' {
     Rulers: typeof import('./src/components/canvas/Rulers.vue')['default']
     SaveIndicator: typeof import('./src/components/toolbar/SaveIndicator.vue')['default']
     SelectionLayer: typeof import('./src/components/canvas/SelectionLayer.vue')['default']
+    SettingsDialog: typeof import('./src/components/home/SettingsDialog.vue')['default']
     ShapeToolButton: typeof import('./src/components/palette-left/ShapeToolButton.vue')['default']
     ShapeView: typeof import('./src/components/canvas/ShapeView.vue')['default']
     ShareMenu: typeof import('./src/components/toolbar/ShareMenu.vue')['default']

@@ -13,6 +13,7 @@ import { useKeyboard } from '@/composables/useKeyboard.js'
 import { useClipboard } from '@/composables/useClipboard.js'
 import { useAutosave } from '@/composables/useAutosave.js'
 import { useThumbnail } from '@/composables/useThumbnail.js'
+import { useAppSettings } from '@/composables/useAppSettings.js'
 import TopToolbar from '@/components/toolbar/TopToolbar.vue'
 import DiagramCanvas from '@/components/canvas/DiagramCanvas.vue'
 import BottomPalette from '@/components/floating/BottomPalette.vue'
@@ -38,7 +39,11 @@ provideModeStrategy(modeStrategy)
 // here so it lives for the editor's lifetime regardless of which type loads.
 provideModeInteraction()
 
-const dark = ref(false)
+// Dark mode is an app-wide, persisted setting (also toggled from the home
+// sidebar). The editor's moon button flips the same source so the choice is
+// consistent everywhere; data-theme is already applied on <html> at boot.
+const { settings: appSettings, toggleDarkMode } = useAppSettings()
+const dark = computed(() => appSettings.darkMode)
 const autosave = useAutosave(store, diagram)
 const thumbnail = useThumbnail(store, diagram)
 useKeyboard(store, editorUi)
@@ -87,7 +92,7 @@ function rename(title) {
       :save-status="autosave.status.value"
       :dark="dark"
       @update:title="rename"
-      @toggle-dark="dark = !dark"
+      @toggle-dark="toggleDarkMode"
     />
 
     <div class="flex min-h-0 flex-1">

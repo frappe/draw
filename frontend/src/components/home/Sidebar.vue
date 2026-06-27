@@ -6,7 +6,10 @@
 import { ref, computed, nextTick, onMounted } from 'vue'
 import { FeatherIcon, Dropdown } from 'frappe-ui'
 import Logomark from '@/components/Logomark.vue'
+import SettingsDialog from '@/components/home/SettingsDialog.vue'
 import { folders, createFolder, renameFolder, deleteFolder } from '@/data/folders.js'
+
+const showSettings = ref(false)
 
 defineProps({
   active: { type: String, default: 'all' },
@@ -181,13 +184,24 @@ function removeFolder(folder) {
       </div>
     </template>
 
-    <!-- Collapse the sidebar (Drive-style), pinned to the bottom. -->
-    <button
-      class="mt-auto flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] text-ink-gray-6 hover:bg-surface-gray-2"
-      @click="emit('collapse')"
-    >
-      <FeatherIcon name="chevrons-left" class="h-4 w-4" />
-      Collapse
-    </button>
+    <!-- Settings + collapse, pinned to the bottom (Drive-style). -->
+    <div class="mt-auto flex flex-col gap-0.5">
+      <button
+        class="flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] text-ink-gray-7 hover:bg-surface-gray-2"
+        @click="showSettings = true"
+      >
+        <FeatherIcon name="settings" class="h-4 w-4" />
+        Settings
+      </button>
+      <button
+        class="flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] text-ink-gray-6 hover:bg-surface-gray-2"
+        @click="emit('collapse')"
+      >
+        <FeatherIcon name="chevrons-left" class="h-4 w-4" />
+        Collapse
+      </button>
+    </div>
+
+    <SettingsDialog v-model="showSettings" />
   </aside>
 </template>
