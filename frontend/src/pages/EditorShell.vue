@@ -84,7 +84,7 @@ function rename(title) {
 
 <template>
   <div
-    class="flex h-screen flex-col bg-surface-page text-ink-gray-9"
+    class="flex h-screen flex-col bg-surface-white text-ink-gray-9"
     :data-theme="dark ? 'dark' : null"
   >
     <TopToolbar

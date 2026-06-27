@@ -135,7 +135,12 @@ function onDragStart(event) {
     />
 
     <button class="block w-full" @click="emit('open', diagram.name)">
-      <div class="flex h-[120px] items-center justify-center border-b border-outline-gray-1 bg-surface-white p-2">
+      <!-- Fixed light background so the thumbnail is a true preview of the
+           diagram canvas (which is light), never recolored by dark mode. -->
+      <div
+        class="flex h-[120px] items-center justify-center border-b border-outline-gray-1 p-2"
+        style="background-color: #ffffff"
+      >
         <div v-if="previewSvg" class="h-full w-full [&>svg]:h-full [&>svg]:w-full" v-html="previewSvg" />
         <FeatherIcon v-else :name="icon" class="h-7 w-7 text-ink-gray-3" />
       </div>
