@@ -191,6 +191,22 @@ const contentExtent = computed(() => {
   }
 })
 
+// The dotted background should feel infinite: it must cover the whole visible
+// viewport at any pan/zoom, not just the content rect. Convert the viewport's
+// pixel box into canvas units (the GridLayer lives inside the pan/zoom <g>, and
+// its dot pattern tiles in canvas space, so the dots stay aligned as you pan).
+// A small pad guarantees dots reach every edge.
+const gridBounds = computed(() => {
+  const { panX, panY, zoom } = viewport.state
+  const pad = 8
+  return {
+    x: -panX / zoom - pad,
+    y: -panY / zoom - pad,
+    w: viewWidth.value / zoom + pad * 2,
+    h: viewHeight.value / zoom + pad * 2,
+  }
+})
+
 // The scrollable region in screen pixels: the union of the viewport and the
 // content's current screen rect. We anchor it at the viewport's top-left and
 // extend it on whichever side(s) the content overflows. `offset` records how
@@ -527,10 +543,10 @@ const surfaceCursor = computed(() => {
              Covers the reachable content extent. -->
         <GridLayer
           v-if="editorUi.state.gridVisible"
-          :x="contentExtent.x"
-          :y="contentExtent.y"
-          :width="contentExtent.w"
-          :height="contentExtent.h"
+          :x="gridBounds.x"
+          :y="gridBounds.y"
+          :width="gridBounds.w"
+          :height="gridBounds.h"
           :density="editorUi.state.gridDensity"
         />
 
