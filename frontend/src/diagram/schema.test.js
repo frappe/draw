@@ -15,12 +15,11 @@ describe('schema diagramType', () => {
     expect(doc.mindmap.nodes).toHaveLength(1)
   })
 
-  it('seeds a flowchart document with a pre-placed Start terminator', () => {
+  it('seeds a blank flowchart document (user adds the first node)', () => {
     const doc = createDiagramDocument(undefined, 'flowchart')
     expect(doc.diagramType).toBe('flowchart')
     expect(doc.flowchart.direction).toBe('TB')
-    expect(doc.flowchart.nodes).toHaveLength(1)
-    expect(doc.flowchart.nodes[0].nodeType).toBe('terminator')
+    expect(doc.flowchart.nodes).toEqual([])
     expect(doc.flowchart.edges).toEqual([])
     expect(doc.whiteboard).toBeNull()
   })

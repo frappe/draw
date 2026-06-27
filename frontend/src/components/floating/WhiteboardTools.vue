@@ -1,9 +1,11 @@
 <script setup>
 // Whiteboard tool group for the bottom floating palette. The whiteboard has NO
 // right panel (modeStrategies.showsRightPalette:false), so every control lives
-// here: the freehand/line/table/sticky tools, each tool's defaults in a popover
-// ("clickable leaf"), the board options (background/sketch/navigator), and a
-// contextual editor for the selected object. All chrome is Frappe UI.
+// here. Tools ARM on a single click (so the next canvas action draws straight
+// away — clicking a tool never steals the first stroke). Options for the active
+// tool sit behind ONE separate "options" disclosure; board-wide settings and the
+// selected-object editor follow. All chrome is Frappe UI.
+import { computed } from 'vue'
 import { Popover, Tooltip, FeatherIcon, Button } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
@@ -18,25 +20,30 @@ const editorUi = useEditorUi()
 const store = useDiagramStore()
 const ui = useWhiteboardUi()
 
-// Tools with no options — a single click arms them.
-const plainTools = [
+const TOOLS = [
+  { tool: 'pen', icon: 'edit-2', label: 'Pen' },
+  { tool: 'highlighter', icon: 'edit-3', label: 'Highlighter' },
   { tool: 'eraser', icon: 'delete', label: 'Eraser' },
   { tool: 'text', icon: 'type', label: 'Text (or double-click)' },
+  { tool: 'sticky', icon: 'square', label: 'Sticky note' },
+  { tool: 'line', icon: 'minus', label: 'Line' },
+  { tool: 'table', icon: 'grid', label: 'Table' },
   { tool: 'laser', icon: 'zap', label: 'Laser pointer' },
 ]
+// Tools that expose options in the disclosure popover.
+const OPTION_TOOLS = ['pen', 'highlighter', 'sticky', 'line', 'table']
+
+const activeTool = computed(() => editorUi.state.tool)
+const activeHasOptions = computed(() => OPTION_TOOLS.includes(activeTool.value))
+const optionsLabel = computed(() => `${capitalize(activeTool.value)} options`)
+function capitalize(value) {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : ''
+}
 
 const buttonBase =
   'flex h-[34px] w-[34px] items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2'
 function toggleClass(active) {
   return active ? 'bg-surface-gray-2 text-ink-gray-9' : ''
-}
-function isTool(tool) {
-  return editorUi.state.tool === tool
-}
-// Option tools arm the tool and open their defaults popover in one click.
-function arm(tool, togglePopover) {
-  editorUi.setTool(tool)
-  togglePopover()
 }
 
 const boardBackground = () => store.state.canvas?.background || '#FFFFFF'
@@ -64,17 +71,25 @@ function applyTableDefault(patch) {
 <template>
   <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
 
-  <!-- Pen: color + width. -->
-  <Popover>
+  <!-- Tools: a single click arms; the next canvas action draws. -->
+  <Tooltip v-for="t in TOOLS" :key="t.tool" :text="t.label">
+    <button :class="[buttonBase, toggleClass(activeTool === t.tool)]" @click="editorUi.setTool(t.tool)">
+      <FeatherIcon :name="t.icon" class="h-4 w-4" />
+    </button>
+  </Tooltip>
+
+  <!-- Options for the active tool (separate disclosure, shown only when it has any). -->
+  <Popover v-if="activeHasOptions">
     <template #target="{ togglePopover }">
-      <Tooltip text="Pen">
-        <button :class="[buttonBase, toggleClass(isTool('pen'))]" @click="arm('pen', togglePopover)">
-          <FeatherIcon name="edit-2" class="h-4 w-4" />
+      <Tooltip :text="optionsLabel">
+        <button :class="buttonBase" @click="togglePopover()">
+          <FeatherIcon name="sliders" class="h-4 w-4" />
         </button>
       </Tooltip>
     </template>
     <template #body-main>
-      <div class="w-48 p-2">
+      <!-- Pen: color + width. -->
+      <div v-if="activeTool === 'pen'" class="w-48 p-2">
         <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Color</div>
         <div class="mb-2 grid grid-cols-8 gap-1.5">
           <button
@@ -99,20 +114,9 @@ function applyTableDefault(patch) {
           </button>
         </div>
       </div>
-    </template>
-  </Popover>
 
-  <!-- Highlighter: color. -->
-  <Popover>
-    <template #target="{ togglePopover }">
-      <Tooltip text="Highlighter">
-        <button :class="[buttonBase, toggleClass(isTool('highlighter'))]" @click="arm('highlighter', togglePopover)">
-          <FeatherIcon name="edit-3" class="h-4 w-4" />
-        </button>
-      </Tooltip>
-    </template>
-    <template #body-main>
-      <div class="w-48 p-2">
+      <!-- Highlighter: color. -->
+      <div v-else-if="activeTool === 'highlighter'" class="w-48 p-2">
         <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Color</div>
         <div class="grid grid-cols-8 gap-1.5">
           <button
@@ -125,27 +129,9 @@ function applyTableDefault(patch) {
           />
         </div>
       </div>
-    </template>
-  </Popover>
 
-  <!-- Eraser / Text / Laser: no options. -->
-  <Tooltip v-for="t in plainTools" :key="t.tool" :text="t.label">
-    <button :class="[buttonBase, toggleClass(isTool(t.tool))]" @click="editorUi.setTool(t.tool)">
-      <FeatherIcon :name="t.icon" class="h-4 w-4" />
-    </button>
-  </Tooltip>
-
-  <!-- Sticky: color. -->
-  <Popover>
-    <template #target="{ togglePopover }">
-      <Tooltip text="Sticky note">
-        <button :class="[buttonBase, toggleClass(isTool('sticky'))]" @click="arm('sticky', togglePopover)">
-          <FeatherIcon name="square" class="h-4 w-4" />
-        </button>
-      </Tooltip>
-    </template>
-    <template #body-main>
-      <div class="w-48 p-2">
+      <!-- Sticky: color. -->
+      <div v-else-if="activeTool === 'sticky'" class="w-48 p-2">
         <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Color</div>
         <div class="grid grid-cols-9 gap-1.5">
           <button
@@ -158,40 +144,20 @@ function applyTableDefault(patch) {
           />
         </div>
       </div>
-    </template>
-  </Popover>
 
-  <!-- Line: endpoints + color + width. -->
-  <Popover>
-    <template #target="{ togglePopover }">
-      <Tooltip text="Line">
-        <button :class="[buttonBase, toggleClass(isTool('line'))]" @click="arm('line', togglePopover)">
-          <FeatherIcon name="minus" class="h-4 w-4" />
-        </button>
-      </Tooltip>
-    </template>
-    <template #body-main>
+      <!-- Line: endpoints + color + width. -->
       <LineOptions
+        v-else-if="activeTool === 'line'"
         :start="ui.state.lineStart"
         :end="ui.state.lineEnd"
         :color="ui.state.penColor"
         :width="ui.state.penWidth"
         @change="applyLineDefault"
       />
-    </template>
-  </Popover>
 
-  <!-- Table: rows + cols + color. -->
-  <Popover>
-    <template #target="{ togglePopover }">
-      <Tooltip text="Table">
-        <button :class="[buttonBase, toggleClass(isTool('table'))]" @click="arm('table', togglePopover)">
-          <FeatherIcon name="grid" class="h-4 w-4" />
-        </button>
-      </Tooltip>
-    </template>
-    <template #body-main>
+      <!-- Table: rows + cols + color. -->
       <TableOptions
+        v-else-if="activeTool === 'table'"
         :rows="ui.state.tableRows"
         :cols="ui.state.tableCols"
         :color="ui.state.penColor"
@@ -206,7 +172,7 @@ function applyTableDefault(patch) {
     <template #target="{ togglePopover }">
       <Tooltip text="Board options">
         <button :class="buttonBase" @click="togglePopover()">
-          <FeatherIcon name="sliders" class="h-4 w-4" />
+          <FeatherIcon name="settings" class="h-4 w-4" />
         </button>
       </Tooltip>
     </template>

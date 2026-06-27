@@ -18,7 +18,7 @@ import { nodeSize } from './flowchartModel.js'
 // Build A->B->C with B branching to D in a decision, for layout tests.
 function sampleChart() {
   const model = createFlowchart()
-  const a = model.nodes[0].id
+  const a = addFlowchartNode(model, 'terminator')
   const b = addFlowchartNode(model, 'process')
   const c = addFlowchartNode(model, 'process')
   addFlowchartEdge(model, a, b)

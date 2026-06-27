@@ -20,10 +20,9 @@ function danglingEdges(model) {
 }
 
 describe('flowchart model', () => {
-  it('starts with a single Start terminator and no edges', () => {
+  it('starts blank — no nodes or edges (the user adds the first node)', () => {
     const model = createFlowchart()
-    expect(model.nodes).toHaveLength(1)
-    expect(model.nodes[0].nodeType).toBe('terminator')
+    expect(model.nodes).toHaveLength(0)
     expect(model.edges).toHaveLength(0)
     expect(model.direction).toBe('TB')
   })
@@ -37,7 +36,7 @@ describe('flowchart model', () => {
 
   it('removing a node removes its touching edges (no dangling)', () => {
     const model = createFlowchart()
-    const a = model.nodes[0].id
+    const a = addFlowchartNode(model, 'terminator')
     const b = addFlowchartNode(model, 'process')
     const c = addFlowchartNode(model, 'process')
     addFlowchartEdge(model, a, b)
@@ -49,7 +48,7 @@ describe('flowchart model', () => {
 
   it('node-type swap preserves all connected edges', () => {
     const model = createFlowchart()
-    const a = model.nodes[0].id
+    const a = addFlowchartNode(model, 'terminator')
     const b = addFlowchartNode(model, 'process')
     const c = addFlowchartNode(model, 'process')
     addFlowchartEdge(model, a, b)
@@ -86,7 +85,7 @@ describe('flowchart model', () => {
 
   it('splices a node onto an edge, rewiring A->B into A->new->B', () => {
     const model = createFlowchart()
-    const a = model.nodes[0].id
+    const a = addFlowchartNode(model, 'terminator')
     const b = addFlowchartNode(model, 'process')
     const edgeId = addFlowchartEdge(model, a, b)
     const inserted = spliceNodeOnEdge(model, edgeId, 'process')
