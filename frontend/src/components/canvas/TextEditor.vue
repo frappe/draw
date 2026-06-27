@@ -112,6 +112,12 @@ function commit() {
 
 function commitShape() {
   const content = (field.value?.textContent || '').trim()
+  // An empty text box carries nothing, so reject it on commit (text boxes only —
+  // a labeled rectangle/ellipse left blank is still a real shape and stays).
+  if (!content && shape.value.type === 'text') {
+    store.removeShapes([shape.value.id])
+    return
+  }
   store.updateShape(shape.value.id, { text: { content } })
 }
 
