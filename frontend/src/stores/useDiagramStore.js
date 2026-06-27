@@ -24,6 +24,13 @@ import {
   removeStickyNote,
   strokeById,
   stickyNoteById,
+  addLine,
+  removeLine,
+  lineById,
+  addTable,
+  removeTable,
+  tableById,
+  setTableCell,
 } from '@/diagram/whiteboardModel.js'
 
 const STORE_KEY = 'diagramStore'
@@ -167,10 +174,55 @@ function attachWhiteboard(store, state, history) {
     if (!state.whiteboard) return
     history.commit('Delete sticky', () => removeStickyNote(state.whiteboard, id))
   }
+  attachWhiteboardLines(store, state, history)
+  attachWhiteboardTables(store, state, history)
   // Generic per-type model update (e.g. sketch-style toggle) as one undoable unit.
   store.updateWhiteboardModel = (label, mutatorFn) => {
     if (!state.whiteboard) return
     history.commit(label, () => mutatorFn(state.whiteboard))
+  }
+}
+
+// Straight lines with selectable endpoints (none/arrow/dot). One undoable unit each.
+function attachWhiteboardLines(store, state, history) {
+  store.addLine = (x1, y1, x2, y2, partial = {}) => {
+    if (!state.whiteboard) return null
+    let id = null
+    history.commit('Add line', () => (id = addLine(state.whiteboard, x1, y1, x2, y2, partial)))
+    return id
+  }
+  store.updateLine = (id, patch) =>
+    history.commit('Update line', () => {
+      const line = lineById(state.whiteboard || {}, id)
+      if (line) applyPatch(line, patch)
+    })
+  store.removeLine = (id) => {
+    if (!state.whiteboard) return
+    history.commit('Delete line', () => removeLine(state.whiteboard, id))
+  }
+}
+
+// Simple fixed-grid tables with per-cell text. One undoable unit each.
+function attachWhiteboardTables(store, state, history) {
+  store.addTable = (x, y, partial = {}) => {
+    if (!state.whiteboard) return null
+    let id = null
+    history.commit('Add table', () => (id = addTable(state.whiteboard, x, y, partial)))
+    return id
+  }
+  store.updateTable = (id, patch) =>
+    history.commit('Update table', () => {
+      const table = tableById(state.whiteboard || {}, id)
+      if (table) applyPatch(table, patch)
+    })
+  store.setTableCell = (id, row, col, text) =>
+    history.commit('Edit cell', () => {
+      const table = tableById(state.whiteboard || {}, id)
+      if (table) setTableCell(table, row, col, text)
+    })
+  store.removeTable = (id) => {
+    if (!state.whiteboard) return
+    history.commit('Delete table', () => removeTable(state.whiteboard, id))
   }
 }
 

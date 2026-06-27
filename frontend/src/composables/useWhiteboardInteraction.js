@@ -15,7 +15,7 @@ import { contrastInk } from '@/diagram/whiteboardColors.js'
 import { registerModeInteraction, useModeInteraction } from '@/composables/useModeInteraction.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { simplifyStroke } from '@/diagram/strokeSimplify.js'
-import { strokeAt } from '@/diagram/whiteboardModel.js'
+import { strokeAt, lineAt, tableAt, tableCellAt } from '@/diagram/whiteboardModel.js'
 import { HIGHLIGHTER_WIDTH } from '@/diagram/whiteboardColors.js'
 
 const ERASER_TOLERANCE = 6 // canvas units of slack around a stroke path
@@ -25,11 +25,12 @@ export function useWhiteboardInteraction(store, editorUi) {
   const interactionRef = useModeInteraction()
   const drawing = { active: false, points: [] }
   const erasing = { active: false }
+  const lining = { active: false, start: null }
 
   const handlers = {
-    onPointerDown: (event, context) => onPointerDown(event, context, store, editorUi, ui, drawing, erasing),
-    onPointerMove: (event, context) => onPointerMove(event, context, ui, drawing, erasing, store),
-    onPointerUp: (event, context) => onPointerUp(event, context, store, ui, drawing, erasing),
+    onPointerDown: (event, context) => onPointerDown(event, context, store, editorUi, ui, drawing, erasing, lining),
+    onPointerMove: (event, context) => onPointerMove(event, context, ui, drawing, erasing, store, lining),
+    onPointerUp: (event, context) => onPointerUp(event, context, store, ui, drawing, erasing, lining),
     onDoubleClick: (event, context) => onDoubleClick(context, store),
   }
   registerModeInteraction(interactionRef, handlers)
@@ -38,14 +39,43 @@ export function useWhiteboardInteraction(store, editorUi) {
   return { ui }
 }
 
-function onPointerDown(event, context, store, editorUi, ui, drawing, erasing) {
+function onPointerDown(event, context, store, editorUi, ui, drawing, erasing, lining) {
   if (event.button !== 0) return
   const tool = editorUi.state.tool
   if (tool === 'pen' || tool === 'highlighter') return beginStroke(context, ui, drawing, tool)
   if (tool === 'eraser') return beginErase(context, store, erasing)
   if (tool === 'laser') return ui.pushLaserPoint(context.point)
   if (tool === 'sticky') return placeSticky(context, store, ui)
+  if (tool === 'line') return beginLine(context, ui, lining)
+  if (tool === 'table') return placeTable(context, store, editorUi, ui)
   if (tool === 'select') return selectAt(context, store, ui)
+}
+
+// Start a straight line; the live preview renders from ui.liveLine until pointer-up.
+function beginLine(context, ui, lining) {
+  lining.active = true
+  lining.start = context.point
+  ui.liveLine.value = {
+    x1: context.point.x,
+    y1: context.point.y,
+    x2: context.point.x,
+    y2: context.point.y,
+    color: ui.state.penColor,
+    width: ui.state.penWidth,
+    start: ui.state.lineStart,
+    end: ui.state.lineEnd,
+  }
+}
+
+// Drop a fixed-grid table with its top-left near the click, then select it.
+function placeTable(context, store, editorUi, ui) {
+  const id = store.addTable(context.point.x, context.point.y, {
+    rows: ui.state.tableRows,
+    cols: ui.state.tableCols,
+    color: ui.state.penColor,
+  })
+  editorUi.setTool('select')
+  ui.selectTable(id)
 }
 
 // Start capturing a freehand stroke; the live preview renders from ui.liveStroke.
@@ -61,20 +91,42 @@ function beginErase(context, store, erasing) {
   eraseAt(context.point, store)
 }
 
-function onPointerMove(event, context, ui, drawing, erasing, store) {
+function onPointerMove(event, context, ui, drawing, erasing, store, lining) {
   if (drawing.active) {
     drawing.points.push(context.point)
     // Re-assign so the live preview re-renders (a pushed array isn't reactive).
     ui.liveStroke.value = { ...ui.liveStroke.value, points: [...drawing.points] }
     return
   }
+  if (lining.active) {
+    ui.liveLine.value = { ...ui.liveLine.value, x2: context.point.x, y2: context.point.y }
+    return
+  }
   if (erasing.active) return eraseAt(context.point, store)
   if (context.editorUi.state.tool === 'laser') return ui.pushLaserPoint(context.point)
 }
 
-function onPointerUp(event, context, store, ui, drawing, erasing) {
+function onPointerUp(event, context, store, ui, drawing, erasing, lining) {
   if (drawing.active) return finishStroke(ui, drawing, store)
+  if (lining.active) return finishLine(ui, lining, store)
   if (erasing.active) erasing.active = false
+}
+
+// Commit the line on pointer-up; discard a degenerate (zero-length) drag.
+function finishLine(ui, lining, store) {
+  lining.active = false
+  const live = ui.liveLine.value
+  ui.liveLine.value = null
+  lining.start = null
+  if (!live) return
+  if (Math.hypot(live.x2 - live.x1, live.y2 - live.y1) < 4) return
+  const id = store.addLine(live.x1, live.y1, live.x2, live.y2, {
+    color: live.color,
+    width: live.width,
+    start: live.start,
+    end: live.end,
+  })
+  ui.selectLine(id)
 }
 
 // Simplify (RDP) then commit so autosave only sees the compact final path
@@ -105,18 +157,33 @@ function placeSticky(context, store, ui) {
   ui.selectSticky(id)
 }
 
-// Select tool: pick the stroke under the cursor (sticky selection is handled by
-// the sticky's own pointerdown in the layer). Empty click clears.
+// Select tool: pick the topmost object under the cursor. Lines and tables sit
+// above strokes in the pick order; sticky selection is handled by the sticky's
+// own pointerdown in the layer. Empty click clears.
 function selectAt(context, store, ui) {
-  const hit = strokeAt(store.state.whiteboard, context.point, ERASER_TOLERANCE)
-  if (hit) ui.selectStroke(hit.id)
-  else ui.clearSelection()
+  const model = store.state.whiteboard
+  const table = tableAt(model, context.point)
+  if (table) return ui.selectTable(table.id)
+  const line = lineAt(model, context.point, ERASER_TOLERANCE)
+  if (line) return ui.selectLine(line.id)
+  const stroke = strokeAt(model, context.point, ERASER_TOLERANCE)
+  if (stroke) return ui.selectStroke(stroke.id)
+  ui.clearSelection()
 }
 
-// Double-click anywhere creates a text box with the caret ready (spec W1). Reuses
-// the shared text-editing path so text lives in the common shapes[] array (C9).
+// Double-click inside a table edits the cell under the cursor; anywhere else it
+// creates a text box with the caret ready (spec W1). Text reuses the shared
+// text-editing path so it lives in the common shapes[] array (C9).
 function onDoubleClick(context, store) {
   const point = context.point
+  const ui = useWhiteboardUi()
+  const table = tableAt(store.state.whiteboard, point)
+  if (table) {
+    const cell = tableCellAt(table, point)
+    ui.state.editingCell = { tableId: table.id, row: cell.row, col: cell.col }
+    ui.selectTable(table.id)
+    return
+  }
   const w = 180
   const h = 44
   const id = store.addShape({

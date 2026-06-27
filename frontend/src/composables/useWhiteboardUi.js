@@ -21,15 +21,25 @@ function createWhiteboardUi() {
     penColor: PEN_COLORS[0],
     penWidth: PEN_WIDTHS[1],
     stickyColor: STICKY_COLORS[0],
-    // The currently selected whiteboard object: { kind:'stroke'|'sticky', id }.
+    // Default endpoint styles for new lines ('none' | 'arrow' | 'dot').
+    lineStart: 'none',
+    lineEnd: 'arrow',
+    // Default grid size for new tables.
+    tableRows: 3,
+    tableCols: 3,
+    // The selected whiteboard object: { kind:'stroke'|'sticky'|'line'|'table', id }.
     selected: null,
+    // The table cell being edited inline: { tableId, row, col } or null.
+    editingCell: null,
   })
   // Transient laser trail: timestamped points that fade out (never persisted).
   const laserTrail = ref([])
   // The stroke being drawn right now (pen/highlighter), rendered live by the
   // layer until pointer-up simplifies + commits it. Null when not drawing.
   const liveStroke = ref(null)
-  const api = { state, laserTrail: readonly(laserTrail), liveStroke }
+  // The line being dragged right now (preview), or null.
+  const liveLine = ref(null)
+  const api = { state, laserTrail: readonly(laserTrail), liveStroke, liveLine }
   attachSelection(api, state)
   attachLaser(api, laserTrail)
   return api
@@ -38,6 +48,8 @@ function createWhiteboardUi() {
 function attachSelection(api, state) {
   api.selectStroke = (id) => (state.selected = { kind: 'stroke', id })
   api.selectSticky = (id) => (state.selected = { kind: 'sticky', id })
+  api.selectLine = (id) => (state.selected = { kind: 'line', id })
+  api.selectTable = (id) => (state.selected = { kind: 'table', id })
   api.clearSelection = () => (state.selected = null)
 }
 

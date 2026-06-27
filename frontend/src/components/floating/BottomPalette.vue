@@ -6,6 +6,7 @@ import { computed } from 'vue'
 import { Tooltip, FeatherIcon, Popover } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
+import WhiteboardTools from './WhiteboardTools.vue'
 
 const editorUi = useEditorUi()
 const viewport = editorUi.viewport
@@ -14,6 +15,7 @@ const modeStrategy = useModeStrategy()
 // Block diagrams create from here (no left palette). A categorised popover of
 // shapes + a connectors popover + a text tool, each arming draw mode.
 const isBlock = computed(() => modeStrategy?.value?.type === 'block')
+const isWhiteboard = computed(() => modeStrategy?.value?.type === 'whiteboard')
 const SHAPES = [
   { type: 'rectangle', icon: 'square', label: 'Rectangle' },
   { type: 'rounded', icon: 'square', label: 'Rounded rectangle' },
@@ -140,9 +142,11 @@ function cycleGuides() {
       </Tooltip>
     </template>
 
-    <!-- Mode-specific tools (whiteboard pen/sticky/laser/…). Seam only; the
-         type agent wires the actual surface behavior to editorUi.state.tool. -->
-    <template v-if="surfaceTools.length">
+    <!-- Whiteboard: full tool set + every control (no right panel). -->
+    <WhiteboardTools v-if="isWhiteboard" />
+
+    <!-- Any other type that declares extra surface tools (seam; none today). -->
+    <template v-else-if="surfaceTools.length">
       <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
       <Tooltip v-for="modeTool in surfaceTools" :key="modeTool.tool" :text="modeTool.label">
         <button

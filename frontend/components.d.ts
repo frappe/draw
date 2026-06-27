@@ -30,6 +30,7 @@ declare module 'vue' {
     GridLayer: typeof import('./src/components/canvas/GridLayer.vue')['default']
     HoverArrows: typeof import('./src/components/canvas/HoverArrows.vue')['default']
     LeftPalette: typeof import('./src/components/palette-left/LeftPalette.vue')['default']
+    LineOptions: typeof import('./src/components/floating/LineOptions.vue')['default']
     Logomark: typeof import('./src/components/Logomark.vue')['default']
     MindMapNodeLayer: typeof import('./src/components/canvas/MindMapNodeLayer.vue')['default']
     MindMapOutline: typeof import('./src/components/canvas/MindMapOutline.vue')['default']
@@ -48,6 +49,7 @@ declare module 'vue' {
     ShareMenu: typeof import('./src/components/toolbar/ShareMenu.vue')['default']
     Sidebar: typeof import('./src/components/home/Sidebar.vue')['default']
     SmartGuidesLayer: typeof import('./src/components/canvas/SmartGuidesLayer.vue')['default']
+    TableOptions: typeof import('./src/components/floating/TableOptions.vue')['default']
     TextEditor: typeof import('./src/components/canvas/TextEditor.vue')['default']
     TextSection: typeof import('./src/components/palette-right/TextSection.vue')['default']
     TileGrid: typeof import('./src/components/home/TileGrid.vue')['default']
@@ -58,8 +60,12 @@ declare module 'vue' {
     TrashView: typeof import('./src/components/home/TrashView.vue')['default']
     ViewerPage: typeof import('./src/components/viewer/ViewerPage.vue')['default']
     WhiteboardLayer: typeof import('./src/components/canvas/WhiteboardLayer.vue')['default']
+    WhiteboardLine: typeof import('./src/components/canvas/WhiteboardLine.vue')['default']
     WhiteboardMinimap: typeof import('./src/components/canvas/WhiteboardMinimap.vue')['default']
     WhiteboardPalette: typeof import('./src/components/palette-right/WhiteboardPalette.vue')['default']
+    WhiteboardSelectionEditor: typeof import('./src/components/floating/WhiteboardSelectionEditor.vue')['default']
     WhiteboardStickyNote: typeof import('./src/components/canvas/WhiteboardStickyNote.vue')['default']
+    WhiteboardTable: typeof import('./src/components/canvas/WhiteboardTable.vue')['default']
+    WhiteboardTools: typeof import('./src/components/floating/WhiteboardTools.vue')['default']
   }
 }

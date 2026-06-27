@@ -5,16 +5,20 @@
 //
 // - number keys 1-9 pick a palette color while pen/highlighter/sticky is active
 //   (pen/highlighter set the pen color, sticky sets the sticky color) (W4).
-// - tool letters: V select, P pen, H highlighter, E eraser, T text, S sticky, L laser.
+// - tool letters: V select, P pen, H highlighter, E eraser, T text, S sticky,
+//   L laser, N line, G table (grid).
 // - Tab drops an adjacent sticky after the selected one and selects it (W4).
-// - Delete/Backspace removes the selected stroke/sticky (one undoable unit, W3/G6).
-// Returns true when consumed (useKeyboard then calls preventDefault).
+// - Delete/Backspace removes the selected stroke/sticky/line/table (one undoable
+//   unit, W3/G6). Returns true when consumed (useKeyboard then preventDefaults).
 
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { PEN_COLORS, STICKY_COLORS } from '@/diagram/whiteboardColors.js'
 import { stickyNoteById } from '@/diagram/whiteboardModel.js'
 
-const TOOL_KEYS = { v: 'select', p: 'pen', h: 'highlighter', e: 'eraser', t: 'text', s: 'sticky', l: 'laser' }
+const TOOL_KEYS = {
+  v: 'select', p: 'pen', h: 'highlighter', e: 'eraser',
+  t: 'text', s: 'sticky', l: 'laser', n: 'line', g: 'table',
+}
 
 export function whiteboardKeydown(event, store, editorUi) {
   if (event.altKey) return false
@@ -63,8 +67,13 @@ function dropAdjacentSticky(store, ui) {
 function deleteSelected(store, ui) {
   const selected = ui.state.selected
   if (!selected) return false
-  if (selected.kind === 'stroke') store.removeStroke(selected.id)
-  else if (selected.kind === 'sticky') store.removeStickyNote(selected.id)
+  const remove = {
+    stroke: store.removeStroke,
+    sticky: store.removeStickyNote,
+    line: store.removeLine,
+    table: store.removeTable,
+  }[selected.kind]
+  remove?.(selected.id)
   ui.clearSelection()
   return true
 }

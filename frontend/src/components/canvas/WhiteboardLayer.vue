@@ -22,6 +22,8 @@ import { HIGHLIGHTER_OPACITY } from '@/diagram/whiteboardColors.js'
 import ConnectorView from './ConnectorView.vue'
 import ShapeView from './ShapeView.vue'
 import WhiteboardStickyNote from './WhiteboardStickyNote.vue'
+import WhiteboardLine from './WhiteboardLine.vue'
+import WhiteboardTable from './WhiteboardTable.vue'
 
 const props = defineProps({
   whiteboard: { type: Object, required: true },
@@ -55,12 +57,16 @@ function strokeOpacity(stroke) {
   return stroke.kind === 'highlighter' ? HIGHLIGHTER_OPACITY : 1
 }
 
+function isSelected(kind, id) {
+  return ui.state.selected?.kind === kind && ui.state.selected.id === id
+}
 function isSelectedStroke(id) {
-  return ui.state.selected?.kind === 'stroke' && ui.state.selected.id === id
+  return isSelected('stroke', id)
 }
 
 const live = computed(() => ui.liveStroke.value)
 const livePath = computed(() => (live.value ? strokePath(live.value) : ''))
+const liveLine = computed(() => ui.liveLine.value)
 
 // Empty-state hint (spec C8/W6): a faint center prompt while the board has no
 // strokes, stickies, or base shapes. Placed near the canvas origin/center.
@@ -68,6 +74,8 @@ const isEmpty = computed(
   () =>
     !props.whiteboard.strokes.length &&
     !props.whiteboard.stickyNotes.length &&
+    !(props.whiteboard.lines || []).length &&
+    !(props.whiteboard.tables || []).length &&
     !store.state.shapes.length,
 )
 const hintCenter = computed(() => ({
@@ -98,7 +106,7 @@ const laserDots = computed(() => {
       fill="#9AA5B1"
       style="font-family: Inter, sans-serif; pointer-events: none"
     >
-      Double-click to type · pick the pen to draw · drop a sticky note
+      Double-click to type · pick a tool below to draw, add lines, tables or sticky notes
     </text>
 
     <!-- Shared base shapes + connectors live in the common arrays (spec C9). -->
@@ -133,6 +141,25 @@ const laserDots = computed(() => {
       :stroke-opacity="live.kind === 'highlighter' ? HIGHLIGHTER_OPACITY : 1"
       :stroke-linecap="live.kind === 'highlighter' ? 'butt' : 'round'"
       stroke-linejoin="round"
+    />
+
+    <!-- Straight lines with endpoints (none/arrow/dot). -->
+    <WhiteboardLine
+      v-for="line in whiteboard.lines || []"
+      :key="line.id"
+      :line="line"
+      :selected="isSelected('line', line.id)"
+    />
+
+    <!-- Live line being dragged (before commit). -->
+    <WhiteboardLine v-if="liveLine" :line="liveLine" />
+
+    <!-- Tables (grid + per-cell text + inline editor). -->
+    <WhiteboardTable
+      v-for="table in whiteboard.tables || []"
+      :key="table.id"
+      :table="table"
+      :selected="isSelected('table', table.id)"
     />
 
     <!-- Sticky notes (each owns its drag/resize/edit/link). -->

@@ -63,18 +63,22 @@ const WHITEBOARD = {
   handlesSurfaceInteraction: true, // pen/highlighter/eraser/sticky/text/laser
   paletteMode: 'whiteboard',
   keyboardMode: 'whiteboard',
-  // Extra bottom-palette pointer modes (spec C6). The W-step agent wires each
-  // tool's surface behavior through its mode-interaction object; this only
-  // declares the buttons so the seam renders them.
+  // Extra bottom-palette pointer modes (spec C6). The whiteboard carries its full
+  // tool set here AND each tool's options live in the bottom palette — there is no
+  // whiteboard right panel (showsRightPalette:false). Freehand tools (pen/
+  // highlighter/eraser/sticky/laser) plus straight lines and a basic table.
   surfaceTools: [
     { tool: 'pen', icon: 'edit-2', label: 'Pen' },
     { tool: 'highlighter', icon: 'edit-3', label: 'Highlighter' },
     { tool: 'eraser', icon: 'delete', label: 'Eraser' },
     { tool: 'text', icon: 'type', label: 'Text' },
     { tool: 'sticky', icon: 'square', label: 'Sticky note' },
+    { tool: 'line', icon: 'minus', label: 'Line' },
+    { tool: 'table', icon: 'grid', label: 'Table' },
     { tool: 'laser', icon: 'zap', label: 'Laser pointer' },
   ],
-  showsShapeTools: true, // whiteboards include the full base shapes/connectors (spec C3)
+  showsShapeTools: false, // no shape palette on the whiteboard
+  showsRightPalette: false, // all controls live in the bottom floating palette
 }
 
 const STRATEGIES = {

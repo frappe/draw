@@ -95,7 +95,7 @@ function rename(title) {
         <DiagramCanvas />
         <BottomPalette />
       </main>
-      <RightPalette />
+      <RightPalette v-if="modeStrategy.showsRightPalette !== false" />
     </div>
   </div>
 </template>
