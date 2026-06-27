@@ -56,10 +56,13 @@ function runDrag(toLogical, onMove, onEnd) {
 function createMover(store) {
   const smartGuides = useSmartGuides(store)
   return ({ toLogical, start, ids }) => {
-    const originals = snapshotShapes(store, ids)
+    // A selection can include connectors (e.g. from a marquee); only shapes are
+    // free-translated here — attached connectors follow their shapes' anchors.
+    const shapeIds = ids.filter((id) => store.shapeById(id))
+    const originals = snapshotShapes(store, shapeIds)
     const apply = (point) => {
       const raw = { x: point.x - start.x, y: point.y - start.y }
-      const snapped = smartGuides.snapDelta(ids, originals, raw)
+      const snapped = smartGuides.snapDelta(shapeIds, originals, raw)
       return originals.map((o) => ({ id: o.id, x: o.x + snapped.x, y: o.y + snapped.y }))
     }
     runDrag(
