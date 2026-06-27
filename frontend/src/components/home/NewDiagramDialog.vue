@@ -18,6 +18,14 @@ const types = [
   { key: 'whiteboard', name: 'Whiteboard', hint: 'Freeform', icon: 'edit-3' },
 ]
 
+// Roadmap — shown grayed out so users see what's coming. Not yet buildable.
+const comingSoon = [
+  { key: 'wireframe', name: 'Wireframe', hint: 'Mobile & web wireframes', icon: 'smartphone' },
+  { key: 'designer', name: 'Designer', hint: 'Pro design — frames & layers', icon: 'pen-tool' },
+  { key: 'paint', name: 'Paint', hint: 'Freeform painting', icon: 'droplet' },
+  { key: 'notebook', name: 'Notebook', hint: 'Multi-page notes', icon: 'book-open' },
+]
+
 const TYPE_TITLE = {
   block: 'Untitled diagram',
   mindmap: 'Untitled mind map',
@@ -81,6 +89,26 @@ function confirm() {
             <div class="text-[13px] font-semibold text-ink-gray-9">{{ type.name }}</div>
             <div class="text-[11px] text-ink-gray-5">{{ type.hint }}</div>
           </button>
+        </div>
+
+        <!-- Roadmap: disabled tiles previewing types still in development. -->
+        <p class="mb-2 mt-4 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Coming soon</p>
+        <div class="grid grid-cols-2 gap-2.5">
+          <div
+            v-for="type in comingSoon"
+            :key="type.key"
+            class="relative flex cursor-not-allowed flex-col gap-1.5 rounded-md border border-outline-gray-2 p-3.5 text-left opacity-60"
+            aria-disabled="true"
+          >
+            <FeatherIcon :name="type.icon" class="h-[18px] w-[18px] text-ink-gray-5" />
+            <div class="text-[13px] font-semibold text-ink-gray-7">{{ type.name }}</div>
+            <div class="text-[11px] text-ink-gray-5">{{ type.hint }}</div>
+            <span
+              class="absolute right-2 top-2 rounded-full bg-surface-gray-3 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-ink-gray-6"
+            >
+              Soon
+            </span>
+          </div>
         </div>
       </template>
 
