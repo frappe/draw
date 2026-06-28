@@ -19,6 +19,7 @@ import { flowchartContentBounds } from '@/diagram/flowchartLayout.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
 import { useSelection } from '@/composables/useSelection.js'
 import { useShapeCreation } from '@/composables/useShapeCreation.js'
+import { useImageInsert } from '@/composables/useImageInsert.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
 import { useFormatPainter } from '@/composables/useFormatPainter.js'
 import { useClipboard } from '@/composables/useClipboard.js'
@@ -78,6 +79,24 @@ const ownLayerBounds = computed(() => {
 // during a gesture; here we only route the surface's pointer/drag/dblclick.
 const selection = useSelection(store, editorUi)
 const creation = useShapeCreation(store, editorUi)
+const imageInsert = useImageInsert(store)
+
+// Dropping an image FILE inserts it at the drop point; otherwise fall back to the
+// palette-tile drop. dragover must preventDefault for files so the drop fires.
+function onCanvasDragOver(event) {
+  if (Array.from(event.dataTransfer?.types || []).includes('Files')) event.preventDefault()
+  else creation.onCanvasDragOver(event)
+}
+function onCanvasDrop(event) {
+  const file = Array.from(event.dataTransfer?.files || []).find((f) => f.type.startsWith('image/'))
+  if (file) {
+    event.preventDefault()
+    const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
+    imageInsert.insert(file, point)
+    return
+  }
+  creation.onCanvasDrop(event)
+}
 const editing = useTextEditing(store, editorUi)
 const painter = useFormatPainter(store, editorUi)
 const clipboard = useClipboard(store)
@@ -529,8 +548,8 @@ const surfaceCursor = computed(() => {
     @pointerleave="viewport.endPan()"
     @dblclick="onSurfaceDoubleClick"
     @contextmenu.prevent="onContextMenu"
-    @dragover.prevent="creation.onCanvasDragOver"
-    @drop="creation.onCanvasDrop"
+    @dragover="onCanvasDragOver"
+    @drop="onCanvasDrop"
   >
     <!-- Spacer sized to the pannable region so native scrollbars appear. -->
     <div :style="stageStyle" class="pointer-events-none" />
