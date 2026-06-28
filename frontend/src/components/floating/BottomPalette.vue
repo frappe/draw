@@ -29,10 +29,13 @@ const SHAPES = [
   { type: 'cylinder', icon: 'database', label: 'Cylinder' },
   { type: 'callout', icon: 'message-square', label: 'Callout' },
 ]
-const CONNECTORS = [
-  { type: 'straight', icon: 'arrow-right', label: 'Straight' },
-  { type: 'elbow', icon: 'corner-down-right', label: 'Elbow' },
-  { type: 'curved', icon: 'git-commit', label: 'Curved' },
+// Lines/connectors now live inside the Shapes popover (no separate menu). A
+// plain Line has no arrowheads; Arrow ends in an arrow; elbow/curved too.
+const LINES = [
+  { type: 'line', icon: 'minus', label: 'Line' },
+  { type: 'arrow', icon: 'arrow-right', label: 'Arrow' },
+  { type: 'elbow', icon: 'corner-down-right', label: 'Elbow connector' },
+  { type: 'curved', icon: 'git-commit', label: 'Curved connector' },
 ]
 function arm(type, close) {
   editorUi.setDrawShape(type)
@@ -102,36 +105,31 @@ function cycleGuides() {
           </Tooltip>
         </template>
         <template #body-main="{ togglePopover }">
-          <div class="grid grid-cols-4 gap-1 p-2">
-            <Tooltip v-for="s in SHAPES" :key="s.type" :text="s.label">
-              <button
-                class="flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-gray-2"
-                :class="isArmed(s.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
-                @click="arm(s.type, togglePopover)"
-              >
-                <FeatherIcon :name="s.icon" class="h-[18px] w-[18px]" :class="s.type === 'diamond' ? 'rotate-45' : ''" />
-              </button>
-            </Tooltip>
-          </div>
-        </template>
-      </Popover>
-      <Popover>
-        <template #target="{ togglePopover }">
-          <Tooltip text="Connectors">
-            <button :class="buttonBase" @click="togglePopover()"><FeatherIcon name="arrow-up-right" class="h-4 w-4" /></button>
-          </Tooltip>
-        </template>
-        <template #body-main="{ togglePopover }">
-          <div class="flex gap-1 p-2">
-            <Tooltip v-for="con in CONNECTORS" :key="con.type" :text="con.label">
-              <button
-                class="flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-gray-2"
-                :class="isArmed(con.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
-                @click="arm(con.type, togglePopover)"
-              >
-                <FeatherIcon :name="con.icon" class="h-[18px] w-[18px]" />
-              </button>
-            </Tooltip>
+          <div class="p-2">
+            <div class="grid grid-cols-4 gap-1">
+              <Tooltip v-for="s in SHAPES" :key="s.type" :text="s.label">
+                <button
+                  class="flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-gray-2"
+                  :class="isArmed(s.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
+                  @click="arm(s.type, togglePopover)"
+                >
+                  <FeatherIcon :name="s.icon" class="h-[18px] w-[18px]" :class="s.type === 'diamond' ? 'rotate-45' : ''" />
+                </button>
+              </Tooltip>
+            </div>
+            <!-- Lines + connectors live here too (no separate menu). -->
+            <div class="my-2 h-px bg-outline-gray-1" />
+            <div class="grid grid-cols-4 gap-1">
+              <Tooltip v-for="con in LINES" :key="con.type" :text="con.label">
+                <button
+                  class="flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-gray-2"
+                  :class="isArmed(con.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
+                  @click="arm(con.type, togglePopover)"
+                >
+                  <FeatherIcon :name="con.icon" class="h-[18px] w-[18px]" />
+                </button>
+              </Tooltip>
+            </div>
           </div>
         </template>
       </Popover>

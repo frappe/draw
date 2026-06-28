@@ -14,6 +14,8 @@ declare module 'vue' {
     BottomPalette: typeof import('./src/components/floating/BottomPalette.vue')['default']
     CanvasSection: typeof import('./src/components/palette-right/CanvasSection.vue')['default']
     ColorPicker: typeof import('./src/components/palette-right/ColorPicker.vue')['default']
+    ConnectorMarker: typeof import('./src/components/canvas/ConnectorMarker.vue')['default']
+    ConnectorSection: typeof import('./src/components/palette-right/ConnectorSection.vue')['default']
     ConnectorView: typeof import('./src/components/canvas/ConnectorView.vue')['default']
     ContextMenu: typeof import('./src/components/canvas/ContextMenu.vue')['default']
     DiagramCanvas: typeof import('./src/components/canvas/DiagramCanvas.vue')['default']

@@ -10,8 +10,16 @@ import { anchorPoint } from '@/diagram/geometry.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useConnectorDrawing } from '@/composables/useConnectorDrawing.js'
+import ConnectorMarker from './ConnectorMarker.vue'
 
 const props = defineProps({ connector: { type: Object, required: true } })
+
+// Normalise an endpoint style: legacy booleans (true/false) → 'arrow'/'none'.
+function normEnd(value) {
+  if (value === true) return 'arrow'
+  if (value === false || value == null) return 'none'
+  return value
+}
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
@@ -59,8 +67,10 @@ const labelAnchor = computed(() => {
   return { x: (start.value.x + end.value.x) / 2, y: (start.value.y + end.value.y) / 2 }
 })
 
-const markerId = computed(() => `arrow-${props.connector.id}`)
-const arrowheads = computed(() => props.connector.arrowheads || {})
+const startMarkerId = computed(() => `mk-start-${props.connector.id}`)
+const endMarkerId = computed(() => `mk-end-${props.connector.id}`)
+const startType = computed(() => normEnd(props.connector.arrowheads?.start))
+const endType = computed(() => normEnd(props.connector.arrowheads?.end))
 const labelWidth = computed(() => (props.connector.label?.length || 0) * 7 + 16)
 
 // Endpoint / control-point dragging. Reuses the snap logic from the composable.
@@ -104,17 +114,8 @@ function onConnectorClick(event) {
 <template>
   <g :data-connector-id="connector.id">
     <defs>
-      <marker
-        :id="markerId"
-        viewBox="0 0 10 10"
-        refX="9"
-        refY="5"
-        markerWidth="7"
-        markerHeight="7"
-        orient="auto-start-reverse"
-      >
-        <path d="M 0 0 L 10 5 L 0 10 z" :fill="style.color" />
-      </marker>
+      <ConnectorMarker :id="startMarkerId" :type="startType" :color="style.color" orient="auto-start-reverse" />
+      <ConnectorMarker :id="endMarkerId" :type="endType" :color="style.color" orient="auto" />
     </defs>
 
     <!-- Wide invisible hit path makes the thin connector easy to click. -->
@@ -128,8 +129,8 @@ function onConnectorClick(event) {
       :stroke-dasharray="dashArray"
       stroke-linecap="round"
       stroke-linejoin="round"
-      :marker-start="arrowheads.start ? `url(#${markerId})` : null"
-      :marker-end="arrowheads.end ? `url(#${markerId})` : null"
+      :marker-start="startType !== 'none' ? `url(#${startMarkerId})` : null"
+      :marker-end="endType !== 'none' ? `url(#${endMarkerId})` : null"
     />
 
     <g v-if="connector.label">

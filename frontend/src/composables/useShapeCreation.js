@@ -18,7 +18,18 @@ import { ref } from 'vue'
 import { useTextEditing } from '@/composables/useTextEditing.js'
 
 const DATA_TRANSFER_KEY = 'application/x-frappe-draw-tool'
-const CONNECTOR_TYPES = ['straight', 'elbow', 'curved']
+
+// Connector draw tools → geometry + default endpoints. 'line' is a plain
+// straight segment with no arrowheads; 'arrow' adds an end arrow. elbow/curved
+// keep the end arrow. The user changes endpoints afterwards in the right palette.
+const CONNECTOR_SPECS = {
+  line: { type: 'straight', arrowheads: { start: 'none', end: 'none' } },
+  arrow: { type: 'straight', arrowheads: { start: 'none', end: 'arrow' } },
+  straight: { type: 'straight', arrowheads: { start: 'none', end: 'arrow' } },
+  elbow: { type: 'elbow', arrowheads: { start: 'none', end: 'arrow' } },
+  curved: { type: 'curved', arrowheads: { start: 'none', end: 'arrow' } },
+}
+const CONNECTOR_TYPES = Object.keys(CONNECTOR_SPECS)
 const DEFAULT_SIZE = { w: 180, h: 96 }
 const MIN_SIZE = 24
 
@@ -122,8 +133,11 @@ function commitShape(store, type, start, end) {
   if (type === 'text') useTextEditing().beginTextEdit(id)
 }
 
-function commitConnector(store, type, start, end) {
-  store.select(store.addConnector({ type, from: { ...start }, to: { ...end } }))
+function commitConnector(store, drawType, start, end) {
+  const spec = CONNECTOR_SPECS[drawType] || CONNECTOR_SPECS.straight
+  store.select(
+    store.addConnector({ type: spec.type, arrowheads: { ...spec.arrowheads }, from: { ...start }, to: { ...end } }),
+  )
 }
 
 function centeredDefaultBox(point) {

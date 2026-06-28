@@ -58,7 +58,9 @@ export function createConnector(partial = {}) {
     type: partial.type || 'straight',
     from: partial.from || { x: 0, y: 0 },
     to: partial.to || { x: 0, y: 0 },
-    arrowheads: { start: false, end: true },
+    // Endpoint styles per end: 'none' | 'arrow' | 'open-arrow' | 'circle' |
+    // 'square' | 'diamond' (legacy booleans are normalised on render).
+    arrowheads: partial.arrowheads || { start: 'none', end: 'arrow' },
     style: { ...CONNECTOR_DEFAULT_STYLE },
     label: '',
     ...partial,

@@ -14,6 +14,7 @@ import FillBorderSection from './FillBorderSection.vue'
 import TextSection from './TextSection.vue'
 import TransparencySection from './TransparencySection.vue'
 import CanvasSection from './CanvasSection.vue'
+import ConnectorSection from './ConnectorSection.vue'
 import MindMapPalette from './MindMapPalette.vue'
 import FlowchartPalette from './FlowchartPalette.vue'
 import WhiteboardPalette from './WhiteboardPalette.vue'
@@ -34,6 +35,13 @@ const isBlock = computed(() => modeStrategy.value.paletteMode === 'block')
 const modePalette = computed(() => MODE_PALETTES[modeStrategy.value.paletteMode] || null)
 
 const count = computed(() => store.state.selection.length)
+
+// A single selected connector gets its own section (endpoints, color, width,
+// dash) instead of the shape-editing sections, which don't apply to a line.
+const selectedConnector = computed(() => {
+  if (store.state.selection.length !== 1) return null
+  return store.connectorById(store.state.selection[0]) || null
+})
 
 // Header title: the single shape's type, or a count, or "Canvas" when empty.
 const headerTitle = computed(() => {
@@ -69,7 +77,12 @@ function capitalize(value) {
       </span>
     </header>
 
-    <template v-if="isBlock">
+    <!-- A selected line/connector: its own endpoint + line controls. -->
+    <template v-if="isBlock && selectedConnector">
+      <ConnectorSection :connector="selectedConnector" />
+    </template>
+
+    <template v-else-if="isBlock">
       <!-- Object-editing sections are disabled + dimmed when nothing is
            selected; the Canvas section stays active (it needs no selection). -->
       <div :class="count === 0 ? 'pointer-events-none select-none opacity-40' : ''">
