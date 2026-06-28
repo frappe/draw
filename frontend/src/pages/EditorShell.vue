@@ -2,7 +2,8 @@
 // Editor page — owns the diagram store. Loads the Draw Diagram doc, parses its
 // document, creates + provides the store and editor UI, then composes the
 // toolbar, palettes, canvas, and floating palette (CONVENTIONS integration).
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { loadDiagram } from '@/data/diagrams.js'
 import { parseDiagramDocument } from '@/diagram/schema.js'
 import { createDiagramStore, provideDiagramStore } from '@/stores/useDiagramStore.js'
@@ -80,6 +81,14 @@ watch(
 function rename(title) {
   diagram.setValue.submit({ title })
 }
+
+// Consume the ?new=1 flag once TitleEditor (a child, mounted first) has read it,
+// so a later refresh of this URL won't re-open the title editor.
+const route = useRoute()
+const router = useRouter()
+onMounted(() => {
+  if (route.query.new) router.replace({ name: 'Editor', params: { name: props.name } })
+})
 </script>
 
 <template>

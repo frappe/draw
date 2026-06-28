@@ -1,10 +1,7 @@
 <script setup>
-// New-diagram popup (spec §2). Two steps: first pick a type, then name it. The
-// name becomes the title (and, via the backend slug autoname, the editor URL),
-// so it must be known before the diagram is created. Cancel/Back returns to the
-// type picker; close dismisses.
-import { ref, watch, nextTick } from 'vue'
-import { Dialog, FeatherIcon, TextInput, Button } from 'frappe-ui'
+// New-diagram popup (spec §2). One step: pick a type and you land straight on the
+// canvas with the title selected for inline renaming (no separate naming step).
+import { Dialog, FeatherIcon } from 'frappe-ui'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -33,37 +30,10 @@ const TYPE_TITLE = {
   whiteboard: 'Untitled whiteboard',
 }
 
-const step = ref('type') // 'type' | 'name'
-const chosen = ref(null)
-const name = ref('')
-const nameInput = ref(null)
-
-// Reset to the type picker each time the dialog opens.
-watch(
-  () => props.modelValue,
-  (open) => {
-    if (open) {
-      step.value = 'type'
-      chosen.value = null
-      name.value = ''
-    }
-  },
-)
-
+// Pick a type → create immediately with the default title and dismiss; the
+// editor opens with the title selected so the user types the name there.
 function pickType(type) {
-  chosen.value = type
-  name.value = ''
-  step.value = 'name'
-  nextTick(() => nameInput.value?.$el?.querySelector('input')?.focus())
-}
-
-function back() {
-  step.value = 'type'
-}
-
-function confirm() {
-  const title = name.value.trim() || TYPE_TITLE[chosen.value.key] || 'Untitled diagram'
-  emit('create', { type: chosen.value.key, title, document: null })
+  emit('create', { type: type.key, title: TYPE_TITLE[type.key] || 'Untitled diagram', document: null })
   emit('update:modelValue', false)
 }
 </script>
@@ -71,13 +41,12 @@ function confirm() {
 <template>
   <Dialog
     :modelValue="modelValue"
-    :options="{ size: 'xl', title: step === 'name' ? `Name your ${chosen?.name.toLowerCase()}` : 'Create a new diagram' }"
+    :options="{ size: 'xl', title: 'Create a new diagram' }"
     @update:modelValue="emit('update:modelValue', $event)"
   >
     <template #body-content>
-      <!-- Step 1: choose a type. -->
-      <template v-if="step === 'type'">
-        <p class="-mt-1 mb-3 text-[13px] text-ink-gray-5">Pick a diagram type to start from a blank canvas.</p>
+      <p class="-mt-1 mb-3 text-[13px] text-ink-gray-5">Pick a diagram type to start from a blank canvas.</p>
+      <div>
         <div class="grid grid-cols-2 gap-2.5">
           <button
             v-for="type in types"
@@ -110,26 +79,7 @@ function confirm() {
             </span>
           </div>
         </div>
-      </template>
-
-      <!-- Step 2: name it. -->
-      <template v-else>
-        <p class="-mt-1 mb-3 flex items-center gap-1.5 text-[13px] text-ink-gray-5">
-          <FeatherIcon :name="chosen.icon" class="h-4 w-4" /> {{ chosen.name }}
-        </p>
-        <TextInput
-          ref="nameInput"
-          v-model="name"
-          type="text"
-          :placeholder="TYPE_TITLE[chosen.key]"
-          @keydown.enter="confirm"
-        />
-      </template>
-    </template>
-
-    <template v-if="step === 'name'" #actions>
-      <Button variant="solid" @click="confirm">Create</Button>
-      <Button variant="subtle" @click="back">Back</Button>
+      </div>
     </template>
   </Dialog>
 </template>

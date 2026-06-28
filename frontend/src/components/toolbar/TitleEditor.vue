@@ -3,13 +3,22 @@
 // shows the title with a faint pencil; clicking turns it into an inline input.
 // Enter / blur commits, Escape cancels. Empty titles fall back to the default.
 // Emits update:title; EditorShell renames through the diagram resource.
-import { ref, nextTick, watch } from 'vue'
+import { ref, nextTick, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { FeatherIcon } from 'frappe-ui'
 
 const props = defineProps({
   title: { type: String, default: 'Untitled diagram' },
 })
 const emit = defineEmits(['update:title'])
+const route = useRoute()
+
+// A freshly created diagram arrives with ?new=1 — open the title for editing and
+// preselect it so the user can type the name right away (EditorShell strips the
+// flag afterwards so a refresh won't re-trigger).
+onMounted(() => {
+  if (route.query.new === '1') nextTick(startEditing)
+})
 
 const DEFAULT_TITLE = 'Untitled diagram'
 const editing = ref(false)

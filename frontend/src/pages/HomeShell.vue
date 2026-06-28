@@ -50,7 +50,8 @@ async function create(payload = {}) {
     const name = await createDiagram(payload.title, payload.document, payload.type || 'block')
     if (!name) throw new Error('Server returned no diagram name')
     diagrams.reload()
-    router.push({ name: 'Editor', params: { name } })
+    // `new` tells the editor to open with the title selected for inline renaming.
+    router.push({ name: 'Editor', params: { name }, query: { new: '1' } })
   } catch (error) {
     // Surface the real reason instead of failing silently (toasts aren't mounted).
     const detail = error?.messages?.join('\n') || error?.exc_type || error?.message || String(error)
