@@ -65,7 +65,6 @@ declare module 'vue' {
     WhiteboardLayer: typeof import('./src/components/canvas/WhiteboardLayer.vue')['default']
     WhiteboardLine: typeof import('./src/components/canvas/WhiteboardLine.vue')['default']
     WhiteboardMinimap: typeof import('./src/components/canvas/WhiteboardMinimap.vue')['default']
-    WhiteboardPalette: typeof import('./src/components/palette-right/WhiteboardPalette.vue')['default']
     WhiteboardSelectionEditor: typeof import('./src/components/floating/WhiteboardSelectionEditor.vue')['default']
     WhiteboardStickyNote: typeof import('./src/components/canvas/WhiteboardStickyNote.vue')['default']
     WhiteboardTable: typeof import('./src/components/canvas/WhiteboardTable.vue')['default']

@@ -17,7 +17,6 @@ import CanvasSection from './CanvasSection.vue'
 import ConnectorSection from './ConnectorSection.vue'
 import MindMapPalette from './MindMapPalette.vue'
 import FlowchartPalette from './FlowchartPalette.vue'
-import WhiteboardPalette from './WhiteboardPalette.vue'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
@@ -26,10 +25,11 @@ const modeStrategy = useModeStrategy()
 // Section composition is mode-aware (spec diagram-types A9/B8/C7): block renders
 // the shared modification sections; every other type renders a single mode
 // palette component chosen by the strategy's paletteMode.
+// Whiteboard has no right panel (all controls live in the bottom palette), so it
+// is intentionally absent here.
 const MODE_PALETTES = {
   mindmap: MindMapPalette,
   flowchart: FlowchartPalette,
-  whiteboard: WhiteboardPalette,
 }
 const isBlock = computed(() => modeStrategy.value.paletteMode === 'block')
 const modePalette = computed(() => MODE_PALETTES[modeStrategy.value.paletteMode] || null)

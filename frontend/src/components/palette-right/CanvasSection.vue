@@ -2,6 +2,8 @@
 // Canvas controls: size preset + background color (spec §4.3). Wired to
 // store.setCanvas; the feature agent can add a full picker. Background swatches
 // include a transparent ("no color") option.
+import { computed } from 'vue'
+import { Select } from 'frappe-ui'
 import PaletteSection from './PaletteSection.vue'
 import { CANVAS_PRESETS } from '@/diagram/canvasPresets.js'
 import { findPreset } from '@/diagram/canvasPresets.js'
@@ -9,6 +11,13 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 
 const store = useDiagramStore()
 const backgrounds = [null, '#FFFFFF', '#F8F8F8', '#EFF6FF', '#FDFAED', '#FCEAF5']
+
+const presetOptions = computed(() =>
+  CANVAS_PRESETS.map((preset) => ({
+    label: `${preset.name} · ${preset.width} × ${preset.height}`,
+    value: preset.name,
+  })),
+)
 
 function applyPreset(name) {
   const preset = findPreset(name)
@@ -18,15 +27,12 @@ function applyPreset(name) {
 
 <template>
   <PaletteSection label="Canvas">
-    <select
-      class="mb-2.5 h-8 w-full rounded-md border border-outline-gray-2 bg-surface-white px-2 text-xs text-ink-gray-7 outline-none"
-      :value="store.state.canvas.sizePreset"
-      @change="applyPreset($event.target.value)"
-    >
-      <option v-for="preset in CANVAS_PRESETS" :key="preset.name" :value="preset.name">
-        {{ preset.name }} · {{ preset.width }} × {{ preset.height }}
-      </option>
-    </select>
+    <Select
+      class="mb-2.5"
+      :model-value="store.state.canvas.sizePreset"
+      :options="presetOptions"
+      @update:model-value="applyPreset"
+    />
 
     <div class="flex flex-wrap gap-1.5">
       <button

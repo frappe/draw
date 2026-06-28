@@ -3,6 +3,7 @@
 // fill / border colour across the whole selection; a compact weight + dash row
 // updates the border. Field text/heights match the rest of the palette.
 import { computed } from 'vue'
+import { Select } from 'frappe-ui'
 import PaletteSection from './PaletteSection.vue'
 import ColorPicker from './ColorPicker.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
@@ -10,6 +11,7 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 const store = useDiagramStore()
 
 const dashStyles = ['solid', 'dashed', 'dotted']
+const dashOptions = dashStyles.map((style) => ({ label: style[0].toUpperCase() + style.slice(1), value: style }))
 
 // Selected shape ids (fill/border apply to all of them at once, §4.3).
 const selectedIds = computed(() => store.selectedShapes.map((shape) => shape.id))
@@ -63,15 +65,7 @@ function setDash(value) {
         />
         <span class="text-[11px] text-ink-gray-5">px</span>
       </label>
-      <select
-        class="h-8 flex-1 rounded-md border border-outline-gray-2 bg-surface-white px-2 text-xs capitalize text-ink-gray-7 outline-none"
-        :value="dash"
-        @change="setDash($event.target.value)"
-      >
-        <option v-for="style in dashStyles" :key="style" :value="style" class="capitalize">
-          {{ style }}
-        </option>
-      </select>
+      <Select class="flex-1" :model-value="dash" :options="dashOptions" @update:model-value="setDash" />
     </div>
   </PaletteSection>
 </template>
