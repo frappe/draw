@@ -6,11 +6,14 @@ import { computed } from 'vue'
 import { Tooltip, FeatherIcon, Popover } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
+import { useDiagramStore } from '@/stores/useDiagramStore.js'
+import { useImageInsert } from '@/composables/useImageInsert.js'
 import WhiteboardTools from './WhiteboardTools.vue'
 
 const editorUi = useEditorUi()
 const viewport = editorUi.viewport
 const modeStrategy = useModeStrategy()
+const imageInsert = useImageInsert(useDiagramStore())
 
 // Block diagrams create from here (no left palette). A categorised popover of
 // shapes + a connectors popover + a text tool, each arming draw mode.
@@ -136,6 +139,11 @@ function cycleGuides() {
       <Tooltip text="Text">
         <button :class="[buttonBase, toggleClass(isArmed('text'))]" @click="arm('text')">
           <FeatherIcon name="type" class="h-4 w-4" />
+        </button>
+      </Tooltip>
+      <Tooltip text="Insert image">
+        <button :class="buttonBase" @click="imageInsert.pick()">
+          <FeatherIcon name="image" class="h-4 w-4" />
         </button>
       </Tooltip>
     </template>

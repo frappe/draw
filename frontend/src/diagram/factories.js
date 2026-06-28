@@ -24,9 +24,9 @@ function defaultText(color) {
   }
 }
 
-// A text box renders with no fill and no border (spec §5.1).
+// Text boxes and images render with no fill and no border (spec §5.1).
 function styleForType(type, triad) {
-  if (type === 'text') {
+  if (type === 'text' || type === 'image') {
     return { fill: 'none', border: { color: 'none', width: 0, dash: 'solid' } }
   }
   return { fill: triad.fill, border: { color: triad.stroke, width: 1.5, dash: 'solid' } }

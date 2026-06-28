@@ -15,10 +15,12 @@ import LineOptions from './LineOptions.vue'
 import TableOptions from './TableOptions.vue'
 import WhiteboardSelectionEditor from './WhiteboardSelectionEditor.vue'
 import WhiteboardMinimap from '@/components/canvas/WhiteboardMinimap.vue'
+import { useImageInsert } from '@/composables/useImageInsert.js'
 
 const editorUi = useEditorUi()
 const store = useDiagramStore()
 const ui = useWhiteboardUi()
+const imageInsert = useImageInsert(store)
 
 const TOOLS = [
   { tool: 'pen', icon: 'edit-2', label: 'Pen' },
@@ -75,6 +77,13 @@ function applyTableDefault(patch) {
   <Tooltip v-for="t in TOOLS" :key="t.tool" :text="t.label">
     <button :class="[buttonBase, toggleClass(activeTool === t.tool)]" @click="editorUi.setTool(t.tool)">
       <FeatherIcon :name="t.icon" class="h-4 w-4" />
+    </button>
+  </Tooltip>
+
+  <!-- Insert image (action, not a tool). -->
+  <Tooltip text="Insert image">
+    <button :class="buttonBase" @click="imageInsert.pick()">
+      <FeatherIcon name="image" class="h-4 w-4" />
     </button>
   </Tooltip>
 

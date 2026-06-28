@@ -175,6 +175,16 @@ const textStyle = computed(() => props.shape.text?.style || {})
       :stroke-width="border.width"
       :stroke-dasharray="dashArray"
     />
+    <image
+      v-else-if="shape.type === 'image'"
+      :href="shape.src"
+      :x="shape.x"
+      :y="shape.y"
+      :width="shape.w"
+      :height="shape.h"
+      :opacity="shape.opacity"
+      preserveAspectRatio="xMidYMid meet"
+    />
 
     <text
       v-if="shape.text?.content"
