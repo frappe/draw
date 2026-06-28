@@ -79,6 +79,47 @@ export function useDistribute(store) {
     return Math.max(...xs) - Math.min(...xs) >= Math.max(...ys) - Math.min(...ys) ? 'x' : 'y'
   }
 
+  // Lay the selection out on a tidy grid (Efficient Elements "arrange in grid"):
+  // near-square column count, uniform cells sized to the largest shape, anchored
+  // at the selection's top-left. One undo step.
+  const GRID_GAP = 24
+  function arrangeGrid() {
+    const items = shapes.value
+    if (items.length < 2) return
+    const boxes = items.map((shape) => axisAlignedBBox(shape))
+    const cols = Math.ceil(Math.sqrt(items.length))
+    const cellW = Math.max(...boxes.map((box) => box.w)) + GRID_GAP
+    const cellH = Math.max(...boxes.map((box) => box.h)) + GRID_GAP
+    const originX = Math.min(...boxes.map((box) => box.x))
+    const originY = Math.min(...boxes.map((box) => box.y))
+    store.commit('Arrange in grid', () => {
+      items.forEach((shape, index) => {
+        placeStart(shape, 'x', originX + (index % cols) * cellW)
+        placeStart(shape, 'y', originY + Math.floor(index / cols) * cellH)
+      })
+    })
+  }
+
+  // Swap the positions of exactly two shapes by their centers (so different
+  // sizes trade places cleanly).
+  function swapPositions() {
+    if (shapes.value.length !== 2) return
+    const [a, b] = shapes.value
+    const ca = centerOf(a)
+    const cb = centerOf(b)
+    store.commit('Swap positions', () => {
+      a.x += cb.x - ca.x
+      a.y += cb.y - ca.y
+      b.x += ca.x - cb.x
+      b.y += ca.y - cb.y
+    })
+  }
+
+  function centerOf(shape) {
+    const box = axisAlignedBBox(shape)
+    return { x: box.x + box.w / 2, y: box.y + box.h / 2 }
+  }
+
   return {
     distributeHorizontal: () => distribute('x', 'w', 'Distribute horizontally'),
     distributeVertical: () => distribute('y', 'h', 'Distribute vertically'),
@@ -86,6 +127,8 @@ export function useDistribute(store) {
     matchWidth: () => matchSizeTo(['w'], 'Match width'),
     matchHeight: () => matchSizeTo(['h'], 'Match height'),
     matchSize: () => matchSizeTo(['w', 'h'], 'Match size'),
+    arrangeGrid,
+    swapPositions,
     store,
   }
 }

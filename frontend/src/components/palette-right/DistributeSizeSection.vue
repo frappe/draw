@@ -14,6 +14,7 @@ const dist = useDistribute(store)
 const count = computed(() => store.selectedShapes.length)
 const canDistribute = computed(() => count.value >= 3)
 const canMatch = computed(() => count.value >= 2)
+const canSwap = computed(() => count.value === 2)
 const visible = computed(() => canMatch.value)
 </script>
 
@@ -26,6 +27,8 @@ const visible = computed(() => canMatch.value)
       <ActionTile icon="move-horizontal" label="Width" @click="dist.matchWidth()" />
       <ActionTile icon="move-vertical" label="Height" @click="dist.matchHeight()" />
       <ActionTile icon="maximize" label="Same size" @click="dist.matchSize()" />
+      <ActionTile icon="grid" label="Grid" @click="dist.arrangeGrid()" />
+      <ActionTile v-if="canSwap" icon="repeat" label="Swap" @click="dist.swapPositions()" />
     </div>
   </PaletteSection>
 </template>
