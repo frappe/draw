@@ -8,6 +8,7 @@ import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
+import { recentShapes, pushRecentShape } from '@/composables/useRecentShapes.js'
 import WhiteboardTools from './WhiteboardTools.vue'
 
 const editorUi = useEditorUi()
@@ -50,8 +51,15 @@ const filteredLines = computed(() =>
   query.value ? LINES.filter((l) => l.label.toLowerCase().includes(query.value)) : LINES,
 )
 
+// Recently-used shapes/lines, shown as a row at the top of the popover (2.3).
+const byType = computed(() => Object.fromEntries([...SHAPES, ...LINES].map((s) => [s.type, s])))
+const recentShapeDefs = computed(() =>
+  recentShapes.value.map((type) => byType.value[type]).filter(Boolean),
+)
+
 function arm(type, close) {
   editorUi.setDrawShape(type)
+  pushRecentShape(type)
   shapeQuery.value = ''
   close?.()
 }
@@ -144,6 +152,22 @@ function commitZoom() {
               placeholder="Search shapes…"
               class="mb-2 h-7 w-full rounded-md border border-outline-gray-2 bg-surface-white px-2 text-xs text-ink-gray-8 outline-none placeholder:text-ink-gray-4 focus:border-outline-gray-3"
             />
+            <!-- Recently used (hidden while searching). -->
+            <template v-if="!query && recentShapeDefs.length">
+              <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Recent</div>
+              <div class="mb-2 grid grid-cols-4 gap-1">
+                <Tooltip v-for="s in recentShapeDefs" :key="`r-${s.type}`" :text="s.label">
+                  <button
+                    class="flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-gray-2"
+                    :class="isArmed(s.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
+                    @click="arm(s.type, togglePopover)"
+                  >
+                    <FeatherIcon :name="s.icon" class="h-[18px] w-[18px]" :class="s.type === 'diamond' ? 'rotate-45' : ''" />
+                  </button>
+                </Tooltip>
+              </div>
+              <div class="mb-2 h-px bg-outline-gray-1" />
+            </template>
             <div v-if="filteredShapes.length" class="grid grid-cols-4 gap-1">
               <Tooltip v-for="s in filteredShapes" :key="s.type" :text="s.label">
                 <button
