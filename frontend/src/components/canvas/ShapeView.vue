@@ -3,9 +3,33 @@
 // shape object. Geometry is in logical canvas units. Text boxes render with no
 // fill and no border (spec §5.1). Interaction is layered on later.
 import { computed } from 'vue'
+import { useTextEditing, shapeTextArea, textStyleCss } from '@/composables/useTextEditing.js'
 
 const props = defineProps({
   shape: { type: Object, required: true },
+})
+
+const editing = useTextEditing()
+
+// Hide the static text while this shape is being edited (the editor overlay
+// shows instead, avoiding double text).
+const isEditingThis = computed(() => editing?.editingShapeId?.value === props.shape.id)
+
+// Rich text renders as HTML in a foreignObject; legacy shapes with only a plain
+// `content` string still render as a single SVG <text> (backward compatible).
+const richHtml = computed(() => props.shape.text?.html || null)
+const textArea = computed(() => shapeTextArea(props.shape))
+const richStyle = computed(() => {
+  const text = props.shape.text || {}
+  return {
+    ...textStyleCss(text.style, text.valign, text.align),
+    width: '100%',
+    height: '100%',
+    boxSizing: 'border-box',
+    pointerEvents: 'none',
+    overflow: 'hidden',
+    opacity: props.shape.opacity ?? 1,
+  }
 })
 
 const center = computed(() => ({
@@ -186,8 +210,21 @@ const textStyle = computed(() => props.shape.text?.style || {})
       preserveAspectRatio="xMidYMid meet"
     />
 
+    <!-- Rich text (HTML) — hidden while this shape is being edited. -->
+    <foreignObject
+      v-if="!isEditingThis && richHtml"
+      :x="textArea.x"
+      :y="textArea.y"
+      :width="textArea.w"
+      :height="textArea.h"
+      style="overflow: visible"
+    >
+      <div class="fd-richtext" :style="richStyle" v-html="richHtml" />
+    </foreignObject>
+
+    <!-- Legacy plain text (shapes saved before rich text). -->
     <text
-      v-if="shape.text?.content"
+      v-else-if="!isEditingThis && shape.text?.content"
       :x="center.x"
       :y="center.y"
       text-anchor="middle"

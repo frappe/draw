@@ -1,27 +1,31 @@
 <script setup>
-// Inline text editor overlay (spec §6). Renders a <foreignObject> with a
-// contentEditable aligned to the editing shape's text area at any zoom (it
-// lives inside the viewport-transformed <g>, so logical units suffice). Text
-// wraps, then auto-grows the shape vertically. Connector labels edit too.
-// Commits through store.updateShape / store.updateConnector.
-import { computed, nextTick, ref, watch } from 'vue'
+// Inline rich-text editor overlay (spec §6). A TipTap editor lives in a
+// <foreignObject> aligned to the editing shape's text area at any zoom (it sits
+// inside the viewport-transformed <g>, so logical units suffice). Gives multi-
+// line text, bullet/ordered lists, bold/italic/underline and per-paragraph
+// alignment. Commits store BOTH the HTML (rich render) and plain text (export
+// fallback + empty check). Connector labels stay plain (label = the text).
+//
+// Editing ends — and commits — on a real blur or Escape. Right-palette text
+// buttons use mousedown.prevent, so they don't steal focus and the editor keeps
+// its selection while you format.
+import { computed, nextTick, watch } from 'vue'
+import { useEditor, EditorContent } from '@tiptap/vue-3'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { anchorPoint } from '@/diagram/geometry.js'
 import { useTextEditing, shapeTextArea, textStyleCss, LINE_HEIGHT } from '@/composables/useTextEditing.js'
+import { RICH_EXTENSIONS, setActiveEditor, clearActiveEditor, contentToHtml } from '@/composables/useRichText.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
 const editing = useTextEditing(store, editorUi)
-
-const field = ref(null)
 
 const shape = computed(() => (editing.editingShapeId.value ? store.shapeById(editing.editingShapeId.value) : null))
 const connector = computed(() =>
   editing.editingConnectorId.value ? store.connectorById(editing.editingConnectorId.value) : null,
 )
 
-// Logical-unit rectangle the editable occupies.
 const area = computed(() => (shape.value ? shapeTextArea(shape.value) : connectorArea.value))
 
 const connectorArea = computed(() => {
@@ -39,10 +43,7 @@ function resolve(endpoint) {
   return { x: endpoint?.x || 0, y: endpoint?.y || 0 }
 }
 
-// A blue inset ring marks the live edit region so an otherwise borderless text
-// box (no fill, no stroke) is clearly visible while typing.
 const EDIT_RING = { boxShadow: 'inset 0 0 0 1.5px #006EDB', borderRadius: '4px' }
-
 const fieldStyle = computed(() => {
   if (shape.value) {
     const text = shape.value.text || {}
@@ -51,85 +52,77 @@ const fieldStyle = computed(() => {
   return { ...textStyleCss({ size: 12 }, 'middle', 'center'), ...EDIT_RING, padding: '2px 8px', height: '100%' }
 })
 
-const currentText = computed(() =>
-  shape.value ? shape.value.text?.content || '' : connector.value?.label || '',
-)
+const editor = useEditor({
+  extensions: RICH_EXTENSIONS,
+  content: '<p></p>',
+  onUpdate: () => autoGrow(),
+  onBlur: () => commit(),
+})
 
-// When a session starts, seed the field and place the caret at the end.
+// Seed the editor and focus when a session starts (target changed).
 watch(
   () => [editing.editingShapeId.value, editing.editingConnectorId.value],
   async () => {
-    if (!editing.isEditing.value) return
+    if (!editing.isEditing.value || !editor.value) return
+    const html = shape.value
+      ? shape.value.text?.html || contentToHtml(shape.value.text?.content)
+      : contentToHtml(connector.value?.label)
+    editor.value.commands.setContent(html, false)
+    setActiveEditor(editor.value)
     await nextTick()
-    if (!field.value) return
-    field.value.textContent = currentText.value
-    focusEnd(field.value)
+    editor.value.commands.focus('end')
     autoGrow()
   },
 )
 
-function focusEnd(element) {
-  element.focus()
-  const range = document.createRange()
-  range.selectNodeContents(element)
-  range.collapse(false)
-  const selection = window.getSelection()
-  selection.removeAllRanges()
-  selection.addRange(range)
-}
-
-// Grow the shape's height so wrapped text never overflows (spec §6). Measured
-// against the contentEditable's own scrollHeight in logical units.
+// Grow the shape's height so wrapped/multi-line text never overflows (spec §6).
 function autoGrow() {
-  if (!shape.value || !field.value) return
-  const needed = field.value.scrollHeight
+  if (!shape.value || !editor.value) return
+  const dom = editor.value.view?.dom
+  if (!dom) return
+  const needed = dom.scrollHeight + 10
   const minimum = lineMinimum(shape.value)
   const target = Math.max(needed, minimum)
   if (target > shape.value.h) store.updateShape(shape.value.id, { h: growToFit(shape.value, target) })
 }
 
-// For inscribed shapes the box must grow more than the text area it gained.
 function growToFit(s, areaHeight) {
   const factor = s.type === 'diamond' || s.type === 'triangle' ? 0.5 : 1
   return Math.ceil(areaHeight / factor) + 8
 }
-
 function lineMinimum(s) {
   const size = s.text?.style?.size || 16
-  return Math.ceil(size * LINE_HEIGHT) + 8
-}
-
-function onInput() {
-  autoGrow()
+  return Math.ceil(size * LINE_HEIGHT) + 12
 }
 
 function commit() {
+  if (!editing.isEditing.value) return
   if (shape.value) commitShape()
   else if (connector.value) commitConnector()
+  clearActiveEditor(editor.value)
   editing.session.shapeId = null
   editing.session.connectorId = null
 }
 
 function commitShape() {
-  const content = (field.value?.textContent || '').trim()
-  // An empty text box carries nothing, so reject it on commit (text boxes only —
-  // a labeled rectangle/ellipse left blank is still a real shape and stays).
-  if (!content && shape.value.type === 'text') {
+  const text = (editor.value?.getText() || '').trim()
+  // An empty text box carries nothing, so reject it (text boxes only — a labeled
+  // rectangle/ellipse left blank is still a real shape and stays).
+  if (!text && shape.value.type === 'text') {
     store.removeShapes([shape.value.id])
     return
   }
-  store.updateShape(shape.value.id, { text: { content } })
+  store.updateShape(shape.value.id, { text: { html: editor.value.getHTML(), content: text } })
 }
 
 function commitConnector() {
-  const label = (field.value?.textContent || '').trim()
-  store.updateConnector(connector.value.id, { label })
+  store.updateConnector(connector.value.id, { label: (editor.value?.getText() || '').trim() })
 }
 
 function onKeydown(event) {
   if (event.key === 'Escape') {
     event.stopPropagation()
-    commit()
+    editor.value?.commands.blur()
   }
 }
 </script>
@@ -145,17 +138,27 @@ function onKeydown(event) {
     :style="{ overflow: 'visible' }"
   >
     <div
-      ref="field"
-      contenteditable="true"
-      spellcheck="false"
-      class="outline-none"
+      class="fd-richtext outline-none"
       :style="fieldStyle"
-      style="box-sizing: border-box; width: 100%; word-break: break-word; white-space: pre-wrap; cursor: text"
-      @input="onInput"
+      style="box-sizing: border-box; width: 100%; cursor: text"
       @keydown="onKeydown"
-      @blur="commit"
       @pointerdown.stop
       @dblclick.stop
-    />
+    >
+      <EditorContent :editor="editor" />
+    </div>
   </foreignObject>
 </template>
+
+<style>
+/* Rich-text content styling, shared by the editor and the on-canvas render.
+   Tailwind's base reset strips list markers, so restore them explicitly. */
+.fd-richtext .ProseMirror { outline: none; min-height: 1em; }
+.fd-richtext p { margin: 0; }
+.fd-richtext ul,
+.fd-richtext ol { margin: 0; padding-left: 1.4em; list-style-position: outside; text-align: left; }
+.fd-richtext ul { list-style-type: disc; }
+.fd-richtext ol { list-style-type: decimal; }
+.fd-richtext li { margin: 0; }
+.fd-richtext li p { margin: 0; }
+</style>
