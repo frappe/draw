@@ -44,10 +44,36 @@ function setWeight(value) {
 function setDash(value) {
   if (selectedIds.value.length) store.updateShapes(selectedIds.value, { border: { dash: value } })
 }
+
+// One-click quick styles: a curated fill+border combo applied to the whole
+// selection (spec 8.4). Swatch shows the fill; the ring shows the border.
+const QUICK_STYLES = [
+  { fill: '#EFF6FF', border: '#4F94FF' },
+  { fill: '#F4FFF6', border: '#88D5A5' },
+  { fill: '#FDFAED', border: '#FBCC55' },
+  { fill: '#FCEAF5', border: '#E68AC4' },
+  { fill: '#F3F3F3', border: '#7C7C7C' },
+  { fill: 'none', border: '#171717' },
+  { fill: '#1F2933', border: '#1F2933' },
+]
+function applyQuickStyle(preset) {
+  if (!selectedIds.value.length) return
+  store.updateShapes(selectedIds.value, { fill: preset.fill, border: { color: preset.border, width: 1.5 } })
+}
 </script>
 
 <template>
   <PaletteSection label="Fill & border">
+    <div class="mb-2.5 flex gap-1.5">
+      <button
+        v-for="(preset, i) in QUICK_STYLES"
+        :key="i"
+        class="h-6 w-6 flex-none rounded-md border-2"
+        :style="{ background: preset.fill === 'none' ? '#FFFFFF' : preset.fill, borderColor: preset.border }"
+        :title="'Quick style'"
+        @click="applyQuickStyle(preset)"
+      />
+    </div>
     <div class="space-y-2">
       <ColorPicker label="Fill" :model-value="fill" @update:model-value="setFill" />
       <ColorPicker label="Border" :model-value="borderColor" @update:model-value="setBorderColor" />
