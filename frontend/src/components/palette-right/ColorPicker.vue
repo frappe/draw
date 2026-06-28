@@ -4,6 +4,7 @@
 // and a row of quick swatches. Works in HSV internally and commits hex.
 import { reactive, computed, watch } from 'vue'
 import { Popover } from 'frappe-ui'
+import { recentColors, pushRecentColor } from '@/composables/useRecentColors.js'
 
 const props = defineProps({
   modelValue: { type: String, default: '#FFFFFF' },
@@ -70,6 +71,7 @@ function onHex(value) {
   if (hex) {
     syncFromHex(hex)
     commit()
+    pushRecentColor(hex)
   }
 }
 
@@ -82,6 +84,7 @@ function startDrag(event, handler) {
   const stop = () => {
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', stop)
+    pushRecentColor(currentHex.value)
   }
   window.addEventListener('pointermove', move)
   window.addEventListener('pointerup', stop)
@@ -191,6 +194,19 @@ function hsvSegment(segment, chroma, x) {
               class="h-7 w-full bg-transparent text-[11px] font-medium uppercase text-ink-gray-8 outline-none"
               @change="onHex($event.target.value)"
             />
+          </div>
+
+          <div v-if="recentColors.length" class="mt-2.5">
+            <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Recent</div>
+            <div class="grid grid-cols-6 gap-1.5">
+              <button
+                v-for="color in recentColors"
+                :key="color"
+                class="h-[18px] w-[18px] rounded-[4px] border border-black/10"
+                :style="{ background: color }"
+                @click="onHex(color)"
+              />
+            </div>
           </div>
 
           <div class="mt-2.5 grid grid-cols-6 gap-1.5">

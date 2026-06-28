@@ -2,7 +2,7 @@
 // Floating bottom-center palette (spec §7.1, README 4c): pointer modes (select /
 // hand / draw), grid-guide toggle, and zoom controls (out / 100% reset / in /
 // fit). Wired to editorUi tool/grid and the viewport.
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Tooltip, FeatherIcon, Popover } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
@@ -40,8 +40,19 @@ const LINES = [
   { type: 'elbow', icon: 'corner-down-right', label: 'Elbow connector' },
   { type: 'curved', icon: 'git-commit', label: 'Curved connector' },
 ]
+// Filter shapes + lines by a search query (spec 2.1). Empty query shows all.
+const shapeQuery = ref('')
+const query = computed(() => shapeQuery.value.trim().toLowerCase())
+const filteredShapes = computed(() =>
+  query.value ? SHAPES.filter((s) => s.label.toLowerCase().includes(query.value)) : SHAPES,
+)
+const filteredLines = computed(() =>
+  query.value ? LINES.filter((l) => l.label.toLowerCase().includes(query.value)) : LINES,
+)
+
 function arm(type, close) {
   editorUi.setDrawShape(type)
+  shapeQuery.value = ''
   close?.()
 }
 function isArmed(type) {
@@ -108,9 +119,15 @@ function cycleGuides() {
           </Tooltip>
         </template>
         <template #body-main="{ togglePopover }">
-          <div class="p-2">
-            <div class="grid grid-cols-4 gap-1">
-              <Tooltip v-for="s in SHAPES" :key="s.type" :text="s.label">
+          <div class="w-[176px] p-2">
+            <input
+              v-model="shapeQuery"
+              type="text"
+              placeholder="Search shapes…"
+              class="mb-2 h-7 w-full rounded-md border border-outline-gray-2 bg-surface-white px-2 text-xs text-ink-gray-8 outline-none placeholder:text-ink-gray-4 focus:border-outline-gray-3"
+            />
+            <div v-if="filteredShapes.length" class="grid grid-cols-4 gap-1">
+              <Tooltip v-for="s in filteredShapes" :key="s.type" :text="s.label">
                 <button
                   class="flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-gray-2"
                   :class="isArmed(s.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
@@ -121,9 +138,9 @@ function cycleGuides() {
               </Tooltip>
             </div>
             <!-- Lines + connectors live here too (no separate menu). -->
-            <div class="my-2 h-px bg-outline-gray-1" />
-            <div class="grid grid-cols-4 gap-1">
-              <Tooltip v-for="con in LINES" :key="con.type" :text="con.label">
+            <div v-if="filteredShapes.length && filteredLines.length" class="my-2 h-px bg-outline-gray-1" />
+            <div v-if="filteredLines.length" class="grid grid-cols-4 gap-1">
+              <Tooltip v-for="con in filteredLines" :key="con.type" :text="con.label">
                 <button
                   class="flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-gray-2"
                   :class="isArmed(con.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
@@ -133,6 +150,9 @@ function cycleGuides() {
                 </button>
               </Tooltip>
             </div>
+            <p v-if="!filteredShapes.length && !filteredLines.length" class="px-1 py-2 text-center text-xs text-ink-gray-4">
+              No matches
+            </p>
           </div>
         </template>
       </Popover>
