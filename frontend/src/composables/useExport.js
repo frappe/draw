@@ -18,11 +18,13 @@ export function useExport(store, getTitle) {
   const fileName = () => sanitizeFileName((getTitle && getTitle()) || 'diagram')
 
   return {
-    exportPng: () => guard(() => exportRaster(store, 'png', 1, fileName())),
-    exportPng2x: () => guard(() => exportRaster(store, 'png', 2, fileName())),
+    exportPng: () => guard(() => exportRaster(store, 'png', 2, fileName())),
+    exportPngTransparent: () => guard(() => exportRaster(store, 'png', 2, fileName(), 'transparent')),
+    exportPngWhite: () => guard(() => exportRaster(store, 'png', 2, fileName(), '#FFFFFF')),
     exportJpeg: () => guard(() => exportRaster(store, 'jpeg', 1, fileName())),
     exportSvg: () => guard(() => exportSvgFile(store, fileName())),
     exportPdf: () => guard(() => exportPdfFile(store, fileName())),
+    copyImage: () => guard(() => copyImage(store)),
     printDiagram: () => guard(() => printDiagram(store)),
     store,
   }
@@ -57,7 +59,9 @@ function buildSvg(store, background) {
   const document = store.getDocument()
   const { width, height } = canvasSize(store)
   let markup = withExplicitSize(documentToSvg(document), width, height)
-  const fill = background || document.canvas.background
+  // background: undefined → use the canvas background; 'transparent' → force no
+  // backdrop; a hex string → force that fill (e.g. white for JPEG/clipboard).
+  const fill = background === 'transparent' ? null : background || document.canvas.background
   if (fill) markup = insertBackgroundRect(markup, fill, { width, height })
   return markup
 }
@@ -80,13 +84,49 @@ async function exportSvgFile(store, name) {
 }
 
 // PNG/JPEG: rasterize the SVG via an offscreen canvas at the requested scale.
-async function exportRaster(store, format, scale, name) {
-  const background = format === 'jpeg' ? JPEG_FALLBACK_BACKGROUND : undefined
+// `bg` overrides the backdrop (undefined → canvas bg; 'transparent'; or a hex).
+async function exportRaster(store, format, scale, name, bg) {
+  const background = bg ?? (format === 'jpeg' ? JPEG_FALLBACK_BACKGROUND : undefined)
   const markup = buildSvg(store, background)
   const { width, height } = canvasSize(store)
   const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png'
   const dataUrl = await rasterizeSvg(markup, width * scale, height * scale, mime)
   downloadDataUrl(dataUrl, `${name}.${format === 'jpeg' ? 'jpg' : 'png'}`)
+}
+
+// Copy the diagram to the OS clipboard as a PNG (spec 12.3). Uses a white
+// backdrop (clipboard images shouldn't be transparent) and the async Clipboard
+// API, which needs the click gesture this runs inside.
+async function copyImage(store) {
+  if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+    throw new Error('Clipboard image copy is not supported in this browser')
+  }
+  const { width, height } = canvasSize(store)
+  const markup = buildSvg(store, '#FFFFFF')
+  const blob = await rasterizeSvgToBlob(markup, width * 2, height * 2, 'image/png')
+  await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+  toast.success('Copied image to clipboard')
+}
+
+// Like rasterizeSvg but resolves a Blob (for the clipboard / programmatic use).
+function rasterizeSvgToBlob(markup, pixelWidth, pixelHeight, mime) {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    const url = URL.createObjectURL(new Blob([markup], { type: 'image/svg+xml;charset=utf-8' }))
+    image.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round(pixelWidth))
+      canvas.height = Math.max(1, Math.round(pixelHeight))
+      canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height)
+      URL.revokeObjectURL(url)
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not rasterize'))), mime)
+    }
+    image.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Could not rasterize the diagram'))
+    }
+    image.src = url
+  })
 }
 
 // Draw the SVG into a sized canvas and read it back as a data URL.

@@ -10,10 +10,10 @@ const exporter = useExport(useDiagramStore())
 
 const options = [
   {
-    group: 'Export',
+    group: 'Export (2×)',
     items: [
-      { label: 'PNG', icon: 'image', onClick: exporter.exportPng },
-      { label: 'PNG (2x)', icon: 'image', onClick: exporter.exportPng2x },
+      { label: 'PNG · white background', icon: 'image', onClick: exporter.exportPngWhite },
+      { label: 'PNG · transparent', icon: 'image', onClick: exporter.exportPngTransparent },
       { label: 'JPEG', icon: 'image', onClick: exporter.exportJpeg },
       { label: 'SVG', icon: 'code', onClick: exporter.exportSvg },
       { label: 'PDF', icon: 'file-text', onClick: exporter.exportPdf },
@@ -21,7 +21,10 @@ const options = [
   },
   {
     group: 'Output',
-    items: [{ label: 'Print…', icon: 'printer', onClick: exporter.printDiagram }],
+    items: [
+      { label: 'Copy as image', icon: 'copy', onClick: exporter.copyImage },
+      { label: 'Print…', icon: 'printer', onClick: exporter.printDiagram },
+    ],
   },
 ]
 </script>
