@@ -374,6 +374,21 @@ function attachSelection(store, state) {
       ...state.connectors.map((c) => c.id),
     ]
   }
+  // Expand a set of shape ids to include every shape sharing a groupId with any
+  // of them, so a group selects/moves/deletes as one unit. Non-grouped ids pass
+  // through unchanged; connector ids (no groupId) are preserved.
+  store.expandGroups = (ids) => {
+    const list = Array.isArray(ids) ? ids : [ids]
+    const groups = new Set(
+      list.map((id) => state.shapes.find((s) => s.id === id)?.groupId).filter(Boolean),
+    )
+    if (!groups.size) return [...new Set(list)]
+    const out = new Set(list)
+    for (const shape of state.shapes) {
+      if (shape.groupId && groups.has(shape.groupId)) out.add(shape.id)
+    }
+    return [...out]
+  }
 }
 
 // z-order operations operate on selected shapes and re-pack indices afterwards.

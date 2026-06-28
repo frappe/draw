@@ -53,9 +53,19 @@ function isAdditive(event) {
 
 // Click selects (a modifier toggles); a plain click on an unselected shape
 // replaces the selection, then the body drag moves whatever ends up selected.
+// Selection expands to the clicked shape's whole group so groups act as one unit.
 function selectAndMove(store, transform, shape, event, toLogical, start) {
-  if (isAdditive(event)) return store.toggleInSelection(shape.id)
-  if (!store.state.selection.includes(shape.id)) store.select(shape.id)
+  const groupIds = store.expandGroups([shape.id])
+  if (isAdditive(event)) {
+    const anySelected = groupIds.some((id) => store.state.selection.includes(id))
+    store.select(
+      anySelected
+        ? store.state.selection.filter((id) => !groupIds.includes(id))
+        : [...new Set([...store.state.selection, ...groupIds])],
+    )
+    return
+  }
+  if (!store.state.selection.includes(shape.id)) store.select(groupIds)
   const ids = store.state.selection.filter((id) => store.shapeById(id))
   transform.startMove({ toLogical, start, ids })
 }

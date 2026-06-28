@@ -54,7 +54,8 @@ function finish(store, rect, additive) {
   const connectorIds = (store.state.connectors || [])
     .filter((connector) => rectsIntersect(box, connectorBox(store, connector)))
     .map((connector) => connector.id)
-  const ids = [...shapeIds, ...connectorIds]
+  // Keep groups atomic: if any group member is in the box, take the whole group.
+  const ids = [...store.expandGroups(shapeIds), ...connectorIds]
   if (ids.length) additive ? store.addToSelection(ids) : store.select(ids)
 }
 
