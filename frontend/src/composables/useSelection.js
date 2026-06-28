@@ -56,6 +56,14 @@ function isAdditive(event) {
 // Selection expands to the clicked shape's whole group so groups act as one unit.
 function selectAndMove(store, transform, shape, event, toLogical, start) {
   const groupIds = store.expandGroups([shape.id])
+  // Alt/Option-drag duplicates the selection (or the clicked shape's group) and
+  // drags the copies — the Figma/Slides staple for fast layout.
+  if (event.altKey) {
+    const base = store.state.selection.includes(shape.id) ? store.state.selection : groupIds
+    const copies = store.duplicate(base).filter((id) => store.shapeById(id))
+    transform.startMove({ toLogical, start, ids: copies })
+    return
+  }
   if (isAdditive(event)) {
     const anySelected = groupIds.some((id) => store.state.selection.includes(id))
     store.select(

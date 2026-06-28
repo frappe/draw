@@ -9,6 +9,7 @@ import { useTextEditing } from '@/composables/useTextEditing.js'
 import { getModeStrategy } from '@/stores/useModeStrategy.js'
 import { flowchartKeydown } from '@/composables/useFlowchartKeys.js'
 import { whiteboardKeydown } from '@/composables/useWhiteboardKeys.js'
+import { toggleShortcutsHelp } from '@/composables/useShortcutsHelp.js'
 
 const ARROW_DELTAS = {
   ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
@@ -59,6 +60,12 @@ function handleKeydown(event, store, editorUi, clipboard, transform) {
   // handling gets a chance to swallow it.
   if (event.key === 'Escape') {
     escape(store, editorUi)
+    event.preventDefault()
+    return
+  }
+  // `?` opens the shortcuts cheat-sheet from any diagram type.
+  if (event.key === '?') {
+    toggleShortcutsHelp()
     event.preventDefault()
     return
   }

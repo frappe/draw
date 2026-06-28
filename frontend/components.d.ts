@@ -50,6 +50,7 @@ declare module 'vue' {
     ShapeToolButton: typeof import('./src/components/palette-left/ShapeToolButton.vue')['default']
     ShapeView: typeof import('./src/components/canvas/ShapeView.vue')['default']
     ShareMenu: typeof import('./src/components/toolbar/ShareMenu.vue')['default']
+    ShortcutsDialog: typeof import('./src/components/ShortcutsDialog.vue')['default']
     Sidebar: typeof import('./src/components/home/Sidebar.vue')['default']
     SmartGuidesLayer: typeof import('./src/components/canvas/SmartGuidesLayer.vue')['default']
     TableOptions: typeof import('./src/components/floating/TableOptions.vue')['default']

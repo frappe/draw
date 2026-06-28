@@ -19,6 +19,7 @@ import TopToolbar from '@/components/toolbar/TopToolbar.vue'
 import DiagramCanvas from '@/components/canvas/DiagramCanvas.vue'
 import BottomPalette from '@/components/floating/BottomPalette.vue'
 import RightPalette from '@/components/palette-right/RightPalette.vue'
+import ShortcutsDialog from '@/components/ShortcutsDialog.vue'
 
 const props = defineProps({
   name: { type: String, required: true },
@@ -111,5 +112,7 @@ onMounted(() => {
       </main>
       <RightPalette v-if="modeStrategy.showsRightPalette !== false" />
     </div>
+
+    <ShortcutsDialog />
   </div>
 </template>
