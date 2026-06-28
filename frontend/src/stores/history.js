@@ -1,5 +1,9 @@
 // Snapshot-based undo/redo for the diagram store (CONVENTIONS: max 50 steps,
-// snapshot = deep clone of {canvas,shapes,connectors}; selection is excluded).
+// snapshot = deep clone of {canvas,shapes,connectors,...} + the selection).
+//
+// Selection is captured so undo/redo restores focus the way Visio/Figma/Slides
+// do — the objects affected by the step you reverse light up with their handles,
+// instead of leaving you staring at a changed canvas with nothing selected.
 
 const MAX_STEPS = 50
 
@@ -9,7 +13,8 @@ function clone(value) {
 
 // Capture the document slice that participates in history. The per-type
 // sub-objects (mindmap/flowchart/whiteboard) are included so each type's edits
-// are undoable; they are null for diagrams of a different type.
+// are undoable; they are null for diagrams of a different type. The selection is
+// captured alongside so it can be restored as focus on undo/redo.
 function snapshot(state) {
   return clone({
     canvas: state.canvas,
@@ -18,10 +23,13 @@ function snapshot(state) {
     mindmap: state.mindmap,
     flowchart: state.flowchart,
     whiteboard: state.whiteboard,
+    selection: state.selection,
   })
 }
 
-// Apply a snapshot back onto the reactive state.
+// Apply a snapshot back onto the reactive state, then restore the selection that
+// existed at that step — but only ids that still exist, so we never select a
+// deleted object.
 function restore(state, snap) {
   state.canvas = clone(snap.canvas)
   state.shapes = clone(snap.shapes)
@@ -29,6 +37,11 @@ function restore(state, snap) {
   state.mindmap = clone(snap.mindmap)
   state.flowchart = clone(snap.flowchart)
   state.whiteboard = clone(snap.whiteboard)
+  const live = new Set([
+    ...state.shapes.map((s) => s.id),
+    ...state.connectors.map((c) => c.id),
+  ])
+  state.selection = (snap.selection || []).filter((id) => live.has(id))
 }
 
 export function createHistory(state) {
