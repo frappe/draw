@@ -48,6 +48,11 @@ function attachZoom(ui, viewport) {
   ui.zoomPercent = computed(() => Math.round(viewport.state.zoom * 100))
   ui.fit = () => viewport.fit?.()
   ui.reset100 = () => viewport.reset()
+  // Set an exact zoom from a typed percentage (clamped 10–400%).
+  ui.setZoomPercent = (percent) => {
+    const value = Number(percent)
+    if (Number.isFinite(value) && value > 0) viewport.setZoom(value / 100)
+  }
 }
 
 function attachPainter(ui, state) {

@@ -2,7 +2,7 @@
 // Floating bottom-center palette (spec §7.1, README 4c): pointer modes (select /
 // hand / draw), grid-guide toggle, and zoom controls (out / 100% reset / in /
 // fit). Wired to editorUi tool/grid and the viewport.
-import { computed, ref } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 import { Tooltip, FeatherIcon, Popover } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
@@ -93,6 +93,24 @@ function cycleGuides() {
   editorUi.state.gridVisible = next !== 'no'
   if (next === 'rare') editorUi.setGridDensity('sparse')
   if (next === 'dense') editorUi.setGridDensity('dense')
+}
+
+// Click the zoom % to type an exact value (spec 1.6).
+const zoomEditing = ref(false)
+const zoomDraft = ref('')
+const zoomInput = ref(null)
+function startZoomEdit() {
+  zoomDraft.value = String(editorUi.zoomPercent)
+  zoomEditing.value = true
+  nextTick(() => {
+    zoomInput.value?.focus()
+    zoomInput.value?.select()
+  })
+}
+function commitZoom() {
+  if (!zoomEditing.value) return
+  zoomEditing.value = false
+  editorUi.setZoomPercent(zoomDraft.value)
 }
 </script>
 
@@ -202,10 +220,21 @@ function cycleGuides() {
         <FeatherIcon name="minus" class="h-4 w-4" />
       </button>
     </Tooltip>
-    <Tooltip text="Reset to 100%">
+    <input
+      v-if="zoomEditing"
+      ref="zoomInput"
+      v-model="zoomDraft"
+      type="text"
+      inputmode="numeric"
+      class="h-[34px] w-[52px] rounded-md border border-outline-gray-2 bg-surface-white text-center text-xs font-medium text-ink-gray-8 outline-none focus:border-outline-gray-3"
+      @keydown.enter="commitZoom"
+      @keydown.esc="zoomEditing = false"
+      @blur="commitZoom"
+    />
+    <Tooltip v-else text="Click to set zoom (⌘0 = 100%, ⇧1 = fit)">
       <button
         class="h-[34px] min-w-[46px] rounded-md px-1.5 text-xs font-medium text-ink-gray-7 hover:bg-surface-gray-2"
-        @click="editorUi.reset100()"
+        @click="startZoomEdit"
       >
         {{ editorUi.zoomPercent }}%
       </button>

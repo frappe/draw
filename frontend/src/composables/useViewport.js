@@ -69,6 +69,12 @@ export function useViewport() {
     zoomTo(snapZoom(state.zoom + direction * ZOOM_STEP), px, py)
   }
 
+  // Set an exact zoom (e.g. a typed %), clamped but not snapped, centred on the
+  // container.
+  function setZoom(zoom) {
+    zoomTo(clampZoom(zoom), measure.containerW / 2, measure.containerH / 2)
+  }
+
   // Ctrl/Cmd or Shift + scroll zooms (cursor-centred, smooth + proportional to
   // the delta per §7.7); plain scroll pans (vertical deltaY, horizontal deltaX).
   function handleWheel(event, pointerX, pointerY) {
@@ -138,6 +144,7 @@ export function useViewport() {
     endPan,
     handleWheel,
     zoomStep,
+    setZoom,
     reset,
     fit,
     setPan,

@@ -52,7 +52,13 @@ function handleKeydown(event, store, editorUi, clipboard, transform) {
   if (isEditingText(event.target)) return
   const modifier = event.metaKey || event.ctrlKey
   if (modifier) {
-    if (handleModifierKey(event, store, clipboard)) event.preventDefault()
+    if (handleModifierKey(event, store, clipboard, editorUi)) event.preventDefault()
+    return
+  }
+  // Shift+1 fits the diagram to the viewport (Figma convention).
+  if (event.shiftKey && event.code === 'Digit1') {
+    editorUi.fit()
+    event.preventDefault()
     return
   }
   // Escape is universal across every mode: it cancels an armed draw tool (so the
@@ -100,7 +106,7 @@ function isEditingText(target) {
 }
 
 // Cmd/Ctrl shortcuts (§7.3). Shift+Z is treated as redo alongside Y.
-function handleModifierKey(event, store, clipboard) {
+function handleModifierKey(event, store, clipboard, editorUi) {
   const key = event.key.toLowerCase()
   const actions = {
     c: () => clipboard.copy(),
@@ -110,6 +116,7 @@ function handleModifierKey(event, store, clipboard) {
     d: () => store.duplicate(store.state.selection),
     z: () => (event.shiftKey ? store.redo() : store.undo()),
     y: () => store.redo(),
+    0: () => editorUi.reset100(), // ⌘/Ctrl+0 → 100%
   }
   return runAction(actions[key])
 }
