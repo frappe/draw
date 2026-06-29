@@ -185,6 +185,9 @@ const isEmpty = computed(() => (store.state.mindmap?.nodes.length ?? 0) <= 1)
   </PaletteSection>
 
   <PaletteSection label="Map">
+    <button class="fd-mm-chip mb-2 w-full justify-center" @click="store.convertDiagram('flowchart')">
+      <FeatherIcon name="git-commit" class="h-3.5 w-3.5" /> Convert to flowchart
+    </button>
     <button class="fd-mm-chip w-full justify-center text-red-600" @click="clearMap(store)">
       <FeatherIcon name="trash-2" class="h-3.5 w-3.5" /> Clear map
     </button>

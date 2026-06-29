@@ -17,6 +17,7 @@ function clone(value) {
 // captured alongside so it can be restored as focus on undo/redo.
 function snapshot(state) {
   return clone({
+    diagramType: state.diagramType,
     canvas: state.canvas,
     shapes: state.shapes,
     connectors: state.connectors,
@@ -31,6 +32,7 @@ function snapshot(state) {
 // existed at that step — but only ids that still exist, so we never select a
 // deleted object.
 function restore(state, snap) {
+  if (snap.diagramType) state.diagramType = snap.diagramType
   state.canvas = clone(snap.canvas)
   state.shapes = clone(snap.shapes)
   state.connectors = clone(snap.connectors)

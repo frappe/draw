@@ -9,6 +9,7 @@ import { createHistory } from '@/stores/history.js'
 import { findThemePreset } from '@/diagram/theme.js'
 import { createDiagramDocument, SCHEMA_VERSION, DEFAULT_DIAGRAM_TYPE } from '@/diagram/schema.js'
 import { addChild, addSibling } from '@/diagram/mindmapModel.js'
+import { mindmapToFlowchart, flowchartToMindmap } from '@/diagram/convert.js'
 import {
   addFlowchartNode,
   addFlowchartEdge,
@@ -142,6 +143,23 @@ function attachFlowchart(store, state, history) {
   store.updateFlowchartModel = (label, mutatorFn) => {
     if (!state.flowchart) return
     history.commit(label, () => mutatorFn(state.flowchart))
+  }
+  // Convert the whole diagram between mindmap and flowchart in one undoable step
+  // (spec 13.5). diagramType is part of the history snapshot, so undo restores it.
+  store.convertDiagram = (target) => {
+    history.commit(`Convert to ${target}`, () => {
+      if (target === 'flowchart' && state.mindmap) {
+        state.flowchart = mindmapToFlowchart(state.mindmap)
+        state.mindmap = null
+      } else if (target === 'mindmap' && state.flowchart) {
+        state.mindmap = flowchartToMindmap(state.flowchart)
+        state.flowchart = null
+      } else {
+        return
+      }
+      state.diagramType = target
+      state.selection = []
+    })
   }
 }
 

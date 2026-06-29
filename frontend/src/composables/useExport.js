@@ -8,6 +8,7 @@
 import { toast } from 'frappe-ui'
 import { documentToSvg } from '@/composables/useThumbnail.js'
 import { axisAlignedBBox } from '@/diagram/geometry.js'
+import { outlineMarkdown } from '@/diagram/convert.js'
 
 // "No color" canvas (background === null) exports transparent for PNG/SVG/PDF;
 // JPEG has no alpha so it gets a white backdrop instead (spec §10).
@@ -28,6 +29,7 @@ export function useExport(store, getTitle) {
     // Selection-only exports at a chosen pixel scale (spec 12.2).
     exportSelectionPng: (scale = 2) => guard(() => exportSelection(store, 'png', scale, fileName(), '#FFFFFF')),
     exportSelectionSvg: () => guard(() => exportSelection(store, 'svg', 1, fileName())),
+    exportOutline: () => guard(() => exportOutlineFile(store, fileName())),
     hasSelection: () => selectedShapes(store).length > 0,
     copyImage: () => guard(() => copyImage(store)),
     printDiagram: () => guard(() => printDiagram(store)),
@@ -162,6 +164,12 @@ function insertBackgroundRect(markup, fill, { x = 0, y = 0, width, height }) {
 async function exportSvgFile(store, name) {
   const markup = buildSvg(store)
   downloadBlob(new Blob([markup], { type: 'image/svg+xml' }), `${name}.svg`)
+}
+
+// Markdown outline of the diagram's content (spec 13.5).
+async function exportOutlineFile(store, name) {
+  const md = outlineMarkdown(store.getDocument())
+  downloadBlob(new Blob([md], { type: 'text/markdown' }), `${name}.md`)
 }
 
 // PNG/JPEG: rasterize the SVG via an offscreen canvas at the requested scale.

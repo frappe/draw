@@ -47,6 +47,7 @@ const options = [
     group: 'Output',
     items: [
       { label: 'Copy as image', icon: 'copy', onClick: exporter.copyImage },
+      { label: 'Outline (Markdown)', icon: 'list', onClick: exporter.exportOutline },
       { label: 'Print…', icon: 'printer', onClick: exporter.printDiagram },
       { label: 'Save as template', icon: 'bookmark', onClick: saveAsTemplate },
     ],

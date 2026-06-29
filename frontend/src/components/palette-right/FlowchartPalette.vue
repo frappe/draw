@@ -106,6 +106,7 @@ const TYPE_ICONS = {
           :label="numbered ? 'Clear numbers' : 'Number steps'"
           @click="numberSteps"
         />
+        <ActionTile icon="git-merge" label="To mind map" @click="store.convertDiagram('mindmap')" />
       </div>
     </PaletteSection>
 
