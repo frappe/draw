@@ -3,7 +3,7 @@
 // opens a popover with a saturation/value square, a hue slider, a hex field,
 // and a row of quick swatches. Works in HSV internally and commits hex.
 import { reactive, computed, watch } from 'vue'
-import { Popover } from 'frappe-ui'
+import { Popover, FeatherIcon } from 'frappe-ui'
 import { recentColors, pushRecentColor } from '@/composables/useRecentColors.js'
 
 const props = defineProps({
@@ -72,6 +72,18 @@ function onHex(value) {
     syncFromHex(hex)
     commit()
     pushRecentColor(hex)
+  }
+}
+
+// Native eyedropper (Chrome/Edge): sample any pixel on screen (spec 8.3). Hidden
+// where the API is missing. The user-cancel rejection is swallowed.
+const supportsEyedropper = typeof window !== 'undefined' && 'EyeDropper' in window
+async function pickEyedropper() {
+  try {
+    const result = await new window.EyeDropper().open()
+    if (result?.sRGBHex) onHex(result.sRGBHex)
+  } catch {
+    /* user pressed Escape — ignore */
   }
 }
 
@@ -186,14 +198,25 @@ function hsvSegment(segment, chroma, x) {
             />
           </div>
 
-          <div class="mt-3 flex items-center gap-1.5 rounded-md border border-outline-gray-2 px-2">
-            <span class="text-[11px] text-ink-gray-5">#</span>
-            <input
-              :value="swatch.replace('#', '')"
-              maxlength="6"
-              class="h-7 w-full bg-transparent text-[11px] font-medium uppercase text-ink-gray-8 outline-none"
-              @change="onHex($event.target.value)"
-            />
+          <div class="mt-3 flex items-center gap-1.5">
+            <div class="flex flex-1 items-center gap-1.5 rounded-md border border-outline-gray-2 px-2">
+              <span class="text-[11px] text-ink-gray-5">#</span>
+              <input
+                :value="swatch.replace('#', '')"
+                maxlength="6"
+                class="h-7 w-full bg-transparent text-[11px] font-medium uppercase text-ink-gray-8 outline-none"
+                @change="onHex($event.target.value)"
+              />
+            </div>
+            <button
+              v-if="supportsEyedropper"
+              class="flex h-7 w-7 flex-none items-center justify-center rounded-md border border-outline-gray-2 text-ink-gray-6 hover:bg-surface-gray-2"
+              title="Pick a colour from the screen"
+              aria-label="Eyedropper"
+              @click="pickEyedropper"
+            >
+              <FeatherIcon name="crosshair" class="h-4 w-4" />
+            </button>
           </div>
 
           <div v-if="recentColors.length" class="mt-2.5">

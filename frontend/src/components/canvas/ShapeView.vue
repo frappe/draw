@@ -2,14 +2,16 @@
 // Renders one shape (rectangle/ellipse/square/triangle/diamond/text) from a
 // shape object. Geometry is in logical canvas units. Text boxes render with no
 // fill and no border (spec §5.1). Interaction is layered on later.
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useTextEditing, shapeTextArea, textStyleCss } from '@/composables/useTextEditing.js'
+import { useAutoFitText } from '@/composables/useAutoFitText.js'
 
 const props = defineProps({
   shape: { type: Object, required: true },
 })
 
 const editing = useTextEditing()
+const richEl = ref(null)
 
 // Hide the static text while this shape is being edited (the editor overlay
 // shows instead, avoiding double text).
@@ -108,6 +110,16 @@ const calloutPath = computed(() => {
 
 const fill = computed(() => props.shape.fill || 'none')
 const textStyle = computed(() => props.shape.text?.style || {})
+
+// Shrink-to-fit the rich text when the shape opts in (spec 6.4). Declared last so
+// the inputs getter can reference the computeds above without hitting the TDZ.
+useAutoFitText(richEl, () => ({
+  enabled: props.shape.text?.autoFit && !isEditingThis.value,
+  base: props.shape.text?.style?.size || 16,
+  w: textArea.value?.w,
+  h: textArea.value?.h,
+  html: richHtml.value,
+}))
 </script>
 
 <template>
@@ -219,7 +231,7 @@ const textStyle = computed(() => props.shape.text?.style || {})
       :height="textArea.h"
       style="overflow: visible"
     >
-      <div class="fd-richtext" :style="richStyle" v-html="richHtml" />
+      <div ref="richEl" class="fd-richtext" :style="richStyle" v-html="richHtml" />
     </foreignObject>
 
     <!-- Legacy plain text (shapes saved before rich text). -->
