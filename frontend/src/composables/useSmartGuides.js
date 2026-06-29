@@ -45,10 +45,15 @@ function createSmartGuides(store) {
     const moving = movedBBox(store, draggedIds, originals, rawDelta)
     const targets = targetEdges(store, draggedIds)
     const result = resolveSnap(moving, targets, store.state.canvas)
+    // Equal-spacing snap (spec 4.5): only on an axis the alignment snap left
+    // free, so the two never fight. Centres the box between its neighbours.
+    let { dx, dy } = result
+    if (dx === 0) dx = equalSpacingDelta(store, draggedIds, moving, 'h')
+    if (dy === 0) dy = equalSpacingDelta(store, draggedIds, moving, 'v')
     publisher.publish(result.lines)
-    const settled = { x: moving.x + result.dx, y: moving.y + result.dy, w: moving.w, h: moving.h }
+    const settled = { x: moving.x + dx, y: moving.y + dy, w: moving.w, h: moving.h }
     measurePublisher.publish(spacingMeasurements(store, draggedIds, settled))
-    return { x: rawDelta.x + result.dx, y: rawDelta.y + result.dy }
+    return { x: rawDelta.x + dx, y: rawDelta.y + dy }
   }
 
   function clear() {
@@ -225,14 +230,17 @@ function spacingMeasurements(store, draggedIds, m) {
   const vOverlap = boxes.filter((b) => b.y < m.y + m.h && b.y + b.h > m.y)
   const left = nearest(vOverlap.filter((b) => b.x + b.w <= m.x + 0.5), (b) => -(b.x + b.w))
   const right = nearest(vOverlap.filter((b) => b.x >= m.x + m.w - 0.5), (b) => b.x)
-  if (left) out.push(hGap(left.x + left.w, m.x, overlapMid(left.y, left.y + left.h, m.y, m.y + m.h)))
-  if (right) out.push(hGap(m.x + m.w, right.x, overlapMid(right.y, right.y + right.h, m.y, m.y + m.h)))
+  // Equal when both sides are present and within a pixel — the 4.5 affordance.
+  const hEqual = left && right && Math.abs((m.x - (left.x + left.w)) - (right.x - (m.x + m.w))) <= 1
+  if (left) out.push(hGap(left.x + left.w, m.x, overlapMid(left.y, left.y + left.h, m.y, m.y + m.h), hEqual))
+  if (right) out.push(hGap(m.x + m.w, right.x, overlapMid(right.y, right.y + right.h, m.y, m.y + m.h), hEqual))
   // Vertical gaps: neighbours that overlap horizontally.
   const hOverlap = boxes.filter((b) => b.x < m.x + m.w && b.x + b.w > m.x)
   const top = nearest(hOverlap.filter((b) => b.y + b.h <= m.y + 0.5), (b) => -(b.y + b.h))
   const bottom = nearest(hOverlap.filter((b) => b.y >= m.y + m.h - 0.5), (b) => b.y)
-  if (top) out.push(vGap(top.y + top.h, m.y, overlapMid(top.x, top.x + top.w, m.x, m.x + m.w)))
-  if (bottom) out.push(vGap(m.y + m.h, bottom.y, overlapMid(bottom.x, bottom.x + bottom.w, m.x, m.x + m.w)))
+  const vEqual = top && bottom && Math.abs((m.y - (top.y + top.h)) - (bottom.y - (m.y + m.h))) <= 1
+  if (top) out.push(vGap(top.y + top.h, m.y, overlapMid(top.x, top.x + top.w, m.x, m.x + m.w), vEqual))
+  if (bottom) out.push(vGap(m.y + m.h, bottom.y, overlapMid(bottom.x, bottom.x + bottom.w, m.x, m.x + m.w), vEqual))
   return out.filter((g) => g.gap >= 1 && g.gap <= MAX_GAP)
 }
 
@@ -245,12 +253,43 @@ function overlapMid(a1, a2, b1, b2) {
   return (Math.max(a1, b1) + Math.min(a2, b2)) / 2
 }
 
-function hGap(x1, x2, y) {
+function hGap(x1, x2, y, equal = false) {
   const gap = x2 - x1
-  return { kind: 'h', x1, x2, y1: y, y2: y, mx: (x1 + x2) / 2, my: y, gap, label: `${Math.round(gap)}` }
+  return { kind: 'h', x1, x2, y1: y, y2: y, mx: (x1 + x2) / 2, my: y, gap, equal, label: `${Math.round(gap)}` }
 }
 
-function vGap(y1, y2, x) {
+function vGap(y1, y2, x, equal = false) {
   const gap = y2 - y1
-  return { kind: 'v', x1: x, x2: x, y1, y2, mx: x, my: (y1 + y2) / 2, gap, label: `${Math.round(gap)}` }
+  return { kind: 'v', x1: x, x2: x, y1, y2, mx: x, my: (y1 + y2) / 2, gap, equal, label: `${Math.round(gap)}` }
+}
+
+// Correction that centres the moving box between its nearest neighbours on one
+// axis, so the two gaps become equal (spec 4.5). Returns 0 when there isn't a
+// neighbour on both sides or the centring move is beyond the snap threshold.
+function equalSpacingDelta(store, draggedIds, m, axis) {
+  const dragged = new Set(draggedIds)
+  const boxes = store.state.shapes.filter((s) => !dragged.has(s.id)).map((s) => axisAlignedBBox(s))
+  const horizontal = axis === 'h'
+  const lo = horizontal ? m.x : m.y
+  const hi = horizontal ? m.x + m.w : m.y + m.h
+  const overlap = boxes.filter((b) => crossOverlap(b, m, horizontal))
+  const before = nearest(overlap.filter((b) => far(b, horizontal) <= lo + 0.5), (b) => -far(b, horizontal))
+  const after = nearest(overlap.filter((b) => near(b, horizontal) >= hi - 0.5), (b) => near(b, horizontal))
+  if (!before || !after) return 0
+  const gapBefore = lo - far(before, horizontal)
+  const gapAfter = near(after, horizontal) - hi
+  const delta = (gapAfter - gapBefore) / 2
+  if (Math.abs(delta) > SNAP_THRESHOLD) return 0
+  if (gapBefore + delta < 1) return 0
+  return delta
+}
+
+function crossOverlap(b, m, horizontal) {
+  return horizontal ? b.y < m.y + m.h && b.y + b.h > m.y : b.x < m.x + m.w && b.x + b.w > m.x
+}
+function near(b, horizontal) {
+  return horizontal ? b.x : b.y
+}
+function far(b, horizontal) {
+  return horizontal ? b.x + b.w : b.y + b.h
 }

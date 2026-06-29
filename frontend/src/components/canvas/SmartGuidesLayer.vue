@@ -95,10 +95,15 @@ function pillY(guide) {
         v-if="m.kind === 'v'"
         :x1="m.x2 - 4" :y1="m.y2" :x2="m.x2 + 4" :y2="m.y2" stroke="#3B82F6" stroke-width="1"
       />
-      <g :transform="`translate(${m.mx - measurePillW(m.label) / 2} ${m.my - M_PILL_H / 2})`">
-        <rect :width="measurePillW(m.label)" :height="M_PILL_H" rx="3" fill="#3B82F6" />
+      <g :transform="`translate(${m.mx - measurePillW(m.equal ? m.label + ' =' : m.label) / 2} ${m.my - M_PILL_H / 2})`">
+        <rect
+          :width="measurePillW(m.equal ? m.label + ' =' : m.label)"
+          :height="M_PILL_H"
+          rx="3"
+          :fill="m.equal ? '#E34AA6' : '#3B82F6'"
+        />
         <text
-          :x="measurePillW(m.label) / 2"
+          :x="measurePillW(m.equal ? m.label + ' =' : m.label) / 2"
           :y="M_PILL_H / 2"
           fill="#FFFFFF"
           font-size="9"
@@ -106,7 +111,7 @@ function pillY(guide) {
           text-anchor="middle"
           dominant-baseline="central"
         >
-          {{ m.label }}
+          {{ m.equal ? m.label + ' =' : m.label }}
         </text>
       </g>
     </template>

@@ -199,6 +199,7 @@ const viewWidth = ref(0)
 const viewHeight = ref(0)
 let syncingScroll = false // guards the pan<->scroll feedback loop
 const PAN_MARGIN = 80 // logical units of breathing room around the content
+const INFINITE_MARGIN = 1500 // generous room so the block canvas feels unbounded (1.5)
 
 const canvas = computed(() => store.state.canvas)
 const themeStyle = computed(() => themeVarStyle(store.state.themePreset))
@@ -232,10 +233,14 @@ const contentExtent = computed(() => {
       h: bounds.h + PAN_MARGIN * 2,
     }
   }
-  let minX = 0
-  let minY = 0
-  let maxX = canvas.value.width
-  let maxY = canvas.value.height
+  // Infinite block canvas (spec 1.5): don't let the (small) paper rect constrain
+  // the pannable region — frame the shapes alone with a generous margin so you
+  // can always scroll further out in any direction. Off → paper-bounded as before.
+  const infinite = isInfiniteBlock.value && store.state.shapes.length
+  let minX = infinite ? Infinity : 0
+  let minY = infinite ? Infinity : 0
+  let maxX = infinite ? -Infinity : canvas.value.width
+  let maxY = infinite ? -Infinity : canvas.value.height
   for (const shape of store.state.shapes) {
     const box = axisAlignedBBox(shape)
     minX = Math.min(minX, box.x)
@@ -249,13 +254,16 @@ const contentExtent = computed(() => {
     maxX = Math.max(maxX, (bounds.x ?? 0) + bounds.w)
     maxY = Math.max(maxY, (bounds.y ?? 0) + bounds.h)
   }
+  const margin = infinite ? INFINITE_MARGIN : PAN_MARGIN
   return {
-    x: minX - PAN_MARGIN,
-    y: minY - PAN_MARGIN,
-    w: maxX - minX + PAN_MARGIN * 2,
-    h: maxY - minY + PAN_MARGIN * 2,
+    x: minX - margin,
+    y: minY - margin,
+    w: maxX - minX + margin * 2,
+    h: maxY - minY + margin * 2,
   }
 })
+
+const isInfiniteBlock = computed(() => editorUi.state.infiniteCanvas && activeType.value === 'block')
 
 // The dotted background should feel infinite: it must cover the whole visible
 // viewport at any pan/zoom, not just the content rect. Convert the viewport's

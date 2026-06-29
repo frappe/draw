@@ -16,6 +16,7 @@ export function createEditorUi() {
     gridVisible: true,
     gridDensity: 'dense',
     snapToGrid: false,
+    infiniteCanvas: false,
     formatPainter: { active: false, style: null },
   })
   return assembleUi(state, viewport)
@@ -48,6 +49,7 @@ function attachGrid(ui, state) {
   ui.toggleGrid = () => (state.gridVisible = !state.gridVisible)
   ui.setGridDensity = (density) => (state.gridDensity = density)
   ui.toggleSnapToGrid = () => (state.snapToGrid = !state.snapToGrid)
+  ui.toggleInfiniteCanvas = () => (state.infiniteCanvas = !state.infiniteCanvas)
   ui.gridSpacing = computed(() => GRID_SPACING[state.gridDensity] || GRID_SPACING.dense)
 }
 

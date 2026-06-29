@@ -95,5 +95,15 @@ function applyPreset(name) {
         @update:model-value="editorUi.toggleSnapToGrid()"
       />
     </div>
+
+    <!-- Infinite canvas: pan/work beyond the page bounds (spec 1.5). -->
+    <div class="mt-2 flex items-center justify-between">
+      <span class="text-[13px] text-ink-gray-7">Infinite canvas</span>
+      <Switch
+        size="sm"
+        :model-value="editorUi.state.infiniteCanvas"
+        @update:model-value="editorUi.toggleInfiniteCanvas()"
+      />
+    </div>
   </PaletteSection>
 </template>
