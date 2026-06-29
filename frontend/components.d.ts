@@ -43,6 +43,7 @@ declare module 'vue' {
     NewDiagramDialog: typeof import('./src/components/home/NewDiagramDialog.vue')['default']
     PaletteSearch: typeof import('./src/components/palette-left/PaletteSearch.vue')['default']
     PaletteSection: typeof import('./src/components/palette-right/PaletteSection.vue')['default']
+    PresenceAvatars: typeof import('./src/components/toolbar/PresenceAvatars.vue')['default']
     RightPalette: typeof import('./src/components/palette-right/RightPalette.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

@@ -11,6 +11,7 @@ import TitleEditor from './TitleEditor.vue'
 import SaveIndicator from './SaveIndicator.vue'
 import ExportMenu from './ExportMenu.vue'
 import ShareMenu from './ShareMenu.vue'
+import PresenceAvatars from './PresenceAvatars.vue'
 
 defineProps({
   title: { type: String, default: 'Untitled diagram' },
@@ -66,11 +67,7 @@ function print() {
         </Button>
       </Tooltip>
 
-      <div
-        class="flex h-7 w-7 select-none items-center justify-center rounded-full bg-[#6846E3] text-xs font-semibold text-white"
-      >
-        TS
-      </div>
+      <PresenceAvatars />
     </div>
   </header>
 </template>

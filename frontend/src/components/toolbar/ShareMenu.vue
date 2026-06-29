@@ -16,8 +16,12 @@ const share = useShare(diagram)
 
 const open = ref(false)
 const accessLabel = computed(() =>
-  share.isPublic.value ? 'Anyone with the link can view' : 'Only you can open this diagram',
+  share.isPublic.value ? 'Anyone with the link can open this' : 'Only you can open this diagram',
 )
+const roles = [
+  { value: 'view', label: 'View', icon: 'eye' },
+  { value: 'edit', label: 'Edit', icon: 'edit-2' },
+]
 </script>
 
 <template>
@@ -41,6 +45,24 @@ const accessLabel = computed(() =>
           />
         </div>
 
+        <!-- Role: view-only link vs editable link (spec 11.4). -->
+        <div v-if="share.isPublic.value">
+          <p class="mb-1.5 text-sm text-ink-gray-5">Anyone with the link can</p>
+          <div class="flex gap-1.5">
+            <button
+              v-for="role in roles"
+              :key="role.value"
+              class="flex flex-1 items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-sm"
+              :class="share.accessLevel.value === role.value ? 'border-ink-gray-9 bg-surface-gray-2 text-ink-gray-9' : 'border-outline-gray-2 text-ink-gray-6'"
+              :disabled="share.updating.value"
+              @click="share.setAccessLevel(role.value)"
+            >
+              <FeatherIcon :name="role.icon" class="h-4 w-4" />
+              {{ role.label }}
+            </button>
+          </div>
+        </div>
+
         <div>
           <p class="mb-1.5 text-sm text-ink-gray-5">Link</p>
           <div class="flex items-center gap-2">
@@ -56,6 +78,20 @@ const accessLabel = computed(() =>
             >
               <template #prefix><FeatherIcon name="link" class="h-4 w-4" /></template>
               Copy link
+            </Button>
+          </div>
+        </div>
+
+        <!-- Embed: an iframe snippet of the read-only viewer (spec 12.5). -->
+        <div v-if="share.isPublic.value">
+          <p class="mb-1.5 text-sm text-ink-gray-5">Embed</p>
+          <div class="flex items-center gap-2">
+            <div class="min-w-0 flex-1 truncate rounded bg-surface-gray-2 px-3 py-2 font-mono text-xs text-ink-gray-7">
+              {{ share.embedCode.value }}
+            </div>
+            <Button variant="subtle" :disabled="!share.embedCode.value" @click="share.copyEmbed()">
+              <template #prefix><FeatherIcon name="code" class="h-4 w-4" /></template>
+              Copy
             </Button>
           </div>
         </div>

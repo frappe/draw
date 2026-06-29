@@ -4,10 +4,10 @@
 // Private diagrams (or no access) show a "You need access" page, not a 404.
 // Fetches via a guest-allowed backend method when present, else the document
 // resource; either path surfaces a permission error as the access-denied state.
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Button, FeatherIcon, Spinner } from 'frappe-ui'
 import { call } from 'frappe-ui'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import DiagramCanvas from '@/components/canvas/DiagramCanvas.vue'
 import Logomark from '@/components/Logomark.vue'
 import { createDiagramStore, provideDiagramStore } from '@/stores/useDiagramStore.js'
@@ -22,6 +22,9 @@ const props = defineProps({
 })
 
 const router = useRouter()
+const route = useRoute()
+// Embedded mode (spec 12.5): drop the footer so the diagram fills the iframe.
+const embed = computed(() => route.query.embed === '1' || route.query.embed === 'true')
 const status = ref('loading') // 'loading' | 'ready' | 'denied'
 const store = createDiagramStore()
 const editorUi = createEditorUi()
@@ -103,6 +106,7 @@ function isMethodMissing(error) {
     </main>
 
     <footer
+      v-if="!embed"
       class="flex flex-none items-center justify-center gap-1.5 border-t border-outline-gray-1 bg-surface-white py-2 text-[11px] text-ink-gray-5"
     >
       <Logomark :size="14" />
