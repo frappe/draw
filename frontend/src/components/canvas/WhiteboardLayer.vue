@@ -24,6 +24,7 @@ import ShapeView from './ShapeView.vue'
 import WhiteboardStickyNote from './WhiteboardStickyNote.vue'
 import WhiteboardLine from './WhiteboardLine.vue'
 import WhiteboardTable from './WhiteboardTable.vue'
+import WhiteboardFrame from './WhiteboardFrame.vue'
 
 const props = defineProps({
   whiteboard: { type: Object, required: true },
@@ -109,6 +110,27 @@ const laserDots = computed(() => {
       Double-click to type · pick a tool below to draw, add lines, tables or sticky notes
     </text>
 
+    <!-- Frames / sections sit behind everything (spec 15.3). -->
+    <WhiteboardFrame
+      v-for="frame in whiteboard.frames || []"
+      :key="frame.id"
+      :frame="frame"
+      :selected="isSelected('frame', frame.id)"
+    />
+    <!-- Live frame being dragged out (before commit). -->
+    <rect
+      v-if="ui.liveFrame.value"
+      :x="ui.liveFrame.value.x"
+      :y="ui.liveFrame.value.y"
+      :width="ui.liveFrame.value.w"
+      :height="ui.liveFrame.value.h"
+      rx="6"
+      fill="rgba(110,86,207,0.06)"
+      stroke="#6E56CF"
+      stroke-width="1.5"
+      stroke-dasharray="6 4"
+    />
+
     <!-- Shared base shapes + connectors live in the common arrays (spec C9). -->
     <ConnectorView
       v-for="connector in store.state.connectors"
@@ -169,6 +191,25 @@ const laserDots = computed(() => {
       :note="note"
       :sketch="whiteboard.sketchStyle"
     />
+
+    <!-- Reaction / vote stamps (spec 15.5): emoji glyph or a vote dot. -->
+    <g v-for="stamp in whiteboard.stamps || []" :key="stamp.id" :transform="`translate(${stamp.x} ${stamp.y})`">
+      <circle
+        v-if="isSelected('stamp', stamp.id)"
+        r="15"
+        fill="none"
+        stroke="#006EDB"
+        stroke-width="1.5"
+      />
+      <circle v-if="stamp.kind === 'dot'" r="9" fill="#E03636" stroke="#FFFFFF" stroke-width="1.5" />
+      <text
+        v-else
+        text-anchor="middle"
+        dominant-baseline="central"
+        font-size="22"
+        style="pointer-events: none"
+      >{{ stamp.kind }}</text>
+    </g>
 
     <!-- Self-fading laser trail (transient; never persisted or exported). -->
     <circle

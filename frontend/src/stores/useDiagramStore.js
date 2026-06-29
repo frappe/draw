@@ -31,6 +31,11 @@ import {
   removeTable,
   tableById,
   setTableCell,
+  addFrame,
+  removeFrame,
+  frameById,
+  addStamp,
+  removeStamp,
 } from '@/diagram/whiteboardModel.js'
 
 const STORE_KEY = 'diagramStore'
@@ -176,6 +181,7 @@ function attachWhiteboard(store, state, history) {
   }
   attachWhiteboardLines(store, state, history)
   attachWhiteboardTables(store, state, history)
+  attachWhiteboardFramesStamps(store, state, history)
   // Generic per-type model update (e.g. sketch-style toggle) as one undoable unit.
   store.updateWhiteboardModel = (label, mutatorFn) => {
     if (!state.whiteboard) return
@@ -223,6 +229,35 @@ function attachWhiteboardTables(store, state, history) {
   store.removeTable = (id) => {
     if (!state.whiteboard) return
     history.commit('Delete table', () => removeTable(state.whiteboard, id))
+  }
+}
+
+// Frames (titled sections, 15.3) + reaction stamps (15.5). One undoable unit each.
+function attachWhiteboardFramesStamps(store, state, history) {
+  store.addFrame = (x, y, w, h, partial = {}) => {
+    if (!state.whiteboard) return null
+    let id = null
+    history.commit('Add frame', () => (id = addFrame(state.whiteboard, x, y, w, h, partial)))
+    return id
+  }
+  store.updateFrame = (id, patch) =>
+    history.commit('Update frame', () => {
+      const frame = frameById(state.whiteboard || {}, id)
+      if (frame) applyPatch(frame, patch)
+    })
+  store.removeFrame = (id) => {
+    if (!state.whiteboard) return
+    history.commit('Delete frame', () => removeFrame(state.whiteboard, id))
+  }
+  store.addStamp = (x, y, kind) => {
+    if (!state.whiteboard) return null
+    let id = null
+    history.commit('Add stamp', () => (id = addStamp(state.whiteboard, x, y, kind)))
+    return id
+  }
+  store.removeStamp = (id) => {
+    if (!state.whiteboard) return
+    history.commit('Delete stamp', () => removeStamp(state.whiteboard, id))
   }
 }
 

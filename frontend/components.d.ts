@@ -65,6 +65,7 @@ declare module 'vue' {
     TransparencySection: typeof import('./src/components/palette-right/TransparencySection.vue')['default']
     TrashView: typeof import('./src/components/home/TrashView.vue')['default']
     ViewerPage: typeof import('./src/components/viewer/ViewerPage.vue')['default']
+    WhiteboardFrame: typeof import('./src/components/canvas/WhiteboardFrame.vue')['default']
     WhiteboardLayer: typeof import('./src/components/canvas/WhiteboardLayer.vue')['default']
     WhiteboardLine: typeof import('./src/components/canvas/WhiteboardLine.vue')['default']
     WhiteboardMinimap: typeof import('./src/components/canvas/WhiteboardMinimap.vue')['default']

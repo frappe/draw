@@ -15,7 +15,7 @@ import { contrastInk } from '@/diagram/whiteboardColors.js'
 import { registerModeInteraction, useModeInteraction } from '@/composables/useModeInteraction.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { simplifyStroke } from '@/diagram/strokeSimplify.js'
-import { strokeAt, lineAt, tableAt, tableCellAt } from '@/diagram/whiteboardModel.js'
+import { strokeAt, lineAt, tableAt, tableCellAt, frameHeaderAt, stampAt } from '@/diagram/whiteboardModel.js'
 import { HIGHLIGHTER_WIDTH } from '@/diagram/whiteboardColors.js'
 
 const ERASER_TOLERANCE = 6 // canvas units of slack around a stroke path
@@ -26,11 +26,13 @@ export function useWhiteboardInteraction(store, editorUi) {
   const drawing = { active: false, points: [] }
   const erasing = { active: false }
   const lining = { active: false, start: null }
+  const framing = { active: false, start: null }
+  const ctx = { store, editorUi, ui, drawing, erasing, lining, framing }
 
   const handlers = {
-    onPointerDown: (event, context) => onPointerDown(event, context, store, editorUi, ui, drawing, erasing, lining),
-    onPointerMove: (event, context) => onPointerMove(event, context, ui, drawing, erasing, store, lining),
-    onPointerUp: (event, context) => onPointerUp(event, context, store, ui, drawing, erasing, lining),
+    onPointerDown: (event, context) => onPointerDown(event, context, ctx),
+    onPointerMove: (event, context) => onPointerMove(event, context, ui, drawing, erasing, store, lining, framing),
+    onPointerUp: (event, context) => onPointerUp(event, context, store, ui, drawing, erasing, lining, framing),
     onDoubleClick: (event, context) => onDoubleClick(context, store),
   }
   registerModeInteraction(interactionRef, handlers)
@@ -39,8 +41,9 @@ export function useWhiteboardInteraction(store, editorUi) {
   return { ui }
 }
 
-function onPointerDown(event, context, store, editorUi, ui, drawing, erasing, lining) {
+function onPointerDown(event, context, ctx) {
   if (event.button !== 0) return
+  const { store, editorUi, ui, drawing, erasing, lining, framing } = ctx
   const tool = editorUi.state.tool
   if (tool === 'pen' || tool === 'highlighter') return beginStroke(context, ui, drawing, tool)
   if (tool === 'eraser') return beginErase(context, store, erasing)
@@ -48,7 +51,22 @@ function onPointerDown(event, context, store, editorUi, ui, drawing, erasing, li
   if (tool === 'sticky') return placeSticky(context, store, ui)
   if (tool === 'line') return beginLine(context, ui, lining)
   if (tool === 'table') return placeTable(context, store, editorUi, ui)
+  if (tool === 'frame') return beginFrame(context, ui, framing)
+  if (tool === 'stamp') return placeStamp(context, store, editorUi, ui)
   if (tool === 'select') return selectAt(context, store, ui)
+}
+
+// Start dragging out a frame; the live preview renders from ui.liveFrame.
+function beginFrame(context, ui, framing) {
+  framing.active = true
+  framing.start = context.point
+  ui.liveFrame.value = { x: context.point.x, y: context.point.y, w: 0, h: 0, title: 'Frame' }
+}
+
+// Drop a reaction/vote stamp at the click and stay on the tool (so you can keep
+// stamping — e.g. dot-voting), per spec 15.5.
+function placeStamp(context, store, editorUi, ui) {
+  store.addStamp(context.point.x, context.point.y, ui.state.stampKind)
 }
 
 // Start a straight line; the live preview renders from ui.liveLine until pointer-up.
@@ -91,7 +109,7 @@ function beginErase(context, store, erasing) {
   eraseAt(context.point, store)
 }
 
-function onPointerMove(event, context, ui, drawing, erasing, store, lining) {
+function onPointerMove(event, context, ui, drawing, erasing, store, lining, framing) {
   if (drawing.active) {
     drawing.points.push(context.point)
     // Re-assign so the live preview re-renders (a pushed array isn't reactive).
@@ -102,14 +120,36 @@ function onPointerMove(event, context, ui, drawing, erasing, store, lining) {
     ui.liveLine.value = { ...ui.liveLine.value, x2: context.point.x, y2: context.point.y }
     return
   }
+  if (framing.active) {
+    const s = framing.start
+    const p = context.point
+    ui.liveFrame.value = { x: Math.min(s.x, p.x), y: Math.min(s.y, p.y), w: Math.abs(p.x - s.x), h: Math.abs(p.y - s.y), title: 'Frame' }
+    return
+  }
   if (erasing.active) return eraseAt(context.point, store)
   if (context.editorUi.state.tool === 'laser') return ui.pushLaserPoint(context.point)
 }
 
-function onPointerUp(event, context, store, ui, drawing, erasing, lining) {
+function onPointerUp(event, context, store, ui, drawing, erasing, lining, framing) {
   if (drawing.active) return finishStroke(ui, drawing, store)
   if (lining.active) return finishLine(ui, lining, store)
+  if (framing.active) return finishFrame(ui, framing, store, context.editorUi)
   if (erasing.active) erasing.active = false
+}
+
+// Commit the frame on pointer-up; a too-small drag drops a default-sized frame.
+function finishFrame(ui, framing, store, editorUi) {
+  framing.active = false
+  const live = ui.liveFrame.value
+  ui.liveFrame.value = null
+  const start = framing.start
+  framing.start = null
+  if (!live) return
+  const w = live.w < 40 ? 320 : live.w
+  const h = live.h < 40 ? 220 : live.h
+  const id = store.addFrame(live.w < 40 ? start.x : live.x, live.h < 40 ? start.y : live.y, w, h)
+  editorUi.setTool('select')
+  ui.selectFrame(id)
 }
 
 // Commit the line on pointer-up; discard a degenerate (zero-length) drag.
@@ -162,12 +202,19 @@ function placeSticky(context, store, ui) {
 // own pointerdown in the layer. Empty click clears.
 function selectAt(context, store, ui) {
   const model = store.state.whiteboard
+  // Stamps are small and on top → highest pick priority.
+  const stamp = stampAt(model, context.point)
+  if (stamp) return ui.selectStamp(stamp.id)
   const table = tableAt(model, context.point)
   if (table) return ui.selectTable(table.id)
   const line = lineAt(model, context.point, ERASER_TOLERANCE)
   if (line) return ui.selectLine(line.id)
   const stroke = strokeAt(model, context.point, ERASER_TOLERANCE)
   if (stroke) return ui.selectStroke(stroke.id)
+  // Frames sit behind everything: only their title strip selects them, so a
+  // click on the frame body still falls through to clear/empty.
+  const frame = frameHeaderAt(model, context.point)
+  if (frame) return ui.selectFrame(frame.id)
   ui.clearSelection()
 }
 

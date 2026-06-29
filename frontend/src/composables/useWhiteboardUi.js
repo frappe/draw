@@ -27,7 +27,10 @@ function createWhiteboardUi() {
     // Default grid size for new tables.
     tableRows: 3,
     tableCols: 3,
-    // The selected whiteboard object: { kind:'stroke'|'sticky'|'line'|'table', id }.
+    // Stamp kind dropped by the stamp tool (emoji or 'dot' for dot-voting, 15.5).
+    stampKind: '👍',
+    // The selected whiteboard object:
+    // { kind:'stroke'|'sticky'|'line'|'table'|'frame'|'stamp', id }.
     selected: null,
     // The table cell being edited inline: { tableId, row, col } or null.
     editingCell: null,
@@ -39,7 +42,9 @@ function createWhiteboardUi() {
   const liveStroke = ref(null)
   // The line being dragged right now (preview), or null.
   const liveLine = ref(null)
-  const api = { state, laserTrail: readonly(laserTrail), liveStroke, liveLine }
+  // The frame being dragged out right now (preview), or null (spec 15.3).
+  const liveFrame = ref(null)
+  const api = { state, laserTrail: readonly(laserTrail), liveStroke, liveLine, liveFrame }
   attachSelection(api, state)
   attachLaser(api, laserTrail)
   return api
@@ -50,6 +55,8 @@ function attachSelection(api, state) {
   api.selectSticky = (id) => (state.selected = { kind: 'sticky', id })
   api.selectLine = (id) => (state.selected = { kind: 'line', id })
   api.selectTable = (id) => (state.selected = { kind: 'table', id })
+  api.selectFrame = (id) => (state.selected = { kind: 'frame', id })
+  api.selectStamp = (id) => (state.selected = { kind: 'stamp', id })
   api.clearSelection = () => (state.selected = null)
 }
 

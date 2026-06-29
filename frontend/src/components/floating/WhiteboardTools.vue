@@ -11,6 +11,7 @@ import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { CHALK_COLORS, STICKY_COLORS, PEN_WIDTHS, BOARD_BACKGROUNDS } from '@/diagram/whiteboardColors.js'
+import { tidyStickyNotes } from '@/diagram/whiteboardModel.js'
 import LineOptions from './LineOptions.vue'
 import TableOptions from './TableOptions.vue'
 import WhiteboardSelectionEditor from './WhiteboardSelectionEditor.vue'
@@ -30,10 +31,18 @@ const TOOLS = [
   { tool: 'sticky', icon: 'square', label: 'Sticky note' },
   { tool: 'line', icon: 'minus', label: 'Line' },
   { tool: 'table', icon: 'grid', label: 'Table' },
+  { tool: 'frame', icon: 'layout', label: 'Frame / section' },
+  { tool: 'stamp', icon: 'award', label: 'Stamp / vote' },
   { tool: 'laser', icon: 'zap', label: 'Laser pointer' },
 ]
 // Tools that expose options in the disclosure popover.
-const OPTION_TOOLS = ['pen', 'highlighter', 'sticky', 'line', 'table']
+const OPTION_TOOLS = ['pen', 'highlighter', 'sticky', 'line', 'table', 'stamp']
+// Stamp glyphs offered by the stamp tool ('dot' = a vote dot for dot-voting).
+const STAMPS = ['👍', '❤️', '⭐', '✅', '🔥', '🎉', '❓', 'dot']
+
+function tidyStickies() {
+  store.updateWhiteboardModel('Tidy stickies', (m) => tidyStickyNotes(m))
+}
 
 const activeTool = computed(() => editorUi.state.tool)
 const activeHasOptions = computed(() => OPTION_TOOLS.includes(activeTool.value))
@@ -172,6 +181,24 @@ function applyTableDefault(patch) {
         :color="ui.state.penColor"
         @change="applyTableDefault"
       />
+
+      <!-- Stamp: which glyph the stamp tool drops (dot = a vote dot). -->
+      <div v-else-if="activeTool === 'stamp'" class="w-48 p-2">
+        <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Stamp</div>
+        <div class="grid grid-cols-8 gap-1.5">
+          <button
+            v-for="s in STAMPS"
+            :key="s"
+            class="flex h-6 w-6 items-center justify-center rounded text-[16px] leading-none"
+            :class="ui.state.stampKind === s ? 'bg-surface-gray-3' : 'hover:bg-surface-gray-2'"
+            :aria-label="`Stamp ${s}`"
+            @click="ui.state.stampKind = s"
+          >
+            <span v-if="s === 'dot'" class="h-3.5 w-3.5 rounded-full bg-[#E03636]" />
+            <span v-else>{{ s }}</span>
+          </button>
+        </div>
+      </div>
     </template>
   </Popover>
 
@@ -200,8 +227,12 @@ function applyTableDefault(patch) {
             {{ bg.label }}
           </button>
         </div>
-        <Button class="mb-3 w-full" :variant="sketchOn() ? 'solid' : 'subtle'" @click="toggleSketch">
+        <Button class="mb-2 w-full" :variant="sketchOn() ? 'solid' : 'subtle'" @click="toggleSketch">
           {{ sketchOn() ? 'Sketch style: on' : 'Sketch style: off' }}
+        </Button>
+        <Button class="mb-3 w-full" variant="subtle" @click="tidyStickies">
+          <template #prefix><FeatherIcon name="grid" class="h-4 w-4" /></template>
+          Tidy sticky notes
         </Button>
         <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Navigator</div>
         <WhiteboardMinimap />

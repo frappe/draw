@@ -18,6 +18,7 @@ import { stickyNoteById } from '@/diagram/whiteboardModel.js'
 const TOOL_KEYS = {
   v: 'select', p: 'pen', h: 'highlighter', e: 'eraser',
   t: 'text', s: 'sticky', l: 'laser', n: 'line', g: 'table',
+  f: 'frame', m: 'stamp',
 }
 
 export function whiteboardKeydown(event, store, editorUi) {
@@ -72,6 +73,8 @@ function deleteSelected(store, ui) {
     sticky: store.removeStickyNote,
     line: store.removeLine,
     table: store.removeTable,
+    frame: store.removeFrame,
+    stamp: store.removeStamp,
   }[selected.kind]
   remove?.(selected.id)
   ui.clearSelection()

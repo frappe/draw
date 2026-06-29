@@ -62,8 +62,98 @@ export function makeTable(x, y, partial = {}) {
   }
 }
 
+// A titled section/frame that visually groups content (spec 15.3). Rendered
+// behind everything; its title strip is the grab handle so clicking inside the
+// frame still reaches the content.
+export function makeFrame(x, y, w, h, partial = {}) {
+  return {
+    id: nextId('wf'),
+    x,
+    y,
+    w: Math.max(80, w),
+    h: Math.max(60, h),
+    title: partial.title || 'Frame',
+    color: partial.color || '#6E56CF',
+  }
+}
+
+// A reaction / vote stamp dropped on the board (spec 15.5). `kind` is an emoji
+// (👍 ❤️ …) or 'dot' for dot-voting.
+export function makeStamp(x, y, kind = '👍') {
+  return { id: nextId('ws'), x, y, kind }
+}
+
 export function createWhiteboard(sketchStyle = false) {
-  return { sketchStyle, strokes: [], stickyNotes: [], lines: [], tables: [] }
+  return { sketchStyle, strokes: [], stickyNotes: [], lines: [], tables: [], frames: [], stamps: [] }
+}
+
+export const FRAME_HEADER_H = 26
+
+export function frameById(model, id) {
+  return (model.frames || []).find((f) => f.id === id)
+}
+
+export function addFrame(model, x, y, w, h, partial = {}) {
+  const frame = makeFrame(x, y, w, h, partial)
+  if (!model.frames) model.frames = []
+  model.frames.push(frame)
+  return frame.id
+}
+
+export function removeFrame(model, id) {
+  model.frames = (model.frames || []).filter((f) => f.id !== id)
+}
+
+// The frame whose title strip is under the point (so the body stays click-through
+// to its contents). Topmost (last drawn) wins.
+export function frameHeaderAt(model, point) {
+  let hit = null
+  for (const f of model.frames || []) {
+    if (point.x >= f.x && point.x <= f.x + f.w && point.y >= f.y && point.y <= f.y + FRAME_HEADER_H) hit = f
+  }
+  return hit
+}
+
+export function stampById(model, id) {
+  return (model.stamps || []).find((s) => s.id === id)
+}
+
+export function addStamp(model, x, y, kind) {
+  const stamp = makeStamp(x, y, kind)
+  if (!model.stamps) model.stamps = []
+  model.stamps.push(stamp)
+  return stamp.id
+}
+
+export function removeStamp(model, id) {
+  model.stamps = (model.stamps || []).filter((s) => s.id !== id)
+}
+
+const STAMP_RADIUS = 16
+export function stampAt(model, point) {
+  let hit = null
+  for (const s of model.stamps || []) {
+    if (Math.hypot(point.x - s.x, point.y - s.y) <= STAMP_RADIUS) hit = s
+  }
+  return hit
+}
+
+// Arrange all sticky notes into a tidy left-to-right, top-to-bottom grid (spec
+// 15.4), preserving their current reading order. Operates in place.
+export function tidyStickyNotes(model, columns = 0) {
+  const notes = model.stickyNotes || []
+  if (!notes.length) return
+  const ordered = [...notes].sort((a, b) => a.y - b.y || a.x - b.x)
+  const gap = 24
+  const cellW = ordered[0].w + gap
+  const cellH = ordered[0].h + gap
+  const cols = columns || Math.max(1, Math.ceil(Math.sqrt(ordered.length)))
+  const originX = Math.min(...ordered.map((n) => n.x))
+  const originY = Math.min(...ordered.map((n) => n.y))
+  ordered.forEach((note, i) => {
+    note.x = originX + (i % cols) * cellW
+    note.y = originY + Math.floor(i / cols) * cellH
+  })
 }
 
 export function tableById(model, id) {
