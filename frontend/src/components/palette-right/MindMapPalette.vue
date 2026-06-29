@@ -18,6 +18,8 @@ const store = useDiagramStore()
 const FILL_SWATCHES = ['#EFEAFE', '#EFF6FF', '#F4FFF6', '#FDFAED', '#FCEAF5', '#F3F3F3']
 const FONT_SIZES = [12, 14, 17, 22]
 const MARKER_ICONS = ['star', 'flag', 'check-circle', 'alert-circle', 'heart', 'zap']
+// Curated emoji shown before a node's label (spec 13.3).
+const EMOJIS = ['💡', '✅', '⭐', '🔥', '⚠️', '❤️', '📌', '🎯', '🚀', '📝', '❓', '👍']
 
 const selectedIds = computed(() => store.state.selection.filter(byNodeId))
 const reference = computed(() => nodeById(selectedIds.value[0]))
@@ -54,6 +56,11 @@ function setMarkerIcon(icon) {
 
 function setNote(text) {
   patchSelected({ note: text })
+}
+
+function setEmoji(emoji) {
+  const next = reference.value?.emoji === emoji ? null : emoji
+  patchSelected({ emoji: next })
 }
 
 const branchSwatches = computed(() => branchPalette(store.state.themePreset))
@@ -142,6 +149,23 @@ const isEmpty = computed(() => (store.state.mindmap?.nodes.length ?? 0) <= 1)
         :disabled="!hasSelection"
         @click="setMarkerColor(color)"
       />
+    </div>
+  </PaletteSection>
+
+  <PaletteSection label="Emoji">
+    <div class="flex flex-wrap gap-1.5">
+      <button
+        v-for="emoji in EMOJIS"
+        :key="emoji"
+        class="flex h-[26px] w-[26px] items-center justify-center rounded-md border text-[15px] leading-none disabled:opacity-40"
+        :class="reference?.emoji === emoji ? 'border-blue-500 bg-blue-50' : 'border-outline-gray-1'"
+        :disabled="!hasSelection"
+        :aria-label="`Emoji ${emoji}`"
+        :aria-pressed="reference?.emoji === emoji"
+        @click="setEmoji(emoji)"
+      >
+        {{ emoji }}
+      </button>
     </div>
   </PaletteSection>
 

@@ -7,12 +7,20 @@ import { Select, Switch } from 'frappe-ui'
 import PaletteSection from './PaletteSection.vue'
 import { CANVAS_PRESETS } from '@/diagram/canvasPresets.js'
 import { findPreset } from '@/diagram/canvasPresets.js'
+import { THEME_PRESET_NAMES, findThemePreset } from '@/diagram/theme.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
 const backgrounds = [null, '#FFFFFF', '#F8F8F8', '#EFF6FF', '#FDFAED', '#FCEAF5']
+
+// Coordinated colour themes (spec 8.1). Each chip previews the preset's three
+// triad fills; applying re-paints shapes that still wear the old theme's triad.
+const themes = THEME_PRESET_NAMES.map((name) => {
+  const preset = findThemePreset(name)
+  return { name, label: preset.label, swatches: [preset.t.fill, preset.t2.fill, preset.t3.fill], stroke: preset.t.stroke }
+})
 
 const presetOptions = computed(() =>
   CANVAS_PRESETS.map((preset) => ({
@@ -53,6 +61,28 @@ function applyPreset(name) {
         @click="store.setCanvas({ background: color })"
       >
         <span v-if="color === null" class="text-[9px] text-ink-gray-4">∅</span>
+      </button>
+    </div>
+
+    <!-- Coordinated colour themes (spec 8.1). -->
+    <div class="mb-1 mt-3 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Theme</div>
+    <div class="flex gap-1.5">
+      <button
+        v-for="theme in themes"
+        :key="theme.name"
+        class="flex h-8 flex-1 items-center justify-center gap-0.5 rounded-md border"
+        :class="store.state.themePreset === theme.name ? 'border-[1.5px] border-ink-gray-9' : 'border-outline-gray-2 hover:border-outline-gray-3'"
+        :title="theme.label"
+        :aria-label="`Theme ${theme.label}`"
+        :aria-pressed="store.state.themePreset === theme.name"
+        @click="store.applyTheme(theme.name)"
+      >
+        <span
+          v-for="(color, i) in theme.swatches"
+          :key="i"
+          class="h-3.5 w-3.5 rounded-[3px] border"
+          :style="{ background: color, borderColor: theme.stroke }"
+        />
       </button>
     </div>
 

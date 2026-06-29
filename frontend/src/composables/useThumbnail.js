@@ -149,8 +149,9 @@ function mindmapNode(model, node, box, preset) {
   const fontSize = node.fontSize || (isRoot(model, node.id) ? 17 : 14)
   const fontWeight = isRoot(model, node.id) ? 700 : 500
   const rect = `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${box.h / 2}" fill="${fill}" stroke="${color}" stroke-width="${strokeWidth}"/>`
-  const text = node.text
-    ? `<text x="${box.x + box.w / 2}" y="${box.y + box.h / 2}" text-anchor="middle" dominant-baseline="central" fill="${ink}" font-size="${fontSize}" font-weight="${fontWeight}" font-family="Inter, sans-serif">${escapeText(node.text)}</text>`
+  const label = (node.emoji ? node.emoji + '  ' : '') + (node.text || '')
+  const text = label
+    ? `<text x="${box.x + box.w / 2}" y="${box.y + box.h / 2}" text-anchor="middle" dominant-baseline="central" fill="${ink}" font-size="${fontSize}" font-weight="${fontWeight}" font-family="Inter, sans-serif">${escapeText(label)}</text>`
     : ''
   return rect + text
 }

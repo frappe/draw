@@ -33,6 +33,7 @@ declare module 'vue' {
     HoverArrows: typeof import('./src/components/canvas/HoverArrows.vue')['default']
     LeftPalette: typeof import('./src/components/palette-left/LeftPalette.vue')['default']
     LineOptions: typeof import('./src/components/floating/LineOptions.vue')['default']
+    LinkSection: typeof import('./src/components/palette-right/LinkSection.vue')['default']
     Logomark: typeof import('./src/components/Logomark.vue')['default']
     MindMapNodeLayer: typeof import('./src/components/canvas/MindMapNodeLayer.vue')['default']
     MindMapOutline: typeof import('./src/components/canvas/MindMapOutline.vue')['default']

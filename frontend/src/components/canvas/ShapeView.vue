@@ -234,6 +234,28 @@ useAutoFitText(richEl, () => ({
       <div ref="richEl" class="fd-richtext" :style="richStyle" v-html="richHtml" />
     </foreignObject>
 
+    <!-- Hyperlink badge (spec 6.5): opens the shape's link in a new tab. Sits at
+         the top-right corner; click is isolated so it never moves/deselects. -->
+    <a
+      v-if="shape.link"
+      :href="shape.link"
+      target="_blank"
+      rel="noopener noreferrer"
+      style="cursor: pointer"
+      @pointerdown.stop
+      @click.stop
+    >
+      <title>{{ shape.link }}</title>
+      <circle :cx="shape.x + shape.w - 13" :cy="shape.y + 13" r="9" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1" />
+      <text
+        :x="shape.x + shape.w - 13"
+        :y="shape.y + 13"
+        text-anchor="middle"
+        dominant-baseline="central"
+        font-size="10"
+      >🔗</text>
+    </a>
+
     <!-- Legacy plain text (shapes saved before rich text). -->
     <text
       v-else-if="!isEditingThis && shape.text?.content"

@@ -352,7 +352,7 @@ function isDropTarget(id) {
           style="font-family: Inter, sans-serif; pointer-events: none"
           @dblclick="startEdit($event, node.id)"
         >
-          {{ node.text || 'New idea' }}
+          {{ (node.emoji ? node.emoji + '  ' : '') + (node.text || 'New idea') }}
         </text>
         <!-- Transparent hit-rect for double-click-to-edit over the whole pill. -->
         <rect

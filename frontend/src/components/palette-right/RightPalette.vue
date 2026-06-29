@@ -12,6 +12,7 @@ import DistributeSizeSection from './DistributeSizeSection.vue'
 import TransformSection from './TransformSection.vue'
 import FillBorderSection from './FillBorderSection.vue'
 import TextSection from './TextSection.vue'
+import LinkSection from './LinkSection.vue'
 import TransparencySection from './TransparencySection.vue'
 import CanvasSection from './CanvasSection.vue'
 import ConnectorSection from './ConnectorSection.vue'
@@ -93,6 +94,7 @@ function capitalize(value) {
         <TransformSection />
         <FillBorderSection />
         <TextSection />
+        <LinkSection />
         <TransparencySection />
       </div>
       <CanvasSection />
