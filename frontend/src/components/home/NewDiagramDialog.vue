@@ -36,6 +36,9 @@ const TYPE_TITLE = {
 // Step state: which type's templates are showing (null → the type grid).
 const selectedType = ref(null)
 const templates = computed(() => (selectedType.value ? allTemplates(selectedType.value) : []))
+// Blank is the primary path; the rest are templates shown below it.
+const blankTemplate = computed(() => templates.value.find((t) => t.key === 'blank'))
+const otherTemplates = computed(() => templates.value.filter((t) => t.key !== 'blank'))
 const dialogTitle = computed(() =>
   selectedType.value ? `Start a ${typeName(selectedType.value)}` : 'Create a new diagram',
 )
@@ -111,32 +114,53 @@ function close() {
         </div>
       </div>
 
-      <!-- Step 2: choose a template for the picked type. -->
+      <!-- Step 2: blank canvas is the primary path; templates sit below it. -->
       <div v-else>
         <button class="mb-3 flex items-center gap-1 text-[12px] text-ink-gray-6 hover:text-ink-gray-9" @click="back">
           <FeatherIcon name="chevron-left" class="h-4 w-4" /> All types
         </button>
-        <div class="grid grid-cols-3 gap-2.5">
-          <div v-for="t in templates" :key="t.key" class="group relative">
-            <button
-              class="flex h-full w-full flex-col gap-1 rounded-md border border-outline-gray-2 p-3.5 text-left transition-colors hover:border-ink-gray-9 hover:bg-surface-gray-1"
-              @click="pickTemplate(t)"
-            >
-              <FeatherIcon :name="t.key === 'blank' ? 'file' : 'layout'" class="h-[18px] w-[18px] text-ink-gray-7" />
-              <div class="text-[13px] font-semibold text-ink-gray-9">{{ t.name }}</div>
-              <div class="text-[11px] text-ink-gray-5">{{ t.hint }}</div>
-            </button>
-            <button
-              v-if="t.saved"
-              class="absolute right-1.5 top-1.5 hidden h-5 w-5 items-center justify-center rounded text-ink-gray-5 hover:bg-surface-gray-3 group-hover:flex"
-              title="Delete template"
-              aria-label="Delete template"
-              @click.stop="removeTemplate(t)"
-            >
-              <FeatherIcon name="x" class="h-3.5 w-3.5" />
-            </button>
+
+        <!-- Primary: start with a blank canvas (occupies the most real estate). -->
+        <button
+          v-if="blankTemplate"
+          class="flex w-full items-center gap-3.5 rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-4 text-left transition-colors hover:border-ink-gray-9 hover:bg-surface-gray-2"
+          @click="pickTemplate(blankTemplate)"
+        >
+          <div class="flex h-11 w-11 flex-none items-center justify-center rounded-md bg-surface-white shadow-sm">
+            <FeatherIcon name="file-plus" class="h-5 w-5 text-ink-gray-8" />
           </div>
-        </div>
+          <div>
+            <div class="text-[15px] font-semibold text-ink-gray-9">Start with a blank canvas</div>
+            <div class="text-[12px] text-ink-gray-5">An empty {{ typeName(selectedType) }} — build it your way</div>
+          </div>
+          <FeatherIcon name="arrow-right" class="ml-auto h-4 w-4 text-ink-gray-5" />
+        </button>
+
+        <!-- Secondary: choose from templates. -->
+        <template v-if="otherTemplates.length">
+          <p class="mb-2 mt-5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Or choose a template</p>
+          <div class="grid grid-cols-3 gap-2.5">
+            <div v-for="t in otherTemplates" :key="t.key" class="group relative">
+              <button
+                class="flex h-full w-full flex-col gap-1 rounded-md border border-outline-gray-2 p-3 text-left transition-colors hover:border-ink-gray-9 hover:bg-surface-gray-1"
+                @click="pickTemplate(t)"
+              >
+                <FeatherIcon name="layout" class="h-[18px] w-[18px] text-ink-gray-7" />
+                <div class="text-[13px] font-semibold text-ink-gray-9">{{ t.name }}</div>
+                <div class="text-[11px] text-ink-gray-5">{{ t.hint }}</div>
+              </button>
+              <button
+                v-if="t.saved"
+                class="absolute right-1.5 top-1.5 hidden h-5 w-5 items-center justify-center rounded text-ink-gray-5 hover:bg-surface-gray-3 group-hover:flex"
+                title="Delete template"
+                aria-label="Delete template"
+                @click.stop="removeTemplate(t)"
+              >
+                <FeatherIcon name="x" class="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </template>
       </div>
     </template>
   </Dialog>

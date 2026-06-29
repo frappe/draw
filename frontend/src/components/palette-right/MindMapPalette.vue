@@ -11,9 +11,21 @@ import PaletteSection from './PaletteSection.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { branchPalette } from '@/diagram/mindmapColors.js'
 import { collapseAll, clearMap } from '@/diagram/mindmapOperations.js'
-import { mindmapUi, selectedNodeId } from '@/stores/mindmapUi.js'
+import { mindmapUi, selectedNodeId, selectNode, beginEdit } from '@/stores/mindmapUi.js'
+import { useEditorUi } from '@/stores/useEditorUi.js'
 
 const store = useDiagramStore()
+const editorUi = useEditorUi()
+
+// A blank map has no root yet (spec: truly blank). Offer to add the first idea.
+const isBlank = computed(() => (store.state.mindmap?.nodes.length ?? 0) === 0)
+function addFirstIdea() {
+  const id = store.addRootNode('')
+  if (!id) return
+  selectNode(store, id)
+  beginEdit(id)
+  setTimeout(() => editorUi.fit?.(), 0)
+}
 
 const FILL_SWATCHES = ['#EFEAFE', '#EFF6FF', '#F4FFF6', '#FDFAED', '#FCEAF5', '#F3F3F3']
 const FONT_SIZES = [12, 14, 17, 22]
@@ -71,8 +83,9 @@ function startCrosslink() {
   mindmapUi.pendingLinkSource = selectedNodeId(store)
 }
 
-// Empty state (A10): only the root exists — show the keyboard hint over the map.
-const isEmpty = computed(() => (store.state.mindmap?.nodes.length ?? 0) <= 1)
+// Hint shown once the root exists but has no children yet (A10). A truly empty
+// map (0 nodes) shows the canvas "Add your first idea" prompt instead.
+const isEmpty = computed(() => (store.state.mindmap?.nodes.length ?? 0) === 1)
 </script>
 
 <template>
@@ -192,6 +205,17 @@ const isEmpty = computed(() => (store.state.mindmap?.nodes.length ?? 0) <= 1)
       <FeatherIcon name="trash-2" class="h-3.5 w-3.5" /> Clear map
     </button>
   </PaletteSection>
+
+  <!-- Truly-blank map (no root yet): a centered, clickable prompt to begin. -->
+  <Teleport to="body">
+    <button
+      v-if="isBlank"
+      class="pointer-events-auto fixed left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-dashed border-outline-gray-3 bg-surface-white px-5 py-3 text-[14px] font-medium text-ink-gray-7 shadow-sm hover:border-ink-gray-8 hover:text-ink-gray-9"
+      @click="addFirstIdea"
+    >
+      <FeatherIcon name="plus" class="h-4 w-4" /> Add your first idea
+    </button>
+  </Teleport>
 
   <!-- Empty-state hint (A10), shown over the canvas when only the root exists.
        Solid dark pill (explicit color so it never washes out on the canvas). -->

@@ -5,6 +5,8 @@
 
 import { ref } from 'vue'
 import { builtinTemplates } from '@/diagram/templates.js'
+import { createDiagramDocument } from '@/diagram/schema.js'
+import { createEmptyMindMap } from '@/diagram/mindmapModel.js'
 
 const KEY = 'frappe-draw-templates'
 
@@ -46,8 +48,18 @@ export function deleteTemplate(id) {
 }
 
 // Gallery entries for a type: Blank, then built-ins, then the user's saved ones.
+// Blank starting document. Block/flowchart/whiteboard are empty by default
+// (null → createDiagram builds a fresh empty doc); a blank mind map must start
+// with NO root node, so it gets an explicitly empty mindmap (spec: truly blank).
+function blankDocument(type) {
+  if (type === 'mindmap') {
+    return { ...createDiagramDocument(undefined, 'mindmap'), mindmap: createEmptyMindMap(), themePreset: 'ocean' }
+  }
+  return null
+}
+
 export function allTemplates(type) {
-  const blank = { key: 'blank', name: 'Blank', hint: 'Empty canvas', build: () => null }
+  const blank = { key: 'blank', name: 'Blank', hint: 'Empty canvas', build: () => blankDocument(type) }
   const builtins = builtinTemplates(type)
   const saved = savedTemplates.value
     .filter((t) => t.type === type)

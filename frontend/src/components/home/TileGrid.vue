@@ -118,6 +118,24 @@ function clearSelection() {
   selected.clear()
 }
 
+// The diagrams selectable in the current view (folders excluded), so Select all
+// grabs exactly what's on screen.
+const currentDiagrams = computed(() => {
+  if (props.mode === 'recent') return recentList.value
+  if (props.mode === 'all') return allFlat.value
+  return [...pinned.value, ...files.value]
+})
+const allSelected = computed(
+  () => currentDiagrams.value.length > 0 && currentDiagrams.value.every((d) => selected.has(d.name)),
+)
+function selectAll() {
+  currentDiagrams.value.forEach((d) => selected.add(d.name))
+}
+function toggleSelectAll() {
+  if (allSelected.value) clearSelection()
+  else selectAll()
+}
+
 const confirmDelete = reactive({ open: false, names: [] })
 function askDelete(names) {
   confirmDelete.names = names
@@ -210,6 +228,10 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
     <div class="mb-5 flex h-9 items-center gap-2">
       <template v-if="selectedCount">
         <span class="text-[13px] font-semibold text-ink-gray-9">{{ selectedCount }} selected</span>
+        <Button variant="subtle" @click="toggleSelectAll">
+          <template #prefix><FeatherIcon :name="allSelected ? 'square' : 'check-square'" class="h-4 w-4" /></template>
+          {{ allSelected ? 'Deselect all' : 'Select all' }}
+        </Button>
         <Button variant="subtle" theme="red" @click="deleteSelected">
           <template #prefix><FeatherIcon name="trash-2" class="h-4 w-4" /></template>
           Delete
@@ -222,6 +244,10 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
         <TextInput v-model="query" type="text" placeholder="Find a diagram" class="max-w-md flex-1">
           <template #prefix><FeatherIcon name="search" class="h-3.5 w-3.5 text-ink-gray-5" /></template>
         </TextInput>
+        <Button v-if="currentDiagrams.length" variant="subtle" @click="selectAll">
+          <template #prefix><FeatherIcon name="check-square" class="h-4 w-4" /></template>
+          Select all
+        </Button>
         <Dropdown :options="typeOptions" placement="bottom-start">
           <Button variant="subtle">
             <template #prefix><FeatherIcon name="filter" class="h-4 w-4" /></template>

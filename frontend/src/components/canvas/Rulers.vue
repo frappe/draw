@@ -5,6 +5,7 @@
 import { computed } from 'vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
+import { mindmapUi } from '@/stores/mindmapUi.js'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
@@ -13,11 +14,18 @@ const props = defineProps({
 const editorUi = useEditorUi()
 const editing = useTextEditing()
 
-const shown = computed(() => props.visible || Boolean(editing?.isEditing.value))
+// Show while editing any text: shared text boxes/shapes (block + whiteboard) or a
+// mind-map node. Rulers help line things up the moment you start typing (spec §6).
+const shown = computed(
+  () => props.visible || Boolean(editing?.isEditing.value) || Boolean(mindmapUi.editingId),
+)
 
-const THICKNESS = 24
+const THICKNESS = 22
 const MIN_TICK_GAP = 60 // minimum screen px between major ticks
-const TICK_LINE = '1px solid #B6B6BD' // explicit so it reads on white paper too
+// Explicit colours so the ruler reads clearly over the white canvas.
+const RULER_BG = '#F1F1F4'
+const RULER_BORDER = '1px solid #C7C7CE'
+const TICK_LINE = '1px solid #9A9AA3'
 
 // Logical units between major ticks, snapped to a 1/2/5 ladder so the on-screen
 // gap never drops below MIN_TICK_GAP at the current zoom.
@@ -55,38 +63,38 @@ const verticalTicks = computed(() =>
   <div v-if="shown" data-rulers class="pointer-events-none absolute inset-0">
     <!-- Top ruler -->
     <div
-      class="absolute left-0 top-0 bg-surface-white shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
-      :style="{ height: THICKNESS + 'px', left: THICKNESS + 'px', right: 0, borderBottom: TICK_LINE }"
+      class="absolute left-0 top-0 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+      :style="{ height: THICKNESS + 'px', left: THICKNESS + 'px', right: 0, background: RULER_BG, borderBottom: RULER_BORDER }"
     >
       <div
         v-for="tick in horizontalTicks"
         :key="'h' + tick.value"
-        class="absolute bottom-0 h-2"
+        class="absolute bottom-0 h-2.5"
         :style="{ left: tick.screen - THICKNESS + 'px', borderLeft: TICK_LINE }"
       >
-        <span class="absolute left-1 -top-[14px] text-[10px] font-medium leading-none text-ink-gray-6">{{ Math.round(tick.value) }}</span>
+        <span class="absolute left-1 -top-[15px] text-[10px] font-medium leading-none text-ink-gray-7">{{ Math.round(tick.value) }}</span>
       </div>
     </div>
 
     <!-- Left ruler -->
     <div
-      class="absolute left-0 top-0 bg-surface-white shadow-[1px_0_2px_rgba(0,0,0,0.08)]"
-      :style="{ width: THICKNESS + 'px', top: THICKNESS + 'px', bottom: 0, borderRight: TICK_LINE }"
+      class="absolute left-0 top-0 shadow-[1px_0_2px_rgba(0,0,0,0.06)]"
+      :style="{ width: THICKNESS + 'px', top: THICKNESS + 'px', bottom: 0, background: RULER_BG, borderRight: RULER_BORDER }"
     >
       <div
         v-for="tick in verticalTicks"
         :key="'v' + tick.value"
-        class="absolute right-0 w-2"
+        class="absolute right-0 w-2.5"
         :style="{ top: tick.screen - THICKNESS + 'px', borderTop: TICK_LINE }"
       >
-        <span class="absolute left-0.5 top-0.5 text-[10px] font-medium leading-none text-ink-gray-6">{{ Math.round(tick.value) }}</span>
+        <span class="absolute left-0.5 top-0.5 text-[10px] font-medium leading-none text-ink-gray-7">{{ Math.round(tick.value) }}</span>
       </div>
     </div>
 
     <!-- Corner square -->
     <div
-      class="absolute left-0 top-0 bg-surface-white"
-      :style="{ width: THICKNESS + 'px', height: THICKNESS + 'px', borderBottom: TICK_LINE, borderRight: TICK_LINE }"
+      class="absolute left-0 top-0"
+      :style="{ width: THICKNESS + 'px', height: THICKNESS + 'px', background: RULER_BG, borderBottom: RULER_BORDER, borderRight: RULER_BORDER }"
     />
   </div>
 </template>

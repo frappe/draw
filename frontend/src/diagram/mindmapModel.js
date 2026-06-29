@@ -28,6 +28,21 @@ export function createMindMap(rootText = ROOT_TEXT) {
   return { rootId: root.id, nodes: [root], crosslinks: [], layout: 'balanced' }
 }
 
+// A truly empty mind map — no root yet (spec: "blank" must show no defaults).
+// The first idea is added via addRootNode from the canvas prompt.
+export function createEmptyMindMap() {
+  return { rootId: null, nodes: [], crosslinks: [], layout: 'balanced' }
+}
+
+// Create the root of an empty map (no-op if one already exists). Returns its id.
+export function addRootNode(model, text = '') {
+  if (model.rootId && nodeById(model, model.rootId)) return model.rootId
+  const root = makeNode(null, text, 0, 0)
+  model.nodes.push(root)
+  model.rootId = root.id
+  return root.id
+}
+
 export function nodeById(model, id) {
   return model.nodes.find((node) => node.id === id)
 }

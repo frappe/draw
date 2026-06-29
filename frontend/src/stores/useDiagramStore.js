@@ -8,7 +8,7 @@ import { createShape, createConnector } from '@/diagram/factories.js'
 import { createHistory } from '@/stores/history.js'
 import { findThemePreset } from '@/diagram/theme.js'
 import { createDiagramDocument, SCHEMA_VERSION, DEFAULT_DIAGRAM_TYPE } from '@/diagram/schema.js'
-import { addChild, addSibling } from '@/diagram/mindmapModel.js'
+import { addChild, addSibling, addRootNode } from '@/diagram/mindmapModel.js'
 import { mindmapToFlowchart, flowchartToMindmap } from '@/diagram/convert.js'
 import {
   addFlowchartNode,
@@ -88,6 +88,13 @@ function attachMindMap(store, state, history) {
     if (!state.mindmap) return null
     let id = null
     history.commit('Add child', () => (id = addChild(state.mindmap, parentId)))
+    return id
+  }
+  // First idea on an empty map (spec: blank mind map starts truly empty).
+  store.addRootNode = (text = '') => {
+    if (!state.mindmap) return null
+    let id = null
+    history.commit('Add idea', () => (id = addRootNode(state.mindmap, text)))
     return id
   }
   store.addSiblingNode = (nodeId) => {
