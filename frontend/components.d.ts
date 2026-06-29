@@ -38,6 +38,7 @@ declare module 'vue' {
     MindMapNodeLayer: typeof import('./src/components/canvas/MindMapNodeLayer.vue')['default']
     MindMapOutline: typeof import('./src/components/canvas/MindMapOutline.vue')['default']
     MindMapPalette: typeof import('./src/components/palette-right/MindMapPalette.vue')['default']
+    Minimap: typeof import('./src/components/canvas/Minimap.vue')['default']
     NewDiagramDialog: typeof import('./src/components/home/NewDiagramDialog.vue')['default']
     PaletteSearch: typeof import('./src/components/palette-left/PaletteSearch.vue')['default']
     PaletteSection: typeof import('./src/components/palette-right/PaletteSection.vue')['default']

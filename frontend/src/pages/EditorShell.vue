@@ -17,6 +17,7 @@ import { useThumbnail } from '@/composables/useThumbnail.js'
 import { useAppSettings } from '@/composables/useAppSettings.js'
 import TopToolbar from '@/components/toolbar/TopToolbar.vue'
 import DiagramCanvas from '@/components/canvas/DiagramCanvas.vue'
+import Minimap from '@/components/canvas/Minimap.vue'
 import BottomPalette from '@/components/floating/BottomPalette.vue'
 import RightPalette from '@/components/palette-right/RightPalette.vue'
 import ShortcutsDialog from '@/components/ShortcutsDialog.vue'
@@ -108,6 +109,7 @@ onMounted(() => {
     <div class="flex min-h-0 flex-1">
       <main class="relative min-h-0 min-w-0 flex-1">
         <DiagramCanvas />
+        <Minimap />
         <BottomPalette />
       </main>
       <RightPalette v-if="modeStrategy.showsRightPalette !== false" />
