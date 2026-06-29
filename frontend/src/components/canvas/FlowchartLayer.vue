@@ -183,7 +183,7 @@ function onLeave(id) {
       :key="node.id"
       :data-fc-node="node.id"
       :transform="`translate(${node.x} ${node.y})`"
-      style="cursor: move"
+      :style="{ cursor: 'move', transition: editorUi.state.animateLayout ? 'transform 260ms ease' : 'none' }"
       @pointerenter="onEnter(node.id)"
       @pointerleave="onLeave(node.id)"
       @dblclick.stop="beginEdit(node.id)"

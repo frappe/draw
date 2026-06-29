@@ -7,6 +7,7 @@
 import { computed } from 'vue'
 import { FeatherIcon } from 'frappe-ui'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
+import { useEditorUi } from '@/stores/useEditorUi.js'
 import PaletteSection from './PaletteSection.vue'
 import ActionTile from './ActionTile.vue'
 import {
@@ -22,6 +23,7 @@ import {
 import { tidyLayout, toggleDirection } from '@/diagram/flowchartLayout.js'
 
 const store = useDiagramStore()
+const editorUi = useEditorUi()
 
 const model = computed(() => store.state.flowchart)
 const direction = computed(() => model.value?.direction || 'TB')
@@ -38,10 +40,12 @@ const node = computed(() => {
 const FILL_SWATCHES = ['#EFF6FF', '#F4FFF6', '#FDFAED', '#FCEAF5', '#F3F3F3', '#FFFFFF']
 
 function tidy() {
+  editorUi.pulseLayoutAnimation() // tween nodes to their new spots (spec 17.1)
   store.updateFlowchartModel('Tidy up', (m) => tidyLayout(m))
 }
 
 function flip() {
+  editorUi.pulseLayoutAnimation()
   store.updateFlowchartModel('Flow direction', (m) => toggleDirection(m))
 }
 

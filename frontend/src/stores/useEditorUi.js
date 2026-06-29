@@ -17,6 +17,9 @@ export function createEditorUi() {
     gridDensity: 'dense',
     snapToGrid: false,
     infiniteCanvas: false,
+    // True for a short window after a layout op (tidy / flip) so node positions
+    // tween instead of jumping (spec 17.1). Off during free drag → no lag.
+    animateLayout: false,
     formatPainter: { active: false, style: null },
   })
   return assembleUi(state, viewport)
@@ -28,6 +31,16 @@ function assembleUi(state, viewport) {
   attachGrid(ui, state)
   attachZoom(ui, viewport)
   attachPainter(ui, state)
+  // Pulse the layout-animation flag for one transition window (spec 17.1). A
+  // token guards overlapping pulses so a later op doesn't end an earlier one early.
+  let pulseToken = 0
+  ui.pulseLayoutAnimation = () => {
+    state.animateLayout = true
+    const token = ++pulseToken
+    setTimeout(() => {
+      if (token === pulseToken) state.animateLayout = false
+    }, 280)
+  }
   return ui
 }
 

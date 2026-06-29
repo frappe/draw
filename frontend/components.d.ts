@@ -25,6 +25,7 @@ declare module 'vue' {
     EmptyState: typeof import('./src/components/home/EmptyState.vue')['default']
     ExportMenu: typeof import('./src/components/toolbar/ExportMenu.vue')['default']
     FillBorderSection: typeof import('./src/components/palette-right/FillBorderSection.vue')['default']
+    FirstRunTour: typeof import('./src/components/FirstRunTour.vue')['default']
     FlowchartLayer: typeof import('./src/components/canvas/FlowchartLayer.vue')['default']
     FlowchartNodeTypePicker: typeof import('./src/components/canvas/FlowchartNodeTypePicker.vue')['default']
     FlowchartPalette: typeof import('./src/components/palette-right/FlowchartPalette.vue')['default']
