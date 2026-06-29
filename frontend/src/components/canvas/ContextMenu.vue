@@ -48,13 +48,17 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <div
       ref="root"
+      role="menu"
+      aria-label="Canvas actions"
       class="fixed z-50 min-w-[200px] rounded-lg border border-outline-gray-2 bg-surface-white py-1 shadow-lg"
       :style="position"
     >
       <template v-for="(item, index) in items" :key="index">
-        <div v-if="item.divider" class="my-1 h-px bg-outline-gray-1" />
+        <div v-if="item.divider" class="my-1 h-px bg-outline-gray-1" role="separator" />
         <button
           v-else
+          role="menuitem"
+          :aria-label="item.label"
           class="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] disabled:opacity-40"
           :class="item.danger ? 'text-red-600 hover:bg-red-50' : 'text-ink-gray-8 hover:bg-surface-gray-2'"
           :disabled="item.disabled"

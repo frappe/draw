@@ -53,6 +53,8 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         class="flex h-7 flex-1 items-center justify-center rounded-md"
         :class="startType === e.value ? cellActive : cellIdle"
         :title="e.label"
+        :aria-label="`Start: ${e.label}`"
+        :aria-pressed="startType === e.value"
         @click="setEnd('start', e.value)"
       >
         <FeatherIcon :name="e.icon" class="h-4 w-4" :class="e.rotate ? 'rotate-45' : ''" />
@@ -68,6 +70,8 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         class="flex h-7 flex-1 items-center justify-center rounded-md"
         :class="endType === e.value ? cellActive : cellIdle"
         :title="e.label"
+        :aria-label="`End: ${e.label}`"
+        :aria-pressed="endType === e.value"
         @click="setEnd('end', e.value)"
       >
         <FeatherIcon :name="e.icon" class="h-4 w-4" :class="e.rotate ? 'rotate-45' : ''" />
@@ -84,6 +88,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         :key="w"
         class="flex h-7 flex-1 items-center justify-center rounded-md"
         :class="(style.width || 2.2) === w ? cellActive : cellIdle"
+        :aria-label="`Line width ${w}`"
         @click="setStyle({ width: w })"
       >
         <span class="w-5 rounded-full bg-ink-gray-9" :style="{ height: Math.max(1, w - 0.5) + 'px' }" />
@@ -91,7 +96,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
     </div>
     <div class="flex gap-1">
       <button
-        v-for="d in ['solid', 'dashed']"
+        v-for="d in ['solid', 'dashed', 'dotted']"
         :key="d"
         class="h-7 flex-1 rounded-md text-[12px] capitalize"
         :class="(style.dash || 'solid') === d ? cellActive : cellIdle"
@@ -100,5 +105,21 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         {{ d }}
       </button>
     </div>
+
+    <!-- Elbow routes can bend with rounded or sharp corners (spec 3.6). -->
+    <template v-if="connector.type === 'elbow'">
+      <div class="mb-2 mt-2 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Corners</div>
+      <div class="flex gap-1">
+        <button
+          v-for="c in ['rounded', 'sharp']"
+          :key="c"
+          class="h-7 flex-1 rounded-md text-[12px] capitalize"
+          :class="(style.corner || 'rounded') === c ? cellActive : cellIdle"
+          @click="setStyle({ corner: c })"
+        >
+          {{ c }}
+        </button>
+      </div>
+    </template>
   </PaletteSection>
 </template>

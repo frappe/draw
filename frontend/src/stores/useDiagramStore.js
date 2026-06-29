@@ -369,8 +369,10 @@ function attachSelection(store, state) {
   }
   store.clearSelection = () => (state.selection = [])
   store.selectAll = () => {
+    // Locked / hidden shapes are set aside: Select All skips them so a bulk
+    // nudge or delete can't reach them (spec 7.4).
     state.selection = [
-      ...state.shapes.map((shape) => shape.id),
+      ...state.shapes.filter((s) => !s.locked && !s.hidden).map((shape) => shape.id),
       ...state.connectors.map((c) => c.id),
     ]
   }

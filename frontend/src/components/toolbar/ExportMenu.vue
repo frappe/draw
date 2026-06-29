@@ -10,13 +10,24 @@ const exporter = useExport(useDiagramStore())
 
 const options = [
   {
-    group: 'Export (2×)',
+    group: 'Whole diagram',
     items: [
-      { label: 'PNG · white background', icon: 'image', onClick: exporter.exportPngWhite },
+      { label: 'PNG · 1×', icon: 'image', onClick: () => exporter.exportPng(1) },
+      { label: 'PNG · 2×', icon: 'image', onClick: () => exporter.exportPng(2) },
+      { label: 'PNG · 3×', icon: 'image', onClick: () => exporter.exportPng(3) },
       { label: 'PNG · transparent', icon: 'image', onClick: exporter.exportPngTransparent },
       { label: 'JPEG', icon: 'image', onClick: exporter.exportJpeg },
       { label: 'SVG', icon: 'code', onClick: exporter.exportSvg },
       { label: 'PDF', icon: 'file-text', onClick: exporter.exportPdf },
+    ],
+  },
+  {
+    group: 'Selection only',
+    items: [
+      { label: 'PNG · 1×', icon: 'crop', onClick: () => exporter.exportSelectionPng(1) },
+      { label: 'PNG · 2×', icon: 'crop', onClick: () => exporter.exportSelectionPng(2) },
+      { label: 'PNG · 3×', icon: 'crop', onClick: () => exporter.exportSelectionPng(3) },
+      { label: 'SVG', icon: 'crop', onClick: exporter.exportSelectionSvg },
     ],
   },
   {

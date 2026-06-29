@@ -4,6 +4,7 @@
 // the existing selection rather than replacing it.
 import { ref } from 'vue'
 import { axisAlignedBBox, rectsIntersect, anchorPoint } from '@/diagram/geometry.js'
+import { isInteractable } from '@/diagram/shapeFlags.js'
 
 const MIN_DRAG = 3
 
@@ -49,7 +50,7 @@ function finish(store, rect, additive) {
   rect.value = null
   if (!box || box.w < MIN_DRAG || box.h < MIN_DRAG) return
   const shapeIds = store.state.shapes
-    .filter((shape) => rectsIntersect(box, axisAlignedBBox(shape)))
+    .filter((shape) => isInteractable(shape) && rectsIntersect(box, axisAlignedBBox(shape)))
     .map((shape) => shape.id)
   const connectorIds = (store.state.connectors || [])
     .filter((connector) => rectsIntersect(box, connectorBox(store, connector)))

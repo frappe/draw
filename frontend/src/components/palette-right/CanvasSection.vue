@@ -3,13 +3,15 @@
 // store.setCanvas; the feature agent can add a full picker. Background swatches
 // include a transparent ("no color") option.
 import { computed } from 'vue'
-import { Select } from 'frappe-ui'
+import { Select, Switch } from 'frappe-ui'
 import PaletteSection from './PaletteSection.vue'
 import { CANVAS_PRESETS } from '@/diagram/canvasPresets.js'
 import { findPreset } from '@/diagram/canvasPresets.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
+import { useEditorUi } from '@/stores/useEditorUi.js'
 
 const store = useDiagramStore()
+const editorUi = useEditorUi()
 const backgrounds = [null, '#FFFFFF', '#F8F8F8', '#EFF6FF', '#FDFAED', '#FCEAF5']
 
 const presetOptions = computed(() =>
@@ -47,10 +49,21 @@ function applyPreset(name) {
         ]"
         :style="color ? { background: color } : {}"
         :title="color === null ? 'No color (transparent)' : color"
+        :aria-label="color === null ? 'Background: no color' : `Background ${color}`"
         @click="store.setCanvas({ background: color })"
       >
         <span v-if="color === null" class="text-[9px] text-ink-gray-4">∅</span>
       </button>
+    </div>
+
+    <!-- Snap-to-grid: dragged/resized shapes land on the visible grid (spec 4.3). -->
+    <div class="mt-3 flex items-center justify-between">
+      <span class="text-[13px] text-ink-gray-7">Snap to grid</span>
+      <Switch
+        size="sm"
+        :model-value="editorUi.state.snapToGrid"
+        @update:model-value="editorUi.toggleSnapToGrid()"
+      />
     </div>
   </PaletteSection>
 </template>

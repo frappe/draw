@@ -4,6 +4,7 @@
 // other canvas interactions reuse. Integration attaches onSurfacePointerdown to
 // the canvas surface (the wrapper carrying the viewport transform).
 import { pointInShape } from '@/diagram/geometry.js'
+import { isInteractable } from '@/diagram/shapeFlags.js'
 import { useShapeTransform } from '@/composables/useShapeTransform.js'
 import { useMarquee } from '@/composables/useMarquee.js'
 
@@ -39,9 +40,10 @@ function toLogicalFor(event, rect, viewport) {
   }
 }
 
-// Topmost shape (highest zIndex) under a logical point, or null.
+// Topmost interactable shape (highest zIndex) under a logical point, or null.
+// Hidden + locked shapes are skipped so they can't be grabbed (spec 7.4).
 function topShapeAt(store, point) {
-  const hits = store.state.shapes.filter((shape) => pointInShape(point, shape))
+  const hits = store.state.shapes.filter((shape) => isInteractable(shape) && pointInShape(point, shape))
   if (!hits.length) return null
   return hits.reduce((top, shape) => ((shape.zIndex || 0) >= (top.zIndex || 0) ? shape : top))
 }

@@ -7,6 +7,7 @@
 
 import { toast } from 'frappe-ui'
 import { documentToSvg } from '@/composables/useThumbnail.js'
+import { axisAlignedBBox } from '@/diagram/geometry.js'
 
 // "No color" canvas (background === null) exports transparent for PNG/SVG/PDF;
 // JPEG has no alpha so it gets a white backdrop instead (spec §10).
@@ -18,16 +19,95 @@ export function useExport(store, getTitle) {
   const fileName = () => sanitizeFileName((getTitle && getTitle()) || 'diagram')
 
   return {
-    exportPng: () => guard(() => exportRaster(store, 'png', 2, fileName())),
+    exportPng: (scale = 2) => guard(() => exportRaster(store, 'png', scale, fileName(), '#FFFFFF')),
     exportPngTransparent: () => guard(() => exportRaster(store, 'png', 2, fileName(), 'transparent')),
     exportPngWhite: () => guard(() => exportRaster(store, 'png', 2, fileName(), '#FFFFFF')),
     exportJpeg: () => guard(() => exportRaster(store, 'jpeg', 1, fileName())),
     exportSvg: () => guard(() => exportSvgFile(store, fileName())),
     exportPdf: () => guard(() => exportPdfFile(store, fileName())),
+    // Selection-only exports at a chosen pixel scale (spec 12.2).
+    exportSelectionPng: (scale = 2) => guard(() => exportSelection(store, 'png', scale, fileName(), '#FFFFFF')),
+    exportSelectionSvg: () => guard(() => exportSelection(store, 'svg', 1, fileName())),
+    hasSelection: () => selectedShapes(store).length > 0,
     copyImage: () => guard(() => copyImage(store)),
     printDiagram: () => guard(() => printDiagram(store)),
     store,
   }
+}
+
+// ----- export selection (spec 12.2) ------------------------------------------
+
+function selectedShapes(store) {
+  const sel = new Set(store.state.selection)
+  return (store.state.shapes || []).filter((s) => sel.has(s.id) && !s.hidden)
+}
+
+// Build a block document holding only the selected shapes + connectors, plus the
+// tight bounding box that frames them (so the export is cropped to the selection,
+// not the whole canvas). Connectors are included when explicitly selected.
+function selectionDocAndBounds(store) {
+  const sel = new Set(store.state.selection)
+  const doc = store.getDocument()
+  const shapes = (doc.shapes || []).filter((s) => sel.has(s.id) && !s.hidden)
+  const connectors = (doc.connectors || []).filter((c) => sel.has(c.id))
+  const filtered = {
+    ...doc,
+    diagramType: 'block',
+    shapes,
+    connectors,
+    mindmap: null,
+    flowchart: null,
+    whiteboard: null,
+  }
+  return { filtered, bounds: selectionBounds(shapes, connectors, doc.shapes || []) }
+}
+
+function selectionBounds(shapes, connectors, allShapes) {
+  const xs = []
+  const ys = []
+  for (const shape of shapes) {
+    const box = axisAlignedBBox(shape)
+    xs.push(box.x, box.x + box.w)
+    ys.push(box.y, box.y + box.h)
+  }
+  for (const connector of connectors) {
+    for (const point of [endpointXY(connector.from, allShapes), endpointXY(connector.to, allShapes)]) {
+      xs.push(point.x)
+      ys.push(point.y)
+    }
+  }
+  if (!xs.length) return { x: 0, y: 0, w: 0, h: 0 }
+  const pad = 16
+  const minX = Math.min(...xs)
+  const minY = Math.min(...ys)
+  return { x: minX - pad, y: minY - pad, w: Math.max(...xs) - minX + pad * 2, h: Math.max(...ys) - minY + pad * 2 }
+}
+
+function endpointXY(endpoint, allShapes) {
+  if (endpoint?.shapeId) {
+    const shape = allShapes.find((s) => s.id === endpoint.shapeId)
+    if (shape) return { x: shape.x + shape.w / 2, y: shape.y + shape.h / 2 }
+  }
+  return { x: endpoint?.x || 0, y: endpoint?.y || 0 }
+}
+
+// Export just the selection (PNG at `scale`, or SVG). No-op with a hint when the
+// selection has no shapes, so the menu item never produces an empty file.
+async function exportSelection(store, format, scale, name, bg) {
+  const { filtered, bounds } = selectionDocAndBounds(store)
+  if (!bounds.w || !bounds.h) {
+    toast.info('Select one or more objects to export')
+    return
+  }
+  const viewBox = `${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}`
+  let markup = withExplicitSize(documentToSvg(filtered, { viewBox }), bounds.w, bounds.h)
+  if (format === 'svg') {
+    downloadBlob(new Blob([markup], { type: 'image/svg+xml' }), `${name}-selection.svg`)
+    return
+  }
+  if (bg) markup = insertBackgroundRect(markup, bg, { x: bounds.x, y: bounds.y, width: bounds.w, height: bounds.h })
+  const dataUrl = await rasterizeSvg(markup, bounds.w * scale, bounds.h * scale, 'image/png')
+  downloadDataUrl(dataUrl, `${name}-selection.png`)
 }
 
 // Print = canvas content only (spec §4.4): open the export SVG in a clean print
@@ -72,9 +152,10 @@ function withExplicitSize(markup, width, height) {
 }
 
 // Splice an opaque background rect just after the opening <svg> tag so it sits
-// beneath every shape and connector.
-function insertBackgroundRect(markup, fill, { width, height }) {
-  const rect = `<rect x="0" y="0" width="${width}" height="${height}" fill="${fill}"/>`
+// beneath every shape and connector. x/y default to 0 (full-canvas export); a
+// cropped selection export passes its bbox origin so the rect covers the crop.
+function insertBackgroundRect(markup, fill, { x = 0, y = 0, width, height }) {
+  const rect = `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${fill}"/>`
   return markup.replace(/(<svg[^>]*>)/, `$1${rect}`)
 }
 

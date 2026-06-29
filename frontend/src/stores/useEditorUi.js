@@ -15,6 +15,7 @@ export function createEditorUi() {
     lastShapeType: 'rectangle',
     gridVisible: true,
     gridDensity: 'dense',
+    snapToGrid: false,
     formatPainter: { active: false, style: null },
   })
   return assembleUi(state, viewport)
@@ -39,9 +40,15 @@ function attachTools(ui, state) {
   }
 }
 
+// Grid display + snapping. The snap spacing matches the dots actually shown
+// (dense = 24, sparse = 48) so snapped shapes land on the visible grid (spec 4.3).
+const GRID_SPACING = { dense: 24, sparse: 48 }
+
 function attachGrid(ui, state) {
   ui.toggleGrid = () => (state.gridVisible = !state.gridVisible)
   ui.setGridDensity = (density) => (state.gridDensity = density)
+  ui.toggleSnapToGrid = () => (state.snapToGrid = !state.snapToGrid)
+  ui.gridSpacing = computed(() => GRID_SPACING[state.gridDensity] || GRID_SPACING.dense)
 }
 
 function attachZoom(ui, viewport) {

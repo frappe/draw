@@ -16,6 +16,8 @@ import {
   swapNodeType,
   addDecisionBranch,
   removeDecisionBranch,
+  autoNumberFlow,
+  isFlowNumbered,
 } from '@/diagram/flowchartModel.js'
 import { tidyLayout, toggleDirection } from '@/diagram/flowchartLayout.js'
 
@@ -23,6 +25,7 @@ const store = useDiagramStore()
 
 const model = computed(() => store.state.flowchart)
 const direction = computed(() => model.value?.direction || 'TB')
+const numbered = computed(() => (model.value ? isFlowNumbered(model.value) : false))
 
 // The single selected node (palette node actions need exactly one).
 const node = computed(() => {
@@ -40,6 +43,10 @@ function tidy() {
 
 function flip() {
   store.updateFlowchartModel('Flow direction', (m) => toggleDirection(m))
+}
+
+function numberSteps() {
+  store.updateFlowchartModel('Number steps', (m) => autoNumberFlow(m))
 }
 
 function swap(nodeType) {
@@ -94,6 +101,11 @@ const TYPE_ICONS = {
           :label="direction === 'TB' ? 'Top → bottom' : 'Left → right'"
           @click="flip"
         />
+        <ActionTile
+          icon="list"
+          :label="numbered ? 'Clear numbers' : 'Number steps'"
+          @click="numberSteps"
+        />
       </div>
     </PaletteSection>
 
@@ -105,6 +117,8 @@ const TYPE_ICONS = {
           class="flex h-10 items-center justify-center rounded-md border hover:bg-surface-gray-1"
           :class="node.nodeType === type ? 'border-ink-gray-9 bg-surface-gray-2' : 'border-outline-gray-1'"
           :title="NODE_TYPE_META[type].label"
+          :aria-label="`Change to ${NODE_TYPE_META[type].label}`"
+          :aria-pressed="node.nodeType === type"
           @click="swap(type)"
         >
           <FeatherIcon :name="TYPE_ICONS[type]" class="h-4 w-4 text-ink-gray-7" />
@@ -119,6 +133,7 @@ const TYPE_ICONS = {
           :key="color"
           class="h-7 w-7 rounded-md border border-outline-gray-2"
           :style="{ background: color }"
+          :aria-label="`Fill ${color}`"
           @click="setFill(color)"
         />
       </div>

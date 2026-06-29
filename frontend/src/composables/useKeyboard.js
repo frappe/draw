@@ -15,6 +15,13 @@ const ARROW_DELTAS = {
   ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
 }
 
+// Block-mode quick fills: number keys 1-9 set the fill of the selected shapes
+// (the whiteboard has its own 1-9 palette in useWhiteboardKeys) — spec 9.5.
+const NUMBER_COLORS = [
+  '#EFF6FF', '#F4FFF6', '#FDFAED', '#FCEAF5', '#F3F3F3',
+  '#FDECEC', '#E7F8FB', '#1F2933', '#FFFFFF',
+]
+
 // Per-mode keyboard handlers (spec diagram-types Part G5), keyed by the
 // strategy's keyboardMode. Each handler is (event, store, editorUi) and returns
 // true when it consumed the key (so the global dispatcher calls preventDefault).
@@ -111,7 +118,9 @@ function handleModifierKey(event, store, clipboard, editorUi) {
   const actions = {
     c: () => clipboard.copy(),
     x: () => clipboard.cut(),
-    v: () => clipboard.paste(),
+    // Paste (Cmd/Ctrl+V) is handled by the native 'paste' event in
+    // useCanvasPaste (so an OS image can be pasted too); not mapped here to
+    // avoid pasting twice.
     a: () => store.selectAll(),
     d: () => store.duplicate(store.state.selection),
     z: () => (event.shiftKey ? store.redo() : store.undo()),
@@ -126,7 +135,19 @@ function handlePlainKey(event, store, editorUi, transform) {
   if (event.key === 'Delete' || event.key === 'Backspace') {
     return runAction(() => store.removeSelectionOrIds())
   }
+  if (applyNumberColor(event, store)) return true
   return handleArrow(event, transform)
+}
+
+// 1-9 recolour the fill of the selected block shapes (no-op without a shape
+// selection, so the key isn't swallowed).
+function applyNumberColor(event, store) {
+  const index = '123456789'.indexOf(event.key)
+  if (index === -1) return false
+  const ids = store.state.selection.filter((id) => store.shapeById(id))
+  if (!ids.length) return false
+  store.updateShapes(ids, { fill: NUMBER_COLORS[index] })
+  return true
 }
 
 // Arrow keys nudge the selection; Shift makes the step larger (§7.5).

@@ -57,5 +57,6 @@ export function themeVarStyle(name) {
   return style
 }
 
-// Connectors are always neutral, independent of preset (README).
-export const CONNECTOR_DEFAULT_STYLE = { color: '#7C7C7C', width: 2.2, dash: 'solid' }
+// Connectors are always neutral, independent of preset (README). `corner` styles
+// elbow routes: 'rounded' (default, modern look) or 'sharp' right-angle bends.
+export const CONNECTOR_DEFAULT_STYLE = { color: '#7C7C7C', width: 2.2, dash: 'solid', corner: 'rounded' }

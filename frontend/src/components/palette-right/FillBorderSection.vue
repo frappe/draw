@@ -71,6 +71,7 @@ function applyQuickStyle(preset) {
         class="h-6 w-6 flex-none rounded-md border-2"
         :style="{ background: preset.fill === 'none' ? '#FFFFFF' : preset.fill, borderColor: preset.border }"
         :title="'Quick style'"
+        :aria-label="`Quick style ${i + 1}`"
         @click="applyQuickStyle(preset)"
       />
     </div>

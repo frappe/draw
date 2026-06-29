@@ -14,12 +14,16 @@ import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import { themeVarStyle } from '@/diagram/theme.js'
 import { axisAlignedBBox, anchorPoint, pointInShape } from '@/diagram/geometry.js'
+import { isVisible, isInteractable } from '@/diagram/shapeFlags.js'
 import { layoutMindMap } from '@/diagram/mindmapLayout.js'
 import { flowchartContentBounds } from '@/diagram/flowchartLayout.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
 import { useSelection } from '@/composables/useSelection.js'
 import { useShapeCreation } from '@/composables/useShapeCreation.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
+import { useCanvasPaste } from '@/composables/useCanvasPaste.js'
+import { isDocumentEmpty } from '@/composables/useThumbnail.js'
+import { insertExample } from '@/diagram/examples.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
 import { useFormatPainter } from '@/composables/useFormatPainter.js'
 import { useClipboard } from '@/composables/useClipboard.js'
@@ -101,14 +105,28 @@ const editing = useTextEditing(store, editorUi)
 const painter = useFormatPainter(store, editorUi)
 const clipboard = useClipboard(store)
 
+// Cmd/Ctrl+V: paste an OS-clipboard image at the viewport centre, else the
+// internal shape buffer (spec 2.6). Owns paste so the keyboard composable doesn't.
+useCanvasPaste({ imageInsert, clipboard, getCenter: () => viewportCenterPoint() })
+
+// Logical canvas point at the centre of the visible viewport (where a pasted
+// image lands, so it appears in view regardless of pan/zoom).
+function viewportCenterPoint() {
+  const { panX, panY, zoom } = viewport.state
+  return { x: (viewWidth.value / 2 - panX) / zoom, y: (viewHeight.value / 2 - panY) / zoom }
+}
+
 // Right-click context menu (suppresses the browser default). Items differ for a
 // shape vs empty canvas.
 const contextMenu = reactive({ show: false, x: 0, y: 0, items: [] })
 
 function onContextMenu(event) {
   const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
-  const shape = activeType.value === 'block' ? topShapeAt(point) : null
-  if (shape) {
+  const shape = activeType.value === 'block' ? topShapeAt(point, { includeLocked: true }) : null
+  if (shape && shape.locked) {
+    // Don't pull a locked shape into the selection; just offer to unlock it.
+    contextMenu.items = lockedMenuItems(shape)
+  } else if (shape) {
     if (!store.state.selection.includes(shape.id)) store.select(shape.id)
     contextMenu.items = shapeMenuItems()
   } else {
@@ -131,18 +149,46 @@ function shapeMenuItems() {
     { label: 'Bring to front', icon: 'chevrons-up', onClick: () => store.bringToFront(ids) },
     { label: 'Send to back', icon: 'chevrons-down', onClick: () => store.sendToBack(ids) },
     { divider: true },
+    // Lock keeps it on-canvas but un-grabbable; Hide removes it from view (spec 7.4).
+    { label: 'Lock', icon: 'lock', onClick: () => store.updateShapes(ids, { locked: true }) },
+    { label: 'Hide', icon: 'eye-off', onClick: () => store.updateShapes(ids, { hidden: true }) },
+    { divider: true },
     { label: 'Delete', icon: 'trash-2', danger: true, shortcut: 'Del', onClick: () => store.removeSelectionOrIds(ids) },
   )
   return items
 }
 
-function emptyMenuItems() {
+// Minimal menu for a locked shape (it isn't selected, so actions target its id).
+function lockedMenuItems(shape) {
   return [
+    { label: 'Unlock', icon: 'unlock', onClick: () => store.updateShape(shape.id, { locked: false }) },
+    { label: 'Hide', icon: 'eye-off', onClick: () => store.updateShape(shape.id, { hidden: true }) },
+  ]
+}
+
+function emptyMenuItems() {
+  const items = [
     { label: 'Paste', icon: 'clipboard', shortcut: '⌘V', onClick: () => clipboard.paste() },
     { label: 'Select all', icon: 'maximize', shortcut: '⌘A', onClick: () => store.selectAll() },
+  ]
+  // On a blank canvas, offer to drop in a quick example for the active type (10.2).
+  if (isDocumentEmpty(store.getDocument())) {
+    items.push({ label: 'Insert example', icon: 'layout', onClick: () => insertExample(store) })
+  }
+  // Escape hatch for hidden objects (no layers panel yet): bring them all back.
+  if (store.state.shapes.some((s) => s.hidden)) {
+    items.push({ label: 'Unhide all', icon: 'eye', onClick: () => unhideAll() })
+  }
+  items.push(
     { divider: true },
     { label: 'Fit to view', icon: 'maximize-2', onClick: () => editorUi.fit() },
-  ]
+  )
+  return items
+}
+
+function unhideAll() {
+  const ids = store.state.shapes.filter((s) => s.hidden).map((s) => s.id)
+  if (ids.length) store.updateShapes(ids, { hidden: false })
 }
 
 // SelectionLayer renders the marquee rect via this provided handle (spec §7.2).
@@ -157,9 +203,10 @@ const PAN_MARGIN = 80 // logical units of breathing room around the content
 const canvas = computed(() => store.state.canvas)
 const themeStyle = computed(() => themeVarStyle(store.state.themePreset))
 
-// Shapes render in ascending zIndex order so later items sit on top.
+// Shapes render in ascending zIndex order so later items sit on top. Hidden
+// shapes (spec 7.4) are dropped from the render list entirely.
 const orderedShapes = computed(() =>
-  [...store.state.shapes].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)),
+  [...store.state.shapes].filter(isVisible).sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)),
 )
 
 const groupTransform = computed(
@@ -486,8 +533,13 @@ function onSurfaceDoubleClick(event) {
   editing.beginEmptyCanvasCreate(point)
 }
 
-function topShapeAt(point) {
-  const hits = store.state.shapes.filter((shape) => pointInShape(point, shape))
+// Topmost shape under a point. By default skips hidden + locked shapes (they
+// aren't grabbable); the context menu passes includeLocked so a locked shape can
+// still be right-clicked to unlock it. Hidden shapes are never hit.
+function topShapeAt(point, { includeLocked = false } = {}) {
+  const hits = store.state.shapes.filter(
+    (shape) => isVisible(shape) && (includeLocked || isInteractable(shape)) && pointInShape(point, shape),
+  )
   if (!hits.length) return null
   return hits.reduce((top, shape) => ((shape.zIndex || 0) >= (top.zIndex || 0) ? shape : top))
 }
@@ -537,6 +589,8 @@ const surfaceCursor = computed(() => {
 <template>
   <div
     ref="surface"
+    role="application"
+    aria-label="Diagram canvas"
     :data-fdpreset="store.state.themePreset"
     :style="[themeStyle, { cursor: surfaceCursor, background: canvas.background || '#FFFFFF' }]"
     class="relative h-full w-full overflow-auto"

@@ -167,6 +167,68 @@ export function removeDecisionBranch(model, id, port) {
   )
 }
 
+// ----- auto-numbering (spec 14.4) --------------------------------------------
+// A leading "N. " step number on a node's label.
+const STEP_PREFIX = /^\s*\d+\.\s+/
+
+export function stripStepNumber(text) {
+  return (text || '').replace(STEP_PREFIX, '')
+}
+
+// Nodes in flow order: a breadth-first walk from the entry node(s) (no incoming
+// edge) following outgoing edges, with position (top→bottom, left→right) as the
+// tie-breaker. Any node not reached by the walk (cycles / islands) is appended
+// in reading order, so every node is covered exactly once.
+export function orderedFlowNodes(model) {
+  const byPos = (a, b) => a.y - b.y || a.x - b.x
+  const indeg = new Map(model.nodes.map((n) => [n.id, 0]))
+  for (const edge of model.edges) {
+    if (indeg.has(edge.to.nodeId)) indeg.set(edge.to.nodeId, indeg.get(edge.to.nodeId) + 1)
+  }
+  const roots = model.nodes.filter((n) => indeg.get(n.id) === 0).sort(byPos)
+  const queue = (roots.length ? roots : [...model.nodes].sort(byPos)).slice()
+  const visited = new Set()
+  const out = []
+  while (queue.length) {
+    const node = queue.shift()
+    if (visited.has(node.id)) continue
+    visited.add(node.id)
+    out.push(node)
+    const next = outgoingEdges(model, node.id)
+      .map((e) => flowchartNodeById(model, e.to.nodeId))
+      .filter((n) => n && !visited.has(n.id))
+      .sort(byPos)
+    queue.push(...next)
+  }
+  for (const node of [...model.nodes].sort(byPos)) {
+    if (!visited.has(node.id)) out.push(node)
+  }
+  return out
+}
+
+// True when every labelled, non-junction node already carries a step number.
+export function isFlowNumbered(model) {
+  const eligible = model.nodes.filter((n) => n.nodeType !== 'connector' && (n.text || '').trim())
+  return eligible.length > 0 && eligible.every((n) => STEP_PREFIX.test(n.text || ''))
+}
+
+// Toggle sequential "1. / 2. / …" prefixes on the flow's nodes (junctions are
+// skipped). Re-running strips them, so the palette button reads as a toggle.
+export function autoNumberFlow(model) {
+  if (isFlowNumbered(model)) {
+    for (const node of model.nodes) {
+      if (node.nodeType !== 'connector') node.text = stripStepNumber(node.text)
+    }
+    return
+  }
+  let step = 0
+  for (const node of orderedFlowNodes(model)) {
+    if (node.nodeType === 'connector') continue
+    step += 1
+    node.text = `${step}. ${stripStepNumber(node.text)}`
+  }
+}
+
 // Insert a new node in the middle of an edge (spec B7 insert-in-the-middle).
 // The original edge A->B is rewired to A->new, and a fresh new->B edge is added,
 // preserving the original edge's branch label on the A->new half. Returns the

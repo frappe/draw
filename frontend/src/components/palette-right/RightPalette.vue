@@ -62,6 +62,7 @@ function capitalize(value) {
 
 <template>
   <aside
+    aria-label="Properties"
     class="flex w-[268px] flex-none flex-col overflow-y-auto border-l border-outline-gray-1 bg-surface-white"
   >
     <header class="flex items-center gap-2 border-b border-outline-gray-1 px-3.5 py-2.5">

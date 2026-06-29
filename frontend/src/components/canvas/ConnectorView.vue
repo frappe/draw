@@ -48,15 +48,41 @@ const elbowMidX = computed(() => (start.value.x + end.value.x) / 2)
 
 const selected = computed(() => store.state.selection.includes(props.connector.id))
 const style = computed(() => props.connector.style || {})
-const dashArray = computed(() => (style.value.dash === 'dashed' ? '6 5' : null))
+
+// Dash pattern scales with width so dashes/dots stay proportional at any weight.
+const dashArray = computed(() => {
+  const w = style.value.width || 2.2
+  if (style.value.dash === 'dashed') return `${w * 3} ${w * 2}`
+  if (style.value.dash === 'dotted') return `${w} ${w * 2}`
+  return null
+})
 
 const pathData = computed(() => {
   const a = start.value
   const b = end.value
   if (props.connector.type === 'curved') return `M ${a.x} ${a.y} Q ${control.value.x} ${control.value.y} ${b.x} ${b.y}`
-  if (props.connector.type === 'elbow') return `M ${a.x} ${a.y} L ${elbowMidX.value} ${a.y} L ${elbowMidX.value} ${b.y} L ${b.x} ${b.y}`
+  if (props.connector.type === 'elbow') return elbowPath(a, b, elbowMidX.value, style.value.corner)
   return `M ${a.x} ${a.y} L ${b.x} ${b.y}`
 })
+
+// Two-bend elbow A→(midX,A.y)→(midX,B.y)→B. 'rounded' replaces each right-angle
+// bend with a quadratic arc whose radius is clamped to the shortest leg so it
+// never overshoots on a tight route; 'sharp' keeps the literal corners.
+function elbowPath(a, b, midX, corner) {
+  const sharp = `M ${a.x} ${a.y} L ${midX} ${a.y} L ${midX} ${b.y} L ${b.x} ${b.y}`
+  if (corner === 'sharp') return sharp
+  const r = Math.min(14, Math.abs(midX - a.x) / 2, Math.abs(b.y - a.y) / 2, Math.abs(b.x - midX) / 2)
+  if (!(r > 0.5)) return sharp
+  const sx1 = Math.sign(midX - a.x)
+  const sy = Math.sign(b.y - a.y)
+  const sx2 = Math.sign(b.x - midX)
+  return (
+    `M ${a.x} ${a.y} L ${midX - sx1 * r} ${a.y} ` +
+    `Q ${midX} ${a.y} ${midX} ${a.y + sy * r} ` +
+    `L ${midX} ${b.y - sy * r} ` +
+    `Q ${midX} ${b.y} ${midX + sx2 * r} ${b.y} L ${b.x} ${b.y}`
+  )
+}
 
 // Label pill sits at the geometric midpoint of the route.
 const labelAnchor = computed(() => {

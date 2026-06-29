@@ -35,7 +35,7 @@ function print() {
     class="flex h-12 flex-none items-center gap-3 border-b border-outline-gray-1 bg-surface-white px-3"
   >
     <Tooltip text="Back to diagrams">
-      <Button variant="ghost" @click="goHome">
+      <Button variant="ghost" aria-label="Back to diagrams" @click="goHome">
         <FeatherIcon name="chevron-left" class="h-4 w-4" />
       </Button>
     </Tooltip>
@@ -53,7 +53,7 @@ function print() {
       <ShareMenu />
 
       <Tooltip text="Print">
-        <Button variant="outline" @click="print">
+        <Button variant="outline" aria-label="Print" @click="print">
           <FeatherIcon name="printer" class="h-4 w-4" />
         </Button>
       </Tooltip>
@@ -61,7 +61,7 @@ function print() {
       <div class="h-5 w-px bg-outline-gray-1" />
 
       <Tooltip :text="dark ? 'Light mode' : 'Dark mode'">
-        <Button variant="outline" @click="emit('toggle-dark')">
+        <Button variant="outline" :aria-label="dark ? 'Switch to light mode' : 'Switch to dark mode'" @click="emit('toggle-dark')">
           <FeatherIcon :name="dark ? 'sun' : 'moon'" class="h-4 w-4" />
         </Button>
       </Tooltip>

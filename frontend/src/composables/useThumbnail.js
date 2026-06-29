@@ -88,7 +88,11 @@ export function documentToSvg(rawDocument, options = {}) {
   const styleAttr = Object.entries(vars)
     .map(([key, value]) => `${key}:${value}`)
     .join(';')
-  const { viewBox, body } = renderBody(doc)
+  const rendered = renderBody(doc)
+  // A caller (e.g. export-selection, spec 12.2) can frame a tighter region than
+  // the type's default content bounds by passing an explicit viewBox.
+  const viewBox = options.viewBox || rendered.viewBox
+  const body = rendered.body
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}"` +
     ` preserveAspectRatio="${options.fit || 'xMidYMid meet'}" style="${styleAttr}">` +
@@ -110,7 +114,7 @@ function blockBody(doc) {
   const { width, height } = doc.canvas
   const connectors = (doc.connectors || []).map((c) => connectorBody(c, doc.shapes || [])).join('')
   const shapes = (doc.shapes || [])
-    .slice()
+    .filter((s) => !s.hidden)
     .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
     .map((s) => shapeBody(s) + shapeText(s))
     .join('')
@@ -223,7 +227,7 @@ function whiteboardBody(doc) {
   const bounds = whiteboardContentBounds(model, doc.shapes || [])
   const connectors = (doc.connectors || []).map((c) => connectorBody(c, doc.shapes || [])).join('')
   const shapes = (doc.shapes || [])
-    .slice()
+    .filter((s) => !s.hidden)
     .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
     .map((s) => shapeBody(s) + shapeText(s))
     .join('')
