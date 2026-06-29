@@ -21,7 +21,7 @@ export function usePresence(diagramName) {
     const now = nowMs()
     const existing = peers.value.find((p) => p.id === data.user)
     if (existing) existing.at = now
-    else peers.value = [...peers.value, { id: data.user, name: data.full_name || data.user, at: now }]
+    else peers.value = [...peers.value, { id: data.user, identity: data.identity || data.user, at: now }]
   }
 
   onMounted(() => {
@@ -29,7 +29,7 @@ export function usePresence(diagramName) {
     if (!rt?.on) return
     handler = (data) => upsert(data)
     rt.on('draw_presence', handler)
-    const announce = () => rt.publish?.('draw_presence', { name: diagramName, user: me.id, full_name: me.name })
+    const announce = () => rt.publish?.('draw_presence', { name: diagramName, user: me.id, identity: me.identity })
     announce()
     heartbeat = setInterval(announce, HEARTBEAT_MS)
     prune = setInterval(() => {
@@ -51,15 +51,22 @@ function nowMs() {
   return typeof performance !== 'undefined' ? performance.now() : 0
 }
 
-// The signed-in user from Frappe's session cookies (no extra request).
+// The signed-in user from Frappe's session cookies (no extra request). The
+// identity shown on hover is the login id / email; an unauthenticated viewer of a
+// public link has user_id "Guest" (Frappe's default) → shown as "Guest".
 function currentUser() {
-  const id = cookie('user_id') || 'you'
-  const name = (cookie('full_name') || '').replace(/^"|"$/g, '') || id
-  return { id, name, initials: initialsOf(name) }
+  const raw = cookie('user_id')
+  const id = !raw || raw === 'Guest' ? 'Guest' : raw
+  const fullName = (cookie('full_name') || '').replace(/^"|"$/g, '')
+  // Hover label = email/login (the ask); fall back to the full name, then Guest.
+  const identity = id === 'Guest' ? 'Guest' : id || fullName || 'Guest'
+  return { id, identity, initials: initialsOf(fullName || id) }
 }
 
-export function initialsOf(name) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean)
+// Initials for an avatar. Emails use the part before "@"; names use first+last.
+export function initialsOf(value) {
+  const base = String(value || '').replace(/@.*/, '').trim()
+  const parts = base.split(/[\s._-]+/).filter(Boolean)
   if (!parts.length) return '?'
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()

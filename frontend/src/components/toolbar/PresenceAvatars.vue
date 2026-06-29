@@ -19,9 +19,13 @@ function colorFor(key) {
   return palette[hash % palette.length]
 }
 
-// Me first, then peers; cap the visible avatars and show a +N overflow chip.
+// Me first, then peers. The tooltip shows each viewer's identity (login/email,
+// or "Guest"); cap the visible avatars and show a "+N" overflow chip.
 const avatars = computed(() => {
-  const all = [{ id: me.id, name: `${me.name} (you)`, initials: me.initials }, ...peers.value.map((p) => ({ id: p.id, name: p.name, initials: initialsOf(p.name) }))]
+  const all = [
+    { id: me.id, tip: `${me.identity} (you)`, initials: me.initials },
+    ...peers.value.map((p) => ({ id: p.id, tip: p.identity, initials: initialsOf(p.identity) })),
+  ]
   return all.slice(0, MAX)
 })
 const overflow = computed(() => Math.max(0, 1 + peers.value.length - MAX))
@@ -29,7 +33,7 @@ const overflow = computed(() => Math.max(0, 1 + peers.value.length - MAX))
 
 <template>
   <div class="flex items-center -space-x-1.5">
-    <Tooltip v-for="a in avatars" :key="a.id" :text="a.name">
+    <Tooltip v-for="a in avatars" :key="a.id" :text="a.tip">
       <div
         class="flex h-7 w-7 select-none items-center justify-center rounded-full text-xs font-semibold text-white ring-2 ring-surface-white"
         :style="{ background: colorFor(a.id) }"

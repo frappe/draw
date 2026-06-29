@@ -92,7 +92,7 @@ function applyPreset(name) {
       <Switch
         size="sm"
         :model-value="editorUi.state.snapToGrid"
-        @update:model-value="editorUi.toggleSnapToGrid()"
+        @change="editorUi.toggleSnapToGrid()"
       />
     </div>
 
@@ -102,7 +102,7 @@ function applyPreset(name) {
       <Switch
         size="sm"
         :model-value="editorUi.state.infiniteCanvas"
-        @update:model-value="editorUi.toggleInfiniteCanvas()"
+        @change="editorUi.toggleInfiniteCanvas()"
       />
     </div>
   </PaletteSection>

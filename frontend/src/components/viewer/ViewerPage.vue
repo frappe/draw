@@ -7,11 +7,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { Button, FeatherIcon, Spinner } from 'frappe-ui'
 import { call } from 'frappe-ui'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import DiagramCanvas from '@/components/canvas/DiagramCanvas.vue'
+import PresenceAvatars from '@/components/toolbar/PresenceAvatars.vue'
 import Logomark from '@/components/Logomark.vue'
 import { createDiagramStore, provideDiagramStore } from '@/stores/useDiagramStore.js'
 import { createEditorUi, provideEditorUi } from '@/stores/useEditorUi.js'
+import { provideModeStrategy, getModeStrategy } from '@/stores/useModeStrategy.js'
+import { provideModeInteraction } from '@/composables/useModeInteraction.js'
 import { loadDiagram } from '@/data/diagrams.js'
 import { parseDiagramDocument } from '@/diagram/schema.js'
 
@@ -22,9 +25,6 @@ const props = defineProps({
 })
 
 const router = useRouter()
-const route = useRoute()
-// Embedded mode (spec 12.5): drop the footer so the diagram fills the iframe.
-const embed = computed(() => route.query.embed === '1' || route.query.embed === 'true')
 const status = ref('loading') // 'loading' | 'ready' | 'denied'
 const store = createDiagramStore()
 const editorUi = createEditorUi()
@@ -34,6 +34,12 @@ provideDiagramStore(store)
 editorUi.state.tool = 'hand'
 editorUi.state.gridVisible = false
 provideEditorUi(editorUi)
+
+// DiagramCanvas needs the active mode strategy + the interaction seam (same as
+// the editor) — without these it can't render. Strategy tracks the loaded type.
+const modeStrategy = computed(() => getModeStrategy(store.state.diagramType))
+provideModeStrategy(modeStrategy)
+provideModeInteraction()
 
 onMounted(load)
 
@@ -103,10 +109,14 @@ function isMethodMissing(error) {
       </div>
 
       <DiagramCanvas v-else />
+
+      <!-- Presence: viewers (incl. guests) of the shared diagram (spec 11.3). -->
+      <div v-if="status === 'ready'" class="absolute right-3 top-3 z-10">
+        <PresenceAvatars />
+      </div>
     </main>
 
     <footer
-      v-if="!embed"
       class="flex flex-none items-center justify-center gap-1.5 border-t border-outline-gray-1 bg-surface-white py-2 text-[11px] text-ink-gray-5"
     >
       <Logomark :size="14" />
