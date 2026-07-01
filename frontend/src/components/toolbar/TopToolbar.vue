@@ -1,9 +1,9 @@
 <script setup>
-// Top toolbar (48px, spec §4.4, README §4a). Left: back chevron (to Home),
-// vertical divider, violet logomark, editable title, save indicator. Right:
-// Export, Share, Print, divider, dark-mode toggle, violet avatar. Chrome only —
-// frappe-ui components + frappe-ui Tailwind tokens; brand violet only on the
-// logomark + avatar.
+// Top bar (48px). Drive/Writer style: NO back button — a breadcrumb instead.
+// Left: the violet logomark + "Frappe Draw" (→ Home) / optional folder / the
+// editable diagram title as the last crumb + save indicator. Right: Export,
+// Share, Print, dark-mode, presence. Chrome only — frappe-ui + its tokens; the
+// breadcrumb styling mirrors frappe-ui's Breadcrumbs (text-lg, ink-gray ladder).
 import { useRouter } from 'vue-router'
 import { Button, Tooltip, FeatherIcon } from 'frappe-ui'
 import Logomark from '@/components/Logomark.vue'
@@ -17,6 +17,7 @@ defineProps({
   title: { type: String, default: 'Untitled diagram' },
   saveStatus: { type: String, default: 'saved' },
   dark: { type: Boolean, default: false },
+  folder: { type: String, default: '' },
 })
 const emit = defineEmits(['update:title', 'toggle-dark'])
 
@@ -33,18 +34,27 @@ function print() {
 
 <template>
   <header
-    class="flex h-12 flex-none items-center gap-3 border-b border-outline-gray-1 bg-surface-white px-3"
+    class="flex h-12 flex-none items-center gap-1 border-b border-outline-gray-1 bg-surface-white px-3"
   >
-    <Tooltip text="Back to diagrams">
-      <Button variant="ghost" aria-label="Back to diagrams" @click="goHome">
-        <FeatherIcon name="chevron-left" class="h-4 w-4" />
-      </Button>
-    </Tooltip>
+    <!-- Breadcrumb: logo + Frappe Draw (→ Home). -->
+    <button
+      class="flex items-center gap-2 rounded px-1 py-1 hover:bg-surface-gray-2"
+      title="All diagrams"
+      @click="goHome"
+    >
+      <Logomark :size="22" />
+      <span class="text-lg font-medium text-ink-gray-5 hover:text-ink-gray-7">Frappe Draw</span>
+    </button>
 
-    <div class="h-5 w-px bg-outline-gray-1" />
+    <span class="mx-0.5 text-base text-ink-gray-4" aria-hidden="true">/</span>
 
-    <Logomark :size="22" />
+    <!-- Optional folder crumb (informational). -->
+    <template v-if="folder">
+      <span class="max-w-[160px] truncate text-lg font-medium text-ink-gray-5">{{ folder }}</span>
+      <span class="mx-0.5 text-base text-ink-gray-4" aria-hidden="true">/</span>
+    </template>
 
+    <!-- Current diagram — the editable last crumb. -->
     <TitleEditor :title="title" @update:title="emit('update:title', $event)" />
 
     <SaveIndicator :status="saveStatus" />

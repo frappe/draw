@@ -62,20 +62,20 @@ function cancel() {
       v-if="editing"
       ref="input"
       v-model="draft"
-      class="w-56 max-w-full rounded border border-outline-gray-2 bg-surface-white px-1.5 py-0.5 text-sm font-semibold text-ink-gray-9 outline-none focus:border-outline-gray-3"
+      class="w-56 max-w-full rounded border border-outline-gray-2 bg-surface-white px-1.5 py-0.5 text-lg font-medium text-ink-gray-9 outline-none focus:border-outline-gray-3"
       @blur="commit"
       @keyup.enter="commit"
       @keyup.esc="cancel"
     />
     <button
       v-else
-      class="group flex min-w-0 items-center gap-1.5 rounded px-1.5 py-0.5 text-sm font-semibold text-ink-gray-9 hover:bg-surface-gray-2"
+      class="group flex min-w-0 items-center gap-1.5 rounded px-1 py-0.5 text-lg font-medium text-ink-gray-9 hover:bg-surface-gray-2"
       @click="startEditing"
     >
       <span class="truncate">{{ title }}</span>
       <FeatherIcon
         name="edit-2"
-        class="h-3 w-3 flex-none text-ink-gray-4 opacity-60 group-hover:opacity-100"
+        class="h-3.5 w-3.5 flex-none text-ink-gray-4 opacity-0 group-hover:opacity-100"
       />
     </button>
   </div>
