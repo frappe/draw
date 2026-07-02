@@ -11,7 +11,10 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
 import { recentShapes, pushRecentShape } from '@/composables/useRecentShapes.js'
 import { collapseAll, clearMap } from '@/diagram/mindmapOperations.js'
+import { autoNumberFlow, isFlowNumbered } from '@/diagram/flowchartModel.js'
+import { tidyLayout, toggleDirection } from '@/diagram/flowchartLayout.js'
 import WhiteboardTools from './WhiteboardTools.vue'
+import CanvasSection from '@/components/palette-right/CanvasSection.vue'
 
 const editorUi = useEditorUi()
 const viewport = editorUi.viewport
@@ -24,10 +27,26 @@ const imageInsert = useImageInsert(store)
 const isBlock = computed(() => modeStrategy?.value?.type === 'block')
 const isWhiteboard = computed(() => modeStrategy?.value?.type === 'whiteboard')
 const isMindmap = computed(() => modeStrategy?.value?.type === 'mindmap')
+const isFlowchart = computed(() => modeStrategy?.value?.type === 'flowchart')
 
 // Map-wide mind-map actions (per-node editing lives in the floating toolbar).
 function convertToFlowchart() {
   store.convertDiagram('flowchart')
+}
+
+// Map-wide flowchart actions (per-node editing lives in the floating toolbar).
+const flowDirection = computed(() => store.state.flowchart?.direction || 'TB')
+const flowNumbered = computed(() => (store.state.flowchart ? isFlowNumbered(store.state.flowchart) : false))
+function flowTidy() {
+  editorUi.pulseLayoutAnimation()
+  store.updateFlowchartModel('Tidy up', (m) => tidyLayout(m))
+}
+function flowFlip() {
+  editorUi.pulseLayoutAnimation()
+  store.updateFlowchartModel('Flow direction', (m) => toggleDirection(m))
+}
+function flowNumber() {
+  store.updateFlowchartModel('Number steps', (m) => autoNumberFlow(m))
 }
 
 // Add a named section at the centre of the current view (works in every type).
@@ -236,6 +255,17 @@ function commitZoom() {
           <LucideIcon name="image" class="h-4 w-4" />
         </button>
       </Tooltip>
+      <!-- Canvas settings (size / theme / grid) — moved here from the old right panel. -->
+      <Popover>
+        <template #target="{ togglePopover }">
+          <Tooltip text="Canvas settings">
+            <button :class="buttonBase" @click="togglePopover()"><LucideIcon name="settings" class="h-4 w-4" /></button>
+          </Tooltip>
+        </template>
+        <template #body-main>
+          <div class="max-h-[70vh] w-[264px] overflow-y-auto"><CanvasSection /></div>
+        </template>
+      </Popover>
     </template>
 
     <!-- Mind map: map-wide actions (per-node editing is in the floating toolbar). -->
@@ -252,6 +282,23 @@ function commitZoom() {
       </Tooltip>
       <Tooltip text="Clear map">
         <button :class="[buttonBase, 'hover:text-red-600']" @click="clearMap(store)"><LucideIcon name="trash-2" class="h-4 w-4" /></button>
+      </Tooltip>
+    </template>
+
+    <!-- Flowchart: map-wide layout actions (per-node editing is in the floating toolbar). -->
+    <template v-if="isFlowchart">
+      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+      <Tooltip text="Tidy up">
+        <button :class="buttonBase" @click="flowTidy"><LucideIcon name="grid" class="h-4 w-4" /></button>
+      </Tooltip>
+      <Tooltip :text="flowDirection === 'TB' ? 'Top → bottom' : 'Left → right'">
+        <button :class="buttonBase" @click="flowFlip"><LucideIcon :name="flowDirection === 'TB' ? 'arrow-down' : 'arrow-right'" class="h-4 w-4" /></button>
+      </Tooltip>
+      <Tooltip :text="flowNumbered ? 'Clear numbers' : 'Number steps'">
+        <button :class="[buttonBase, toggleClass(flowNumbered)]" @click="flowNumber"><LucideIcon name="list" class="h-4 w-4" /></button>
+      </Tooltip>
+      <Tooltip text="Convert to mind map">
+        <button :class="buttonBase" @click="store.convertDiagram('mindmap')"><LucideIcon name="git-branch" class="h-4 w-4" /></button>
       </Tooltip>
     </template>
 

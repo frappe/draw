@@ -29,6 +29,9 @@ const BLOCK = {
   keyboardMode: 'block',
   surfaceTools: [],
   showsShapeTools: true, // left creation palette (shapes/connectors/icons)
+  // No right panel: shape editing lives in the floating contextual toolbar
+  // (BlockSelectionEditor); creation + canvas settings in the bottom palette.
+  showsRightPalette: false,
 }
 
 const MINDMAP = {
@@ -56,6 +59,9 @@ const FLOWCHART = {
   keyboardMode: 'flowchart',
   surfaceTools: [], // flowchart builds via + handles / keyboard, not bottom tools
   showsShapeTools: false, // flowchart builds via + handles / keyboard
+  // No right panel: per-node editing lives in the floating contextual toolbar
+  // (FlowchartSelectionEditor); map-wide layout actions in the bottom palette.
+  showsRightPalette: false,
 }
 
 const WHITEBOARD = {
