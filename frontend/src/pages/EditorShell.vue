@@ -20,6 +20,7 @@ import TopToolbar from '@/components/toolbar/TopToolbar.vue'
 import DiagramCanvas from '@/components/canvas/DiagramCanvas.vue'
 import Minimap from '@/components/canvas/Minimap.vue'
 import MindMapOverlay from '@/components/canvas/MindMapOverlay.vue'
+import TemplateChooser from '@/components/canvas/TemplateChooser.vue'
 import BottomPalette from '@/components/floating/BottomPalette.vue'
 import RightPalette from '@/components/palette-right/RightPalette.vue'
 import ShortcutsDialog from '@/components/ShortcutsDialog.vue'
@@ -101,7 +102,13 @@ const route = useRoute()
 const router = useRouter()
 onMounted(() => {
   if (!folders.data) folders.fetch()
-  if (route.query.new) router.replace({ name: 'Editor', params: { name: props.name } })
+  // Consume ?new (title auto-select) but KEEP ?choose so the on-canvas template
+  // chooser can still open; the chooser clears its own flag when dismissed.
+  if (route.query.new) {
+    const query = { ...route.query }
+    delete query.new
+    router.replace({ name: 'Editor', params: { name: props.name }, query })
+  }
 })
 </script>
 
@@ -124,6 +131,7 @@ onMounted(() => {
         <DiagramCanvas />
         <Minimap />
         <MindMapOverlay v-if="modeStrategy.type === 'mindmap'" />
+        <TemplateChooser />
         <BottomPalette />
       </main>
       <RightPalette v-if="modeStrategy.showsRightPalette !== false" />

@@ -17,7 +17,9 @@ const route = useRoute()
 // preselect it so the user can type the name right away (EditorShell strips the
 // flag afterwards so a refresh won't re-trigger).
 onMounted(() => {
-  if (route.query.new === '1') nextTick(startEditing)
+  // Auto-select the title on a fresh diagram — but not while the on-canvas
+  // template chooser is up (?choose), so we don't focus behind the overlay.
+  if (route.query.new === '1' && route.query.choose !== '1') nextTick(startEditing)
 })
 
 const DEFAULT_TITLE = 'Untitled diagram'

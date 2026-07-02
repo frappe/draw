@@ -59,6 +59,7 @@ declare module 'vue' {
     Sidebar: typeof import('./src/components/home/Sidebar.vue')['default']
     SmartGuidesLayer: typeof import('./src/components/canvas/SmartGuidesLayer.vue')['default']
     TableOptions: typeof import('./src/components/floating/TableOptions.vue')['default']
+    TemplateChooser: typeof import('./src/components/canvas/TemplateChooser.vue')['default']
     TextEditor: typeof import('./src/components/canvas/TextEditor.vue')['default']
     TextSection: typeof import('./src/components/palette-right/TextSection.vue')['default']
     TileGrid: typeof import('./src/components/home/TileGrid.vue')['default']
