@@ -17,6 +17,8 @@ export function createEditorUi() {
     gridDensity: 'dense',
     snapToGrid: false,
     infiniteCanvas: false,
+    // The selected section id (chrome — sections aren't part of shape selection).
+    selectedSectionId: null,
     // True for a short window after a layout op (tidy / flip) so node positions
     // tween instead of jumping (spec 17.1). Off during free drag → no lag.
     animateLayout: false,
@@ -63,6 +65,8 @@ function attachGrid(ui, state) {
   ui.setGridDensity = (density) => (state.gridDensity = density)
   ui.toggleSnapToGrid = () => (state.snapToGrid = !state.snapToGrid)
   ui.toggleInfiniteCanvas = () => (state.infiniteCanvas = !state.infiniteCanvas)
+  ui.selectSection = (id) => (state.selectedSectionId = id)
+  ui.clearSection = () => (state.selectedSectionId = null)
   ui.gridSpacing = computed(() => GRID_SPACING[state.gridDensity] || GRID_SPACING.dense)
 }
 

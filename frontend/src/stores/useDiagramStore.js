@@ -5,6 +5,7 @@
 
 import { reactive, computed, provide, inject } from 'vue'
 import { createShape, createConnector } from '@/diagram/factories.js'
+import { makeSection } from '@/diagram/sections.js'
 import { createHistory } from '@/stores/history.js'
 import { findThemePreset } from '@/diagram/theme.js'
 import { createDiagramDocument, SCHEMA_VERSION, DEFAULT_DIAGRAM_TYPE } from '@/diagram/schema.js'
@@ -48,6 +49,7 @@ export function createDiagramStore(initialDocument) {
     canvas: { ...document.canvas },
     shapes: clone(document.shapes || []),
     connectors: clone(document.connectors || []),
+    sections: clone(document.sections || []),
     mindmap: document.mindmap ? clone(document.mindmap) : null,
     flowchart: document.flowchart ? clone(document.flowchart) : null,
     whiteboard: document.whiteboard ? clone(document.whiteboard) : null,
@@ -68,6 +70,7 @@ function assembleStore(state, history) {
   attachQueries(store, state)
   attachShapeMutations(store, state, history)
   attachConnectorMutations(store, state, history)
+  attachSections(store, state, history)
   attachSelection(store, state)
   attachOrdering(store, state, history)
   attachGrouping(store, state, history)
@@ -406,6 +409,21 @@ function remapDuplicatedEndpoint(endpoint, idMap) {
   return { ...endpoint, x: (endpoint?.x || 0) + 10, y: (endpoint?.y || 0) + 10 }
 }
 
+// Sections (named grouping frames) — one undoable unit each; document-level so
+// they work in every diagram type (spec).
+function attachSections(store, state, history) {
+  store.sectionById = (id) => state.sections.find((s) => s.id === id)
+  store.addSection = (x, y, w, h, partial = {}) => {
+    const section = makeSection(x, y, w, h, partial)
+    history.commit('Add section', () => state.sections.push(section))
+    return section.id
+  }
+  store.updateSection = (id, patch) =>
+    history.commit('Update section', () => applyPatch(store.sectionById(id), patch))
+  store.removeSection = (id) =>
+    history.commit('Delete section', () => (state.sections = state.sections.filter((s) => s.id !== id)))
+}
+
 function attachConnectorMutations(store, state, history) {
   store.addConnector = (partial) => {
     const connector = createConnector(partial)
@@ -528,6 +546,7 @@ function attachDocumentIo(store, state, history) {
     canvas: clone(state.canvas),
     shapes: clone(state.shapes),
     connectors: clone(state.connectors),
+    sections: clone(state.sections || []),
     mindmap: state.mindmap ? clone(state.mindmap) : null,
     flowchart: state.flowchart ? clone(state.flowchart) : null,
     whiteboard: state.whiteboard ? clone(state.whiteboard) : null,
@@ -538,6 +557,7 @@ function attachDocumentIo(store, state, history) {
     state.canvas = { ...document.canvas }
     state.shapes = clone(document.shapes || [])
     state.connectors = clone(document.connectors || [])
+    state.sections = clone(document.sections || [])
     state.mindmap = document.mindmap ? clone(document.mindmap) : null
     state.flowchart = document.flowchart ? clone(document.flowchart) : null
     state.whiteboard = document.whiteboard ? clone(document.whiteboard) : null

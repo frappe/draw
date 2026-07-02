@@ -21,6 +21,7 @@ function snapshot(state) {
     canvas: state.canvas,
     shapes: state.shapes,
     connectors: state.connectors,
+    sections: state.sections,
     mindmap: state.mindmap,
     flowchart: state.flowchart,
     whiteboard: state.whiteboard,
@@ -36,6 +37,7 @@ function restore(state, snap) {
   state.canvas = clone(snap.canvas)
   state.shapes = clone(snap.shapes)
   state.connectors = clone(snap.connectors)
+  state.sections = clone(snap.sections || [])
   state.mindmap = clone(snap.mindmap)
   state.flowchart = clone(snap.flowchart)
   state.whiteboard = clone(snap.whiteboard)

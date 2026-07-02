@@ -92,12 +92,28 @@ export function documentToSvg(rawDocument, options = {}) {
   // A caller (e.g. export-selection, spec 12.2) can frame a tighter region than
   // the type's default content bounds by passing an explicit viewBox.
   const viewBox = options.viewBox || rendered.viewBox
-  const body = rendered.body
+  // Sections render behind everything, in every type.
+  const body = sectionsSvg(doc) + rendered.body
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}"` +
     ` preserveAspectRatio="${options.fit || 'xMidYMid meet'}" style="${styleAttr}">` +
     `${body}</svg>`
   )
+}
+
+// Named sections/frames (document-level) drawn behind all content, any type.
+function sectionsSvg(doc) {
+  return (doc.sections || [])
+    .map((s) => {
+      const color = s.color || '#6E56CF'
+      const rect = `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" rx="6" fill="rgba(110,86,207,0.035)" stroke="${color}" stroke-width="1.5"/>`
+      const bar = `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="26" rx="6" fill="${color}"/>`
+      const title = s.title
+        ? `<text x="${s.x + 8}" y="${s.y + 17}" fill="#FFFFFF" font-size="12" font-weight="600" font-family="Inter, sans-serif">${escapeText(s.title)}</text>`
+        : ''
+      return rect + bar + title
+    })
+    .join('')
 }
 
 // Per-type body + viewBox. Block (and any unknown type) renders the shared
@@ -279,7 +295,7 @@ function whiteboardSticky(note) {
 // content (not just the shared shapes/connectors arrays).
 export function isDocumentEmpty(rawDocument) {
   const doc = parseDiagramDocument(rawDocument)
-  if ((doc.shapes || []).length || (doc.connectors || []).length) return false
+  if ((doc.shapes || []).length || (doc.connectors || []).length || (doc.sections || []).length) return false
   if (doc.diagramType === 'mindmap' && doc.mindmap) {
     return (doc.mindmap.nodes || []).length <= 1
   }

@@ -32,6 +32,8 @@ export function createDiagramDocument(presetName = DEFAULT_PRESET_NAME, diagramT
     },
     shapes: [],
     connectors: [],
+    // Named sections/frames that group content (spec: available in every type).
+    sections: [],
     // Per-type sub-objects; only the active type's is populated.
     mindmap: diagramType === 'mindmap' ? createMindMap() : null,
     flowchart: diagramType === 'flowchart' ? createFlowchart() : null,
@@ -51,6 +53,7 @@ export function parseDiagramDocument(raw) {
 // (Part G3 backward-compat: read-time fallback).
 function migrateDocument(document) {
   if (!document.diagramType) document.diagramType = DEFAULT_DIAGRAM_TYPE
+  if (!Array.isArray(document.sections)) document.sections = []
   if (document.mindmap === undefined) document.mindmap = null
   if (document.flowchart === undefined) document.flowchart = null
   if (document.whiteboard === undefined) document.whiteboard = null

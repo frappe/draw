@@ -28,6 +28,19 @@ const isMindmap = computed(() => modeStrategy?.value?.type === 'mindmap')
 function convertToFlowchart() {
   store.convertDiagram('flowchart')
 }
+
+// Add a named section at the centre of the current view (works in every type).
+function addSection() {
+  const surface = document.querySelector('[data-fdpreset]')
+  const rect = surface ? surface.getBoundingClientRect() : { width: 1000, height: 700 }
+  const { panX, panY, zoom } = viewport.state
+  const w = 360
+  const h = 240
+  const cx = (-panX + rect.width / 2) / zoom
+  const cy = (-panY + rect.height / 2) / zoom
+  const id = store.addSection(Math.round(cx - w / 2), Math.round(cy - h / 2), w, h)
+  editorUi.selectSection(id)
+}
 const SHAPES = [
   { type: 'rectangle', icon: 'square', label: 'Rectangle' },
   { type: 'rounded', icon: 'square', label: 'Rounded rectangle' },
@@ -141,6 +154,12 @@ function commitZoom() {
       >
         <FeatherIcon :name="mode.icon" class="h-4 w-4" />
       </button>
+    </Tooltip>
+
+    <!-- Section (named grouping frame) — available in every diagram type. -->
+    <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
+    <Tooltip text="Add section">
+      <button :class="buttonBase" @click="addSection"><FeatherIcon name="layout" class="h-4 w-4" /></button>
     </Tooltip>
 
     <!-- Block creation tools: Shapes + Connectors popovers + Text. -->

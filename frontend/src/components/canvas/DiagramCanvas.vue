@@ -29,6 +29,7 @@ import { useFormatPainter } from '@/composables/useFormatPainter.js'
 import { useClipboard } from '@/composables/useClipboard.js'
 import ContextMenu from './ContextMenu.vue'
 import GridLayer from './GridLayer.vue'
+import SectionView from './SectionView.vue'
 import ShapeView from './ShapeView.vue'
 import ConnectorView from './ConnectorView.vue'
 import SmartGuidesLayer from './SmartGuidesLayer.vue'
@@ -491,6 +492,9 @@ const panning = computed(() => editorUi.state.tool === 'hand')
 // select either applies the format painter to a clicked shape or runs the
 // normal click/move/marquee selection (spec §7.1/§7.2/§4.3).
 function onSurfacePointerDown(event) {
+  // A press anywhere but a section's title (which stops propagation) clears the
+  // section selection, so its handles/menu disappear.
+  editorUi.clearSection()
   // Hand tool always pans, for every type (shared transform, Part G4).
   if (editorUi.state.tool === 'hand') return viewport.startPan(event)
   // Flowchart/whiteboard own the surface (+ handles, drag-to-empty, pen, sticky):
@@ -629,6 +633,14 @@ const surfaceCursor = computed(() => {
           :width="gridBounds.w"
           :height="gridBounds.h"
           :density="editorUi.state.gridDensity"
+        />
+
+        <!-- Named sections/frames — behind everything, in every diagram type. -->
+        <SectionView
+          v-for="section in store.state.sections"
+          :key="section.id"
+          :section="section"
+          :selected="editorUi.state.selectedSectionId === section.id"
         />
 
         <!-- Block mode: shapes/connectors + overlays on the canvas. -->

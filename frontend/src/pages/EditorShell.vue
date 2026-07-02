@@ -24,7 +24,6 @@ import TemplateChooser from '@/components/canvas/TemplateChooser.vue'
 import BottomPalette from '@/components/floating/BottomPalette.vue'
 import RightPalette from '@/components/palette-right/RightPalette.vue'
 import ShortcutsDialog from '@/components/ShortcutsDialog.vue'
-import FirstRunTour from '@/components/FirstRunTour.vue'
 
 const props = defineProps({
   name: { type: String, required: true },
@@ -138,6 +137,5 @@ onMounted(() => {
     </div>
 
     <ShortcutsDialog />
-    <FirstRunTour />
   </div>
 </template>
