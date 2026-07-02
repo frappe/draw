@@ -41,6 +41,9 @@ const MINDMAP = {
   keyboardMode: 'mindmap',
   surfaceTools: [],
   showsShapeTools: false, // mind maps grow by keyboard (Tab/Enter), not shape drag
+  // No right panel: per-node editing lives in the floating contextual toolbar
+  // (MindMapOverlay), map-wide actions in the bottom palette — Whimsical-style.
+  showsRightPalette: false,
 }
 
 const FLOWCHART = {

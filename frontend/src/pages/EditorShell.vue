@@ -19,6 +19,7 @@ import { useAppSettings } from '@/composables/useAppSettings.js'
 import TopToolbar from '@/components/toolbar/TopToolbar.vue'
 import DiagramCanvas from '@/components/canvas/DiagramCanvas.vue'
 import Minimap from '@/components/canvas/Minimap.vue'
+import MindMapOverlay from '@/components/canvas/MindMapOverlay.vue'
 import BottomPalette from '@/components/floating/BottomPalette.vue'
 import RightPalette from '@/components/palette-right/RightPalette.vue'
 import ShortcutsDialog from '@/components/ShortcutsDialog.vue'
@@ -122,6 +123,7 @@ onMounted(() => {
       <main class="relative min-h-0 min-w-0 flex-1">
         <DiagramCanvas />
         <Minimap />
+        <MindMapOverlay v-if="modeStrategy.type === 'mindmap'" />
         <BottomPalette />
       </main>
       <RightPalette v-if="modeStrategy.showsRightPalette !== false" />

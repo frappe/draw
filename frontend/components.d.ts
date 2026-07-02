@@ -38,6 +38,7 @@ declare module 'vue' {
     Logomark: typeof import('./src/components/Logomark.vue')['default']
     MindMapNodeLayer: typeof import('./src/components/canvas/MindMapNodeLayer.vue')['default']
     MindMapOutline: typeof import('./src/components/canvas/MindMapOutline.vue')['default']
+    MindMapOverlay: typeof import('./src/components/canvas/MindMapOverlay.vue')['default']
     MindMapPalette: typeof import('./src/components/palette-right/MindMapPalette.vue')['default']
     Minimap: typeof import('./src/components/canvas/Minimap.vue')['default']
     NewDiagramDialog: typeof import('./src/components/home/NewDiagramDialog.vue')['default']

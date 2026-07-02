@@ -9,17 +9,25 @@ import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
 import { recentShapes, pushRecentShape } from '@/composables/useRecentShapes.js'
+import { collapseAll, clearMap } from '@/diagram/mindmapOperations.js'
 import WhiteboardTools from './WhiteboardTools.vue'
 
 const editorUi = useEditorUi()
 const viewport = editorUi.viewport
 const modeStrategy = useModeStrategy()
-const imageInsert = useImageInsert(useDiagramStore())
+const store = useDiagramStore()
+const imageInsert = useImageInsert(store)
 
 // Block diagrams create from here (no left palette). A categorised popover of
 // shapes + a connectors popover + a text tool, each arming draw mode.
 const isBlock = computed(() => modeStrategy?.value?.type === 'block')
 const isWhiteboard = computed(() => modeStrategy?.value?.type === 'whiteboard')
+const isMindmap = computed(() => modeStrategy?.value?.type === 'mindmap')
+
+// Map-wide mind-map actions (per-node editing lives in the floating toolbar).
+function convertToFlowchart() {
+  store.convertDiagram('flowchart')
+}
 const SHAPES = [
   { type: 'rectangle', icon: 'square', label: 'Rectangle' },
   { type: 'rounded', icon: 'square', label: 'Rounded rectangle' },
@@ -207,6 +215,23 @@ function commitZoom() {
         <button :class="buttonBase" @click="imageInsert.pick()">
           <FeatherIcon name="image" class="h-4 w-4" />
         </button>
+      </Tooltip>
+    </template>
+
+    <!-- Mind map: map-wide actions (per-node editing is in the floating toolbar). -->
+    <template v-if="isMindmap">
+      <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
+      <Tooltip text="Collapse all">
+        <button :class="buttonBase" @click="collapseAll(store, true)"><FeatherIcon name="minimize-2" class="h-4 w-4" /></button>
+      </Tooltip>
+      <Tooltip text="Expand all">
+        <button :class="buttonBase" @click="collapseAll(store, false)"><FeatherIcon name="maximize-2" class="h-4 w-4" /></button>
+      </Tooltip>
+      <Tooltip text="Convert to flowchart">
+        <button :class="buttonBase" @click="convertToFlowchart"><FeatherIcon name="git-commit" class="h-4 w-4" /></button>
+      </Tooltip>
+      <Tooltip text="Clear map">
+        <button :class="[buttonBase, 'hover:text-red-600']" @click="clearMap(store)"><FeatherIcon name="trash-2" class="h-4 w-4" /></button>
       </Tooltip>
     </template>
 

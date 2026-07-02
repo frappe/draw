@@ -126,9 +126,14 @@ function hasChildren(id) {
   return props.mindmap.nodes.some((node) => node.parentId === id)
 }
 
-// --- add-a-child affordance (hover ghost node) -----------------------------
-const ADD_GAP = 26
-const ADD_W = 88
+// --- add-a-child affordance (clear circular + button, Whimsical-style) -------
+// A solid, obvious "+" circle sits just off the node's branch side and is shown
+// while the node is hovered or selected — replacing the old dashed ghost that
+// was easy to miss (and the confusing double-click-on-empty). Click it to add a
+// child on that side and start typing.
+const ADD_R = 11
+const ADD_OFFSET = 22 // gap from the node edge to the button centre
+const hoveredId = ref(null)
 
 function rootCenterX() {
   const root = box(props.mindmap.rootId)
@@ -142,19 +147,17 @@ function addSidesFor(node, b) {
   return [b.x + b.w / 2 >= rootCenterX() ? 'right' : 'left']
 }
 
-// A dashed ghost pill (+ a connector stub and a plus) shown on hover, in node-
-// local coordinates, so clicking it adds a child on that side.
-function ghostsFor(node, b) {
+// Circular add-button geometry per side, in node-local coordinates.
+function addButtonsFor(node, b) {
   return addSidesFor(node, b).map((side) => {
-    const x = side === 'right' ? b.w + ADD_GAP : -ADD_GAP - ADD_W
-    return {
-      side,
-      line: { x1: side === 'right' ? b.w : 0, y1: b.h / 2, x2: side === 'right' ? x : x + ADD_W, y2: b.h / 2 },
-      rect: { x, y: 0, w: ADD_W, h: b.h },
-      cx: x + ADD_W / 2,
-      cy: b.h / 2,
-    }
+    const cx = side === 'right' ? b.w + ADD_OFFSET : -ADD_OFFSET
+    return { side, cx, cy: b.h / 2, stubX1: side === 'right' ? b.w : 0 }
   })
+}
+
+// Show the add buttons only where they're relevant (hovered / selected node).
+function showAdd(node) {
+  return !node.collapsed && (isSelected(node.id) || hoveredId.value === node.id)
 }
 
 function addChild(event, parentId) {
@@ -172,7 +175,8 @@ function editStyle(node, b) {
     height: b.h + 'px',
     lineHeight: b.h + 'px',
     fontSize: nodeFontSize(node) + 'px',
-    fontWeight: isRoot(props.mindmap, node.id) ? 700 : 500,
+    fontWeight: node.bold || isRoot(props.mindmap, node.id) ? 700 : 500,
+    fontStyle: node.italic ? 'italic' : 'normal',
     color: inkOf(node),
   }
 }
@@ -315,6 +319,8 @@ function isDropTarget(id) {
       :transform="`translate(${box.x + dragOffset(node.id).x} ${box.y + dragOffset(node.id).y})`"
       @pointerdown="onNodePointerDown($event, node.id)"
       @click="onNodeClick($event, node.id)"
+      @pointerenter="hoveredId = node.id"
+      @pointerleave="hoveredId === node.id && (hoveredId = null)"
     >
       <rect
         :width="box.w"
@@ -347,7 +353,8 @@ function isDropTarget(id) {
           text-anchor="middle"
           dominant-baseline="central"
           :font-size="node.fontSize || (isRoot(props.mindmap, node.id) ? 17 : 14)"
-          :font-weight="isRoot(props.mindmap, node.id) ? 700 : 500"
+          :font-weight="node.bold || isRoot(props.mindmap, node.id) ? 700 : 500"
+          :font-style="node.italic ? 'italic' : 'normal'"
           :fill="node.text ? inkOf(node) : '#9AA5B1'"
           style="font-family: Inter, sans-serif; pointer-events: none"
           @dblclick="startEdit($event, node.id)"
@@ -393,31 +400,25 @@ function isDropTarget(id) {
         >{{ childCount(node.id) }}</text>
       </g>
 
-      <!-- Hover a node's edge: a dashed ghost node appears on the branch side;
-           clicking it adds a child there (mouse affordance alongside Tab). -->
-      <template v-if="!node.collapsed">
+      <!-- Clear circular "+" add buttons on the branch side(s), shown while the
+           node is hovered or selected — click to add a child and start typing. -->
       <g
-        v-for="ghost in ghostsFor(node, box)"
-        :key="`add-${ghost.side}`"
-        class="fd-mm-add"
-        style="cursor: pointer; opacity: 0; transition: opacity 120ms ease"
+        v-for="add in showAdd(node) ? addButtonsFor(node, box) : []"
+        :key="`add-${add.side}`"
+        style="cursor: pointer"
         @click.stop="addChild($event, node.id)"
         @pointerdown.stop
       >
         <line
-          :x1="ghost.line.x1" :y1="ghost.line.y1" :x2="ghost.line.x2" :y2="ghost.line.y2"
-          stroke="#9AA5B1" stroke-width="1.5" stroke-dasharray="3 3"
+          :x1="add.stubX1" :y1="add.cy" :x2="add.cx" :y2="add.cy"
+          :stroke="colorOf(node)" stroke-width="2" stroke-linecap="round"
         />
-        <rect
-          :x="ghost.rect.x" :y="ghost.rect.y" :width="ghost.rect.w" :height="ghost.rect.h"
-          :rx="ghost.rect.h / 2" fill="#F5F8FF" stroke="#006EDB" stroke-width="1.5" stroke-dasharray="4 4"
-        />
+        <circle :cx="add.cx" :cy="add.cy" :r="ADD_R" :fill="colorOf(node)" />
         <path
-          :d="`M${ghost.cx - 5} ${ghost.cy} H${ghost.cx + 5} M${ghost.cx} ${ghost.cy - 5} V${ghost.cy + 5}`"
-          stroke="#006EDB" stroke-width="1.8" stroke-linecap="round"
+          :d="`M${add.cx - 4.5} ${add.cy} H${add.cx + 4.5} M${add.cx} ${add.cy - 4.5} V${add.cy + 4.5}`"
+          stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"
         />
       </g>
-      </template>
 
       <!-- Note indicator (hover shows the note text, M5). -->
       <g v-if="node.note" :transform="`translate(${box.w - 12} 10)`">
