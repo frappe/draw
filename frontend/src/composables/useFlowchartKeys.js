@@ -28,8 +28,10 @@ export function flowchartKeydown(event, store, editorUi) {
   if (!model) return false
   const node = selectedNode(store, model)
   if (event.key === 'Delete' || event.key === 'Backspace') {
-    if (!node) return false
-    store.removeFlowchartNode(node.id)
+    // Delete every selected node (single or multi) as one undoable unit.
+    const ids = (store.state.selection || []).filter((id) => flowchartNodeById(model, id))
+    if (!ids.length) return false
+    store.removeFlowchartNodes(ids)
     return true
   }
   if (!node || event.shiftKey || event.altKey) return false

@@ -94,8 +94,8 @@ function removeBranch(port) {
   if (node.value) store.updateFlowchartModel('Remove branch', (m) => removeDecisionBranch(m, node.value.id, port))
 }
 function remove() {
-  // Delete every selected node (removeFlowchartNode also drops its edges).
-  for (const id of nodes.value.map((n) => n.id)) store.removeFlowchartNode(id)
+  // Delete every selected node (+ their edges) as one undoable unit.
+  store.removeFlowchartNodes(nodes.value.map((n) => n.id))
 }
 
 const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2'

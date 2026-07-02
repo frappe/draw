@@ -133,6 +133,13 @@ function attachFlowchart(store, state, history) {
     if (!state.flowchart) return
     history.commit('Delete node', () => removeFlowchartNode(state.flowchart, id))
   }
+  // Delete several flowchart nodes (+ their edges) as ONE undoable unit.
+  store.removeFlowchartNodes = (ids) => {
+    if (!state.flowchart || !ids?.length) return
+    history.commit('Delete nodes', () => {
+      for (const id of ids) removeFlowchartNode(state.flowchart, id)
+    })
+  }
   store.addFlowchartEdge = (fromNodeId, toNodeId, partial = {}) => {
     if (!state.flowchart) return null
     let id = null
@@ -214,6 +221,18 @@ function attachWhiteboard(store, state, history) {
   store.updateWhiteboardModel = (label, mutatorFn) => {
     if (!state.whiteboard) return
     history.commit(label, () => mutatorFn(state.whiteboard))
+  }
+  // Delete a mixed set of whiteboard objects ([{kind,id}]) as ONE undoable unit
+  // (multi-selection Delete). Per-kind model removers, all in a single commit.
+  const WB_REMOVE = {
+    stroke: removeStroke, sticky: removeStickyNote, line: removeLine,
+    table: removeTable, frame: removeFrame, stamp: removeStamp,
+  }
+  store.removeWhiteboardObjects = (items) => {
+    if (!state.whiteboard || !items?.length) return
+    history.commit('Delete objects', () => {
+      for (const { kind, id } of items) WB_REMOVE[kind]?.(state.whiteboard, id)
+    })
   }
 }
 

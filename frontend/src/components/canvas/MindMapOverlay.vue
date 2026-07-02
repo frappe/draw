@@ -14,7 +14,7 @@ import { useEditorUi } from '@/stores/useEditorUi.js'
 import { layoutMindMap } from '@/diagram/mindmapLayout.js'
 import { isRoot } from '@/diagram/mindmapModel.js'
 import { branchPalette } from '@/diagram/mindmapColors.js'
-import { deleteNode, linkNodes } from '@/diagram/mindmapOperations.js'
+import { deleteNodes, linkNodes } from '@/diagram/mindmapOperations.js'
 import { mindmapUi, selectedNodeId, selectNode, beginEdit } from '@/stores/mindmapUi.js'
 
 const store = useDiagramStore()
@@ -113,11 +113,10 @@ function startCrosslink() {
   mindmapUi.pendingLinkSource = selId.value
 }
 function removeNode() {
-  // Delete every selected non-root node (the root is never deletable); each
-  // deleteNode is its own undoable subtree removal.
-  for (const n of selectedNodes.value) {
-    if (!isRoot(model.value, n.id)) deleteNode(store, n.id)
-  }
+  // Delete every selected non-root node (the root is never deletable) as one
+  // undoable unit.
+  const ids = selectedNodes.value.filter((n) => !isRoot(model.value, n.id)).map((n) => n.id)
+  deleteNodes(store, ids)
 }
 
 // --- blank map --------------------------------------------------------------

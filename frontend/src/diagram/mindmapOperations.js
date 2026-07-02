@@ -32,6 +32,16 @@ export function deleteNode(store, id) {
   return commitMindmap(store, 'Delete node', (model) => deleteSubtree(model, id))
 }
 
+// Delete several nodes (+ their subtrees) as ONE undoable unit — for a
+// multi-selection Delete. The caller filters out the root; deleting an ancestor
+// first makes a later descendant delete a harmless no-op.
+export function deleteNodes(store, ids) {
+  if (!ids?.length) return
+  commitMindmap(store, 'Delete nodes', (model) => {
+    for (const id of ids) deleteSubtree(model, id)
+  })
+}
+
 export function promoteNode(store, id) {
   return commitMindmap(store, 'Promote node', (model) => promote(model, id))
 }

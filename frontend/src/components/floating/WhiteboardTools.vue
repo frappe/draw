@@ -15,7 +15,6 @@ import { CHALK_COLORS, STICKY_COLORS, PEN_WIDTHS, BOARD_BACKGROUNDS } from '@/di
 import { tidyStickyNotes } from '@/diagram/whiteboardModel.js'
 import LineOptions from './LineOptions.vue'
 import TableOptions from './TableOptions.vue'
-import WhiteboardSelectionEditor from './WhiteboardSelectionEditor.vue'
 import WhiteboardMinimap from '@/components/canvas/WhiteboardMinimap.vue'
 import { useImageInsert } from '@/composables/useImageInsert.js'
 
@@ -240,7 +239,4 @@ function applyTableDefault(patch) {
       </div>
     </template>
   </Popover>
-
-  <!-- Contextual editor for the selected object. -->
-  <WhiteboardSelectionEditor />
 </template>

@@ -23,6 +23,7 @@ import Minimap from '@/components/canvas/Minimap.vue'
 import MindMapOverlay from '@/components/canvas/MindMapOverlay.vue'
 import BlockSelectionEditor from '@/components/floating/BlockSelectionEditor.vue'
 import FlowchartSelectionEditor from '@/components/floating/FlowchartSelectionEditor.vue'
+import WhiteboardSelectionEditor from '@/components/floating/WhiteboardSelectionEditor.vue'
 import CollaboratorCursors from '@/components/canvas/CollaboratorCursors.vue'
 import TemplateChooser from '@/components/canvas/TemplateChooser.vue'
 import BottomPalette from '@/components/floating/BottomPalette.vue'
@@ -137,6 +138,7 @@ onMounted(() => {
         <MindMapOverlay v-if="modeStrategy.type === 'mindmap'" />
         <BlockSelectionEditor v-if="modeStrategy.type === 'block'" />
         <FlowchartSelectionEditor v-if="modeStrategy.type === 'flowchart'" />
+        <WhiteboardSelectionEditor v-if="modeStrategy.type === 'whiteboard'" />
         <CollaboratorCursors :collaborators="collab.collaborators.value" :set-cursor="collab.setCursor" />
         <TemplateChooser />
         <BottomPalette />

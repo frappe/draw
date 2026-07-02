@@ -71,16 +71,8 @@ function dropAdjacentSticky(store, ui) {
 function deleteSelected(store, ui) {
   const selection = ui.state.selection
   if (!selection.length) return false
-  const remove = {
-    stroke: store.removeStroke,
-    sticky: store.removeStickyNote,
-    line: store.removeLine,
-    table: store.removeTable,
-    frame: store.removeFrame,
-    stamp: store.removeStamp,
-  }
-  // Delete every selected object (single or multi); one undoable unit per object.
-  for (const item of [...selection]) remove[item.kind]?.(item.id)
+  // Delete every selected object (single or multi) as one undoable unit.
+  store.removeWhiteboardObjects([...selection])
   ui.clearSelection()
   return true
 }
