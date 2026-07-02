@@ -8,16 +8,23 @@ import { computed, ref, watch, onMounted, nextTick } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
+import { isAdditive, startGroupMove } from '@/composables/useWhiteboardInteraction.js'
 import { FRAME_HEADER_H } from '@/diagram/whiteboardModel.js'
 
 const props = defineProps({
   frame: { type: Object, required: true },
+  // Passed from the layer via ui.isSelected → true for every selected frame.
   selected: { type: Boolean, default: false },
 })
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
 const ui = useWhiteboardUi()
+
+// Single-object affordances (the resize handle) show only for a lone selection.
+const solo = computed(
+  () => ui.state.selected?.kind === 'frame' && ui.state.selected.id === props.frame.id,
+)
 
 const field = ref(null)
 const editing = ref(false)
@@ -54,6 +61,15 @@ function startGesture(event, apply) {
 }
 
 function startMove(event) {
+  // Additive click toggles this frame's membership without starting a drag.
+  if (editorUi.state.tool === 'select' && isAdditive(event)) {
+    event.stopPropagation()
+    return ui.toggleSelected('frame', props.frame.id)
+  }
+  // Pressing a member of a multi-selection drags the whole group together.
+  if (editorUi.state.tool === 'select' && !solo.value && ui.isSelected('frame', props.frame.id)) {
+    return startGroupMove(event, store, editorUi, ui)
+  }
   startGesture(event, (o, dx, dy) => store.updateFrame(props.frame.id, { x: o.x + dx, y: o.y + dy }))
 }
 function startResize(event) {
@@ -133,9 +149,9 @@ const headerFill = computed(() => props.frame.color || '#6E56CF')
       ></div>
     </foreignObject>
 
-    <!-- Resize handle (bottom-right), shown when selected. -->
+    <!-- Resize handle (bottom-right), shown only for a lone selection. -->
     <rect
-      v-if="selected"
+      v-if="solo"
       :x="frame.w - 12"
       :y="frame.h - 12"
       width="12"

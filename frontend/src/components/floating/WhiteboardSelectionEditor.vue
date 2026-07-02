@@ -16,6 +16,19 @@ import TableOptions from './TableOptions.vue'
 const store = useDiagramStore()
 const ui = useWhiteboardUi()
 
+// Multi-selection: a single Delete bar acts on every selected object; the
+// per-object option controls below stay tied to a lone (single) selection.
+const selection = computed(() => ui.state.selection)
+const multi = computed(() => selection.value.length > 1)
+const REMOVE_FN = {
+  stroke: 'removeStroke', sticky: 'removeStickyNote', line: 'removeLine',
+  table: 'removeTable', frame: 'removeFrame', stamp: 'removeStamp',
+}
+function removeAll() {
+  for (const item of [...selection.value]) store[REMOVE_FN[item.kind]]?.(item.id)
+  ui.clearSelection()
+}
+
 const selected = computed(() => ui.state.selected)
 const kind = computed(() => selected.value?.kind)
 
@@ -41,7 +54,18 @@ const buttonBase =
 </script>
 
 <template>
-  <template v-if="editable">
+  <!-- Multi-selection: count + one Delete for the whole group. -->
+  <template v-if="multi">
+    <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+    <span class="px-1 text-[13px] text-ink-gray-6">{{ selection.length }} selected</span>
+    <Tooltip text="Delete selection">
+      <button :class="buttonBase" @click="removeAll">
+        <LucideIcon name="trash-2" class="h-4 w-4" />
+      </button>
+    </Tooltip>
+  </template>
+
+  <template v-else-if="editable">
     <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
     <Popover>
       <template #target="{ togglePopover }">

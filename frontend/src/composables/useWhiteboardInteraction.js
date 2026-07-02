@@ -15,10 +15,27 @@ import { contrastInk } from '@/diagram/whiteboardColors.js'
 import { registerModeInteraction, useModeInteraction } from '@/composables/useModeInteraction.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { simplifyStroke } from '@/diagram/strokeSimplify.js'
-import { strokeAt, lineAt, tableAt, tableCellAt, frameHeaderAt, stampAt } from '@/diagram/whiteboardModel.js'
+import {
+  strokeAt, lineAt, tableAt, tableCellAt, frameHeaderAt, stampAt,
+  whiteboardObjectBoxes, translateWhiteboardObject,
+} from '@/diagram/whiteboardModel.js'
+import { rectsIntersect } from '@/diagram/geometry.js'
 import { HIGHLIGHTER_WIDTH } from '@/diagram/whiteboardColors.js'
 
 const ERASER_TOLERANCE = 6 // canvas units of slack around a stroke path
+const MARQUEE_MIN = 3 // ignore sub-3px drags (treat as a click)
+
+// Shift, Ctrl, or Cmd all act as the "add to selection" modifier (matches
+// useSelection / the flowchart). Exported so per-object components share it.
+export function isAdditive(event) {
+  return event.shiftKey || event.ctrlKey || event.metaKey
+}
+
+// The select-helper on the whiteboard UI for each object kind.
+const SELECT_FN = {
+  stroke: 'selectStroke', sticky: 'selectSticky', line: 'selectLine',
+  table: 'selectTable', frame: 'selectFrame', stamp: 'selectStamp',
+}
 
 export function useWhiteboardInteraction(store, editorUi) {
   const ui = useWhiteboardUi()
@@ -204,24 +221,113 @@ function currentAuthor() {
 }
 
 // Select tool: pick the topmost object under the cursor. Lines and tables sit
-// above strokes in the pick order; sticky selection is handled by the sticky's
-// own pointerdown in the layer. Empty click clears.
+// above strokes in the pick order; sticky/frame selection is handled by their
+// own pointerdown in the layer. An additive click toggles membership; a plain
+// click single-selects; an empty press starts a marquee (spec — multi-select).
 function selectAt(context, store, ui) {
+  const hit = whiteboardHitAt(store.state.whiteboard, context.point)
+  if (!hit) return beginMarquee(context, store, ui)
+  if (isAdditive(context.event)) return ui.toggleSelected(hit.kind, hit.id)
+  ui[SELECT_FN[hit.kind]](hit.id)
+}
+
+// Topmost whiteboard object under the point, or null. Stamps > tables > lines >
+// strokes; frames match only via their title strip so the body stays clickable.
+function whiteboardHitAt(model, point) {
+  const stamp = stampAt(model, point)
+  if (stamp) return { kind: 'stamp', id: stamp.id }
+  const table = tableAt(model, point)
+  if (table) return { kind: 'table', id: table.id }
+  const line = lineAt(model, point, ERASER_TOLERANCE)
+  if (line) return { kind: 'line', id: line.id }
+  const stroke = strokeAt(model, point, ERASER_TOLERANCE)
+  if (stroke) return { kind: 'stroke', id: stroke.id }
+  const frame = frameHeaderAt(model, point)
+  if (frame) return { kind: 'frame', id: frame.id }
+  return null
+}
+
+// Rubber-band marquee on empty canvas. A plain press clears the selection first;
+// an additive press keeps it and merges the hits on release. Window listeners
+// (like useMarquee/flowchart) keep the box correct as the surface scrolls;
+// client→logical is undo-pan then undo-zoom against the surface rect at begin.
+function beginMarquee(context, store, ui) {
+  const { event, point, editorUi } = context
+  const additive = isAdditive(event)
+  if (!additive) ui.clearSelection()
+  const rect = event.currentTarget.getBoundingClientRect()
+  const viewport = editorUi.viewport
+  const start = point
+  const toLogical = (moveEvent) => ({
+    x: (moveEvent.clientX - rect.left - viewport.state.panX) / viewport.state.zoom,
+    y: (moveEvent.clientY - rect.top - viewport.state.panY) / viewport.state.zoom,
+  })
+  ui.state.marquee = { x: start.x, y: start.y, w: 0, h: 0 }
+  const move = (moveEvent) => {
+    const p = toLogical(moveEvent)
+    ui.state.marquee = {
+      x: Math.min(start.x, p.x),
+      y: Math.min(start.y, p.y),
+      w: Math.abs(p.x - start.x),
+      h: Math.abs(p.y - start.y),
+    }
+  }
+  const up = () => {
+    window.removeEventListener('pointermove', move)
+    window.removeEventListener('pointerup', up)
+    finishMarquee(store, ui, additive)
+  }
+  window.addEventListener('pointermove', move)
+  window.addEventListener('pointerup', up)
+}
+
+// On release, select every object whose bbox intersects the marquee. A sub-3px
+// box is treated as a click (selection already cleared above if not additive).
+function finishMarquee(store, ui, additive) {
+  const box = ui.state.marquee
+  ui.state.marquee = null
+  if (!box || box.w < MARQUEE_MIN || box.h < MARQUEE_MIN) return
+  const hits = whiteboardObjectBoxes(store.state.whiteboard)
+    .filter((object) => rectsIntersect(box, object.box))
+    .map((object) => ({ kind: object.kind, id: object.id }))
+  if (!hits.length) return
+  additive ? ui.addToSelection(hits) : ui.setSelection(hits)
+}
+
+// Group move: pressing a member of a multi-selection drags EVERY selected object
+// by the same delta. Called from the sticky/frame pointerdown handlers (the only
+// draggable objects), but moves all selected kinds. Live-mutates the model for a
+// smooth preview (outside history), then commits the total translation as ONE
+// undoable unit on release — a click with no movement keeps the group intact.
+export function startGroupMove(event, store, editorUi, ui) {
+  event.stopPropagation()
+  const items = ui.state.selection.map((item) => ({ ...item }))
   const model = store.state.whiteboard
-  // Stamps are small and on top → highest pick priority.
-  const stamp = stampAt(model, context.point)
-  if (stamp) return ui.selectStamp(stamp.id)
-  const table = tableAt(model, context.point)
-  if (table) return ui.selectTable(table.id)
-  const line = lineAt(model, context.point, ERASER_TOLERANCE)
-  if (line) return ui.selectLine(line.id)
-  const stroke = strokeAt(model, context.point, ERASER_TOLERANCE)
-  if (stroke) return ui.selectStroke(stroke.id)
-  // Frames sit behind everything: only their title strip selects them, so a
-  // click on the frame body still falls through to clear/empty.
-  const frame = frameHeaderAt(model, context.point)
-  if (frame) return ui.selectFrame(frame.id)
-  ui.clearSelection()
+  const startX = event.clientX
+  const startY = event.clientY
+  let lastDx = 0
+  let lastDy = 0
+  const move = (moveEvent) => {
+    const zoom = editorUi.viewport.state.zoom
+    const dx = (moveEvent.clientX - startX) / zoom
+    const dy = (moveEvent.clientY - startY) / zoom
+    // Apply only the incremental step so preview position stays exact.
+    for (const item of items) translateWhiteboardObject(model, item.kind, item.id, dx - lastDx, dy - lastDy)
+    lastDx = dx
+    lastDy = dy
+  }
+  const up = () => {
+    window.removeEventListener('pointermove', move)
+    window.removeEventListener('pointerup', up)
+    if (!lastDx && !lastDy) return // a click, not a drag → keep the group selected
+    // Undo the live preview, then commit the whole move once for clean undo.
+    for (const item of items) translateWhiteboardObject(model, item.kind, item.id, -lastDx, -lastDy)
+    store.updateWhiteboardModel('Move objects', (m) => {
+      for (const item of items) translateWhiteboardObject(m, item.kind, item.id, lastDx, lastDy)
+    })
+  }
+  window.addEventListener('pointermove', move)
+  window.addEventListener('pointerup', up)
 }
 
 // Double-click inside a table edits the cell under the cursor; anywhere else it

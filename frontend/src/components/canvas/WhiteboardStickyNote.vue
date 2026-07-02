@@ -14,6 +14,7 @@ import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
+import { isAdditive, startGroupMove } from '@/composables/useWhiteboardInteraction.js'
 import { contrastInk, STICKY_COLORS } from '@/diagram/whiteboardColors.js'
 import { roughenRect, pointsToPath } from '@/diagram/sketch.js'
 
@@ -31,7 +32,11 @@ const field = ref(null)
 const editing = ref(false)
 
 const ink = computed(() => contrastInk(props.note.color))
-const selected = computed(
+// Highlighted whenever part of the selection (multi-select shows every member's
+// border); `solo` (single-object) gates the floating toolbar + resize handle so
+// they don't clutter a multi-selection.
+const selected = computed(() => ui.isSelected('sticky', props.note.id))
+const solo = computed(
   () => ui.state.selected?.kind === 'sticky' && ui.state.selected.id === props.note.id,
 )
 const MIN = 80
@@ -104,6 +109,15 @@ function startGesture(event, apply) {
 }
 
 function startMove(event) {
+  // Additive click toggles this note's membership without starting a drag.
+  if (editorUi.state.tool === 'select' && isAdditive(event)) {
+    event.stopPropagation()
+    return ui.toggleSelected('sticky', props.note.id)
+  }
+  // Pressing a member of a multi-selection drags the whole group together.
+  if (editorUi.state.tool === 'select' && !solo.value && ui.isSelected('sticky', props.note.id)) {
+    return startGroupMove(event, store, editorUi, ui)
+  }
   if (props.note.hyperlink && !event.shiftKey) return // clicks navigate instead
   startGesture(event, (origin, dx, dy) =>
     store.updateStickyNote(props.note.id, { x: origin.x + dx, y: origin.y + dy }),
@@ -208,10 +222,11 @@ function openLink(event) {
       <text x="24" y="8" dominant-baseline="central" font-size="10" :fill="ink" fill-opacity="0.85" font-family="Inter, sans-serif">{{ note.author }}</text>
     </g>
 
-    <!-- Floating contextual toolbar above the selected sticky (colour/duplicate/delete). -->
+    <!-- Floating contextual toolbar above the selected sticky (colour/duplicate/delete).
+         Single-selection only, so it never clutters a multi-selection. -->
     <Teleport to="body">
       <div
-        v-if="selected"
+        v-if="solo"
         class="fixed z-30 flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-lg border border-outline-gray-2 bg-surface-base p-1 shadow-lg"
         :style="toolbarStyle"
       >
@@ -234,9 +249,9 @@ function openLink(event) {
       </div>
     </Teleport>
 
-    <!-- Resize handle (bottom-right), shown when selected. -->
+    <!-- Resize handle (bottom-right), shown only for a lone selection. -->
     <rect
-      v-if="selected"
+      v-if="solo"
       :x="note.w - 12"
       :y="note.h - 12"
       width="12"

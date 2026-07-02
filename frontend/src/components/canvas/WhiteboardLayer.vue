@@ -58,12 +58,17 @@ function strokeOpacity(stroke) {
   return stroke.kind === 'highlighter' ? HIGHLIGHTER_OPACITY : 1
 }
 
+// Highlight EVERY selected object (multi-select), not just a lone selection.
 function isSelected(kind, id) {
-  return ui.state.selected?.kind === kind && ui.state.selected.id === id
+  return ui.isSelected(kind, id)
 }
 function isSelectedStroke(id) {
   return isSelected('stroke', id)
 }
+
+// Marquee stroke scales inversely with zoom so it reads at any scale (like the
+// flowchart marquee). Rendered inside the viewport <g>, so box is in canvas units.
+const zoom = computed(() => editorUi.viewport.state.zoom)
 
 const live = computed(() => ui.liveStroke.value)
 const livePath = computed(() => (live.value ? strokePath(live.value) : ''))
@@ -220,6 +225,19 @@ const laserDots = computed(() => {
       :r="5"
       fill="#E03636"
       :fill-opacity="dot.opacity * 0.8"
+    />
+
+    <!-- Live rubber-band marquee while dragging empty canvas (logical units). -->
+    <rect
+      v-if="ui.state.marquee"
+      :x="ui.state.marquee.x"
+      :y="ui.state.marquee.y"
+      :width="ui.state.marquee.w"
+      :height="ui.state.marquee.h"
+      fill="rgba(79,148,255,0.08)"
+      stroke="#4F94FF"
+      :stroke-width="1 / zoom"
+      :stroke-dasharray="`${4 / zoom} ${3 / zoom}`"
     />
   </g>
 </template>

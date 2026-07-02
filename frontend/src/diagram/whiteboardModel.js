@@ -294,6 +294,68 @@ export function tableAt(model, point) {
   return hit
 }
 
+// ----- multi-select geometry (marquee + group move) -------------------------
+
+const STROKE_PAD = 4 // padding so a thin/empty stroke still yields a hittable box
+
+// Axis-aligned bounding box of a stroke's path (canvas units).
+function strokeBox(stroke) {
+  const points = stroke.points || []
+  if (!points.length) return { x: stroke.x || 0, y: stroke.y || 0, w: 0, h: 0 }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const p of points) {
+    minX = Math.min(minX, p.x)
+    minY = Math.min(minY, p.y)
+    maxX = Math.max(maxX, p.x)
+    maxY = Math.max(maxY, p.y)
+  }
+  const pad = STROKE_PAD + (stroke.width || 0) / 2
+  return { x: minX - pad, y: minY - pad, w: maxX - minX + pad * 2, h: maxY - minY + pad * 2 }
+}
+
+function lineBox(line) {
+  const x = Math.min(line.x1, line.x2)
+  const y = Math.min(line.y1, line.y2)
+  return { x, y, w: Math.abs(line.x2 - line.x1), h: Math.abs(line.y2 - line.y1) }
+}
+
+// Every whiteboard object as { kind, id, box } for marquee intersection testing.
+// Boxes are in canvas units, matching the marquee rect (Part G4).
+export function whiteboardObjectBoxes(model) {
+  const out = []
+  for (const s of model.strokes || []) out.push({ kind: 'stroke', id: s.id, box: strokeBox(s) })
+  for (const n of model.stickyNotes || []) out.push({ kind: 'sticky', id: n.id, box: { x: n.x, y: n.y, w: n.w, h: n.h } })
+  for (const l of model.lines || []) out.push({ kind: 'line', id: l.id, box: lineBox(l) })
+  for (const t of model.tables || []) out.push({ kind: 'table', id: t.id, box: { x: t.x, y: t.y, w: tableWidth(t), h: tableHeight(t) } })
+  for (const f of model.frames || []) out.push({ kind: 'frame', id: f.id, box: { x: f.x, y: f.y, w: f.w, h: f.h } })
+  for (const st of model.stamps || []) out.push({ kind: 'stamp', id: st.id, box: { x: st.x - STAMP_RADIUS, y: st.y - STAMP_RADIUS, w: STAMP_RADIUS * 2, h: STAMP_RADIUS * 2 } })
+  return out
+}
+
+// Translate one object by (dx, dy) in place (group move). Strokes shift every
+// point; lines shift both endpoints; the rest shift their x/y origin.
+export function translateWhiteboardObject(model, kind, id, dx, dy) {
+  if (kind === 'stroke') {
+    const s = strokeById(model, id)
+    if (s) s.points = (s.points || []).map((p) => ({ ...p, x: p.x + dx, y: p.y + dy }))
+  } else if (kind === 'sticky') {
+    const n = stickyNoteById(model, id)
+    if (n) { n.x += dx; n.y += dy }
+  } else if (kind === 'line') {
+    const l = lineById(model, id)
+    if (l) { l.x1 += dx; l.y1 += dy; l.x2 += dx; l.y2 += dy }
+  } else if (kind === 'table') {
+    const t = tableById(model, id)
+    if (t) { t.x += dx; t.y += dy }
+  } else if (kind === 'frame') {
+    const f = frameById(model, id)
+    if (f) { f.x += dx; f.y += dy }
+  } else if (kind === 'stamp') {
+    const st = stampById(model, id)
+    if (st) { st.x += dx; st.y += dy }
+  }
+}
+
 // Which cell of `table` the point falls in, as { row, col }, or null if outside.
 export function tableCellAt(table, point) {
   if (tableAt({ tables: [table] }, point) !== table) return null

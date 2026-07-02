@@ -29,9 +29,15 @@ function createWhiteboardUi() {
     tableCols: 3,
     // Stamp kind dropped by the stamp tool (emoji or 'dot' for dot-voting, 15.5).
     stampKind: '👍',
-    // The selected whiteboard object:
-    // { kind:'stroke'|'sticky'|'line'|'table'|'frame'|'stamp', id }.
+    // Multi-select source of truth: an array of { kind, id } (spec — standard
+    // multi-select). `kind` is 'stroke'|'sticky'|'line'|'table'|'frame'|'stamp'.
+    selection: [],
+    // Derived single selection: selection[0] when exactly one object is picked,
+    // else null. All the existing single-object logic (options/rendering/drag)
+    // reads this and is simply inactive during a multi-selection.
     selected: null,
+    // The live rubber-band marquee box {x,y,w,h} in canvas units, or null.
+    marquee: null,
     // The table cell being edited inline: { tableId, row, col } or null.
     editingCell: null,
   })
@@ -51,13 +57,41 @@ function createWhiteboardUi() {
 }
 
 function attachSelection(api, state) {
-  api.selectStroke = (id) => (state.selected = { kind: 'stroke', id })
-  api.selectSticky = (id) => (state.selected = { kind: 'sticky', id })
-  api.selectLine = (id) => (state.selected = { kind: 'line', id })
-  api.selectTable = (id) => (state.selected = { kind: 'table', id })
-  api.selectFrame = (id) => (state.selected = { kind: 'frame', id })
-  api.selectStamp = (id) => (state.selected = { kind: 'stamp', id })
-  api.clearSelection = () => (state.selected = null)
+  const same = (a, b) => a.kind === b.kind && a.id === b.id
+
+  // The one place selection is mutated: assign the array and re-derive `selected`
+  // so every single-object call site keeps working (selected is null unless the
+  // selection holds exactly one object). Route ALL mutations through here.
+  const setSelection = (list) => {
+    state.selection = list
+    state.selected = list.length === 1 ? list[0] : null
+  }
+  api.setSelection = setSelection
+
+  api.selectStroke = (id) => setSelection([{ kind: 'stroke', id }])
+  api.selectSticky = (id) => setSelection([{ kind: 'sticky', id }])
+  api.selectLine = (id) => setSelection([{ kind: 'line', id }])
+  api.selectTable = (id) => setSelection([{ kind: 'table', id }])
+  api.selectFrame = (id) => setSelection([{ kind: 'frame', id }])
+  api.selectStamp = (id) => setSelection([{ kind: 'stamp', id }])
+  api.clearSelection = () => setSelection([])
+
+  api.isSelected = (kind, id) => state.selection.some((item) => item.kind === kind && item.id === id)
+
+  // Additive click: add the object if absent, remove it if already selected.
+  api.toggleSelected = (kind, id) => {
+    const item = { kind, id }
+    const next = state.selection.filter((existing) => !same(existing, item))
+    if (next.length === state.selection.length) next.push(item)
+    setSelection(next)
+  }
+
+  // Merge `items` into the selection, de-duped by kind+id (marquee additive add).
+  api.addToSelection = (items) => {
+    const next = [...state.selection]
+    for (const item of items) if (!next.some((existing) => same(existing, item))) next.push(item)
+    setSelection(next)
+  }
 }
 
 // Laser points carry a birth timestamp; the render layer culls anything older
