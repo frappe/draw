@@ -60,7 +60,10 @@ function dropAdjacentSticky(store, ui) {
   if (selected?.kind !== 'sticky') return false
   const note = stickyNoteById(store.state.whiteboard, selected.id)
   if (!note) return false
-  const id = store.addStickyNote(note.x + note.w + 24, note.y, { color: note.color })
+  const id = store.addStickyNote(note.x + note.w + 24, note.y, {
+    color: note.color,
+    author: (typeof window !== 'undefined' && window.full_name) || '',
+  })
   ui.selectSticky(id)
   return true
 }

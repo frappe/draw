@@ -193,8 +193,14 @@ function placeSticky(context, store, ui) {
   const half = 90
   const id = store.addStickyNote(context.point.x - half, context.point.y - half, {
     color: ui.state.stickyColor,
+    author: currentAuthor(),
   })
   ui.selectSticky(id)
+}
+
+// The signed-in user's display name (from the page boot), for the sticky's chip.
+function currentAuthor() {
+  return (typeof window !== 'undefined' && window.full_name) || ''
 }
 
 // Select tool: pick the topmost object under the cursor. Lines and tables sit
