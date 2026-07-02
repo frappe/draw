@@ -8,11 +8,72 @@ import { ref, computed } from 'vue'
 import { call, toast } from 'frappe-ui'
 
 const TOGGLE_METHOD = 'frappe_draw.api.diagram.set_public_access'
+const SHARE = {
+  list: 'frappe_draw.api.diagram.list_shares',
+  add: 'frappe_draw.api.diagram.add_share',
+  update: 'frappe_draw.api.diagram.update_share',
+  remove: 'frappe_draw.api.diagram.remove_share',
+  search: 'frappe_draw.api.diagram.search_users',
+}
 
 export function useShare(diagramResource) {
   const updating = ref(false)
+  // People the diagram is shared with (Drive-style), loaded when the dialog opens.
+  const members = ref([])
 
   const isPublic = computed(() => Boolean(diagramResource?.doc?.is_public))
+
+  function name() {
+    return diagramResource?.doc?.name
+  }
+
+  async function loadShares() {
+    if (!name()) return
+    try {
+      members.value = (await call(SHARE.list, { name: name() })) || []
+    } catch (error) {
+      members.value = []
+    }
+  }
+
+  async function addMember(user, canEdit) {
+    if (!name() || !user) return
+    try {
+      await call(SHARE.add, { name: name(), user, can_edit: canEdit ? 1 : 0 })
+      await loadShares()
+      toast.success(`Shared with ${user}`)
+    } catch (error) {
+      toast.error(error?.messages?.[0] || 'Could not share with that person.')
+    }
+  }
+
+  async function setMemberRole(user, canEdit) {
+    if (!name()) return
+    try {
+      await call(SHARE.update, { name: name(), user, can_edit: canEdit ? 1 : 0 })
+      await loadShares()
+    } catch (error) {
+      toast.error('Could not update access.')
+    }
+  }
+
+  async function removeMember(user) {
+    if (!name()) return
+    try {
+      await call(SHARE.remove, { name: name(), user })
+      await loadShares()
+    } catch (error) {
+      toast.error('Could not remove access.')
+    }
+  }
+
+  async function searchUsers(txt) {
+    try {
+      return (await call(SHARE.search, { txt: txt || '' })) || []
+    } catch (error) {
+      return []
+    }
+  }
 
   // Anyone with this link gets view-only access via the viewer route (router.js).
   const shareLink = computed(() => {
@@ -48,7 +109,20 @@ export function useShare(diagramResource) {
     }
   }
 
-  return { isPublic, shareLink, updating, toggleGlobalAccess, copyLink, diagramResource }
+  return {
+    isPublic,
+    shareLink,
+    updating,
+    members,
+    toggleGlobalAccess,
+    copyLink,
+    loadShares,
+    addMember,
+    setMemberRole,
+    removeMember,
+    searchUsers,
+    diagramResource,
+  }
 }
 
 // Try the backend method first; if it is not deployed yet, fall back to a plain
