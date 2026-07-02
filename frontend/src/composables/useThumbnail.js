@@ -152,6 +152,27 @@ function mindmapBody(doc) {
   return { viewBox: `0 0 ${bbox.w} ${bbox.h}`, body: links + nodes }
 }
 
+// The node's background in its chosen shape (mirrors MindMapNodeLayer).
+function mindmapNodeShape(node, box, fill, color, sw) {
+  const attrs = `fill="${fill}" stroke="${color}" stroke-width="${sw}"`
+  const x = box.x
+  const y = box.y
+  const w = box.w
+  const h = box.h
+  if (node.shape === 'ellipse') {
+    return `<ellipse cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2}" ry="${h / 2}" ${attrs}/>`
+  }
+  if (node.shape === 'diamond') {
+    return `<polygon points="${x + w / 2},${y} ${x + w},${y + h / 2} ${x + w / 2},${y + h} ${x},${y + h / 2}" ${attrs}/>`
+  }
+  if (node.shape === 'hexagon') {
+    const i = Math.min(w * 0.16, h / 2)
+    return `<polygon points="${x + i},${y} ${x + w - i},${y} ${x + w},${y + h / 2} ${x + w - i},${y + h} ${x + i},${y + h} ${x},${y + h / 2}" ${attrs}/>`
+  }
+  const rx = node.shape === 'rounded' ? 12 : node.shape === 'rectangle' ? 4 : h / 2
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" ${attrs}/>`
+}
+
 function mindmapLink(model, node, positions, preset) {
   const color = resolveNodeColor(model, node, preset)
   return `<path d="${branchPath(positions[node.parentId], positions[node.id])}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>`
@@ -164,7 +185,7 @@ function mindmapNode(model, node, box, preset) {
   const strokeWidth = isRoot(model, node.id) ? 2.5 : 1.8
   const fontSize = node.fontSize || (isRoot(model, node.id) ? 17 : 14)
   const fontWeight = node.bold || isRoot(model, node.id) ? 700 : 500
-  const rect = `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="${box.h / 2}" fill="${fill}" stroke="${color}" stroke-width="${strokeWidth}"/>`
+  const rect = mindmapNodeShape(node, box, fill, color, strokeWidth)
   const label = (node.emoji ? node.emoji + '  ' : '') + (node.text || '')
   const text = label
     ? `<text x="${box.x + box.w / 2}" y="${box.y + box.h / 2}" text-anchor="middle" dominant-baseline="central" fill="${ink}" font-size="${fontSize}" font-weight="${fontWeight}" font-family="Inter, sans-serif">${escapeText(label)}</text>`

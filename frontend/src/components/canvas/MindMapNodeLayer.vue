@@ -281,6 +281,24 @@ function dragOffset(id) {
 function isDropTarget(id) {
   return interaction.drag.dropTargetId === id
 }
+
+// --- node shape (curated set; default pill) ---------------------------------
+function nodeStroke(node) {
+  return isSelected(node.id) || isDropTarget(node.id) ? 3 : isRoot(props.mindmap, node.id) ? 2.5 : 1.8
+}
+function strokeColor(node) {
+  return isDropTarget(node.id) ? '#006EDB' : colorOf(node)
+}
+function nodeRx(node, b) {
+  if (node.shape === 'rounded') return 12
+  if (node.shape === 'rectangle') return 4
+  return b.h / 2 // pill (default)
+}
+function nodePoly(node, b) {
+  if (node.shape === 'diamond') return `${b.w / 2},0 ${b.w},${b.h / 2} ${b.w / 2},${b.h} 0,${b.h / 2}`
+  const i = Math.min(b.w * 0.16, b.h / 2) // hexagon
+  return `${i},0 ${b.w - i},0 ${b.w},${b.h / 2} ${b.w - i},${b.h} ${i},${b.h} 0,${b.h / 2}`
+}
 </script>
 
 <template>
@@ -322,13 +340,31 @@ function isDropTarget(id) {
       @pointerenter="hoveredId = node.id"
       @pointerleave="hoveredId === node.id && (hoveredId = null)"
     >
+      <ellipse
+        v-if="node.shape === 'ellipse'"
+        :cx="box.w / 2"
+        :cy="box.h / 2"
+        :rx="box.w / 2"
+        :ry="box.h / 2"
+        :fill="fillOf(node)"
+        :stroke="strokeColor(node)"
+        :stroke-width="nodeStroke(node)"
+      />
+      <polygon
+        v-else-if="node.shape === 'diamond' || node.shape === 'hexagon'"
+        :points="nodePoly(node, box)"
+        :fill="fillOf(node)"
+        :stroke="strokeColor(node)"
+        :stroke-width="nodeStroke(node)"
+      />
       <rect
+        v-else
         :width="box.w"
         :height="box.h"
-        :rx="box.h / 2"
+        :rx="nodeRx(node, box)"
         :fill="fillOf(node)"
-        :stroke="isDropTarget(node.id) ? '#006EDB' : colorOf(node)"
-        :stroke-width="isSelected(node.id) || isDropTarget(node.id) ? 3 : isRoot(props.mindmap, node.id) ? 2.5 : 1.8"
+        :stroke="strokeColor(node)"
+        :stroke-width="nodeStroke(node)"
       />
 
       <!-- Marker color dot + icon (M5). -->

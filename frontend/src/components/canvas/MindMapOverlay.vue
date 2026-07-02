@@ -24,6 +24,7 @@ const FILL_SWATCHES = ['#EFEAFE', '#EFF6FF', '#F4FFF6', '#FDFAED', '#FCEAF5', '#
 const EMOJIS = ['💡', '✅', '⭐', '🔥', '⚠️', '❤️', '📌', '🎯', '🚀', '📝', '❓', '👍']
 const MARKER_ICONS = ['star', 'flag', 'check-circle', 'alert-circle', 'heart', 'zap']
 const FONT_SIZES = [12, 14, 17, 22]
+const SHAPES = ['pill', 'rounded', 'ellipse', 'diamond', 'hexagon']
 
 const model = computed(() => store.state.mindmap)
 const isBlank = computed(() => (model.value?.nodes.length ?? 0) === 0)
@@ -71,6 +72,9 @@ function setFontSize(size) {
 }
 function setMarker(icon) {
   patch({ marker: { icon: node.value?.marker?.icon === icon ? null : icon } })
+}
+function setShape(shape) {
+  patch({ shape })
 }
 function setNote(text) {
   patch({ note: text })
@@ -218,7 +222,7 @@ function activeBtn(on) {
               >{{ s }}</button>
             </div>
             <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Marker</div>
-            <div class="flex flex-wrap gap-1.5">
+            <div class="mb-2 flex flex-wrap gap-1.5">
               <button
                 v-for="icon in MARKER_ICONS"
                 :key="icon"
@@ -227,6 +231,26 @@ function activeBtn(on) {
                 @click="setMarker(icon)"
               >
                 <FeatherIcon :name="icon" class="h-4 w-4" />
+              </button>
+            </div>
+
+            <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Shape</div>
+            <div class="flex flex-wrap gap-1.5">
+              <button
+                v-for="s in SHAPES"
+                :key="s"
+                class="flex h-7 w-9 items-center justify-center rounded-md border"
+                :class="(node.shape || 'pill') === s ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-outline-gray-1 text-ink-gray-6'"
+                :title="s"
+                @click="setShape(s)"
+              >
+                <svg width="22" height="14" viewBox="0 0 22 14">
+                  <rect v-if="s === 'pill'" x="1" y="2" width="20" height="10" rx="5" fill="none" stroke="currentColor" stroke-width="1.3" />
+                  <rect v-else-if="s === 'rounded'" x="1" y="2" width="20" height="10" rx="3" fill="none" stroke="currentColor" stroke-width="1.3" />
+                  <ellipse v-else-if="s === 'ellipse'" cx="11" cy="7" rx="10" ry="6" fill="none" stroke="currentColor" stroke-width="1.3" />
+                  <polygon v-else-if="s === 'diamond'" points="11,1 21,7 11,13 1,7" fill="none" stroke="currentColor" stroke-width="1.3" />
+                  <polygon v-else points="4,1 18,1 21,7 18,13 4,13 1,7" fill="none" stroke="currentColor" stroke-width="1.3" />
+                </svg>
               </button>
             </div>
           </div>
