@@ -33,19 +33,21 @@ const editedLabel = computed(() => relativeTime(props.diagram.modified))
 // hit — its menu item greys out and says why.
 const pinBlocked = computed(() => !isPinned.value && props.pinLimitReached)
 
+// Pin lives on the one-click star now (Gmail-style), so the ⋯ menu is just
+// rename / duplicate / delete.
 const menuItems = computed(() => [
-  {
-    label: isPinned.value ? 'Unpin' : pinBlocked.value ? 'Pin · max 5 reached' : 'Pin',
-    icon: 'bookmark',
-    disabled: pinBlocked.value,
-    onClick: () => {
-      if (!pinBlocked.value) emit('toggle-pin', props.diagram)
-    },
-  },
   { label: 'Rename', icon: 'edit-2', onClick: () => emit('rename', props.diagram) },
   { label: 'Duplicate', icon: 'copy', onClick: () => emit('duplicate', props.diagram) },
   { label: 'Delete', icon: 'trash-2', theme: 'red', onClick: () => emit('delete', props.diagram) },
 ])
+
+// The star's title/behaviour depends on whether pinning is still allowed (cap 5).
+const pinTitle = computed(() =>
+  isPinned.value ? 'Unpin' : pinBlocked.value ? 'Pin limit reached (max 5)' : 'Pin',
+)
+function togglePin() {
+  if (!pinBlocked.value) emit('toggle-pin', props.diagram)
+}
 
 // Compact "3h ago" style label from an ISO/Frappe datetime string.
 function relativeTime(value) {
@@ -90,13 +92,27 @@ function onDragStart(event) {
       <FeatherIcon name="check" class="h-3 w-3" />
     </button>
 
+    <!-- One-click star (Gmail-style pin). -->
+    <button
+      class="flex h-6 w-6 flex-none items-center justify-center rounded hover:bg-surface-gray-2 disabled:cursor-not-allowed disabled:opacity-40"
+      :title="pinTitle"
+      :aria-label="pinTitle"
+      :disabled="pinBlocked"
+      @click.stop="togglePin"
+    >
+      <FeatherIcon
+        name="star"
+        class="h-4 w-4"
+        :class="isPinned ? 'fill-amber-400 text-amber-400' : 'text-ink-gray-4 hover:text-ink-gray-6'"
+      />
+    </button>
+
     <button class="flex min-w-0 flex-1 items-center gap-3 text-left" @click="emit('open', diagram.name)">
       <div class="flex h-8 w-8 flex-none items-center justify-center rounded-md bg-surface-gray-2 text-ink-gray-7">
         <FeatherIcon :name="icon" class="h-4 w-4" />
       </div>
       <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-ink-gray-9">
         {{ diagram.title }}
-        <FeatherIcon v-if="isPinned" name="bookmark" class="ml-1 inline h-3 w-3 text-ink-gray-5" />
       </span>
       <span class="hidden w-28 flex-none text-[11px] text-ink-gray-5 md:inline">Created {{ createdLabel }}</span>
       <span class="hidden w-28 flex-none text-[11px] text-ink-gray-5 sm:inline">Edited {{ editedLabel }}</span>
@@ -128,11 +144,21 @@ function onDragStart(event) {
       <FeatherIcon name="check" class="h-3 w-3" />
     </button>
 
-    <FeatherIcon
-      v-if="isPinned"
-      name="bookmark"
-      class="absolute right-2 top-2 z-10 h-4 w-4 fill-ink-gray-5 text-ink-gray-5"
-    />
+    <!-- One-click star (Gmail-style pin): always shown when pinned, on hover otherwise. -->
+    <button
+      class="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-md bg-surface-white/80 shadow-sm backdrop-blur transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+      :class="isPinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+      :title="pinTitle"
+      :aria-label="pinTitle"
+      :disabled="pinBlocked"
+      @click.stop="togglePin"
+    >
+      <FeatherIcon
+        name="star"
+        class="h-4 w-4"
+        :class="isPinned ? 'fill-amber-400 text-amber-400' : 'text-ink-gray-5'"
+      />
+    </button>
 
     <button class="block w-full" @click="emit('open', diagram.name)">
       <!-- Fixed light background so the thumbnail is a true preview of the

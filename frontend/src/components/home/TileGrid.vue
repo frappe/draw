@@ -7,8 +7,8 @@
 // Toolbar offers a type filter, sort, and tile/list toggle, becoming a bulk-
 // action bar on selection. Creation is the top-right CTA only (no inline tile).
 // At most MAX_PINNED diagrams can be pinned.
-import { computed, onMounted, reactive, ref } from 'vue'
-import { createListResource, FeatherIcon, Dialog, Button, FormControl, Dropdown, TextInput } from 'frappe-ui'
+import { computed, onMounted, reactive, ref, watchEffect } from 'vue'
+import { createListResource, FeatherIcon, Dialog, Button, FormControl, Dropdown, TextInput, Tooltip } from 'frappe-ui'
 import DiagramCollection from './DiagramCollection.vue'
 import FolderItem from './FolderItem.vue'
 import { folders, moveDiagramToFolder, createFolder } from '@/data/folders.js'
@@ -128,13 +128,22 @@ const currentDiagrams = computed(() => {
 const allSelected = computed(
   () => currentDiagrams.value.length > 0 && currentDiagrams.value.every((d) => selected.has(d.name)),
 )
+// Some-but-not-all selected → the master checkbox shows Gmail's indeterminate dash.
+const someSelected = computed(() => selectedCount.value > 0 && !allSelected.value)
 function selectAll() {
   currentDiagrams.value.forEach((d) => selected.add(d.name))
 }
+// Gmail behaviour: any selection → click clears; nothing selected → select all.
 function toggleSelectAll() {
-  if (allSelected.value) clearSelection()
+  if (selectedCount.value > 0) clearSelection()
   else selectAll()
 }
+
+// Native checkbox has no reactive `indeterminate` prop — set it on the element.
+const masterCheckbox = ref(null)
+watchEffect(() => {
+  if (masterCheckbox.value) masterCheckbox.value.indeterminate = someSelected.value
+})
 
 const confirmDelete = reactive({ open: false, names: [] })
 function askDelete(names) {
@@ -226,12 +235,22 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
     <!-- Toolbar: a Find bar + filter/sort/new-folder, or a bulk-action bar when
          diagrams are selected; the view toggle sits at the far right. -->
     <div class="mb-5 flex h-9 items-center gap-2">
+      <!-- Gmail-style master checkbox: select all / clear, with an indeterminate
+           dash when only some are selected. Always at the top-left of the list. -->
+      <Tooltip :text="allSelected || someSelected ? 'Clear selection' : 'Select all'">
+        <input
+          v-if="currentDiagrams.length"
+          ref="masterCheckbox"
+          type="checkbox"
+          :checked="allSelected"
+          class="ml-1 mr-1 h-4 w-4 flex-none cursor-pointer accent-[#171717]"
+          :aria-label="allSelected || someSelected ? 'Clear selection' : 'Select all'"
+          @change="toggleSelectAll"
+        />
+      </Tooltip>
+
       <template v-if="selectedCount">
         <span class="text-[13px] font-semibold text-ink-gray-9">{{ selectedCount }} selected</span>
-        <Button variant="subtle" @click="toggleSelectAll">
-          <template #prefix><FeatherIcon :name="allSelected ? 'square' : 'check-square'" class="h-4 w-4" /></template>
-          {{ allSelected ? 'Deselect all' : 'Select all' }}
-        </Button>
         <Button variant="subtle" theme="red" @click="deleteSelected">
           <template #prefix><FeatherIcon name="trash-2" class="h-4 w-4" /></template>
           Delete
@@ -244,10 +263,6 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
         <TextInput v-model="query" type="text" placeholder="Find a diagram" class="max-w-md flex-1">
           <template #prefix><FeatherIcon name="search" class="h-3.5 w-3.5 text-ink-gray-5" /></template>
         </TextInput>
-        <Button v-if="currentDiagrams.length" variant="subtle" @click="selectAll">
-          <template #prefix><FeatherIcon name="check-square" class="h-4 w-4" /></template>
-          Select all
-        </Button>
         <Dropdown :options="typeOptions" placement="bottom-start">
           <Button variant="subtle">
             <template #prefix><FeatherIcon name="filter" class="h-4 w-4" /></template>
