@@ -1,7 +1,7 @@
 <script setup>
 // Row/column count + color controls for a whiteboard table. Used for the tool
 // defaults (new tables) and for a selected table (live edit). Pure: emits a patch.
-import { FeatherIcon } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { CHALK_COLORS } from '@/diagram/whiteboardColors.js'
 
 const props = defineProps({
@@ -26,11 +26,11 @@ function step(field, delta) {
       <span class="text-[12px] text-ink-gray-7">Rows</span>
       <div class="flex items-center gap-1.5">
         <button class="flex h-6 w-6 items-center justify-center rounded text-ink-gray-7 hover:bg-surface-gray-2" @click="step('rows', -1)">
-          <FeatherIcon name="minus" class="h-3.5 w-3.5" />
+          <LucideIcon name="minus" class="h-3.5 w-3.5" />
         </button>
         <span class="w-5 text-center text-[13px] font-medium text-ink-gray-9">{{ rows }}</span>
         <button class="flex h-6 w-6 items-center justify-center rounded text-ink-gray-7 hover:bg-surface-gray-2" @click="step('rows', 1)">
-          <FeatherIcon name="plus" class="h-3.5 w-3.5" />
+          <LucideIcon name="plus" class="h-3.5 w-3.5" />
         </button>
       </div>
     </div>
@@ -38,11 +38,11 @@ function step(field, delta) {
       <span class="text-[12px] text-ink-gray-7">Columns</span>
       <div class="flex items-center gap-1.5">
         <button class="flex h-6 w-6 items-center justify-center rounded text-ink-gray-7 hover:bg-surface-gray-2" @click="step('cols', -1)">
-          <FeatherIcon name="minus" class="h-3.5 w-3.5" />
+          <LucideIcon name="minus" class="h-3.5 w-3.5" />
         </button>
         <span class="w-5 text-center text-[13px] font-medium text-ink-gray-9">{{ cols }}</span>
         <button class="flex h-6 w-6 items-center justify-center rounded text-ink-gray-7 hover:bg-surface-gray-2" @click="step('cols', 1)">
-          <FeatherIcon name="plus" class="h-3.5 w-3.5" />
+          <LucideIcon name="plus" class="h-3.5 w-3.5" />
         </button>
       </div>
     </div>

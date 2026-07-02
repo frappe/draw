@@ -22,5 +22,12 @@ export default defineConfig(async () => {
         '@': path.resolve(__dirname, 'src'),
       },
     },
+    // frappe-ui 1.0 ships source that references ~icons/lucide/* virtual modules
+    // (resolved by frappe-ui/vite's plugin in the transform pipeline). Excluding
+    // it from esbuild dep pre-bundling lets that source flow through the plugin
+    // so the dev scanner doesn't error on the unresolved ~icons imports.
+    optimizeDeps: {
+      exclude: ['frappe-ui'],
+    },
   }
 })

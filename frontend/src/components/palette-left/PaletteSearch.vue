@@ -3,7 +3,8 @@
 // narrow, so this is a search icon button that toggles a small overlay input.
 // Typing filters the palette via update:query; Esc or empty closes it.
 import { ref, nextTick } from 'vue'
-import { Tooltip, FeatherIcon } from 'frappe-ui'
+import { Tooltip } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 
 const props = defineProps({
   query: { type: String, default: '' },
@@ -42,7 +43,7 @@ function close() {
         aria-label="Search shapes"
         @click="toggle"
       >
-        <FeatherIcon name="search" class="h-[18px] w-[18px]" />
+        <LucideIcon name="search" class="h-[18px] w-[18px]" />
       </button>
     </Tooltip>
 
@@ -50,7 +51,7 @@ function close() {
       v-if="open"
       class="absolute left-[44px] top-0 z-10 flex w-52 items-center gap-2 rounded-md border border-outline-gray-2 bg-surface-white px-2.5 py-1.5 shadow-lg"
     >
-      <FeatherIcon name="search" class="h-4 w-4 flex-none text-ink-gray-5" />
+      <LucideIcon name="search" class="h-4 w-4 flex-none text-ink-gray-5" />
       <input
         ref="input"
         :value="query"

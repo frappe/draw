@@ -3,7 +3,8 @@
 // opens a popover with a saturation/value square, a hue slider, a hex field,
 // and a row of quick swatches. Works in HSV internally and commits hex.
 import { reactive, computed, watch } from 'vue'
-import { Popover, FeatherIcon } from 'frappe-ui'
+import { Popover } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { recentColors, pushRecentColor } from '@/composables/useRecentColors.js'
 
 const props = defineProps({
@@ -215,7 +216,7 @@ function hsvSegment(segment, chroma, x) {
               aria-label="Eyedropper"
               @click="pickEyedropper"
             >
-              <FeatherIcon name="crosshair" class="h-4 w-4" />
+              <LucideIcon name="crosshair" class="h-4 w-4" />
             </button>
           </div>
 

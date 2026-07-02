@@ -3,7 +3,8 @@
 // over a grid of trashed diagrams, each with Restore and permanent Delete.
 // Loads only trashed diagrams; restore clears the flag, delete removes the doc.
 import { computed, onMounted, reactive } from 'vue'
-import { createListResource, FeatherIcon, Button, Dialog } from 'frappe-ui'
+import { createListResource, Button, Dialog } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { documentToSvg, isDocumentEmpty } from '@/composables/useThumbnail.js'
 
 const emit = defineEmits(['changed'])
@@ -58,7 +59,7 @@ function refresh() {
     <div
       class="mb-6 flex items-center gap-2 rounded-[10px] border border-outline-amber-2 bg-surface-amber-1 px-3 py-2.5 text-[13px] text-ink-amber-3"
     >
-      <FeatherIcon name="alert-triangle" class="h-4 w-4" />
+      <LucideIcon name="alert-triangle" class="h-4 w-4" />
       Items in trash are permanently deleted after 30 days.
     </div>
 
@@ -76,7 +77,7 @@ function refresh() {
             class="h-full w-full [&>svg]:h-full [&>svg]:w-full"
             v-html="preview(diagram.document)"
           />
-          <FeatherIcon v-else name="image" class="h-7 w-7 text-ink-gray-3" />
+          <LucideIcon v-else name="image" class="h-7 w-7 text-ink-gray-3" />
         </div>
         <div class="px-3 py-2.5">
           <div class="truncate text-[13px] font-semibold text-ink-gray-9">{{ diagram.title }}</div>

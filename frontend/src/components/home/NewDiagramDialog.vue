@@ -3,7 +3,8 @@
 // creates a blank diagram and opens the canvas, where the blank-vs-template
 // chooser appears (TemplateChooser) — so templates are chosen in-context on the
 // canvas, not over the home grid.
-import { Dialog, FeatherIcon } from 'frappe-ui'
+import { Dialog } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 
 defineProps({
   modelValue: { type: Boolean, default: false },
@@ -52,7 +53,7 @@ function pickType(type) {
           class="relative flex flex-col gap-1.5 rounded-md border border-outline-gray-2 p-3.5 text-left transition-colors hover:border-ink-gray-9 hover:bg-surface-gray-1"
           @click="pickType(type)"
         >
-          <FeatherIcon :name="type.icon" class="h-[18px] w-[18px] text-ink-gray-8" />
+          <LucideIcon :name="type.icon" class="h-[18px] w-[18px] text-ink-gray-8" />
           <div class="text-[13px] font-semibold text-ink-gray-9">{{ type.name }}</div>
           <div class="text-[11px] text-ink-gray-5">{{ type.hint }}</div>
         </button>
@@ -66,7 +67,7 @@ function pickType(type) {
           class="relative flex cursor-not-allowed flex-col gap-1.5 rounded-md border border-outline-gray-2 p-3.5 text-left opacity-60"
           aria-disabled="true"
         >
-          <FeatherIcon :name="type.icon" class="h-[18px] w-[18px] text-ink-gray-5" />
+          <LucideIcon :name="type.icon" class="h-[18px] w-[18px] text-ink-gray-5" />
           <div class="text-[13px] font-semibold text-ink-gray-7">{{ type.name }}</div>
           <div class="text-[11px] text-ink-gray-5">{{ type.hint }}</div>
           <span class="absolute right-2 top-2 rounded-full bg-surface-gray-3 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-ink-gray-6">Coming Soon</span>

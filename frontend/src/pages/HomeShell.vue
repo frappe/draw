@@ -3,7 +3,8 @@
 // dialog + trash view, and routes to the editor on create/open (spec §2).
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button, FeatherIcon } from 'frappe-ui'
+import { Button } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import Sidebar from '@/components/home/Sidebar.vue'
 import TileGrid from '@/components/home/TileGrid.vue'
 import EmptyState from '@/components/home/EmptyState.vue'
@@ -86,7 +87,7 @@ function open(name) {
                 Home
               </button>
               <template v-for="(folder, index) in folderPath" :key="folder.name">
-                <FeatherIcon name="chevron-right" class="h-5 w-5 text-ink-gray-4" />
+                <LucideIcon name="chevron-right" class="h-5 w-5 text-ink-gray-4" />
                 <button
                   :class="index < folderPath.length - 1 ? 'text-ink-gray-5 hover:text-ink-gray-8' : ''"
                   @click="crumbTo(index)"
@@ -98,7 +99,7 @@ function open(name) {
             <span v-else>{{ title }}</span>
           </div>
           <Button variant="solid" @click="showNewDiagram = true">
-            <template #prefix><FeatherIcon name="plus" class="h-4 w-4" /></template>
+            <template #prefix><LucideIcon name="plus" class="h-4 w-4" /></template>
             Create
           </Button>
         </div>

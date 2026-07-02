@@ -7,7 +7,8 @@
 // Positions are derived from the node's live layout box + the shared viewport, so
 // the toolbar tracks the node at any pan/zoom. Mounted once per editor (EditorShell).
 import { computed } from 'vue'
-import { Popover, FeatherIcon, Tooltip } from 'frappe-ui'
+import { Popover, Tooltip } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { layoutMindMap } from '@/diagram/mindmapLayout.js'
@@ -118,12 +119,12 @@ function activeBtn(on) {
     >
       <Tooltip text="Bold">
         <button :class="[btn, activeBtn(node.bold)]" @mousedown.prevent @click="toggleBold">
-          <FeatherIcon name="bold" class="h-4 w-4" />
+          <LucideIcon name="bold" class="h-4 w-4" />
         </button>
       </Tooltip>
       <Tooltip text="Italic">
         <button :class="[btn, activeBtn(node.italic)]" @mousedown.prevent @click="toggleItalic">
-          <FeatherIcon name="italic" class="h-4 w-4" />
+          <LucideIcon name="italic" class="h-4 w-4" />
         </button>
       </Tooltip>
 
@@ -158,7 +159,7 @@ function activeBtn(on) {
           <Tooltip text="Emoji">
             <button :class="btn" @mousedown.prevent @click="togglePopover()">
               <span v-if="node.emoji" class="text-[15px] leading-none">{{ node.emoji }}</span>
-              <FeatherIcon v-else name="smile" class="h-4 w-4" />
+              <LucideIcon v-else name="smile" class="h-4 w-4" />
             </button>
           </Tooltip>
         </template>
@@ -172,11 +173,11 @@ function activeBtn(on) {
       <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
 
       <Tooltip text="Add child (Tab)">
-        <button :class="btn" @click="addChild"><FeatherIcon name="plus" class="h-4 w-4" /></button>
+        <button :class="btn" @click="addChild"><LucideIcon name="plus" class="h-4 w-4" /></button>
       </Tooltip>
       <Tooltip :text="mindmapUi.pendingLinkSource ? 'Click a target node…' : 'Link to node'">
         <button :class="[btn, activeBtn(!!mindmapUi.pendingLinkSource)]" @click="startCrosslink">
-          <FeatherIcon name="link-2" class="h-4 w-4" />
+          <LucideIcon name="link-2" class="h-4 w-4" />
         </button>
       </Tooltip>
 
@@ -185,7 +186,7 @@ function activeBtn(on) {
         <template #target="{ togglePopover }">
           <Tooltip text="Note">
             <button :class="[btn, activeBtn(!!node.note)]" @mousedown.prevent @click="togglePopover()">
-              <FeatherIcon name="file-text" class="h-4 w-4" />
+              <LucideIcon name="file-text" class="h-4 w-4" />
             </button>
           </Tooltip>
         </template>
@@ -206,7 +207,7 @@ function activeBtn(on) {
       <Popover>
         <template #target="{ togglePopover }">
           <Tooltip text="More">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()"><FeatherIcon name="more-horizontal" class="h-4 w-4" /></button>
+            <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="more-horizontal" class="h-4 w-4" /></button>
           </Tooltip>
         </template>
         <template #body-main>
@@ -230,7 +231,7 @@ function activeBtn(on) {
                 :class="node.marker?.icon === icon ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-outline-gray-1 text-ink-gray-7'"
                 @click="setMarker(icon)"
               >
-                <FeatherIcon :name="icon" class="h-4 w-4" />
+                <LucideIcon :name="icon" class="h-4 w-4" />
               </button>
             </div>
 
@@ -261,7 +262,7 @@ function activeBtn(on) {
         <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
         <Tooltip text="Delete node">
           <button class="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50" @click="removeNode">
-            <FeatherIcon name="trash-2" class="h-4 w-4" />
+            <LucideIcon name="trash-2" class="h-4 w-4" />
           </button>
         </Tooltip>
       </template>
@@ -275,7 +276,7 @@ function activeBtn(on) {
       class="fixed left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-dashed border-outline-gray-3 bg-surface-white px-5 py-3 text-[14px] font-medium text-ink-gray-7 shadow-sm hover:border-ink-gray-8 hover:text-ink-gray-9"
       @click="addFirstIdea"
     >
-      <FeatherIcon name="plus" class="h-4 w-4" /> Add your first idea
+      <LucideIcon name="plus" class="h-4 w-4" /> Add your first idea
     </button>
   </Teleport>
 

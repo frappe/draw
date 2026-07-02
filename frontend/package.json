@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "icons": "node scripts/gen-lucide-nodes.mjs"
   },
   "dependencies": {
     "@tiptap/extension-color": "^3.27.1",
@@ -16,7 +17,7 @@
     "@tiptap/extension-underline": "^3.27.1",
     "@tiptap/starter-kit": "^3.27.1",
     "@tiptap/vue-3": "^3.27.1",
-    "frappe-ui": "latest",
+    "frappe-ui": "1.0.0-beta.19",
     "jspdf": "^4.2.1",
     "vue": "^3.4.0",
     "vue-router": "^4.3.0",

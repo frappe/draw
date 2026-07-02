@@ -9,7 +9,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
-import { FeatherIcon } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import {
   branchPath,
   isNodeHidden,
@@ -377,7 +377,7 @@ function nodePoly(node, b) {
         :x="node.marker.colorDot ? 24 : 10" :y="box.h / 2 - 8" width="16" height="16"
       >
         <div style="display: flex; align-items: center; justify-content: center">
-          <FeatherIcon :name="node.marker.icon" :style="{ width: '13px', height: '13px', color: colorOf(node) }" />
+          <LucideIcon :name="node.marker.icon" :style="{ width: '13px', height: '13px', color: colorOf(node) }" />
         </div>
       </foreignObject>
 

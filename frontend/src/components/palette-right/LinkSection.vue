@@ -3,7 +3,7 @@
 // sticky-note link). Stored as shape.link; ShapeView renders a small badge that
 // opens it. A bare "example.com" is normalised to https:// on save.
 import { computed } from 'vue'
-import { FeatherIcon } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import PaletteSection from './PaletteSection.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 
@@ -33,7 +33,7 @@ function normalize(value) {
 <template>
   <PaletteSection label="Link">
     <div class="flex items-center gap-1.5 rounded-md border border-outline-gray-2 px-2">
-      <FeatherIcon name="link" class="h-3.5 w-3.5 flex-none text-ink-gray-5" />
+      <LucideIcon name="link" class="h-3.5 w-3.5 flex-none text-ink-gray-5" />
       <input
         :value="link"
         placeholder="Add a link…"
@@ -47,7 +47,7 @@ function normalize(value) {
         aria-label="Remove link"
         @click="clearLink"
       >
-        <FeatherIcon name="x" class="h-3.5 w-3.5" />
+        <LucideIcon name="x" class="h-3.5 w-3.5" />
       </button>
     </div>
   </PaletteSection>

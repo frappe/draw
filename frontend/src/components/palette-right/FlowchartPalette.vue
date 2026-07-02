@@ -5,7 +5,7 @@
 // single selected node where a node is needed; all edits go through the store's
 // commit() mutations so each is one undoable unit (Part G6). frappe-ui chrome.
 import { computed } from 'vue'
-import { FeatherIcon } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import PaletteSection from './PaletteSection.vue'
@@ -126,7 +126,7 @@ const TYPE_ICONS = {
           :aria-pressed="node.nodeType === type"
           @click="swap(type)"
         >
-          <FeatherIcon :name="TYPE_ICONS[type]" class="h-4 w-4 text-ink-gray-7" />
+          <LucideIcon :name="TYPE_ICONS[type]" class="h-4 w-4 text-ink-gray-7" />
         </button>
       </div>
     </PaletteSection>
@@ -157,14 +157,14 @@ const TYPE_ICONS = {
             title="Remove branch"
             @click="removeBranch(branch.port)"
           >
-            <FeatherIcon name="x" class="h-4 w-4" />
+            <LucideIcon name="x" class="h-4 w-4" />
           </button>
         </div>
         <button
           class="mt-1 flex items-center gap-1.5 text-[13px] text-ink-gray-6 hover:text-ink-gray-9"
           @click="addBranch"
         >
-          <FeatherIcon name="plus" class="h-4 w-4" /> Add branch
+          <LucideIcon name="plus" class="h-4 w-4" /> Add branch
         </button>
       </div>
     </PaletteSection>

@@ -2,7 +2,8 @@
 // Export dropdown: PNG (1x/2x), JPEG, SVG, PDF, and Print (spec §10, §4.4).
 // Captures canvas bounds (not the viewport) and excludes the grid via useExport,
 // which serializes the diagram document to a standalone SVG.
-import { Button, Dropdown, FeatherIcon, toast } from 'frappe-ui'
+import { Button, Dropdown, toast } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { useRoute } from 'vue-router'
 import { useExport } from '@/composables/useExport.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
@@ -58,7 +59,7 @@ const options = [
 <template>
   <Dropdown :options="options">
     <Button variant="outline">
-      <template #prefix><FeatherIcon name="download" class="h-4 w-4" /></template>
+      <template #prefix><LucideIcon name="download" class="h-4 w-4" /></template>
       Export
     </Button>
   </Dropdown>

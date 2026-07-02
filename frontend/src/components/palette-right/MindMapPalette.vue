@@ -6,7 +6,8 @@
 // Edits apply to the selected node(s) via store.updateNode (one undoable unit
 // each); the structural toggles use mindmapOperations.
 import { computed } from 'vue'
-import { Tooltip, FeatherIcon } from 'frappe-ui'
+import { Tooltip } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import PaletteSection from './PaletteSection.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { branchPalette } from '@/diagram/mindmapColors.js'
@@ -92,10 +93,10 @@ const isEmpty = computed(() => (store.state.mindmap?.nodes.length ?? 0) === 1)
   <PaletteSection label="View">
     <div class="flex flex-wrap gap-1.5">
       <button class="fd-mm-chip" @click="collapseAll(store, true)">
-        <FeatherIcon name="minimize-2" class="h-3.5 w-3.5" /> Collapse all
+        <LucideIcon name="minimize-2" class="h-3.5 w-3.5" /> Collapse all
       </button>
       <button class="fd-mm-chip" @click="collapseAll(store, false)">
-        <FeatherIcon name="maximize-2" class="h-3.5 w-3.5" /> Expand all
+        <LucideIcon name="maximize-2" class="h-3.5 w-3.5" /> Expand all
       </button>
     </div>
   </PaletteSection>
@@ -148,7 +149,7 @@ const isEmpty = computed(() => (store.state.mindmap?.nodes.length ?? 0) === 1)
           :disabled="!hasSelection"
           @click="setMarkerIcon(icon)"
         >
-          <FeatherIcon :name="icon" class="h-3.5 w-3.5" />
+          <LucideIcon :name="icon" class="h-3.5 w-3.5" />
         </button>
       </Tooltip>
     </div>
@@ -184,7 +185,7 @@ const isEmpty = computed(() => (store.state.mindmap?.nodes.length ?? 0) === 1)
 
   <PaletteSection label="Cross-link & note">
     <button class="fd-mm-chip mb-2 w-full justify-center disabled:opacity-40" :disabled="!hasSelection" @click="startCrosslink()">
-      <FeatherIcon name="link-2" class="h-3.5 w-3.5" />
+      <LucideIcon name="link-2" class="h-3.5 w-3.5" />
       {{ mindmapUi.pendingLinkSource ? 'Click target node…' : 'Link to node' }}
     </button>
     <textarea
@@ -199,10 +200,10 @@ const isEmpty = computed(() => (store.state.mindmap?.nodes.length ?? 0) === 1)
 
   <PaletteSection label="Map">
     <button class="fd-mm-chip mb-2 w-full justify-center" @click="store.convertDiagram('flowchart')">
-      <FeatherIcon name="git-commit" class="h-3.5 w-3.5" /> Convert to flowchart
+      <LucideIcon name="git-commit" class="h-3.5 w-3.5" /> Convert to flowchart
     </button>
     <button class="fd-mm-chip w-full justify-center text-red-600" @click="clearMap(store)">
-      <FeatherIcon name="trash-2" class="h-3.5 w-3.5" /> Clear map
+      <LucideIcon name="trash-2" class="h-3.5 w-3.5" /> Clear map
     </button>
   </PaletteSection>
 
@@ -213,7 +214,7 @@ const isEmpty = computed(() => (store.state.mindmap?.nodes.length ?? 0) === 1)
       class="pointer-events-auto fixed left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-dashed border-outline-gray-3 bg-surface-white px-5 py-3 text-[14px] font-medium text-ink-gray-7 shadow-sm hover:border-ink-gray-8 hover:text-ink-gray-9"
       @click="addFirstIdea"
     >
-      <FeatherIcon name="plus" class="h-4 w-4" /> Add your first idea
+      <LucideIcon name="plus" class="h-4 w-4" /> Add your first idea
     </button>
   </Teleport>
 

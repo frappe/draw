@@ -5,7 +5,8 @@
 // Share, Print, dark-mode, presence. Chrome only — frappe-ui + its tokens; the
 // breadcrumb styling mirrors frappe-ui's Breadcrumbs (text-lg, ink-gray ladder).
 import { useRouter } from 'vue-router'
-import { Button, Tooltip, FeatherIcon } from 'frappe-ui'
+import { Button, Tooltip } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import Logomark from '@/components/Logomark.vue'
 import TitleEditor from './TitleEditor.vue'
 import SaveIndicator from './SaveIndicator.vue'
@@ -65,7 +66,7 @@ function print() {
 
       <Tooltip text="Print">
         <Button variant="outline" aria-label="Print" @click="print">
-          <FeatherIcon name="printer" class="h-4 w-4" />
+          <LucideIcon name="printer" class="h-4 w-4" />
         </Button>
       </Tooltip>
 
@@ -73,7 +74,7 @@ function print() {
 
       <Tooltip :text="dark ? 'Light mode' : 'Dark mode'">
         <Button variant="outline" :aria-label="dark ? 'Switch to light mode' : 'Switch to dark mode'" @click="emit('toggle-dark')">
-          <FeatherIcon :name="dark ? 'sun' : 'moon'" class="h-4 w-4" />
+          <LucideIcon :name="dark ? 'sun' : 'moon'" class="h-4 w-4" />
         </Button>
       </Tooltip>
 

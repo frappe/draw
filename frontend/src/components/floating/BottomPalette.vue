@@ -3,7 +3,8 @@
 // hand / draw), grid-guide toggle, and zoom controls (out / 100% reset / in /
 // fit). Wired to editorUi tool/grid and the viewport.
 import { computed, ref, nextTick } from 'vue'
-import { Tooltip, FeatherIcon, Popover } from 'frappe-ui'
+import { Tooltip, Popover } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
@@ -152,14 +153,14 @@ function commitZoom() {
         :class="[buttonBase, toggleClass(editorUi.state.tool === mode.tool)]"
         @click="editorUi.setTool(mode.tool)"
       >
-        <FeatherIcon :name="mode.icon" class="h-4 w-4" />
+        <LucideIcon :name="mode.icon" class="h-4 w-4" />
       </button>
     </Tooltip>
 
     <!-- Section (named grouping frame) — available in every diagram type. -->
     <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
     <Tooltip text="Add section">
-      <button :class="buttonBase" @click="addSection"><FeatherIcon name="layout" class="h-4 w-4" /></button>
+      <button :class="buttonBase" @click="addSection"><LucideIcon name="layout" class="h-4 w-4" /></button>
     </Tooltip>
 
     <!-- Block creation tools: Shapes + Connectors popovers + Text. -->
@@ -168,7 +169,7 @@ function commitZoom() {
       <Popover>
         <template #target="{ togglePopover }">
           <Tooltip text="Shapes">
-            <button :class="buttonBase" @click="togglePopover()"><FeatherIcon name="square" class="h-4 w-4" /></button>
+            <button :class="buttonBase" @click="togglePopover()"><LucideIcon name="square" class="h-4 w-4" /></button>
           </Tooltip>
         </template>
         <template #body-main="{ togglePopover }">
@@ -189,7 +190,7 @@ function commitZoom() {
                     :class="isArmed(s.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
                     @click="arm(s.type, togglePopover)"
                   >
-                    <FeatherIcon :name="s.icon" class="h-[18px] w-[18px]" :class="s.type === 'diamond' ? 'rotate-45' : ''" />
+                    <LucideIcon :name="s.icon" class="h-[18px] w-[18px]" :class="s.type === 'diamond' ? 'rotate-45' : ''" />
                   </button>
                 </Tooltip>
               </div>
@@ -202,7 +203,7 @@ function commitZoom() {
                   :class="isArmed(s.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
                   @click="arm(s.type, togglePopover)"
                 >
-                  <FeatherIcon :name="s.icon" class="h-[18px] w-[18px]" :class="s.type === 'diamond' ? 'rotate-45' : ''" />
+                  <LucideIcon :name="s.icon" class="h-[18px] w-[18px]" :class="s.type === 'diamond' ? 'rotate-45' : ''" />
                 </button>
               </Tooltip>
             </div>
@@ -215,7 +216,7 @@ function commitZoom() {
                   :class="isArmed(con.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
                   @click="arm(con.type, togglePopover)"
                 >
-                  <FeatherIcon :name="con.icon" class="h-[18px] w-[18px]" />
+                  <LucideIcon :name="con.icon" class="h-[18px] w-[18px]" />
                 </button>
               </Tooltip>
             </div>
@@ -227,12 +228,12 @@ function commitZoom() {
       </Popover>
       <Tooltip text="Text">
         <button :class="[buttonBase, toggleClass(isArmed('text'))]" @click="arm('text')">
-          <FeatherIcon name="type" class="h-4 w-4" />
+          <LucideIcon name="type" class="h-4 w-4" />
         </button>
       </Tooltip>
       <Tooltip text="Insert image">
         <button :class="buttonBase" @click="imageInsert.pick()">
-          <FeatherIcon name="image" class="h-4 w-4" />
+          <LucideIcon name="image" class="h-4 w-4" />
         </button>
       </Tooltip>
     </template>
@@ -241,16 +242,16 @@ function commitZoom() {
     <template v-if="isMindmap">
       <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
       <Tooltip text="Collapse all">
-        <button :class="buttonBase" @click="collapseAll(store, true)"><FeatherIcon name="minimize-2" class="h-4 w-4" /></button>
+        <button :class="buttonBase" @click="collapseAll(store, true)"><LucideIcon name="minimize-2" class="h-4 w-4" /></button>
       </Tooltip>
       <Tooltip text="Expand all">
-        <button :class="buttonBase" @click="collapseAll(store, false)"><FeatherIcon name="maximize-2" class="h-4 w-4" /></button>
+        <button :class="buttonBase" @click="collapseAll(store, false)"><LucideIcon name="maximize-2" class="h-4 w-4" /></button>
       </Tooltip>
       <Tooltip text="Convert to flowchart">
-        <button :class="buttonBase" @click="convertToFlowchart"><FeatherIcon name="git-commit" class="h-4 w-4" /></button>
+        <button :class="buttonBase" @click="convertToFlowchart"><LucideIcon name="git-commit" class="h-4 w-4" /></button>
       </Tooltip>
       <Tooltip text="Clear map">
-        <button :class="[buttonBase, 'hover:text-red-600']" @click="clearMap(store)"><FeatherIcon name="trash-2" class="h-4 w-4" /></button>
+        <button :class="[buttonBase, 'hover:text-red-600']" @click="clearMap(store)"><LucideIcon name="trash-2" class="h-4 w-4" /></button>
       </Tooltip>
     </template>
 
@@ -265,7 +266,7 @@ function commitZoom() {
           :class="[buttonBase, toggleClass(editorUi.state.tool === modeTool.tool)]"
           @click="editorUi.setTool(modeTool.tool)"
         >
-          <FeatherIcon :name="modeTool.icon" class="h-4 w-4" />
+          <LucideIcon :name="modeTool.icon" class="h-4 w-4" />
         </button>
       </Tooltip>
     </template>
@@ -277,7 +278,7 @@ function commitZoom() {
         :class="[buttonBase, toggleClass(guidesState !== 'no')]"
         @click="cycleGuides()"
       >
-        <FeatherIcon :name="guidesState === 'rare' ? 'more-horizontal' : 'grid'" class="h-4 w-4" />
+        <LucideIcon :name="guidesState === 'rare' ? 'more-horizontal' : 'grid'" class="h-4 w-4" />
       </button>
     </Tooltip>
 
@@ -285,7 +286,7 @@ function commitZoom() {
 
     <Tooltip text="Zoom out">
       <button :class="buttonBase" @click="viewport.zoomStep(-1)">
-        <FeatherIcon name="minus" class="h-4 w-4" />
+        <LucideIcon name="minus" class="h-4 w-4" />
       </button>
     </Tooltip>
     <input
@@ -309,12 +310,12 @@ function commitZoom() {
     </Tooltip>
     <Tooltip text="Zoom in">
       <button :class="buttonBase" @click="viewport.zoomStep(1)">
-        <FeatherIcon name="plus" class="h-4 w-4" />
+        <LucideIcon name="plus" class="h-4 w-4" />
       </button>
     </Tooltip>
     <Tooltip text="Fit to view">
       <button :class="buttonBase" @click="editorUi.fit()">
-        <FeatherIcon name="maximize-2" class="h-4 w-4" />
+        <LucideIcon name="maximize-2" class="h-4 w-4" />
       </button>
     </Tooltip>
   </div>

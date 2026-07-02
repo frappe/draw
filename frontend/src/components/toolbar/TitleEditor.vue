@@ -5,7 +5,7 @@
 // Emits update:title; EditorShell renames through the diagram resource.
 import { ref, nextTick, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { FeatherIcon } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 
 const props = defineProps({
   title: { type: String, default: 'Untitled diagram' },
@@ -75,7 +75,7 @@ function cancel() {
       @click="startEditing"
     >
       <span class="truncate">{{ title }}</span>
-      <FeatherIcon
+      <LucideIcon
         name="edit-2"
         class="h-3.5 w-3.5 flex-none text-ink-gray-4 opacity-0 group-hover:opacity-100"
       />

@@ -10,7 +10,7 @@
 // All edits go through the store (one undoable unit each, Part G6).
 import { computed, ref, watch, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { FeatherIcon } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
@@ -226,10 +226,10 @@ function openLink(event) {
         />
         <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
         <button class="flex h-7 w-7 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2" title="Duplicate" aria-label="Duplicate" @pointerdown.stop @click="duplicate">
-          <FeatherIcon name="copy" class="h-4 w-4" />
+          <LucideIcon name="copy" class="h-4 w-4" />
         </button>
         <button class="flex h-7 w-7 items-center justify-center rounded-md text-red-600 hover:bg-red-50" title="Delete" aria-label="Delete" @pointerdown.stop @click="removeSticky">
-          <FeatherIcon name="trash-2" class="h-4 w-4" />
+          <LucideIcon name="trash-2" class="h-4 w-4" />
         </button>
       </div>
     </Teleport>

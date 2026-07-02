@@ -4,7 +4,8 @@
 // carry the title, created + edited times, a selection checkbox, and a ⋯ menu
 // (Pin/Unpin · Rename · Duplicate · Delete).
 import { computed } from 'vue'
-import { Dropdown, FeatherIcon } from 'frappe-ui'
+import { Dropdown } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { documentToSvg, isDocumentEmpty } from '@/composables/useThumbnail.js'
 import { typeIcon, typeLabel } from '@/data/diagramTypes.js'
 
@@ -89,7 +90,7 @@ function onDragStart(event) {
       ]"
       @click.stop="emit('toggle-select', diagram.name)"
     >
-      <FeatherIcon name="check" class="h-3 w-3" />
+      <LucideIcon name="check" class="h-3 w-3" />
     </button>
 
     <!-- One-click star (Gmail-style pin). -->
@@ -100,7 +101,7 @@ function onDragStart(event) {
       :disabled="pinBlocked"
       @click.stop="togglePin"
     >
-      <FeatherIcon
+      <LucideIcon
         name="star"
         class="h-4 w-4"
         :class="isPinned ? 'fill-amber-400 text-amber-400' : 'text-ink-gray-4 hover:text-ink-gray-6'"
@@ -109,7 +110,7 @@ function onDragStart(event) {
 
     <button class="flex min-w-0 flex-1 items-center gap-3 text-left" @click="emit('open', diagram.name)">
       <div class="flex h-8 w-8 flex-none items-center justify-center rounded-md bg-surface-gray-2 text-ink-gray-7">
-        <FeatherIcon :name="icon" class="h-4 w-4" />
+        <LucideIcon :name="icon" class="h-4 w-4" />
       </div>
       <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-ink-gray-9">
         {{ diagram.title }}
@@ -120,7 +121,7 @@ function onDragStart(event) {
 
     <Dropdown :options="menuItems" placement="bottom-end">
       <button class="flex h-7 w-7 flex-none items-center justify-center rounded-md text-ink-gray-5 hover:bg-surface-gray-2" @click.stop>
-        <FeatherIcon name="more-horizontal" class="h-4 w-4" />
+        <LucideIcon name="more-horizontal" class="h-4 w-4" />
       </button>
     </Dropdown>
   </div>
@@ -141,7 +142,7 @@ function onDragStart(event) {
       ]"
       @click.stop="emit('toggle-select', diagram.name)"
     >
-      <FeatherIcon name="check" class="h-3 w-3" />
+      <LucideIcon name="check" class="h-3 w-3" />
     </button>
 
     <!-- One-click star (Gmail-style pin): always shown when pinned, on hover otherwise. -->
@@ -153,7 +154,7 @@ function onDragStart(event) {
       :disabled="pinBlocked"
       @click.stop="togglePin"
     >
-      <FeatherIcon
+      <LucideIcon
         name="star"
         class="h-4 w-4"
         :class="isPinned ? 'fill-amber-400 text-amber-400' : 'text-ink-gray-5'"
@@ -168,7 +169,7 @@ function onDragStart(event) {
         style="background-color: #ffffff"
       >
         <div v-if="previewSvg" class="h-full w-full [&>svg]:h-full [&>svg]:w-full" v-html="previewSvg" />
-        <FeatherIcon v-else :name="icon" class="h-7 w-7 text-ink-gray-3" />
+        <LucideIcon v-else :name="icon" class="h-7 w-7 text-ink-gray-3" />
       </div>
     </button>
 
@@ -183,7 +184,7 @@ function onDragStart(event) {
           class="flex h-[26px] w-[26px] items-center justify-center rounded-md text-ink-gray-5 opacity-0 hover:bg-surface-gray-2 group-hover:opacity-100"
           @click.stop
         >
-          <FeatherIcon name="more-horizontal" class="h-4 w-4" />
+          <LucideIcon name="more-horizontal" class="h-4 w-4" />
         </button>
       </Dropdown>
     </div>

@@ -6,7 +6,8 @@
 // tool sit behind ONE separate "options" disclosure; board-wide settings and the
 // selected-object editor follow. All chrome is Frappe UI.
 import { computed } from 'vue'
-import { Popover, Tooltip, FeatherIcon, Button } from 'frappe-ui'
+import { Popover, Tooltip, Button } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
@@ -85,14 +86,14 @@ function applyTableDefault(patch) {
   <!-- Tools: a single click arms; the next canvas action draws. -->
   <Tooltip v-for="t in TOOLS" :key="t.tool" :text="t.label">
     <button :class="[buttonBase, toggleClass(activeTool === t.tool)]" @click="editorUi.setTool(t.tool)">
-      <FeatherIcon :name="t.icon" class="h-4 w-4" />
+      <LucideIcon :name="t.icon" class="h-4 w-4" />
     </button>
   </Tooltip>
 
   <!-- Insert image (action, not a tool). -->
   <Tooltip text="Insert image">
     <button :class="buttonBase" @click="imageInsert.pick()">
-      <FeatherIcon name="image" class="h-4 w-4" />
+      <LucideIcon name="image" class="h-4 w-4" />
     </button>
   </Tooltip>
 
@@ -101,7 +102,7 @@ function applyTableDefault(patch) {
     <template #target="{ togglePopover }">
       <Tooltip :text="optionsLabel">
         <button :class="buttonBase" @click="togglePopover()">
-          <FeatherIcon name="sliders" class="h-4 w-4" />
+          <LucideIcon name="sliders" class="h-4 w-4" />
         </button>
       </Tooltip>
     </template>
@@ -208,7 +209,7 @@ function applyTableDefault(patch) {
     <template #target="{ togglePopover }">
       <Tooltip text="Board options">
         <button :class="buttonBase" @click="togglePopover()">
-          <FeatherIcon name="settings" class="h-4 w-4" />
+          <LucideIcon name="settings" class="h-4 w-4" />
         </button>
       </Tooltip>
     </template>
@@ -231,7 +232,7 @@ function applyTableDefault(patch) {
           {{ sketchOn() ? 'Sketch style: on' : 'Sketch style: off' }}
         </Button>
         <Button class="mb-3 w-full" variant="subtle" @click="tidyStickies">
-          <template #prefix><FeatherIcon name="grid" class="h-4 w-4" /></template>
+          <template #prefix><LucideIcon name="grid" class="h-4 w-4" /></template>
           Tidy sticky notes
         </Button>
         <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Navigator</div>

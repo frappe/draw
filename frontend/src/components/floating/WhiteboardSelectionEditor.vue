@@ -4,7 +4,8 @@
 // option controls for a line/table/sticky and writes edits straight to the store
 // as undoable mutations. Hidden when nothing editable is selected.
 import { computed } from 'vue'
-import { Popover, Tooltip, FeatherIcon } from 'frappe-ui'
+import { Popover, Tooltip } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { lineById, tableById, stickyNoteById } from '@/diagram/whiteboardModel.js'
@@ -46,7 +47,7 @@ const buttonBase =
       <template #target="{ togglePopover }">
         <Tooltip :text="`Edit ${label.toLowerCase()}`">
           <button :class="buttonBase" @click="togglePopover()">
-            <FeatherIcon :name="icon" class="h-4 w-4" />
+            <LucideIcon :name="icon" class="h-4 w-4" />
           </button>
         </Tooltip>
       </template>
@@ -85,7 +86,7 @@ const buttonBase =
     </Popover>
     <Tooltip text="Delete">
       <button :class="buttonBase" @click="removeSelected">
-        <FeatherIcon name="trash-2" class="h-4 w-4" />
+        <LucideIcon name="trash-2" class="h-4 w-4" />
       </button>
     </Tooltip>
   </template>

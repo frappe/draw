@@ -8,7 +8,8 @@
 // action bar on selection. Creation is the top-right CTA only (no inline tile).
 // At most MAX_PINNED diagrams can be pinned.
 import { computed, onMounted, reactive, ref, watchEffect } from 'vue'
-import { createListResource, FeatherIcon, Dialog, Button, FormControl, Dropdown, TextInput, Tooltip } from 'frappe-ui'
+import { createListResource, Dialog, Button, FormControl, Dropdown, TextInput, Tooltip } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import DiagramCollection from './DiagramCollection.vue'
 import FolderItem from './FolderItem.vue'
 import { folders, moveDiagramToFolder, createFolder } from '@/data/folders.js'
@@ -252,7 +253,7 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       <template v-if="selectedCount">
         <span class="text-[13px] font-semibold text-ink-gray-9">{{ selectedCount }} selected</span>
         <Button variant="subtle" theme="red" @click="deleteSelected">
-          <template #prefix><FeatherIcon name="trash-2" class="h-4 w-4" /></template>
+          <template #prefix><LucideIcon name="trash-2" class="h-4 w-4" /></template>
           Delete
         </Button>
         <Button variant="ghost" @click="clearSelection">Clear</Button>
@@ -261,22 +262,22 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
 
       <template v-else>
         <TextInput v-model="query" type="text" placeholder="Find a diagram" class="max-w-md flex-1">
-          <template #prefix><FeatherIcon name="search" class="h-3.5 w-3.5 text-ink-gray-5" /></template>
+          <template #prefix><LucideIcon name="search" class="h-3.5 w-3.5 text-ink-gray-5" /></template>
         </TextInput>
         <Dropdown :options="typeOptions" placement="bottom-start">
           <Button variant="subtle">
-            <template #prefix><FeatherIcon name="filter" class="h-4 w-4" /></template>
+            <template #prefix><LucideIcon name="filter" class="h-4 w-4" /></template>
             {{ typeFilterLabel }}
           </Button>
         </Dropdown>
         <Dropdown :options="sortOptions" placement="bottom-start">
           <Button variant="subtle">
-            <template #prefix><FeatherIcon name="bar-chart-2" class="h-4 w-4 rotate-90" /></template>
+            <template #prefix><LucideIcon name="bar-chart-2" class="h-4 w-4 rotate-90" /></template>
             {{ sortLabel }}
           </Button>
         </Dropdown>
         <Button v-if="mode === 'home'" variant="subtle" @click="openNewFolder">
-          <template #prefix><FeatherIcon name="folder-plus" class="h-4 w-4" /></template>
+          <template #prefix><LucideIcon name="folder-plus" class="h-4 w-4" /></template>
           New folder
         </Button>
       </template>
@@ -289,7 +290,7 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
           :class="view === option.key ? 'bg-surface-gray-3 text-ink-gray-9' : 'text-ink-gray-5 hover:bg-surface-gray-2'"
           @click="view = option.key"
         >
-          <FeatherIcon :name="option.icon" class="h-4 w-4" />
+          <LucideIcon :name="option.icon" class="h-4 w-4" />
         </button>
       </div>
     </div>
@@ -311,7 +312,7 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
     <template v-if="mode === 'home'">
       <section v-if="!folder && pinned.length" class="mb-8">
         <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
-          <FeatherIcon name="bookmark" class="h-3.5 w-3.5" /> Pinned
+          <LucideIcon name="bookmark" class="h-3.5 w-3.5" /> Pinned
         </h2>
         <DiagramCollection :diagrams="pinned" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
       </section>
@@ -320,7 +321,7 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
 
       <section v-if="folderTiles.length" class="mt-8">
         <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
-          <FeatherIcon name="folder" class="h-3.5 w-3.5" /> Folders
+          <LucideIcon name="folder" class="h-3.5 w-3.5" /> Folders
         </h2>
         <div v-if="view === 'tile'" class="grid gap-[18px]" :style="TILE_COLS">
           <FolderItem
@@ -363,7 +364,7 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
 
     <!-- Quiet end-of-page marker. -->
     <div class="mt-16 flex flex-col items-center gap-2 py-10 text-center">
-      <FeatherIcon name="feather" class="h-6 w-6 text-ink-gray-3" />
+      <LucideIcon name="feather" class="h-6 w-6 text-ink-gray-3" />
       <p class="text-[12px] text-ink-gray-4">You've reached the end · made with Frappe Draw</p>
     </div>
 

@@ -3,7 +3,7 @@
 // arrowhead style (Google-Slides style), line color, width and dash. Writes
 // through store.updateConnector, which shallow-merges nested style/arrowheads.
 import { computed } from 'vue'
-import { FeatherIcon } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import PaletteSection from './PaletteSection.vue'
 import ColorPicker from './ColorPicker.vue'
@@ -57,7 +57,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         :aria-pressed="startType === e.value"
         @click="setEnd('start', e.value)"
       >
-        <FeatherIcon :name="e.icon" class="h-4 w-4" :class="e.rotate ? 'rotate-45' : ''" />
+        <LucideIcon :name="e.icon" class="h-4 w-4" :class="e.rotate ? 'rotate-45' : ''" />
       </button>
     </div>
   </PaletteSection>
@@ -74,7 +74,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         :aria-pressed="endType === e.value"
         @click="setEnd('end', e.value)"
       >
-        <FeatherIcon :name="e.icon" class="h-4 w-4" :class="e.rotate ? 'rotate-45' : ''" />
+        <LucideIcon :name="e.icon" class="h-4 w-4" :class="e.rotate ? 'rotate-45' : ''" />
       </button>
     </div>
   </PaletteSection>

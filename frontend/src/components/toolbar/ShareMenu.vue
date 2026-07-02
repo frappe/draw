@@ -5,7 +5,8 @@
 // change event is reliable. The diagram resource is loaded from the route.
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Button, Dialog, FeatherIcon, Avatar } from 'frappe-ui'
+import { Button, Dialog, Avatar } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { loadDiagram } from '@/data/diagrams.js'
 import { useShare } from '@/composables/useShare.js'
 
@@ -57,7 +58,7 @@ const accessLevel = computed({
 
 <template>
   <Button variant="outline" @click="open = true">
-    <template #prefix><FeatherIcon name="share-2" class="h-4 w-4" /></template>
+    <template #prefix><LucideIcon name="share-2" class="h-4 w-4" /></template>
     Share
   </Button>
 
@@ -136,7 +137,7 @@ const accessLevel = computed({
                 aria-label="Remove"
                 @click="share.removeMember(m.user)"
               >
-                <FeatherIcon name="x" class="h-4 w-4" />
+                <LucideIcon name="x" class="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -146,7 +147,7 @@ const accessLevel = computed({
         <div class="border-t border-outline-gray-1 pt-4">
           <p class="mb-2 text-sm font-medium text-ink-gray-7">General access</p>
           <div class="flex items-center gap-2">
-            <FeatherIcon :name="share.isPublic.value ? 'globe' : 'lock'" class="h-4 w-4 text-ink-gray-6" />
+            <LucideIcon :name="share.isPublic.value ? 'globe' : 'lock'" class="h-4 w-4 text-ink-gray-6" />
             <select
               v-model="accessLevel"
               class="h-9 flex-1 rounded-md border border-outline-gray-2 bg-surface-white px-2 text-sm text-ink-gray-8 outline-none"
@@ -162,10 +163,10 @@ const accessLevel = computed({
             class="mt-2 flex w-full items-center gap-2 rounded-md border border-outline-gray-2 px-3 py-2 text-left hover:border-outline-gray-3 hover:bg-surface-gray-1"
             @click="share.copyLink()"
           >
-            <FeatherIcon name="link" class="h-4 w-4 flex-none text-ink-gray-5" />
+            <LucideIcon name="link" class="h-4 w-4 flex-none text-ink-gray-5" />
             <span class="min-w-0 flex-1 truncate text-sm text-ink-gray-7">{{ share.shareLink.value }}</span>
             <span class="flex flex-none items-center gap-1 text-[12px] font-medium text-ink-gray-6">
-              <FeatherIcon name="copy" class="h-3.5 w-3.5" /> Copy
+              <LucideIcon name="copy" class="h-3.5 w-3.5" /> Copy
             </span>
           </button>
         </div>

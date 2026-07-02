@@ -5,7 +5,7 @@
 // type. Dismisses by clearing the query flag so a refresh won't re-open it.
 import { computed, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FeatherIcon } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { allTemplates } from '@/composables/useTemplates.js'
@@ -58,7 +58,7 @@ function pickTemplate(t) {
             <p class="text-[13px] text-ink-gray-5">Begin from scratch, or pick a template.</p>
           </div>
           <button class="flex h-7 w-7 items-center justify-center rounded-md text-ink-gray-5 hover:bg-surface-gray-2" aria-label="Close" @click="pickBlank">
-            <FeatherIcon name="x" class="h-4 w-4" />
+            <LucideIcon name="x" class="h-4 w-4" />
           </button>
         </div>
 
@@ -68,13 +68,13 @@ function pickTemplate(t) {
           @click="pickBlank"
         >
           <div class="flex h-11 w-11 flex-none items-center justify-center rounded-md bg-surface-white shadow-sm">
-            <FeatherIcon name="file-plus" class="h-5 w-5 text-ink-gray-8" />
+            <LucideIcon name="file-plus" class="h-5 w-5 text-ink-gray-8" />
           </div>
           <div>
             <div class="text-[15px] font-semibold text-ink-gray-9">Start with a blank canvas</div>
             <div class="text-[12px] text-ink-gray-5">An empty {{ typeName }} — build it your way</div>
           </div>
-          <FeatherIcon name="arrow-right" class="ml-auto h-4 w-4 text-ink-gray-5" />
+          <LucideIcon name="arrow-right" class="ml-auto h-4 w-4 text-ink-gray-5" />
         </button>
 
         <!-- Templates. -->
@@ -87,7 +87,7 @@ function pickTemplate(t) {
               class="flex flex-col gap-1 rounded-md border border-outline-gray-2 p-3 text-left transition-colors hover:border-ink-gray-9 hover:bg-surface-gray-1"
               @click="pickTemplate(t)"
             >
-              <FeatherIcon name="layout" class="h-[18px] w-[18px] text-ink-gray-7" />
+              <LucideIcon name="layout" class="h-[18px] w-[18px] text-ink-gray-7" />
               <div class="text-[13px] font-semibold text-ink-gray-9">{{ t.name }}</div>
               <div class="text-[11px] text-ink-gray-5">{{ t.hint }}</div>
             </button>

@@ -4,7 +4,7 @@
 // item click, Escape, or a pointer-down outside. Teleported to body so canvas
 // overflow never clips it; clamped to stay on screen.
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { FeatherIcon } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 
 const props = defineProps({
   x: { type: Number, default: 0 },
@@ -64,7 +64,7 @@ onBeforeUnmount(() => {
           :disabled="item.disabled"
           @click="choose(item)"
         >
-          <FeatherIcon v-if="item.icon" :name="item.icon" class="h-4 w-4" />
+          <LucideIcon v-if="item.icon" :name="item.icon" class="h-4 w-4" />
           <span>{{ item.label }}</span>
           <span v-if="item.shortcut" class="ml-auto pl-6 text-[11px] text-ink-gray-4">{{ item.shortcut }}</span>
         </button>

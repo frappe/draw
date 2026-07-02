@@ -2,7 +2,8 @@
 // One creation-palette tool button (38x38, spec §4.2 / README 4b). Click arms
 // draw mode; dragging the button starts a drag-and-drop onto the canvas. Active
 // tool gets bg-surface-gray-2 + ink-9. Tooltip shows the name.
-import { Tooltip, FeatherIcon } from 'frappe-ui'
+import { Tooltip } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 
 defineProps({
   icon: { type: String, required: true },
@@ -24,7 +25,7 @@ defineEmits(['select', 'dragstart'])
       @click="$emit('select')"
       @dragstart="$emit('dragstart', $event)"
     >
-      <FeatherIcon :name="icon" class="h-[19px] w-[19px]" />
+      <LucideIcon :name="icon" class="h-[19px] w-[19px]" />
     </button>
   </Tooltip>
 </template>

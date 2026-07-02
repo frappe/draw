@@ -3,9 +3,10 @@
 // Writer (header block with logo + user + menu, sections, icon-rail collapse).
 // Nav (Home/Recent/All/Trash) + a Folders section (add / rename / delete). Items
 // render through the #sidebar-item slot using frappe-ui's SidebarItem with
-// FeatherIcon, so the whole thing keeps the standard Frappe look and feel.
+// lucide icons, so the whole thing keeps the standard Frappe look and feel.
 import { ref, computed, onMounted } from 'vue'
-import { Sidebar, SidebarItem, Dropdown, Dialog, Button, FormControl, FeatherIcon } from 'frappe-ui'
+import { Sidebar, SidebarItem, Dropdown, Dialog, Button, FormControl } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import Logomark from '@/components/Logomark.vue'
 import SettingsDialog from '@/components/home/SettingsDialog.vue'
 import { folders, createFolder, renameFolder, deleteFolder } from '@/data/folders.js'
@@ -102,7 +103,7 @@ function onItemClick(item) {
         :is-collapsed="isCollapsed"
         :on-click="() => onItemClick(item)"
       >
-        <template #icon><FeatherIcon :name="item.feather" class="size-4 text-ink-gray-6" /></template>
+        <template #icon><LucideIcon :name="item.feather" class="size-4 text-ink-gray-6" /></template>
         <template #suffix>
           <Dropdown
             :options="[
@@ -112,7 +113,7 @@ function onItemClick(item) {
             placement="right-start"
           >
             <button class="flex h-5 w-5 items-center justify-center rounded text-ink-gray-5 hover:bg-surface-gray-3" @click.stop>
-              <FeatherIcon name="more-horizontal" class="h-4 w-4" />
+              <LucideIcon name="more-horizontal" class="h-4 w-4" />
             </button>
           </Dropdown>
         </template>
@@ -126,7 +127,7 @@ function onItemClick(item) {
         :is-collapsed="isCollapsed"
         :on-click="() => onItemClick(item)"
       >
-        <template #icon><FeatherIcon :name="item.feather" class="size-4 text-ink-gray-6" /></template>
+        <template #icon><LucideIcon :name="item.feather" class="size-4 text-ink-gray-6" /></template>
       </SidebarItem>
     </template>
   </Sidebar>

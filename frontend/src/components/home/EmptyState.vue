@@ -1,6 +1,6 @@
 <script setup>
 // Home empty state (spec §2): a single dotted create tile + hint text.
-import { FeatherIcon } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 defineEmits(['create'])
 </script>
 
@@ -11,7 +11,7 @@ defineEmits(['create'])
       @click="$emit('create')"
     >
       <div class="flex h-[42px] w-[42px] items-center justify-center rounded-full bg-surface-gray-2">
-        <FeatherIcon name="plus" class="h-5 w-5" />
+        <LucideIcon name="plus" class="h-5 w-5" />
       </div>
       <span class="text-[13px] font-semibold">New diagram</span>
     </button>

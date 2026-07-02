@@ -6,7 +6,7 @@
 // sync without a reactive loop (Part G10). Rendered as a Teleport overlay so it
 // can live as a side panel without editing the shared EditorShell layout.
 import { computed, ref } from 'vue'
-import { FeatherIcon } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { childrenOf, isRoot } from '@/diagram/mindmapModel.js'
 import { mindmapUi, selectNode, selectedNodeId, beginEdit } from '@/stores/mindmapUi.js'
@@ -98,7 +98,7 @@ function isActive(id) {
       <header class="flex items-center justify-between border-b border-outline-gray-1 px-3.5 py-2.5">
         <span class="text-sm font-semibold text-ink-gray-9">Outline</span>
         <button class="text-ink-gray-5 hover:text-ink-gray-9" @click="mindmapUi.outlineVisible = false">
-          <FeatherIcon name="x" class="h-4 w-4" />
+          <LucideIcon name="x" class="h-4 w-4" />
         </button>
       </header>
       <div class="min-h-0 flex-1 overflow-y-auto py-1">
@@ -123,7 +123,7 @@ function isActive(id) {
             class="opacity-0 group-hover:opacity-100"
             @click="removeRow(row.id)"
           >
-            <FeatherIcon name="trash-2" class="h-3 w-3 text-ink-gray-4 hover:text-red-600" />
+            <LucideIcon name="trash-2" class="h-3 w-3 text-ink-gray-4 hover:text-red-600" />
           </button>
         </div>
       </div>

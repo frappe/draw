@@ -3,7 +3,7 @@
 // the tool defaults (new lines) and to a selected line (live edit). Pure — it
 // reads the passed values and emits a patch; the parent decides where to apply
 // it (ui.state defaults vs store.updateLine).
-import { FeatherIcon } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { CHALK_COLORS, PEN_WIDTHS } from '@/diagram/whiteboardColors.js'
 
 const props = defineProps({
@@ -40,7 +40,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         :class="start === s.value ? cellActive : cellIdle"
         @click="emit('change', { start: s.value })"
       >
-        <FeatherIcon :name="s.icon" class="h-4 w-4" />
+        <LucideIcon :name="s.icon" class="h-4 w-4" />
       </button>
     </div>
     <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">End</div>
@@ -52,7 +52,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         :class="end === s.value ? cellActive : cellIdle"
         @click="emit('change', { end: s.value })"
       >
-        <FeatherIcon :name="s.icon" class="h-4 w-4" />
+        <LucideIcon :name="s.icon" class="h-4 w-4" />
       </button>
     </div>
     <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Color</div>

@@ -5,7 +5,8 @@
 // Fetches via a guest-allowed backend method when present, else the document
 // resource; either path surfaces a permission error as the access-denied state.
 import { ref, computed, onMounted } from 'vue'
-import { Button, FeatherIcon, Spinner } from 'frappe-ui'
+import { Button, Spinner } from 'frappe-ui'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { call } from 'frappe-ui'
 import { useRouter } from 'vue-router'
 import DiagramCanvas from '@/components/canvas/DiagramCanvas.vue'
@@ -94,7 +95,7 @@ function isMethodMissing(error) {
         class="flex h-full flex-col items-center justify-center gap-4 px-6 text-center"
       >
         <div class="flex h-12 w-12 items-center justify-center rounded-full bg-surface-gray-2">
-          <FeatherIcon name="lock" class="h-5 w-5 text-ink-gray-5" />
+          <LucideIcon name="lock" class="h-5 w-5 text-ink-gray-5" />
         </div>
         <div>
           <h1 class="text-lg font-semibold text-ink-gray-9">You need access</h1>
