@@ -35,15 +35,36 @@ const layout = computed(() =>
   model.value && model.value.rootId ? layoutMindMap(model.value) : { positions: {} },
 )
 const selId = computed(() => selectedNodeId(store))
-const node = computed(() => (selId.value ? model.value?.nodes.find((n) => n.id === selId.value) : null))
-const box = computed(() => (selId.value ? layout.value.positions[selId.value] : null))
+// Every selected node (Colour + Delete act on all of them when >1 selected).
+const selectedNodes = computed(() =>
+  (store.state.selection || []).map((id) => model.value?.nodes.find((n) => n.id === id)).filter(Boolean),
+)
+const multi = computed(() => selectedNodes.value.length > 1)
+// Single-node controls (bold/italic, emoji, add-child, cross-link, note, more…)
+// only make sense for a lone selection; `node` is null while multi-selecting.
+const node = computed(() => (selectedNodes.value.length === 1 ? selectedNodes.value[0] : null))
 const branchSwatches = computed(() => branchPalette(store.state.themePreset))
 const selectedIsRoot = computed(() => node.value && isRoot(model.value, node.value.id))
+// Colour swatch preview + whether a delete would remove anything (never the root).
+const colorPreview = computed(() => selectedNodes.value[0]?.color || '#EFEAFE')
+const canDelete = computed(() => selectedNodes.value.some((n) => !isRoot(model.value, n.id)))
 
-// Toolbar screen position: above the node, horizontally centred on it. Reads the
-// live viewport (reactive) + the canvas surface origin.
+// Combined bounding box of the selected nodes (a single node's own box when one
+// is selected), so the toolbar hovers above the whole group.
+const box = computed(() => {
+  const boxes = selectedNodes.value.map((n) => layout.value.positions[n.id]).filter(Boolean)
+  if (!boxes.length) return null
+  const x = Math.min(...boxes.map((b) => b.x))
+  const y = Math.min(...boxes.map((b) => b.y))
+  const right = Math.max(...boxes.map((b) => b.x + b.w))
+  const bottom = Math.max(...boxes.map((b) => b.y + b.h))
+  return { x, y, w: right - x, h: bottom - y }
+})
+
+// Toolbar screen position: above the (combined) box, horizontally centred on it.
+// Reads the live viewport (reactive) + the canvas surface origin.
 const toolbarStyle = computed(() => {
-  if (!node.value || !box.value) return { display: 'none' }
+  if (!box.value) return { display: 'none' }
   const surface = document.querySelector('[data-fdpreset]')
   const rect = surface ? surface.getBoundingClientRect() : { left: 0, top: 0 }
   const { panX, panY, zoom } = viewport.state
@@ -63,7 +84,9 @@ function toggleItalic() {
   if (node.value) patch({ italic: !node.value.italic })
 }
 function setColor(color) {
-  patch({ color })
+  // Recolour every selected node (each an undoable updateNode); single falls
+  // through to the same path.
+  for (const n of selectedNodes.value) store.updateNode(n.id, { color })
 }
 function setEmoji(emoji) {
   patch({ emoji: node.value?.emoji === emoji ? null : emoji })
@@ -90,7 +113,11 @@ function startCrosslink() {
   mindmapUi.pendingLinkSource = selId.value
 }
 function removeNode() {
-  if (node.value && !selectedIsRoot.value) deleteNode(store, selId.value)
+  // Delete every selected non-root node (the root is never deletable); each
+  // deleteNode is its own undoable subtree removal.
+  for (const n of selectedNodes.value) {
+    if (!isRoot(model.value, n.id)) deleteNode(store, n.id)
+  }
 }
 
 // --- blank map --------------------------------------------------------------
@@ -112,30 +139,33 @@ function activeBtn(on) {
   <!-- Contextual toolbar above the selected node. -->
   <Teleport to="body">
     <div
-      v-if="node && box"
+      v-if="selectedNodes.length && box"
       data-mm-toolbar
       class="fixed z-30 flex -translate-x-1/2 -translate-y-full items-center gap-0.5 rounded-lg border border-outline-gray-2 bg-surface-base p-1 shadow-lg"
       :style="toolbarStyle"
     >
-      <Tooltip text="Bold">
-        <button :class="[btn, activeBtn(node.bold)]" @mousedown.prevent @click="toggleBold">
-          <LucideIcon name="bold" class="h-4 w-4" />
-        </button>
-      </Tooltip>
-      <Tooltip text="Italic">
-        <button :class="[btn, activeBtn(node.italic)]" @mousedown.prevent @click="toggleItalic">
-          <LucideIcon name="italic" class="h-4 w-4" />
-        </button>
-      </Tooltip>
+      <!-- Single-selection text styling; hidden when multiple nodes are selected. -->
+      <template v-if="node">
+        <Tooltip text="Bold">
+          <button :class="[btn, activeBtn(node.bold)]" @mousedown.prevent @click="toggleBold">
+            <LucideIcon name="bold" class="h-4 w-4" />
+          </button>
+        </Tooltip>
+        <Tooltip text="Italic">
+          <button :class="[btn, activeBtn(node.italic)]" @mousedown.prevent @click="toggleItalic">
+            <LucideIcon name="italic" class="h-4 w-4" />
+          </button>
+        </Tooltip>
 
-      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+      </template>
 
-      <!-- Colour -->
+      <!-- Colour — applies to every selected node (single or multi). -->
       <Popover>
         <template #target="{ togglePopover }">
           <Tooltip text="Colour">
             <button :class="btn" @mousedown.prevent @click="togglePopover()">
-              <span class="h-4 w-4 rounded-full border border-black/10" :style="{ background: node.color || '#EFEAFE' }" />
+              <span class="h-4 w-4 rounded-full border border-black/10" :style="{ background: colorPreview }" />
             </button>
           </Tooltip>
         </template>
@@ -153,6 +183,8 @@ function activeBtn(on) {
         </template>
       </Popover>
 
+      <!-- Emoji … More: single-selection per-node actions only. -->
+      <template v-if="node">
       <!-- Emoji -->
       <Popover>
         <template #target="{ togglePopover }">
@@ -257,10 +289,12 @@ function activeBtn(on) {
           </div>
         </template>
       </Popover>
+      </template>
 
-      <template v-if="!selectedIsRoot">
+      <!-- Delete — every selected non-root node (root is never deletable). -->
+      <template v-if="canDelete">
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-        <Tooltip text="Delete node">
+        <Tooltip :text="multi ? 'Delete nodes' : 'Delete node'">
           <button class="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50" @click="removeNode">
             <LucideIcon name="trash-2" class="h-4 w-4" />
           </button>

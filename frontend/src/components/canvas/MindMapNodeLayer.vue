@@ -36,6 +36,8 @@ const editorUi = useEditorUi()
 const positionsRef = computed(() => props.positions)
 const interaction = useMindmapInteraction(store, editorUi.viewport, positionsRef)
 const editFields = ref({})
+// Keep the marquee's stroke crisp regardless of zoom (it lives in canvas units).
+const zoom = computed(() => editorUi.viewport.state.zoom || 1)
 
 function box(id) {
   return props.positions[id]
@@ -104,8 +106,15 @@ function inkOf(node) {
   return readableInk(fillOf(node))
 }
 
+// Highlight every node in the shared selection (multi-select), not just the lone
+// keyboard-navigation node — the selected visual applies to all of them (Part C).
 function isSelected(id) {
-  return selectedNodeId(store) === id
+  return store.state.selection.includes(id)
+}
+
+// Shift/Ctrl/Cmd = the "add to selection" modifier (matches useSelection).
+function isAdditive(event) {
+  return event.shiftKey || event.ctrlKey || event.metaKey
 }
 
 // Focus mode dims everything outside the focused node's branch (M6).
@@ -155,9 +164,11 @@ function addButtonsFor(node, b) {
   })
 }
 
-// Show the add buttons only where they're relevant (hovered / selected node).
+// Show the add buttons only where they're relevant: on the hovered node, or on a
+// lone selected node — a multi-selection hides them (add-child is a per-node act).
 function showAdd(node) {
-  return !node.collapsed && (isSelected(node.id) || hoveredId.value === node.id)
+  const singleSelected = store.state.selection.length === 1 && isSelected(node.id)
+  return !node.collapsed && (singleSelected || hoveredId.value === node.id)
 }
 
 function addChild(event, parentId) {
@@ -186,11 +197,13 @@ function surfaceRect(event) {
   return surface ? surface.getBoundingClientRect() : { left: 0, top: 0 }
 }
 
-// Pointer down on a node: cross-link mode wires two nodes; otherwise select +
-// begin a possible drag-to-reparent (the interaction composable thresholds it).
+// Pointer down on a node: cross-link mode wires two nodes; an additive modifier
+// toggles the node in the shared selection (bulk-select, no drag); otherwise
+// select + begin a possible drag-to-reparent (the composable thresholds it).
 function onNodePointerDown(event, id) {
   event.stopPropagation()
   if (mindmapUi.pendingLinkSource) return finishLink(id)
+  if (isAdditive(event)) return store.toggleInSelection(id)
   interaction.startDrag(event, id, surfaceRect(event))
 }
 
@@ -201,6 +214,8 @@ function finishLink(id) {
 
 function onNodeClick(event, id) {
   event.stopPropagation()
+  // Additive clicks are handled on pointerdown (toggle); don't clobber the group.
+  if (isAdditive(event)) return
   selectNode(store, id)
 }
 
@@ -303,6 +318,20 @@ function nodePoly(node, b) {
 
 <template>
   <g>
+    <!-- Transparent full-canvas backdrop BEHIND the nodes: catches empty-space
+         presses to start a marquee (the canvas surface early-returns for mind
+         maps, so the layer owns this). Nodes draw on top and stop propagation,
+         so their own clicks/drags are unaffected. Sized huge so it always spans
+         the viewport at any pan/zoom. -->
+    <rect
+      x="-200000"
+      y="-200000"
+      width="400000"
+      height="400000"
+      fill="transparent"
+      @pointerdown="interaction.beginMarquee($event)"
+    />
+
     <!-- Branch curves (no arrowheads, branch-colored) — spec A4/M3. -->
     <path
       v-for="link in links"
@@ -462,6 +491,20 @@ function nodePoly(node, b) {
         <circle r="4" fill="#FBCC55" />
       </g>
     </g>
+
+    <!-- Live rubber-band marquee while dragging empty canvas (logical units). -->
+    <rect
+      v-if="interaction.marquee.box"
+      :x="interaction.marquee.box.x"
+      :y="interaction.marquee.box.y"
+      :width="interaction.marquee.box.w"
+      :height="interaction.marquee.box.h"
+      fill="rgba(79,148,255,0.08)"
+      stroke="#4F94FF"
+      :stroke-width="1 / zoom"
+      :stroke-dasharray="`${4 / zoom} ${3 / zoom}`"
+      style="pointer-events: none"
+    />
   </g>
 </template>
 

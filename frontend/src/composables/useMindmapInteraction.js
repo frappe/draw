@@ -8,13 +8,18 @@
 import { reactive } from 'vue'
 import { reparentNode, reorderNode } from '@/diagram/mindmapOperations.js'
 import { nodeById, isDescendant } from '@/diagram/mindmapModel.js'
+import { isNodeHidden } from '@/diagram/mindmapLayout.js'
+import { rectsIntersect } from '@/diagram/geometry.js'
 import { selectNode } from '@/stores/mindmapUi.js'
 
 const DRAG_THRESHOLD = 5 // canvas units before a press becomes a drag
+const MARQUEE_MIN = 3 // canvas units below which a drag counts as a click
 
 export function useMindmapInteraction(store, viewport, positionsRef) {
   // dropTargetId is highlighted while a re-parent drag hovers a valid target.
   const drag = reactive({ active: false, nodeId: null, dx: 0, dy: 0, dropTargetId: null })
+  // Live rubber-band box {x,y,w,h} in canvas units while marquee-selecting, else null.
+  const marquee = reactive({ box: null })
 
   function startDrag(event, nodeId, surfaceRect) {
     if (event.button !== 0) return
@@ -85,7 +90,68 @@ export function useMindmapInteraction(store, viewport, positionsRef) {
     drag.dy = 0
   }
 
-  return { drag, startDrag, reorderSelected: (id, dir) => reorderNode(store, id, dir) }
+  // ----- marquee (rubber-band) selection on empty canvas -----------------------
+  // Nodes are auto-laid-out, so this is purely for bulk-selecting (recolor/delete)
+  // + highlighting. A plain press clears the selection, an additive press keeps it;
+  // either way a drag grows a box that selects intersected nodes on release. The
+  // node layer wires this to a transparent background <rect> behind the nodes (the
+  // canvas surface early-returns for mind maps). Client→logical is undo-pan then
+  // undo-zoom against the shared viewport + the canvas surface rect (Part G4).
+  function beginMarquee(event) {
+    if (event.button !== 0) return
+    const additive = isAdditive(event)
+    if (!additive) store.clearSelection()
+    const surface = event.target.closest('[data-fdpreset]')
+    const surfaceRect = surface ? surface.getBoundingClientRect() : { left: 0, top: 0 }
+    const start = toCanvas(event, surfaceRect, viewport)
+    marquee.box = { x: start.x, y: start.y, w: 0, h: 0 }
+    const onMove = (moveEvent) => {
+      const point = toCanvas(moveEvent, surfaceRect, viewport)
+      marquee.box = {
+        x: Math.min(start.x, point.x),
+        y: Math.min(start.y, point.y),
+        w: Math.abs(point.x - start.x),
+        h: Math.abs(point.y - start.y),
+      }
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      finishMarquee(additive)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
+  // On release, select every visible node whose layout box intersects the marquee.
+  // A sub-3px box is treated as a click (selection already cleared if not additive).
+  function finishMarquee(additive) {
+    const box = marquee.box
+    marquee.box = null
+    if (!box || box.w < MARQUEE_MIN || box.h < MARQUEE_MIN) return
+    const model = store.state.mindmap
+    const positions = positionsRef.value || {}
+    if (!model) return
+    const ids = model.nodes
+      .filter((node) => positions[node.id] && !isNodeHidden(model, node.id))
+      .filter((node) => rectsIntersect(box, positions[node.id]))
+      .map((node) => node.id)
+    if (!ids.length) return
+    additive ? store.addToSelection(ids) : store.select(ids)
+  }
+
+  return {
+    drag,
+    marquee,
+    startDrag,
+    beginMarquee,
+    reorderSelected: (id, dir) => reorderNode(store, id, dir),
+  }
+}
+
+// Shift, Ctrl, or Cmd all act as the "add to selection" modifier (matches useSelection).
+function isAdditive(event) {
+  return event.shiftKey || event.ctrlKey || event.metaKey
 }
 
 function boxContains(box, point) {
