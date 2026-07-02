@@ -26,7 +26,6 @@ import FlowchartSelectionEditor from '@/components/floating/FlowchartSelectionEd
 import CollaboratorCursors from '@/components/canvas/CollaboratorCursors.vue'
 import TemplateChooser from '@/components/canvas/TemplateChooser.vue'
 import BottomPalette from '@/components/floating/BottomPalette.vue'
-import RightPalette from '@/components/palette-right/RightPalette.vue'
 import ShortcutsDialog from '@/components/ShortcutsDialog.vue'
 
 const props = defineProps({
@@ -142,7 +141,6 @@ onMounted(() => {
         <TemplateChooser />
         <BottomPalette />
       </main>
-      <RightPalette v-if="modeStrategy.showsRightPalette !== false" />
     </div>
 
     <ShortcutsDialog />
