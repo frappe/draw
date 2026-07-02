@@ -41,9 +41,14 @@ const { ui, chooseNodeType, closePicker } = useFlowchartInteraction(
 const direction = computed(() => props.flowchart.direction || 'TB')
 const triad = computed(() => primaryTriad(store.state.themePreset))
 
-// Currently selected node id (selection holds node ids in flowchart mode).
-const selectedId = computed(() => store.state.selection[0] || null)
+// Selection holds node ids in flowchart mode (may be many with multi-select).
+const selectedIds = computed(() => store.state.selection)
 const editingId = ref(null) // node whose text is being edited inline
+const zoom = computed(() => editorUi.viewport.state.zoom || 1)
+
+function isSelected(id) {
+  return selectedIds.value.includes(id)
+}
 
 // ----- nodes ----------------------------------------------------------------
 
@@ -61,8 +66,11 @@ const nodes = computed(() =>
   }),
 )
 
+// "+" extend handles appear on hover, and on the selected node only when it's the
+// sole selection — a multi-selection hides them (they act per-node, so showing
+// them on every group member is noise).
 function isActive(id) {
-  return selectedId.value === id || ui.hoverNodeId === id
+  return ui.hoverNodeId === id || (isSelected(id) && selectedIds.value.length === 1)
 }
 
 // ----- edges -----------------------------------------------------------------
@@ -194,8 +202,8 @@ function onLeave(id) {
         :height="size.h"
         :rx="shape.rx"
         :fill="fill"
-        :stroke="selectedId === node.id ? '#006EDB' : stroke"
-        :stroke-width="selectedId === node.id ? 2.5 : 1.5"
+        :stroke="isSelected(node.id) ? '#006EDB' : stroke"
+        :stroke-width="isSelected(node.id) ? 2.5 : 1.5"
       />
       <ellipse
         v-else-if="shape.kind === 'ellipse'"
@@ -204,15 +212,15 @@ function onLeave(id) {
         :rx="size.w / 2"
         :ry="size.h / 2"
         :fill="fill"
-        :stroke="selectedId === node.id ? '#006EDB' : stroke"
-        :stroke-width="selectedId === node.id ? 2.5 : 1.5"
+        :stroke="isSelected(node.id) ? '#006EDB' : stroke"
+        :stroke-width="isSelected(node.id) ? 2.5 : 1.5"
       />
       <polygon
         v-else
         :points="shape.points"
         :fill="fill"
-        :stroke="selectedId === node.id ? '#006EDB' : stroke"
-        :stroke-width="selectedId === node.id ? 2.5 : 1.5"
+        :stroke="isSelected(node.id) ? '#006EDB' : stroke"
+        :stroke-width="isSelected(node.id) ? 2.5 : 1.5"
       />
 
       <!-- Inline text editor (foreignObject) or static label. -->
@@ -267,6 +275,19 @@ function onLeave(id) {
         </g>
       </g>
     </g>
+
+    <!-- Live rubber-band marquee while dragging empty canvas (logical units). -->
+    <rect
+      v-if="ui.marquee"
+      :x="ui.marquee.x"
+      :y="ui.marquee.y"
+      :width="ui.marquee.w"
+      :height="ui.marquee.h"
+      fill="rgba(79,148,255,0.08)"
+      stroke="#4F94FF"
+      :stroke-width="1 / zoom"
+      :stroke-dasharray="`${4 / zoom} ${3 / zoom}`"
+    />
 
     <!-- Node-type picker overlay at the requested logical point (F2/F4). -->
     <foreignObject

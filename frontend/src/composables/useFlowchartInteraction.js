@@ -20,6 +20,7 @@ import {
   defaultNodeText,
 } from '@/diagram/flowchartModel.js'
 import { placeChild, routeEdge, reflowAuto } from '@/diagram/flowchartLayout.js'
+import { rectsIntersect } from '@/diagram/geometry.js'
 
 export function useFlowchartInteraction(store, editorUi, interactionRef) {
   // Transient UI state the layer renders against (not part of the document).
@@ -29,9 +30,22 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
     // node should connect to. Null when the picker is closed.
     picker: null,
     pendingLink: null, // a connector drag in progress from a port
+    marquee: null, // live rubber-band box {x,y,w,h} in canvas units, or null
   })
 
-  const drag = { active: false, nodeId: null, startX: 0, startY: 0, originX: 0, originY: 0 }
+  // Node drag state. `multi` distinguishes a group move (drag every selected
+  // node, no insert-on-edge) from a single-node move (keeps insert-on-edge).
+  const drag = {
+    active: false,
+    multi: false,
+    nodeId: null,
+    startX: 0,
+    startY: 0,
+    originX: 0,
+    originY: 0,
+    ids: [], // multi-drag: all node ids being moved
+    origins: {}, // multi-drag: id -> {x,y} pre-drag positions
+  }
   const link = { active: false, fromNodeId: null, fromPort: null, moved: false }
 
   // ----- node selection helpers ----------------------------------------------
@@ -50,8 +64,23 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
     // the SVG group; read them off the event target chain.
     const hit = hitTarget(event.target)
     if (hit?.type === 'port') return beginLink(hit.nodeId, hit.port, context.point)
-    if (hit?.type === 'node') return beginDrag(hit.nodeId, context.point)
-    store.clearSelection()
+    if (hit?.type === 'node') return onNodePointerDown(event, hit.nodeId, context.point)
+    // Empty canvas: rubber-band marquee (clears selection first unless additive).
+    beginMarquee(event, context.point)
+  }
+
+  // Standard graphics-app node press: additive modifier toggles membership (no
+  // drag); a plain press on an already-multi-selected node keeps the whole group
+  // so a drag moves it together; a plain press elsewhere selects just this node.
+  function onNodePointerDown(event, nodeId, point) {
+    if (!flowchartNodeById(store.state.flowchart, nodeId)) return
+    if (isAdditive(event)) {
+      store.toggleInSelection(nodeId)
+      return
+    }
+    const selection = store.state.selection
+    if (selection.length > 1 && selection.includes(nodeId)) return beginMultiDrag(nodeId, point)
+    beginDrag(nodeId, point)
   }
 
   function onPointerMove(event, context) {
@@ -79,6 +108,7 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
     if (!node) return
     store.select([nodeId])
     drag.active = true
+    drag.multi = false
     drag.nodeId = nodeId
     drag.startX = point.x
     drag.startY = point.y
@@ -86,15 +116,45 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
     drag.originY = node.y
   }
 
+  // Group move: drag every selected node by the same delta, keeping the selection
+  // intact. No insert-on-edge — moving a group is a bulk reposition, not a splice.
+  function beginMultiDrag(nodeId, point) {
+    const model = store.state.flowchart
+    drag.active = true
+    drag.multi = true
+    drag.nodeId = nodeId
+    drag.startX = point.x
+    drag.startY = point.y
+    drag.ids = store.state.selection.filter((id) => flowchartNodeById(model, id))
+    drag.origins = {}
+    for (const id of drag.ids) {
+      const node = flowchartNodeById(model, id)
+      drag.origins[id] = { x: node.x, y: node.y }
+    }
+  }
+
   function moveDrag(point) {
+    const dx = point.x - drag.startX
+    const dy = point.y - drag.startY
+    if (drag.multi) {
+      // Live-update every selected node without committing per frame; commit on drop.
+      for (const id of drag.ids) {
+        const node = flowchartNodeById(store.state.flowchart, id)
+        if (!node) continue
+        node.x = Math.round(drag.origins[id].x + dx)
+        node.y = Math.round(drag.origins[id].y + dy)
+      }
+      return
+    }
     const node = flowchartNodeById(store.state.flowchart, drag.nodeId)
     if (!node) return
     // Live-update position without committing every frame; commit on drop.
-    node.x = Math.round(drag.originX + (point.x - drag.startX))
-    node.y = Math.round(drag.originY + (point.y - drag.startY))
+    node.x = Math.round(drag.originX + dx)
+    node.y = Math.round(drag.originY + dy)
   }
 
   function endDrag() {
+    if (drag.multi) return endMultiDrag()
     const node = flowchartNodeById(store.state.flowchart, drag.nodeId)
     drag.active = false
     if (!node) return
@@ -111,6 +171,92 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
     const edge = edgeUnderNode(node, finalX, finalY)
     if (edge) return insertOnEdge(node, edge, finalX, finalY)
     store.updateFlowchartNode(node.id, { x: finalX, y: finalY, manuallyPositioned: true })
+  }
+
+  // Commit every moved node's final position (manuallyPositioned, G7) as ONE
+  // undoable unit. Restore pre-drag positions first so the live-drag mutations
+  // don't leak into the history snapshot taken at commit start.
+  function endMultiDrag() {
+    const model = store.state.flowchart
+    drag.active = false
+    const finals = {}
+    let moved = false
+    for (const id of drag.ids) {
+      const node = flowchartNodeById(model, id)
+      if (!node) continue
+      const origin = drag.origins[id]
+      finals[id] = { x: node.x, y: node.y }
+      node.x = origin.x
+      node.y = origin.y
+      if (finals[id].x !== origin.x || finals[id].y !== origin.y) moved = true
+    }
+    if (!moved) return // a click with no movement keeps the selection, no commit
+    store.updateFlowchartModel('Move nodes', (m) => {
+      for (const id of drag.ids) {
+        const node = flowchartNodeById(m, id)
+        if (node && finals[id]) applyNodePosition(node, finals[id])
+      }
+    })
+  }
+
+  function applyNodePosition(node, position) {
+    node.x = position.x
+    node.y = position.y
+    node.manuallyPositioned = true
+  }
+
+  // ----- marquee (rubber-band) selection on empty canvas -----------------------
+
+  const MARQUEE_MIN = 3
+
+  // A plain press clears the selection; an additive press keeps it. Either way a
+  // drag grows a marquee that selects intersected nodes on release. Window-level
+  // listeners (like useMarquee) keep the box correct after the surface scrolls;
+  // client→logical is undo-pan then undo-zoom against the surface rect at begin.
+  function beginMarquee(event, start) {
+    const additive = isAdditive(event)
+    if (!additive) store.clearSelection()
+    const rect = event.currentTarget.getBoundingClientRect()
+    const viewport = editorUi.viewport
+    const toLogical = (moveEvent) => ({
+      x: (moveEvent.clientX - rect.left - viewport.state.panX) / viewport.state.zoom,
+      y: (moveEvent.clientY - rect.top - viewport.state.panY) / viewport.state.zoom,
+    })
+    ui.marquee = { x: start.x, y: start.y, w: 0, h: 0 }
+    function handleMove(moveEvent) {
+      const point = toLogical(moveEvent)
+      ui.marquee = {
+        x: Math.min(start.x, point.x),
+        y: Math.min(start.y, point.y),
+        w: Math.abs(point.x - start.x),
+        h: Math.abs(point.y - start.y),
+      }
+    }
+    function handleUp() {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+      finishMarquee(additive)
+    }
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp)
+  }
+
+  // On release, select every node whose box intersects the marquee. A sub-3px box
+  // is treated as a click (selection already cleared above if it wasn't additive).
+  function finishMarquee(additive) {
+    const box = ui.marquee
+    ui.marquee = null
+    if (!box || box.w < MARQUEE_MIN || box.h < MARQUEE_MIN) return
+    const ids = store.state.flowchart.nodes
+      .filter((node) => rectsIntersect(box, nodeBox(node)))
+      .map((node) => node.id)
+    if (!ids.length) return
+    additive ? store.addToSelection(ids) : store.select(ids)
+  }
+
+  function nodeBox(node) {
+    const size = nodeSize(node)
+    return { x: node.x, y: node.y, w: size.w, h: size.h }
   }
 
   // Find a flow edge whose route passes under a node dropped at (x,y), excluding
@@ -267,6 +413,11 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
 }
 
 // ----- small pure helpers (kept module-local) --------------------------------
+
+// Shift, Ctrl, or Cmd all act as the "add to selection" modifier (matches useSelection).
+function isAdditive(event) {
+  return event.shiftKey || event.ctrlKey || event.metaKey
+}
 
 // Walk up from an event target to the nearest flowchart element carrying our
 // data attributes, returning what kind of element was pressed.

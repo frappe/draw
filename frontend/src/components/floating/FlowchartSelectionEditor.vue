@@ -11,6 +11,7 @@ import { useEditorUi } from '@/stores/useEditorUi.js'
 import {
   NODE_TYPES,
   NODE_TYPE_META,
+  nodeSize,
   flowchartNodeById,
   swapNodeType,
   addDecisionBranch,
@@ -28,16 +29,28 @@ const TYPE_ICONS = {
 }
 
 const model = computed(() => store.state.flowchart)
-const node = computed(() => {
-  const ids = store.state.selection || []
-  if (ids.length !== 1) return null
-  return flowchartNodeById(model.value, ids[0]) || null
-})
+// Every selected flowchart node (Fill + Delete act on all of them).
+const nodes = computed(() =>
+  (store.state.selection || []).map((id) => flowchartNodeById(model.value, id)).filter(Boolean),
+)
+// Type-swap + branch controls only make sense for a lone selection.
+const node = computed(() => (nodes.value.length === 1 ? nodes.value[0] : null))
+const fillPreview = computed(() => nodes.value[0]?.fill || '#FFFFFF')
 
+function nodeBox(n) {
+  const size = nodeSize(n)
+  return { x: n.x, y: n.y, w: size.w, h: size.h }
+}
+
+// Combined bounding box of all selected nodes, so the toolbar sits above the group.
 const box = computed(() => {
-  if (!node.value) return null
-  const meta = NODE_TYPE_META[node.value.nodeType] || { w: 150, h: 60 }
-  return { x: node.value.x, y: node.value.y, w: node.value.w || meta.w, h: node.value.h || meta.h }
+  if (!nodes.value.length) return null
+  const boxes = nodes.value.map(nodeBox)
+  const x = Math.min(...boxes.map((b) => b.x))
+  const y = Math.min(...boxes.map((b) => b.y))
+  const right = Math.max(...boxes.map((b) => b.x + b.w))
+  const bottom = Math.max(...boxes.map((b) => b.y + b.h))
+  return { x, y, w: right - x, h: bottom - y }
 })
 
 const style = computed(() => {
@@ -54,7 +67,15 @@ function swap(type) {
   if (node.value) store.updateFlowchartModel('Swap node type', (m) => swapNodeType(m, node.value.id, type))
 }
 function setFill(color) {
-  if (node.value) store.updateFlowchartNode(node.value.id, { fill: color })
+  const ids = nodes.value.map((n) => n.id)
+  if (!ids.length) return
+  // Recolour every selected node as one undoable unit (Part G6).
+  store.updateFlowchartModel('Fill', (m) => {
+    for (const id of ids) {
+      const target = flowchartNodeById(m, id)
+      if (target) target.fill = color
+    }
+  })
 }
 function setBranchLabel(port, label) {
   if (!node.value) return
@@ -73,7 +94,8 @@ function removeBranch(port) {
   if (node.value) store.updateFlowchartModel('Remove branch', (m) => removeDecisionBranch(m, node.value.id, port))
 }
 function remove() {
-  if (node.value) store.removeFlowchartNode(node.value.id)
+  // Delete every selected node (removeFlowchartNode also drops its edges).
+  for (const id of nodes.value.map((n) => n.id)) store.removeFlowchartNode(id)
 }
 
 const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2'
@@ -82,13 +104,13 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
 <template>
   <Teleport to="body">
     <div
-      v-if="node && box"
+      v-if="nodes.length && box"
       data-flow-toolbar
       class="fixed z-30 flex max-w-[50vw] -translate-x-1/2 -translate-y-full items-center gap-0.5 rounded-lg border border-outline-gray-2 bg-surface-base p-1 shadow-lg"
       :style="style"
     >
-      <!-- Node type -->
-      <Popover>
+      <!-- Node type — single selection only. -->
+      <Popover v-if="node">
         <template #target="{ togglePopover }">
           <Tooltip text="Node type">
             <button :class="btn" @mousedown.prevent @click="togglePopover()">
@@ -120,7 +142,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
         <template #target="{ togglePopover }">
           <Tooltip text="Fill">
             <button :class="btn" @mousedown.prevent @click="togglePopover()">
-              <span class="h-4 w-4 rounded-full border border-black/10" :style="{ background: node.fill || '#FFFFFF' }" />
+              <span class="h-4 w-4 rounded-full border border-black/10" :style="{ background: fillPreview }" />
             </button>
           </Tooltip>
         </template>
@@ -134,8 +156,8 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
         </template>
       </Popover>
 
-      <!-- Decision branches -->
-      <Popover v-if="node.nodeType === 'decision'">
+      <!-- Decision branches — single selection only. -->
+      <Popover v-if="node && node.nodeType === 'decision'">
         <template #target="{ togglePopover }">
           <Tooltip text="Branches">
             <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="git-branch" class="h-4 w-4" /></button>
