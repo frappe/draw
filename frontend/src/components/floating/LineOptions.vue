@@ -75,7 +75,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         :class="width === w ? cellActive : cellIdle"
         @click="emit('change', { width: w })"
       >
-        <span class="rounded-full bg-ink-gray-9" :style="{ width: w + 'px', height: w + 'px' }" />
+        <span class="rounded-full bg-surface-gray-10" :style="{ width: w + 'px', height: w + 'px' }" />
       </button>
     </div>
   </div>

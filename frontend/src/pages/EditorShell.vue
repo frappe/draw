@@ -117,7 +117,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="flex h-screen flex-col bg-surface-white text-ink-gray-9"
+    class="flex h-screen flex-col bg-surface-base text-ink-gray-9"
     :data-theme="dark ? 'dark' : null"
   >
     <TopToolbar

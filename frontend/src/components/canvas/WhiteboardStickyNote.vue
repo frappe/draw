@@ -212,7 +212,7 @@ function openLink(event) {
     <Teleport to="body">
       <div
         v-if="selected"
-        class="fixed z-30 flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-lg border border-outline-gray-2 bg-surface-white p-1 shadow-lg"
+        class="fixed z-30 flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-lg border border-outline-gray-2 bg-surface-base p-1 shadow-lg"
         :style="toolbarStyle"
       >
         <button
@@ -224,7 +224,7 @@ function openLink(event) {
           @pointerdown.stop
           @click="setColor(c)"
         />
-        <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
+        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
         <button class="flex h-7 w-7 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2" title="Duplicate" aria-label="Duplicate" @pointerdown.stop @click="duplicate">
           <LucideIcon name="copy" class="h-4 w-4" />
         </button>

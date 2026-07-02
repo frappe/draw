@@ -60,11 +60,11 @@ function onDragStart(event, type) {
 
 <template>
   <nav
-    class="flex w-14 flex-none flex-col items-center gap-[3px] overflow-y-auto border-r border-outline-gray-1 bg-surface-white py-2"
+    class="flex w-14 flex-none flex-col items-center gap-[3px] overflow-y-auto border-r border-outline-gray-1 bg-surface-base py-2"
     aria-label="Creation palette"
   >
     <PaletteSearch v-model:query="query" />
-    <div class="my-1 h-px w-6 bg-outline-gray-1" />
+    <div class="my-1 h-px w-6 bg-surface-gray-3" />
 
     <template v-if="shapes.length">
       <ShapeToolButton
@@ -77,7 +77,7 @@ function onDragStart(event, type) {
         @select="arm(shape.type)"
         @dragstart="onDragStart($event, shape.type)"
       />
-      <div class="my-1 h-px w-6 bg-outline-gray-1" />
+      <div class="my-1 h-px w-6 bg-surface-gray-3" />
     </template>
 
     <template v-if="connectors.length">
@@ -91,7 +91,7 @@ function onDragStart(event, type) {
         @select="arm(connector.type)"
         @dragstart="onDragStart($event, connector.type)"
       />
-      <div class="my-1 h-px w-6 bg-outline-gray-1" />
+      <div class="my-1 h-px w-6 bg-surface-gray-3" />
     </template>
 
     <ShapeToolButton

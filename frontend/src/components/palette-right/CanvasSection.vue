@@ -50,7 +50,7 @@ function applyPreset(name) {
         :key="index"
         class="h-[22px] w-[22px] rounded-[5px] border"
         :class="[
-          color === null ? 'bg-surface-white' : '',
+          color === null ? 'bg-surface-base' : '',
           store.state.canvas.background === color
             ? 'border-[1.5px] border-ink-gray-9'
             : 'border-black/10',

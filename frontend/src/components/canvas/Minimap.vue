@@ -127,7 +127,7 @@ function onUp() {
 <template>
   <div
     v-if="shown"
-    class="absolute bottom-3 right-3 z-10 rounded-lg border border-outline-gray-2 bg-surface-white/95 p-1 shadow-md backdrop-blur"
+    class="absolute bottom-3 right-3 z-10 rounded-lg border border-outline-gray-2 bg-surface-base/95 p-1 shadow-md backdrop-blur"
     aria-label="Minimap"
   >
     <svg

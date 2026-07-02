@@ -12,7 +12,7 @@ import { createListResource, Dialog, Button, FormControl, Dropdown, TextInput, T
 import LucideIcon from '@/icons/LucideIcon.vue'
 import DiagramCollection from './DiagramCollection.vue'
 import FolderItem from './FolderItem.vue'
-import { folders, moveDiagramToFolder, createFolder } from '@/data/folders.js'
+import { folders, moveDiagramToFolder } from '@/data/folders.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
 import { DIAGRAM_TYPES, typeLabel } from '@/data/diagramTypes.js'
 
@@ -126,6 +126,13 @@ const currentDiagrams = computed(() => {
   if (props.mode === 'all') return allFlat.value
   return [...pinned.value, ...files.value]
 })
+// Current view shows nothing (a search/type filter excluded everything — the
+// truly-empty home renders HomeShell's EmptyState instead of this grid).
+const nothingHere = computed(() => {
+  if (props.mode === 'home') return !pinned.value.length && !files.value.length && !folderTiles.value.length
+  return !currentDiagrams.value.length
+})
+const hasActiveFilter = computed(() => Boolean(query.value.trim()) || typeFilter.value !== 'all')
 const allSelected = computed(
   () => currentDiagrams.value.length > 0 && currentDiagrams.value.every((d) => selected.has(d.name)),
 )
@@ -176,19 +183,6 @@ async function togglePin(diagram) {
   if (!diagram.is_pinned && pinLimitReached.value) return
   await enriched.setValue.submit({ name: diagram.name, is_pinned: diagram.is_pinned ? 0 : 1 })
   refresh()
-}
-
-// New folder, created in the current location (nested under the open folder).
-const newFolder = reactive({ open: false, value: '' })
-function openNewFolder() {
-  newFolder.value = ''
-  newFolder.open = true
-}
-async function saveNewFolder() {
-  const name = newFolder.value.trim()
-  if (name) await createFolder(name, parentFolderName.value)
-  newFolder.open = false
-  emit('changed')
 }
 
 const editor = reactive({ open: false, value: '', name: null })
@@ -276,10 +270,6 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
             {{ sortLabel }}
           </Button>
         </Dropdown>
-        <Button v-if="mode === 'home'" variant="subtle" @click="openNewFolder">
-          <template #prefix><LucideIcon name="folder-plus" class="h-4 w-4" /></template>
-          New folder
-        </Button>
       </template>
 
       <div class="ml-auto flex items-center rounded-md border border-outline-gray-2 p-0.5">
@@ -352,6 +342,21 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       </p>
     </template>
 
+    <!-- Nothing matches the current search / type filter. -->
+    <div v-if="nothingHere && (mode !== 'home' || !folder)" class="flex flex-col items-center gap-3 py-20 text-center">
+      <div class="flex h-12 w-12 items-center justify-center rounded-full bg-surface-gray-2">
+        <LucideIcon :name="hasActiveFilter ? 'search' : 'feather'" class="h-5 w-5 text-ink-gray-5" />
+      </div>
+      <div>
+        <p class="text-[14px] font-semibold text-ink-gray-8">
+          {{ hasActiveFilter ? 'No diagrams match' : 'Nothing here yet' }}
+        </p>
+        <p class="mt-0.5 text-[12px] text-ink-gray-5">
+          {{ hasActiveFilter ? 'Try a different search or filter.' : 'Create a diagram to get started.' }}
+        </p>
+      </div>
+    </div>
+
     <!-- RECENT / ALL: a single flat list. -->
     <DiagramCollection
       v-else
@@ -362,8 +367,8 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       v-on="collectionHandlers"
     />
 
-    <!-- Quiet end-of-page marker. -->
-    <div class="mt-16 flex flex-col items-center gap-2 py-10 text-center">
+    <!-- Quiet end-of-page marker (only when the view actually has content). -->
+    <div v-if="!nothingHere" class="mt-16 flex flex-col items-center gap-2 py-10 text-center">
       <LucideIcon name="feather" class="h-6 w-6 text-ink-gray-3" />
       <p class="text-[12px] text-ink-gray-4">You've reached the end · made with Frappe Draw</p>
     </div>
@@ -387,13 +392,5 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       </template>
     </Dialog>
 
-    <Dialog v-model="newFolder.open" :options="{ title: folder ? `New folder in ${folder.folder_name || folder.name}` : 'New folder' }">
-      <template #body-content>
-        <FormControl type="text" label="Folder name" v-model="newFolder.value" @keydown.enter="saveNewFolder" />
-      </template>
-      <template #actions>
-        <Button variant="solid" @click="saveNewFolder">Create folder</Button>
-      </template>
-    </Dialog>
   </div>
 </template>

@@ -13,7 +13,7 @@ defineEmits(['click'])
 
 <template>
   <button
-    class="flex h-12 flex-col items-center justify-center gap-1 rounded-md border bg-surface-white hover:border-outline-gray-3 hover:bg-surface-gray-1"
+    class="flex h-12 flex-col items-center justify-center gap-1 rounded-md border bg-surface-base hover:border-outline-gray-3 hover:bg-surface-gray-1"
     :class="active ? 'border-ink-gray-9 bg-surface-gray-2' : 'border-outline-gray-1'"
     @click="$emit('click')"
   >

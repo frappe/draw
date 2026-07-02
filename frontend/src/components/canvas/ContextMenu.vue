@@ -50,11 +50,11 @@ onBeforeUnmount(() => {
       ref="root"
       role="menu"
       aria-label="Canvas actions"
-      class="fixed z-50 min-w-[200px] rounded-lg border border-outline-gray-2 bg-surface-white py-1 shadow-lg"
+      class="fixed z-50 min-w-[200px] rounded-lg border border-outline-gray-2 bg-surface-base py-1 shadow-lg"
       :style="position"
     >
       <template v-for="(item, index) in items" :key="index">
-        <div v-if="item.divider" class="my-1 h-px bg-outline-gray-1" role="separator" />
+        <div v-if="item.divider" class="my-1 h-px bg-surface-gray-3" role="separator" />
         <button
           v-else
           role="menuitem"

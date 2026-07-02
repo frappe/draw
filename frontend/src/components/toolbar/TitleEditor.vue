@@ -64,7 +64,7 @@ function cancel() {
       v-if="editing"
       ref="input"
       v-model="draft"
-      class="w-56 max-w-full rounded border border-outline-gray-2 bg-surface-white px-1.5 py-0.5 text-lg font-medium text-ink-gray-9 outline-none focus:border-outline-gray-3"
+      class="w-56 max-w-full rounded border border-outline-gray-2 bg-surface-base px-1.5 py-0.5 text-lg font-medium text-ink-gray-9 outline-none focus:border-outline-gray-3"
       @blur="commit"
       @keyup.enter="commit"
       @keyup.esc="cancel"

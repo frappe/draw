@@ -114,7 +114,7 @@ function activeBtn(on) {
     <div
       v-if="node && box"
       data-mm-toolbar
-      class="fixed z-30 flex -translate-x-1/2 -translate-y-full items-center gap-0.5 rounded-lg border border-outline-gray-2 bg-surface-white p-1 shadow-lg"
+      class="fixed z-30 flex -translate-x-1/2 -translate-y-full items-center gap-0.5 rounded-lg border border-outline-gray-2 bg-surface-base p-1 shadow-lg"
       :style="toolbarStyle"
     >
       <Tooltip text="Bold">
@@ -128,7 +128,7 @@ function activeBtn(on) {
         </button>
       </Tooltip>
 
-      <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
+      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
 
       <!-- Colour -->
       <Popover>
@@ -170,7 +170,7 @@ function activeBtn(on) {
         </template>
       </Popover>
 
-      <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
+      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
 
       <Tooltip text="Add child (Tab)">
         <button :class="btn" @click="addChild"><LucideIcon name="plus" class="h-4 w-4" /></button>
@@ -259,7 +259,7 @@ function activeBtn(on) {
       </Popover>
 
       <template v-if="!selectedIsRoot">
-        <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
+        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
         <Tooltip text="Delete node">
           <button class="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50" @click="removeNode">
             <LucideIcon name="trash-2" class="h-4 w-4" />
@@ -273,7 +273,7 @@ function activeBtn(on) {
   <Teleport to="body">
     <button
       v-if="isBlank"
-      class="fixed left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-dashed border-outline-gray-3 bg-surface-white px-5 py-3 text-[14px] font-medium text-ink-gray-7 shadow-sm hover:border-ink-gray-8 hover:text-ink-gray-9"
+      class="fixed left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-dashed border-outline-gray-3 bg-surface-base px-5 py-3 text-[14px] font-medium text-ink-gray-7 shadow-sm hover:border-ink-gray-8 hover:text-ink-gray-9"
       @click="addFirstIdea"
     >
       <LucideIcon name="plus" class="h-4 w-4" /> Add your first idea

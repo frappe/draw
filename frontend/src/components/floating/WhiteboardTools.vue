@@ -81,7 +81,7 @@ function applyTableDefault(patch) {
 </script>
 
 <template>
-  <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
+  <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
 
   <!-- Tools: a single click arms; the next canvas action draws. -->
   <Tooltip v-for="t in TOOLS" :key="t.tool" :text="t.label">
@@ -129,7 +129,7 @@ function applyTableDefault(patch) {
             :class="ui.state.penWidth === w ? 'bg-surface-gray-3' : 'bg-surface-gray-1 hover:bg-surface-gray-2'"
             @click="ui.state.penWidth = w"
           >
-            <span class="rounded-full bg-ink-gray-9" :style="{ width: w + 'px', height: w + 'px' }" />
+            <span class="rounded-full bg-surface-gray-10" :style="{ width: w + 'px', height: w + 'px' }" />
           </button>
         </div>
       </div>
@@ -204,7 +204,7 @@ function applyTableDefault(patch) {
   </Popover>
 
   <!-- Board options: background + sketch + navigator. -->
-  <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
+  <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
   <Popover>
     <template #target="{ togglePopover }">
       <Tooltip text="Board options">

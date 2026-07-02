@@ -35,7 +35,7 @@ function print() {
 
 <template>
   <header
-    class="flex h-12 flex-none items-center gap-1 border-b border-outline-gray-1 bg-surface-white px-3"
+    class="flex h-12 flex-none items-center gap-1 border-b border-outline-gray-1 bg-surface-base px-3"
   >
     <!-- Breadcrumb: logo + Frappe Draw (→ Home). -->
     <button
@@ -70,7 +70,7 @@ function print() {
         </Button>
       </Tooltip>
 
-      <div class="h-5 w-px bg-outline-gray-1" />
+      <div class="h-5 w-px bg-surface-gray-3" />
 
       <Tooltip :text="dark ? 'Light mode' : 'Dark mode'">
         <Button variant="outline" :aria-label="dark ? 'Switch to light mode' : 'Switch to dark mode'" @click="emit('toggle-dark')">

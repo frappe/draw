@@ -76,13 +76,13 @@ const accessLevel = computed({
                 v-model="query"
                 type="text"
                 placeholder="Add people by email…"
-                class="h-9 w-full rounded-md border border-outline-gray-2 bg-surface-white px-3 text-sm text-ink-gray-8 outline-none focus:border-outline-gray-3"
+                class="h-9 w-full rounded-md border border-outline-gray-2 bg-surface-base px-3 text-sm text-ink-gray-8 outline-none focus:border-outline-gray-3"
                 @keydown.enter="query.trim() && invite(query.trim())"
               />
               <!-- Search results dropdown. -->
               <div
                 v-if="results.length"
-                class="absolute left-0 right-0 top-10 z-10 max-h-56 overflow-auto rounded-md border border-outline-gray-2 bg-surface-white py-1 shadow-lg"
+                class="absolute left-0 right-0 top-10 z-10 max-h-56 overflow-auto rounded-md border border-outline-gray-2 bg-surface-base py-1 shadow-lg"
               >
                 <button
                   v-for="u in results"
@@ -100,7 +100,7 @@ const accessLevel = computed({
             </div>
             <select
               v-model="inviteRole"
-              class="h-9 rounded-md border border-outline-gray-2 bg-surface-white px-2 text-sm text-ink-gray-8 outline-none"
+              class="h-9 rounded-md border border-outline-gray-2 bg-surface-base px-2 text-sm text-ink-gray-8 outline-none"
             >
               <option value="view">Can view</option>
               <option value="edit">Can edit</option>
@@ -125,7 +125,7 @@ const accessLevel = computed({
               </div>
               <select
                 :value="m.can_edit ? 'edit' : 'view'"
-                class="h-8 rounded-md border border-outline-gray-2 bg-surface-white px-2 text-[13px] text-ink-gray-8 outline-none"
+                class="h-8 rounded-md border border-outline-gray-2 bg-surface-base px-2 text-[13px] text-ink-gray-8 outline-none"
                 @change="share.setMemberRole(m.user, $event.target.value === 'edit')"
               >
                 <option value="view">Can view</option>
@@ -150,7 +150,7 @@ const accessLevel = computed({
             <LucideIcon :name="share.isPublic.value ? 'globe' : 'lock'" class="h-4 w-4 text-ink-gray-6" />
             <select
               v-model="accessLevel"
-              class="h-9 flex-1 rounded-md border border-outline-gray-2 bg-surface-white px-2 text-sm text-ink-gray-8 outline-none"
+              class="h-9 flex-1 rounded-md border border-outline-gray-2 bg-surface-base px-2 text-sm text-ink-gray-8 outline-none"
             >
               <option value="restricted">Restricted — only people added</option>
               <option value="link">Anyone with the link can view</option>

@@ -69,9 +69,9 @@ function refresh() {
       <div
         v-for="diagram in rows"
         :key="diagram.name"
-        class="overflow-hidden rounded-xl border border-outline-gray-1 bg-surface-white"
+        class="overflow-hidden rounded-xl border border-outline-gray-1 bg-surface-base"
       >
-        <div class="flex h-[120px] items-center justify-center border-b border-outline-gray-1 bg-surface-white p-2 opacity-[0.55]">
+        <div class="flex h-[120px] items-center justify-center border-b border-outline-gray-1 bg-surface-base p-2 opacity-[0.55]">
           <div
             v-if="preview(diagram.document)"
             class="h-full w-full [&>svg]:h-full [&>svg]:w-full"

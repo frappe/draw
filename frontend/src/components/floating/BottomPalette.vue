@@ -146,7 +146,7 @@ function commitZoom() {
 
 <template>
   <div
-    class="absolute bottom-[18px] left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-[10px] border border-outline-gray-1 bg-surface-white p-[5px] shadow-lg"
+    class="absolute bottom-[18px] left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-[10px] border border-outline-gray-1 bg-surface-base p-[5px] shadow-lg"
   >
     <Tooltip v-for="mode in modes" :key="mode.tool" :text="mode.label">
       <button
@@ -158,14 +158,14 @@ function commitZoom() {
     </Tooltip>
 
     <!-- Section (named grouping frame) — available in every diagram type. -->
-    <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
+    <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
     <Tooltip text="Add section">
       <button :class="buttonBase" @click="addSection"><LucideIcon name="layout" class="h-4 w-4" /></button>
     </Tooltip>
 
     <!-- Block creation tools: Shapes + Connectors popovers + Text. -->
     <template v-if="isBlock">
-      <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
+      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
       <Popover>
         <template #target="{ togglePopover }">
           <Tooltip text="Shapes">
@@ -178,7 +178,7 @@ function commitZoom() {
               v-model="shapeQuery"
               type="text"
               placeholder="Search shapes…"
-              class="mb-2 h-7 w-full rounded-md border border-outline-gray-2 bg-surface-white px-2 text-xs text-ink-gray-8 outline-none placeholder:text-ink-gray-4 focus:border-outline-gray-3"
+              class="mb-2 h-7 w-full rounded-md border border-outline-gray-2 bg-surface-base px-2 text-xs text-ink-gray-8 outline-none placeholder:text-ink-gray-4 focus:border-outline-gray-3"
             />
             <!-- Recently used (hidden while searching). -->
             <template v-if="!query && recentShapeDefs.length">
@@ -194,7 +194,7 @@ function commitZoom() {
                   </button>
                 </Tooltip>
               </div>
-              <div class="mb-2 h-px bg-outline-gray-1" />
+              <div class="mb-2 h-px bg-surface-gray-3" />
             </template>
             <div v-if="filteredShapes.length" class="grid grid-cols-4 gap-1">
               <Tooltip v-for="s in filteredShapes" :key="s.type" :text="s.label">
@@ -208,7 +208,7 @@ function commitZoom() {
               </Tooltip>
             </div>
             <!-- Lines + connectors live here too (no separate menu). -->
-            <div v-if="filteredShapes.length && filteredLines.length" class="my-2 h-px bg-outline-gray-1" />
+            <div v-if="filteredShapes.length && filteredLines.length" class="my-2 h-px bg-surface-gray-3" />
             <div v-if="filteredLines.length" class="grid grid-cols-4 gap-1">
               <Tooltip v-for="con in filteredLines" :key="con.type" :text="con.label">
                 <button
@@ -240,7 +240,7 @@ function commitZoom() {
 
     <!-- Mind map: map-wide actions (per-node editing is in the floating toolbar). -->
     <template v-if="isMindmap">
-      <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
+      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
       <Tooltip text="Collapse all">
         <button :class="buttonBase" @click="collapseAll(store, true)"><LucideIcon name="minimize-2" class="h-4 w-4" /></button>
       </Tooltip>
@@ -260,7 +260,7 @@ function commitZoom() {
 
     <!-- Any other type that declares extra surface tools (seam; none today). -->
     <template v-else-if="surfaceTools.length">
-      <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
+      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
       <Tooltip v-for="modeTool in surfaceTools" :key="modeTool.tool" :text="modeTool.label">
         <button
           :class="[buttonBase, toggleClass(editorUi.state.tool === modeTool.tool)]"
@@ -271,7 +271,7 @@ function commitZoom() {
       </Tooltip>
     </template>
 
-    <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
+    <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
 
     <Tooltip :text="guidesLabel">
       <button
@@ -282,7 +282,7 @@ function commitZoom() {
       </button>
     </Tooltip>
 
-    <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
+    <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
 
     <Tooltip text="Zoom out">
       <button :class="buttonBase" @click="viewport.zoomStep(-1)">
@@ -295,7 +295,7 @@ function commitZoom() {
       v-model="zoomDraft"
       type="text"
       inputmode="numeric"
-      class="h-[34px] w-[52px] rounded-md border border-outline-gray-2 bg-surface-white text-center text-xs font-medium text-ink-gray-8 outline-none focus:border-outline-gray-3"
+      class="h-[34px] w-[52px] rounded-md border border-outline-gray-2 bg-surface-base text-center text-xs font-medium text-ink-gray-8 outline-none focus:border-outline-gray-3"
       @keydown.enter="commitZoom"
       @keydown.esc="zoomEditing = false"
       @blur="commitZoom"

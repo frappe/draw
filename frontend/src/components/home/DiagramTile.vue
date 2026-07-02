@@ -78,7 +78,7 @@ function onDragStart(event) {
   <div
     v-if="view === 'list'"
     class="group relative flex items-center gap-3 rounded-lg border px-3 py-2"
-    :class="selected ? 'border-outline-blue-2 bg-surface-blue-1' : 'border-outline-gray-1 bg-surface-white hover:bg-surface-gray-1'"
+    :class="selected ? 'border-outline-blue-2 bg-surface-blue-1' : 'border-outline-gray-1 bg-surface-base hover:bg-surface-gray-1'"
     draggable="true"
     @dragstart="onDragStart"
   >
@@ -137,7 +137,7 @@ function onDragStart(event) {
     <button
       class="absolute left-2 top-2 z-10 flex h-[20px] w-[20px] items-center justify-center rounded-[6px] border shadow-sm transition-opacity"
       :class="[
-        selected ? 'border-outline-blue-3 bg-surface-blue-3 text-white' : 'border-outline-gray-3 bg-surface-white text-transparent',
+        selected ? 'border-outline-blue-3 bg-surface-blue-3 text-white' : 'border-outline-gray-3 bg-surface-base text-transparent',
         selected || selectionActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
       ]"
       @click.stop="emit('toggle-select', diagram.name)"
@@ -147,7 +147,7 @@ function onDragStart(event) {
 
     <!-- One-click star (Gmail-style pin): always shown when pinned, on hover otherwise. -->
     <button
-      class="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-md bg-surface-white/80 shadow-sm backdrop-blur transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+      class="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-md bg-surface-base/80 shadow-sm backdrop-blur transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
       :class="isPinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
       :title="pinTitle"
       :aria-label="pinTitle"
@@ -173,7 +173,7 @@ function onDragStart(event) {
       </div>
     </button>
 
-    <div class="flex items-center gap-1 bg-surface-white px-3 py-2.5">
+    <div class="flex items-center gap-1 bg-surface-base px-3 py-2.5">
       <button class="min-w-0 flex-1 text-left" @click="emit('open', diagram.name)">
         <div class="truncate text-[13px] font-semibold text-ink-gray-9">{{ diagram.title }}</div>
         <div class="text-[11px] text-ink-gray-5">Created {{ createdLabel }} · Edited {{ editedLabel }}</div>

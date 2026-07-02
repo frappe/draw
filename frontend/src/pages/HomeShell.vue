@@ -1,9 +1,9 @@
 <script setup>
 // Home page — composes the sidebar + tile grid (+ empty state) + new-diagram
 // dialog + trash view, and routes to the editor on create/open (spec §2).
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button } from 'frappe-ui'
+import { Button, Dialog, FormControl } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import Sidebar from '@/components/home/Sidebar.vue'
 import TileGrid from '@/components/home/TileGrid.vue'
@@ -11,12 +11,25 @@ import EmptyState from '@/components/home/EmptyState.vue'
 import TrashView from '@/components/home/TrashView.vue'
 import NewDiagramDialog from '@/components/home/NewDiagramDialog.vue'
 import { diagrams, createDiagram } from '@/data/diagrams.js'
-import { folders } from '@/data/folders.js'
+import { folders, createFolder } from '@/data/folders.js'
 
 const router = useRouter()
 const view = ref('home')
 const folderPath = ref([]) // ancestor chain of open folders (root → current)
 const showNewDiagram = ref(false)
+
+// New folder — created in the current location (nested under the open folder).
+// Lifted here from the tile grid so it's a header CTA next to "New diagram".
+const newFolder = reactive({ open: false, value: '' })
+function openNewFolder() {
+  newFolder.value = ''
+  newFolder.open = true
+}
+async function saveNewFolder() {
+  const name = newFolder.value.trim()
+  if (name) await createFolder(name, currentFolder.value?.name || null)
+  newFolder.open = false
+}
 
 onMounted(() => {
   diagrams.fetch()
@@ -98,13 +111,23 @@ function open(name) {
             </template>
             <span v-else>{{ title }}</span>
           </div>
-          <Button variant="solid" @click="showNewDiagram = true">
-            <template #prefix><LucideIcon name="plus" class="h-4 w-4" /></template>
-            Create
-          </Button>
+          <div class="flex items-center gap-2">
+            <Button variant="outline" @click="openNewFolder">
+              <template #prefix><LucideIcon name="folder-plus" class="h-4 w-4" /></template>
+              New folder
+            </Button>
+            <Button variant="solid" @click="showNewDiagram = true">
+              <template #prefix><LucideIcon name="plus" class="h-4 w-4" /></template>
+              New diagram
+            </Button>
+          </div>
         </div>
 
-        <EmptyState v-if="isEmpty" @create="showNewDiagram = true" />
+        <EmptyState
+          v-if="isEmpty"
+          @create="create({ type: $event, choose: true })"
+          @new-folder="openNewFolder"
+        />
         <TileGrid
           v-else
           :mode="view"
@@ -117,5 +140,14 @@ function open(name) {
     </main>
 
     <NewDiagramDialog v-model="showNewDiagram" @create="create" />
+
+    <Dialog v-model="newFolder.open" :options="{ title: currentFolder ? `New folder in ${currentFolder.folder_name || currentFolder.name}` : 'New folder' }">
+      <template #body-content>
+        <FormControl type="text" label="Folder name" v-model="newFolder.value" @keydown.enter="saveNewFolder" />
+      </template>
+      <template #actions>
+        <Button variant="solid" @click="saveNewFolder">Create folder</Button>
+      </template>
+    </Dialog>
   </div>
 </template>

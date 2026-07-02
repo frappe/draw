@@ -91,7 +91,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         :aria-label="`Line width ${w}`"
         @click="setStyle({ width: w })"
       >
-        <span class="w-5 rounded-full bg-ink-gray-9" :style="{ height: Math.max(1, w - 0.5) + 'px' }" />
+        <span class="w-5 rounded-full bg-surface-gray-10" :style="{ height: Math.max(1, w - 0.5) + 'px' }" />
       </button>
     </div>
     <div class="flex gap-1">

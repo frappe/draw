@@ -26,7 +26,7 @@ const options = NODE_TYPES.map((type) => ({
 
 <template>
   <div
-    class="w-44 rounded-lg border border-outline-gray-2 bg-surface-white py-1 shadow-2xl"
+    class="w-44 rounded-lg border border-outline-gray-2 bg-surface-base py-1 shadow-2xl"
     @pointerdown.stop
     @pointerup.stop
   >

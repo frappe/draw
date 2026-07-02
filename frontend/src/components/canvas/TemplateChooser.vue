@@ -51,7 +51,7 @@ function pickTemplate(t) {
 <template>
   <Teleport to="body">
     <div v-if="show" class="fixed inset-0 z-40 flex items-center justify-center bg-black/20 p-6" @click.self="pickBlank">
-      <div class="w-full max-w-xl rounded-xl border border-outline-gray-2 bg-surface-white p-6 shadow-2xl">
+      <div class="w-full max-w-xl rounded-xl border border-outline-gray-2 bg-surface-base p-6 shadow-2xl">
         <div class="mb-4 flex items-start justify-between">
           <div>
             <h2 class="text-lg font-semibold text-ink-gray-9">Start your {{ typeName }}</h2>
@@ -67,7 +67,7 @@ function pickTemplate(t) {
           class="flex w-full items-center gap-3.5 rounded-lg border border-outline-gray-2 bg-surface-gray-1 p-4 text-left transition-colors hover:border-ink-gray-9 hover:bg-surface-gray-2"
           @click="pickBlank"
         >
-          <div class="flex h-11 w-11 flex-none items-center justify-center rounded-md bg-surface-white shadow-sm">
+          <div class="flex h-11 w-11 flex-none items-center justify-center rounded-md bg-surface-base shadow-sm">
             <LucideIcon name="file-plus" class="h-5 w-5 text-ink-gray-8" />
           </div>
           <div>

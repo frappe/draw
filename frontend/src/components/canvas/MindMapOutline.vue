@@ -93,7 +93,7 @@ function isActive(id) {
   <Teleport to="body">
     <aside
       v-if="mindmapUi.outlineVisible && store.state.mindmap"
-      class="fixed left-0 top-[57px] z-20 flex h-[calc(100vh-57px)] w-[280px] flex-col border-r border-outline-gray-1 bg-surface-white shadow-lg"
+      class="fixed left-0 top-[57px] z-20 flex h-[calc(100vh-57px)] w-[280px] flex-col border-r border-outline-gray-1 bg-surface-base shadow-lg"
     >
       <header class="flex items-center justify-between border-b border-outline-gray-1 px-3.5 py-2.5">
         <span class="text-sm font-semibold text-ink-gray-9">Outline</span>

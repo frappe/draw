@@ -49,7 +49,7 @@ function close() {
 
     <div
       v-if="open"
-      class="absolute left-[44px] top-0 z-10 flex w-52 items-center gap-2 rounded-md border border-outline-gray-2 bg-surface-white px-2.5 py-1.5 shadow-lg"
+      class="absolute left-[44px] top-0 z-10 flex w-52 items-center gap-2 rounded-md border border-outline-gray-2 bg-surface-base px-2.5 py-1.5 shadow-lg"
     >
       <LucideIcon name="search" class="h-4 w-4 flex-none text-ink-gray-5" />
       <input

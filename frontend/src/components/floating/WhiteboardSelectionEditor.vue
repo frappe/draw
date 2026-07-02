@@ -42,7 +42,7 @@ const buttonBase =
 
 <template>
   <template v-if="editable">
-    <div class="mx-0.5 h-5 w-px bg-outline-gray-1" />
+    <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
     <Popover>
       <template #target="{ togglePopover }">
         <Tooltip :text="`Edit ${label.toLowerCase()}`">

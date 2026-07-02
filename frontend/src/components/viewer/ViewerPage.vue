@@ -84,7 +84,7 @@ function isMethodMissing(error) {
 </script>
 
 <template>
-  <div class="flex h-screen flex-col bg-surface-white">
+  <div class="flex h-screen flex-col bg-surface-base">
     <main class="relative min-h-0 flex-1">
       <div v-if="status === 'loading'" class="flex h-full items-center justify-center">
         <Spinner class="h-6 w-6 text-ink-gray-5" />
@@ -118,7 +118,7 @@ function isMethodMissing(error) {
     </main>
 
     <footer
-      class="flex flex-none items-center justify-center gap-1.5 border-t border-outline-gray-1 bg-surface-white py-2 text-[11px] text-ink-gray-5"
+      class="flex flex-none items-center justify-center gap-1.5 border-t border-outline-gray-1 bg-surface-base py-2 text-[11px] text-ink-gray-5"
     >
       <Logomark :size="14" />
       Made with Frappe Draw
