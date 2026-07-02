@@ -15,11 +15,13 @@ import { useKeyboard } from '@/composables/useKeyboard.js'
 import { useClipboard } from '@/composables/useClipboard.js'
 import { useAutosave } from '@/composables/useAutosave.js'
 import { useThumbnail } from '@/composables/useThumbnail.js'
+import { useCollaboration } from '@/composables/useCollaboration.js'
 import { useAppSettings } from '@/composables/useAppSettings.js'
 import TopToolbar from '@/components/toolbar/TopToolbar.vue'
 import DiagramCanvas from '@/components/canvas/DiagramCanvas.vue'
 import Minimap from '@/components/canvas/Minimap.vue'
 import MindMapOverlay from '@/components/canvas/MindMapOverlay.vue'
+import CollaboratorCursors from '@/components/canvas/CollaboratorCursors.vue'
 import TemplateChooser from '@/components/canvas/TemplateChooser.vue'
 import BottomPalette from '@/components/floating/BottomPalette.vue'
 import RightPalette from '@/components/palette-right/RightPalette.vue'
@@ -52,6 +54,8 @@ const { settings: appSettings, toggleDarkMode } = useAppSettings()
 const dark = computed(() => appSettings.darkMode)
 const autosave = useAutosave(store, diagram)
 const thumbnail = useThumbnail(store, diagram)
+// Real-time co-editing (Yjs + y-webrtc) + live cursors, keyed by the diagram name.
+const collab = useCollaboration(store, editorUi, props.name)
 useKeyboard(store, editorUi)
 useClipboard(store)
 
@@ -130,6 +134,7 @@ onMounted(() => {
         <DiagramCanvas />
         <Minimap />
         <MindMapOverlay v-if="modeStrategy.type === 'mindmap'" />
+        <CollaboratorCursors :collaborators="collab.collaborators.value" :set-cursor="collab.setCursor" />
         <TemplateChooser />
         <BottomPalette />
       </main>

@@ -13,6 +13,7 @@ declare module 'vue' {
     ArrangeSection: typeof import('./src/components/palette-right/ArrangeSection.vue')['default']
     BottomPalette: typeof import('./src/components/floating/BottomPalette.vue')['default']
     CanvasSection: typeof import('./src/components/palette-right/CanvasSection.vue')['default']
+    CollaboratorCursors: typeof import('./src/components/canvas/CollaboratorCursors.vue')['default']
     ColorPicker: typeof import('./src/components/palette-right/ColorPicker.vue')['default']
     ConnectorMarker: typeof import('./src/components/canvas/ConnectorMarker.vue')['default']
     ConnectorSection: typeof import('./src/components/palette-right/ConnectorSection.vue')['default']

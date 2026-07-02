@@ -19,7 +19,10 @@
     "frappe-ui": "latest",
     "jspdf": "^4.2.1",
     "vue": "^3.4.0",
-    "vue-router": "^4.3.0"
+    "vue-router": "^4.3.0",
+    "y-indexeddb": "^9.0.12",
+    "y-webrtc": "^10.3.0",
+    "yjs": "^13.6.27"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",

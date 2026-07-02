@@ -5,12 +5,16 @@
 import { primaryTriad, CONNECTOR_DEFAULT_STYLE } from './theme.js'
 
 let idCounter = 0
+// A short per-session salt so two collaborators never mint the same id (they'd
+// collide in the shared Yjs maps). Ids stay short + stable within a session.
+const CLIENT_SALT = Math.random().toString(36).slice(2, 5)
 
-// Short, unique, monotonic ids. Prefix keeps shapes/connectors/nodes
-// distinguishable (exported so the mind-map model reuses one id source).
+// Short, unique ids. Prefix keeps shapes/connectors/nodes distinguishable; the
+// salt makes them unique across concurrent clients (exported so the mind-map
+// model reuses one id source).
 export function nextId(prefix) {
   idCounter += 1
-  return `${prefix}${idCounter.toString(36)}`
+  return `${prefix}${CLIENT_SALT}${idCounter.toString(36)}`
 }
 
 const DEFAULT_SHAPE_SIZE = { w: 180, h: 96 }
