@@ -248,11 +248,13 @@ function cycleGuides() {
     <!-- Mind map: map-wide actions (per-node editing is in the floating toolbar). -->
     <template v-if="isMindmap">
       <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+      <!-- Fold/unfold chevrons read as collapse/expand; the old minimize/maximize
+           icons looked like fit-to-view (N14). -->
       <Tooltip text="Collapse all">
-        <button :class="buttonBase" @click="collapseAll(store, true)"><LucideIcon name="minimize-2" class="h-4 w-4" /></button>
+        <button :class="buttonBase" @click="collapseAll(store, true)"><LucideIcon name="chevrons-up" class="h-4 w-4" /></button>
       </Tooltip>
       <Tooltip text="Expand all">
-        <button :class="buttonBase" @click="collapseAll(store, false)"><LucideIcon name="maximize-2" class="h-4 w-4" /></button>
+        <button :class="buttonBase" @click="collapseAll(store, false)"><LucideIcon name="chevrons-down" class="h-4 w-4" /></button>
       </Tooltip>
       <Tooltip text="Clear map">
         <button :class="[buttonBase, 'hover:text-red-600']" @click="clearMap(store)"><LucideIcon name="trash-2" class="h-4 w-4" /></button>
@@ -265,8 +267,10 @@ function cycleGuides() {
       <Tooltip text="Tidy up">
         <button :class="buttonBase" @click="flowTidy"><LucideIcon name="grid" class="h-4 w-4" /></button>
       </Tooltip>
-      <Tooltip :text="flowDirection === 'TB' ? 'Top → bottom' : 'Left → right'">
-        <button :class="buttonBase" @click="flowFlip"><LucideIcon :name="flowDirection === 'TB' ? 'arrow-down' : 'arrow-right'" class="h-4 w-4" /></button>
+      <!-- Label + icon show the TARGET direction (what clicking switches to), not
+           the current one (P8). -->
+      <Tooltip :text="flowDirection === 'TB' ? 'Switch to left → right' : 'Switch to top → bottom'">
+        <button :class="buttonBase" @click="flowFlip"><LucideIcon :name="flowDirection === 'TB' ? 'arrow-right' : 'arrow-down'" class="h-4 w-4" /></button>
       </Tooltip>
       <Tooltip :text="flowNumbered ? 'Clear numbers' : 'Number steps'">
         <button :class="[buttonBase, toggleClass(flowNumbered)]" @click="flowNumber"><LucideIcon name="list" class="h-4 w-4" /></button>

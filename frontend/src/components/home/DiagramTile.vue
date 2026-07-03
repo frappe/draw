@@ -102,7 +102,7 @@ function onDragStart(event) {
       @click.stop="togglePin"
     >
       <LucideIcon
-        name="star"
+        name="pin"
         class="h-4 w-4"
         :class="isPinned ? 'fill-amber-400 text-amber-400' : 'text-ink-gray-4 hover:text-ink-gray-6'"
       />
@@ -155,7 +155,7 @@ function onDragStart(event) {
       @click.stop="togglePin"
     >
       <LucideIcon
-        name="star"
+        name="pin"
         class="h-4 w-4"
         :class="isPinned ? 'fill-amber-400 text-amber-400' : 'text-ink-gray-5'"
       />
