@@ -7,7 +7,7 @@ import { reactive, computed, provide, inject } from 'vue'
 import { createShape, createConnector } from '@/diagram/factories.js'
 import { makeSection } from '@/diagram/sections.js'
 import { createHistory } from '@/stores/history.js'
-import { findThemePreset } from '@/diagram/theme.js'
+import { findThemePreset, DEFAULT_THEME_PRESET } from '@/diagram/theme.js'
 import { createDiagramDocument, SCHEMA_VERSION, DEFAULT_DIAGRAM_TYPE } from '@/diagram/schema.js'
 import { addChild, addSibling, addRootNode } from '@/diagram/mindmapModel.js'
 import {
@@ -50,7 +50,7 @@ export function createDiagramStore(initialDocument) {
     flowchart: document.flowchart ? clone(document.flowchart) : null,
     whiteboard: document.whiteboard ? clone(document.whiteboard) : null,
     selection: [],
-    themePreset: document.themePreset || 'ocean',
+    themePreset: document.themePreset || DEFAULT_THEME_PRESET,
   })
   const history = createHistory(state)
   return assembleStore(state, history)
@@ -362,7 +362,7 @@ function duplicateShapes(store, state, ids, newIds) {
     const source = store.shapeById(id)
     if (!source) continue
     zIndex += 1
-    const copy = createShape({ ...clone(source), id: undefined, x: source.x + 10, y: source.y + 10, zIndex }, state.themePreset)
+    const copy = createShape({ ...clone(source), id: undefined, x: source.x + 24, y: source.y + 24, zIndex }, state.themePreset)
     idMap[id] = copy.id
     newIds.push(copy.id)
     state.shapes.push(copy)
@@ -544,7 +544,7 @@ function attachDocumentIo(store, state, history) {
     state.mindmap = document.mindmap ? clone(document.mindmap) : null
     state.flowchart = document.flowchart ? clone(document.flowchart) : null
     state.whiteboard = document.whiteboard ? clone(document.whiteboard) : null
-    state.themePreset = document.themePreset || 'ocean'
+    state.themePreset = document.themePreset || DEFAULT_THEME_PRESET
     state.selection = []
     history.clear()
   }

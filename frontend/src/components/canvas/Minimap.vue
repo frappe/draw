@@ -48,12 +48,12 @@ const items = computed(() => {
   if (type.value === 'flowchart' && store.state.flowchart) {
     return store.state.flowchart.nodes.map((n) => {
       const s = flowchartNodeSize(n)
-      return { id: n.id, x: n.x, y: n.y, w: s.w, h: s.h, fill: n.fill || '#C7D2FE' }
+      return { id: n.id, x: n.x, y: n.y, w: s.w, h: s.h, fill: n.fill || '#D4D4D8' }
     })
   }
   if (type.value === 'mindmap' && store.state.mindmap) {
     const { positions } = layoutMindMap(store.state.mindmap)
-    return Object.entries(positions).map(([id, b]) => ({ id, x: b.x, y: b.y, w: b.w, h: b.h, fill: '#DDD6FE' }))
+    return Object.entries(positions).map(([id, b]) => ({ id, x: b.x, y: b.y, w: b.w, h: b.h, fill: '#D4D4D8' }))
   }
   return store.state.shapes
     .filter(isVisible)
