@@ -13,25 +13,35 @@ const props = defineProps({
 const emit = defineEmits(['update:title'])
 const route = useRoute()
 
-// A freshly created diagram arrives with ?new=1 — open the title for editing and
-// preselect it so the user can type the name right away (EditorShell strips the
-// flag afterwards so a refresh won't re-trigger).
-onMounted(() => {
-  // Auto-select the title on a fresh diagram so the user can name it right away.
-  if (route.query.new === '1') nextTick(startEditing)
-})
-
 const DEFAULT_TITLE = 'Untitled diagram'
 const editing = ref(false)
 const draft = ref(props.title)
 const input = ref(null)
 
+// A freshly created diagram arrives with ?new=1 — open the title for editing and
+// preselect it so the user can type the name right away. But the doc (and its
+// real auto-name, e.g. "Mind map 2") loads asynchronously, so we must NOT select
+// on mount while the title is still the "Untitled diagram" placeholder — blurring
+// would then clobber the real name. Capture the intent (the flag is stripped by
+// EditorShell), then fire once the real title has arrived.
+const wantsAutoSelect = route.query.new === '1'
+let autoSelected = false
+function maybeAutoSelect(title) {
+  if (!wantsAutoSelect || autoSelected) return
+  if (!title || title === DEFAULT_TITLE) return
+  autoSelected = true
+  nextTick(startEditing)
+}
+onMounted(() => maybeAutoSelect(props.title))
+
 // Keep the draft in sync when the title arrives/changes from outside (e.g. the
-// doc loads asynchronously) and we are not mid-edit.
+// doc loads asynchronously) and we are not mid-edit; also trigger the deferred
+// auto-select once the real title lands.
 watch(
   () => props.title,
   (next) => {
     if (!editing.value) draft.value = next
+    maybeAutoSelect(next)
   },
 )
 
