@@ -85,7 +85,7 @@ function applyQuickStyle(preset) {
         <input
           type="number"
           min="0"
-          step="0.5"
+          step="0.1"
           :value="weight"
           class="w-full bg-transparent text-xs leading-none text-ink-gray-7 outline-none"
           @change="setWeight($event.target.value)"

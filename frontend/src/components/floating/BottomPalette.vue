@@ -192,6 +192,7 @@ function cycleGuides() {
               </div>
               <div class="mb-2 h-px bg-surface-gray-3" />
             </template>
+            <div v-if="filteredShapes.length" class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Shapes</div>
             <div v-if="filteredShapes.length" class="grid grid-cols-4 gap-1">
               <Tooltip v-for="s in filteredShapes" :key="s.type" :text="s.label">
                 <button
@@ -203,8 +204,8 @@ function cycleGuides() {
                 </button>
               </Tooltip>
             </div>
-            <!-- Lines + connectors live here too (no separate menu). -->
-            <div v-if="filteredShapes.length && filteredLines.length" class="my-2 h-px bg-surface-gray-3" />
+            <!-- Lines + connectors group (labelled, C1). -->
+            <div v-if="filteredLines.length" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Lines &amp; connectors</div>
             <div v-if="filteredLines.length" class="grid grid-cols-4 gap-1">
               <Tooltip v-for="con in filteredLines" :key="con.type" :text="con.label">
                 <button
