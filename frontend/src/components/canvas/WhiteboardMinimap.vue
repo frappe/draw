@@ -3,8 +3,8 @@
 // the whole board content plus a rectangle showing the current viewport; click
 // or drag inside it to pan there. It reflects content (strokes/stickies/shapes)
 // and the pan/zoom, and routes panning through the shared viewport (Part G4) so
-// the canvas and minimap never disagree. Rendered as a right-palette section
-// (whiteboard-owned), so no shared composition file is touched.
+// the canvas and minimap never disagree. Floated bottom-right like the other
+// types' Minimap (spec Q10/B2), for a consistent navigator across all types.
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
@@ -14,8 +14,8 @@ const store = useDiagramStore()
 const editorUi = useEditorUi()
 const viewport = editorUi.viewport
 
-const WIDTH = 232
-const HEIGHT = 150
+const WIDTH = 180
+const HEIGHT = 120
 
 // The canvas surface element (carries data-fdpreset) gives us the live viewport
 // pixel size needed to draw the "what you can see now" rectangle.
@@ -100,12 +100,14 @@ function onUp() {
 </script>
 
 <template>
-  <div class="border-b border-outline-gray-1 px-3.5 py-3">
-    <div class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-gray-5">Navigator</div>
+  <div
+    class="absolute bottom-3 right-3 z-10 rounded-lg border border-outline-gray-2 bg-surface-base/95 p-1 shadow-md backdrop-blur"
+    aria-label="Navigator"
+  >
     <svg
       :width="WIDTH"
       :height="HEIGHT"
-      class="rounded-md border border-outline-gray-1 bg-surface-gray-1"
+      class="rounded"
       style="cursor: pointer"
       @pointerdown="onDown"
       @pointermove="onMove"

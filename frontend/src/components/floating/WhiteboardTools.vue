@@ -14,7 +14,6 @@ import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { CHALK_COLORS, STICKY_COLORS, PEN_WIDTHS } from '@/diagram/whiteboardColors.js'
 import LineOptions from './LineOptions.vue'
 import TableOptions from './TableOptions.vue'
-import WhiteboardMinimap from '@/components/canvas/WhiteboardMinimap.vue'
 import { useImageInsert } from '@/composables/useImageInsert.js'
 
 const editorUi = useEditorUi()
@@ -207,11 +206,9 @@ function applyTableDefault(patch) {
     </template>
     <template #body-main>
       <div class="w-56 p-2">
-        <Button class="mb-3 w-full" :variant="sketchOn() ? 'solid' : 'subtle'" @click="toggleSketch">
+        <Button class="w-full" :variant="sketchOn() ? 'solid' : 'subtle'" @click="toggleSketch">
           {{ sketchOn() ? 'Sketch style: on' : 'Sketch style: off' }}
         </Button>
-        <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Navigator</div>
-        <WhiteboardMinimap />
       </div>
     </template>
   </Popover>

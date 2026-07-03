@@ -20,6 +20,7 @@ import { useAppSettings } from '@/composables/useAppSettings.js'
 import TopToolbar from '@/components/toolbar/TopToolbar.vue'
 import DiagramCanvas from '@/components/canvas/DiagramCanvas.vue'
 import Minimap from '@/components/canvas/Minimap.vue'
+import WhiteboardMinimap from '@/components/canvas/WhiteboardMinimap.vue'
 import MindMapOverlay from '@/components/canvas/MindMapOverlay.vue'
 import FlowchartOverlay from '@/components/canvas/FlowchartOverlay.vue'
 import BlockSelectionEditor from '@/components/floating/BlockSelectionEditor.vue'
@@ -137,6 +138,7 @@ onMounted(() => {
       <main class="relative min-h-0 min-w-0 flex-1">
         <DiagramCanvas />
         <Minimap />
+        <WhiteboardMinimap v-if="modeStrategy.type === 'whiteboard'" />
         <MindMapOverlay v-if="modeStrategy.type === 'mindmap'" />
         <FlowchartOverlay v-if="modeStrategy.type === 'flowchart'" />
         <BlockSelectionEditor v-if="modeStrategy.type === 'block'" />
