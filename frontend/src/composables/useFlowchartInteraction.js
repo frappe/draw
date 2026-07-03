@@ -94,11 +94,11 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
     if (link.active) return endLink(context.point)
   }
 
-  function onDoubleClick(event, context) {
-    // Node text editing is owned by the layer (it stops propagation), so a
-    // surface double-click is always on empty canvas: drop a process node there
-    // so an empty flowchart can be started from scratch.
-    createConnectedNode('process', null, context.point.x, context.point.y)
+  function onDoubleClick() {
+    // Double-click no longer creates nodes (P4 — that's whiteboard-only). Node
+    // text editing is owned by the layer (it stops propagation), so a surface
+    // double-click lands on empty canvas and should do nothing; the first node
+    // is added via the FlowchartOverlay prompt, later ones via node + handles.
     return true
   }
 

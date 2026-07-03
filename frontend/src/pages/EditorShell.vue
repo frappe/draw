@@ -21,6 +21,7 @@ import TopToolbar from '@/components/toolbar/TopToolbar.vue'
 import DiagramCanvas from '@/components/canvas/DiagramCanvas.vue'
 import Minimap from '@/components/canvas/Minimap.vue'
 import MindMapOverlay from '@/components/canvas/MindMapOverlay.vue'
+import FlowchartOverlay from '@/components/canvas/FlowchartOverlay.vue'
 import BlockSelectionEditor from '@/components/floating/BlockSelectionEditor.vue'
 import FlowchartSelectionEditor from '@/components/floating/FlowchartSelectionEditor.vue'
 import WhiteboardSelectionEditor from '@/components/floating/WhiteboardSelectionEditor.vue'
@@ -137,6 +138,7 @@ onMounted(() => {
         <DiagramCanvas />
         <Minimap />
         <MindMapOverlay v-if="modeStrategy.type === 'mindmap'" />
+        <FlowchartOverlay v-if="modeStrategy.type === 'flowchart'" />
         <BlockSelectionEditor v-if="modeStrategy.type === 'block'" />
         <FlowchartSelectionEditor v-if="modeStrategy.type === 'flowchart'" />
         <WhiteboardSelectionEditor v-if="modeStrategy.type === 'whiteboard'" />

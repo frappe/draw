@@ -32,6 +32,7 @@ declare module 'vue' {
     FillBorderSection: typeof import('./src/components/palette-right/FillBorderSection.vue')['default']
     FlowchartLayer: typeof import('./src/components/canvas/FlowchartLayer.vue')['default']
     FlowchartNodeTypePicker: typeof import('./src/components/canvas/FlowchartNodeTypePicker.vue')['default']
+    FlowchartOverlay: typeof import('./src/components/canvas/FlowchartOverlay.vue')['default']
     FlowchartSelectionEditor: typeof import('./src/components/floating/FlowchartSelectionEditor.vue')['default']
     FolderItem: typeof import('./src/components/home/FolderItem.vue')['default']
     GridLayer: typeof import('./src/components/canvas/GridLayer.vue')['default']
