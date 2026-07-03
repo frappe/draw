@@ -34,7 +34,7 @@ export function nextDiagramTitle(diagramType = 'block') {
 // be supplied (NewDiagramDialog); otherwise a fresh document for `diagramType` is
 // built (e.g. a mind map seeded with a root node). diagramType is carried inside
 // the document JSON; the backend mirrors it to the diagram_type field on save.
-export async function createDiagram(title, document = null, diagramType = 'block') {
+export async function createDiagram(title, document = null, diagramType = 'block', folder = null) {
   if (!title) title = nextDiagramTitle(diagramType)
   const finalDocument = document || createDiagramDocument(undefined, diagramType)
   if (!finalDocument.diagramType) finalDocument.diagramType = diagramType
@@ -42,6 +42,8 @@ export async function createDiagram(title, document = null, diagramType = 'block
     title,
     document: finalDocument,
     diagram_type: finalDocument.diagramType,
+    // Create INSIDE the folder the user is currently viewing (spec P1); null = root.
+    folder: folder || null,
   })
   return created.name
 }

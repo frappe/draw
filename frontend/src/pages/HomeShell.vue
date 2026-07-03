@@ -1,8 +1,8 @@
 <script setup>
 // Home page — composes the sidebar + tile grid (+ empty state) + new-diagram
 // dialog + trash view, and routes to the editor on create/open (spec §2).
-import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { Button, Dialog, FormControl } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import Sidebar from '@/components/home/Sidebar.vue'
@@ -14,6 +14,7 @@ import { diagrams, createDiagram } from '@/data/diagrams.js'
 import { folders, createFolder } from '@/data/folders.js'
 
 const router = useRouter()
+const route = useRoute()
 const view = ref('home')
 const folderPath = ref([]) // ancestor chain of open folders (root → current)
 const showNewDiagram = ref(false)
@@ -25,10 +26,28 @@ function openNewFolder() {
   newFolder.value = ''
   newFolder.open = true
 }
+// Close the dialog IMMEDIATELY on submit (before the await) so a fast double
+// click / stray double event can't create the folder twice (H1). Block a
+// duplicate name in the same location, and guard re-entrancy.
+const isSavingFolder = ref(false)
 async function saveNewFolder() {
   const name = newFolder.value.trim()
-  if (name) await createFolder(name, currentFolder.value?.name || null)
+  if (!name || isSavingFolder.value) { newFolder.open = false; return }
+  const parent = currentFolder.value?.name || null
+  const duplicate = (folders.data || []).some(
+    (f) => (f.parent_folder || null) === parent && (f.folder_name || '').toLowerCase() === name.toLowerCase(),
+  )
+  if (duplicate) {
+    window.alert(`A folder named "${name}" already exists here.`)
+    return
+  }
+  isSavingFolder.value = true
   newFolder.open = false
+  try {
+    await createFolder(name, parent)
+  } finally {
+    isSavingFolder.value = false
+  }
 }
 
 onMounted(() => {
@@ -39,6 +58,36 @@ onMounted(() => {
 const list = computed(() => diagrams.data || [])
 const isEmpty = computed(() => list.value.length === 0)
 const currentFolder = computed(() => folderPath.value[folderPath.value.length - 1] || null)
+
+// Open a folder passed via ?folder=<id> (e.g. from the editor breadcrumb — K2/K3
+// let you jump back into the folder a diagram lives in). Resolve the ancestor
+// chain from the loaded folder list; the data may arrive after navigation, so
+// re-run when it lands, but apply each distinct id only once so local browsing
+// (openFolder / crumbTo) isn't overridden by a later folder-list reload.
+let appliedFolderQuery = null
+function folderChainFor(id) {
+  const byName = Object.fromEntries((folders.data || []).map((f) => [f.name, f]))
+  const chain = []
+  let cur = byName[id]
+  while (cur) {
+    chain.unshift(cur)
+    cur = cur.parent_folder ? byName[cur.parent_folder] : null
+  }
+  return chain
+}
+watch(
+  [() => route.query.folder, () => folders.data],
+  ([id]) => {
+    if (!id || id === appliedFolderQuery) return
+    const chain = folderChainFor(id)
+    if (chain.length) {
+      appliedFolderQuery = id
+      view.value = 'home'
+      folderPath.value = chain
+    }
+  },
+  { immediate: true },
+)
 
 const VIEW_TITLES = { home: 'Home', recent: 'Recent', all: 'All diagrams' }
 const title = computed(() => VIEW_TITLES[view.value] || 'Home')
@@ -65,7 +114,8 @@ async function create(payload = {}) {
   if (isCreating.value) return
   isCreating.value = true
   try {
-    const name = await createDiagram(payload.title, payload.document, payload.type || 'block')
+    // Create inside the folder currently being viewed (P1); root when none.
+    const name = await createDiagram(payload.title, payload.document, payload.type || 'block', currentFolder.value?.name || null)
     if (!name) throw new Error('Server returned no diagram name')
     diagrams.reload()
     // A new diagram lands directly on its blank canvas; `new` selects the title

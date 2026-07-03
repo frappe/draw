@@ -127,6 +127,7 @@ onMounted(() => {
       :save-status="autosave.status.value"
       :dark="dark"
       :folder="folderName"
+      :folder-id="diagram.doc?.folder || ''"
       @update:title="rename"
       @toggle-dark="toggleDarkMode"
     />
