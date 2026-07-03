@@ -332,6 +332,17 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
     ui.picker = null
   }
 
+  // Cancel any in-progress connector drag or open picker (Escape, P12) so a
+  // pending connector never gets "stuck" following the cursor with no way out.
+  function cancel() {
+    if (link.active) {
+      link.active = false
+      link.moved = false
+    }
+    ui.pendingLink = null
+    ui.picker = null
+  }
+
   // Create a node of `nodeType` and connect it per the open picker's source, as
   // ONE undoable unit (Part G6). Auto-positions snapped to the column/lane (F2).
   function chooseNodeType(nodeType) {
@@ -396,7 +407,7 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
     onDoubleClick,
   })
 
-  return { ui, selectedNode, openPicker, closePicker, chooseNodeType, createConnectedNode }
+  return { ui, selectedNode, openPicker, closePicker, cancel, chooseNodeType, createConnectedNode }
 }
 
 // ----- small pure helpers (kept module-local) --------------------------------

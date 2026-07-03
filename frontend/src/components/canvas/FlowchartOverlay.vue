@@ -18,6 +18,9 @@ const isBlank = computed(() => (store.state.flowchart?.nodes.length ?? 0) === 0)
 function addFirstStep() {
   const id = store.addFlowchartNode('process', '', 0, 0)
   if (!id) return
+  // Select it so its "+" extend handles show right away (the next node is added
+  // from a handle), and frame it.
+  store.select([id])
   setTimeout(() => editorUi.fit?.(), 0)
 }
 </script>

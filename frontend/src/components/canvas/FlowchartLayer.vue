@@ -9,7 +9,7 @@
 // (Part G4). This component instantiates the flowchart interaction composable so
 // its pointer handlers are registered into the shared modeInteraction seam — the
 // canvas only mounts this layer for flowchart diagrams (Part G1).
-import { computed, inject, ref } from 'vue'
+import { computed, inject, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useFlowchartInteraction } from '@/composables/useFlowchartInteraction.js'
@@ -32,11 +32,19 @@ const props = defineProps({
 const store = useDiagramStore()
 const editorUi = useEditorUi()
 const interactionRef = inject('modeInteraction', null)
-const { ui, chooseNodeType, closePicker } = useFlowchartInteraction(
+const { ui, chooseNodeType, closePicker, cancel } = useFlowchartInteraction(
   store,
   editorUi,
   interactionRef,
 )
+
+// Escape cancels a pending connector drag or the open node-type picker (P12), so
+// a half-drawn connector never sticks to the cursor with no way to bail out.
+function onKeyDown(event) {
+  if (event.key === 'Escape' && (ui.pendingLink || ui.picker)) cancel()
+}
+onMounted(() => window.addEventListener('keydown', onKeyDown))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeyDown))
 
 const direction = computed(() => props.flowchart.direction || 'TB')
 const triad = computed(() => primaryTriad(store.state.themePreset))
