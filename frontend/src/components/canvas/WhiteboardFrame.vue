@@ -8,7 +8,8 @@ import { computed, ref, watch, onMounted, nextTick } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
-import { isAdditive, startGroupMove } from '@/composables/useWhiteboardInteraction.js'
+import { startGroupMove } from '@/composables/useWhiteboardInteraction.js'
+import { isAdditiveEvent } from '@/composables/pointer.js'
 import { FRAME_HEADER_H } from '@/diagram/whiteboardModel.js'
 
 const props = defineProps({
@@ -62,7 +63,7 @@ function startGesture(event, apply) {
 
 function startMove(event) {
   // Additive click toggles this frame's membership without starting a drag.
-  if (editorUi.state.tool === 'select' && isAdditive(event)) {
+  if (editorUi.state.tool === 'select' && isAdditiveEvent(event)) {
     event.stopPropagation()
     return ui.toggleSelected('frame', props.frame.id)
   }

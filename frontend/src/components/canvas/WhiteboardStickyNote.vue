@@ -14,7 +14,8 @@ import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
-import { isAdditive, startGroupMove } from '@/composables/useWhiteboardInteraction.js'
+import { startGroupMove } from '@/composables/useWhiteboardInteraction.js'
+import { isAdditiveEvent } from '@/composables/pointer.js'
 import { contrastInk, STICKY_COLORS } from '@/diagram/whiteboardColors.js'
 import { roughenRect, pointsToPath } from '@/diagram/sketch.js'
 
@@ -110,7 +111,7 @@ function startGesture(event, apply) {
 
 function startMove(event) {
   // Additive click toggles this note's membership without starting a drag.
-  if (editorUi.state.tool === 'select' && isAdditive(event)) {
+  if (editorUi.state.tool === 'select' && isAdditiveEvent(event)) {
     event.stopPropagation()
     return ui.toggleSelected('sticky', props.note.id)
   }

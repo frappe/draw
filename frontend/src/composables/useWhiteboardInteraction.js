@@ -21,15 +21,10 @@ import {
 } from '@/diagram/whiteboardModel.js'
 import { rectsIntersect } from '@/diagram/geometry.js'
 import { HIGHLIGHTER_WIDTH } from '@/diagram/whiteboardColors.js'
+import { isAdditiveEvent, runMarqueeDrag } from '@/composables/pointer.js'
 
 const ERASER_TOLERANCE = 6 // canvas units of slack around a stroke path
 const MARQUEE_MIN = 3 // ignore sub-3px drags (treat as a click)
-
-// Shift, Ctrl, or Cmd all act as the "add to selection" modifier (matches
-// useSelection / the flowchart). Exported so per-object components share it.
-export function isAdditive(event) {
-  return event.shiftKey || event.ctrlKey || event.metaKey
-}
 
 // The select-helper on the whiteboard UI for each object kind.
 const SELECT_FN = {
@@ -227,7 +222,7 @@ function currentAuthor() {
 function selectAt(context, store, ui) {
   const hit = whiteboardHitAt(store.state.whiteboard, context.point)
   if (!hit) return beginMarquee(context, store, ui)
-  if (isAdditive(context.event)) return ui.toggleSelected(hit.kind, hit.id)
+  if (isAdditiveEvent(context.event)) return ui.toggleSelected(hit.kind, hit.id)
   ui[SELECT_FN[hit.kind]](hit.id)
 }
 
@@ -253,32 +248,17 @@ function whiteboardHitAt(model, point) {
 // client→logical is undo-pan then undo-zoom against the surface rect at begin.
 function beginMarquee(context, store, ui) {
   const { event, point, editorUi } = context
-  const additive = isAdditive(event)
+  const additive = isAdditiveEvent(event)
   if (!additive) ui.clearSelection()
   const rect = event.currentTarget.getBoundingClientRect()
-  const viewport = editorUi.viewport
-  const start = point
-  const toLogical = (moveEvent) => ({
-    x: (moveEvent.clientX - rect.left - viewport.state.panX) / viewport.state.zoom,
-    y: (moveEvent.clientY - rect.top - viewport.state.panY) / viewport.state.zoom,
+  ui.state.marquee = { x: point.x, y: point.y, w: 0, h: 0 }
+  runMarqueeDrag({
+    start: point,
+    rect,
+    viewport: editorUi.viewport,
+    onUpdate: (box) => (ui.state.marquee = box),
+    onDone: () => finishMarquee(store, ui, additive),
   })
-  ui.state.marquee = { x: start.x, y: start.y, w: 0, h: 0 }
-  const move = (moveEvent) => {
-    const p = toLogical(moveEvent)
-    ui.state.marquee = {
-      x: Math.min(start.x, p.x),
-      y: Math.min(start.y, p.y),
-      w: Math.abs(p.x - start.x),
-      h: Math.abs(p.y - start.y),
-    }
-  }
-  const up = () => {
-    window.removeEventListener('pointermove', move)
-    window.removeEventListener('pointerup', up)
-    finishMarquee(store, ui, additive)
-  }
-  window.addEventListener('pointermove', move)
-  window.addEventListener('pointerup', up)
 }
 
 // On release, select every object whose bbox intersects the marquee. A sub-3px

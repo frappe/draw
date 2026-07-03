@@ -11,7 +11,6 @@
 //   auto-expanding surface (mindmap/whiteboard, spec §1).
 // - handlesSurfaceInteraction: the type owns surface pointer/dblclick/wheel,
 //   delegated through inject('modeInteraction') (see DiagramCanvas).
-// - paletteMode: selects the single right-palette component for non-block types.
 // - keyboardMode: selects the per-mode keyboard handler in useKeyboard.
 // - surfaceTools: extra pointer-mode buttons the BottomPalette renders for this
 //   type (spec C6 whiteboard pen/highlighter/eraser/text/sticky/laser). Each is
@@ -25,13 +24,11 @@ const BLOCK = {
   isAutoLayout: false,
   hasBoundedPaper: true,
   handlesSurfaceInteraction: false,
-  paletteMode: 'block',
   keyboardMode: 'block',
   surfaceTools: [],
   showsShapeTools: true, // left creation palette (shapes/connectors/icons)
   // No right panel: shape editing lives in the floating contextual toolbar
   // (BlockSelectionEditor); creation + canvas settings in the bottom palette.
-  showsRightPalette: false,
 }
 
 const MINDMAP = {
@@ -40,13 +37,11 @@ const MINDMAP = {
   isAutoLayout: true, // positions are computed; the user never free-places nodes
   hasBoundedPaper: false, // freely auto-expanding canvas (spec A2)
   handlesSurfaceInteraction: false, // node interactions live on the nodes (M1/M2)
-  paletteMode: 'mindmap',
   keyboardMode: 'mindmap',
   surfaceTools: [],
   showsShapeTools: false, // mind maps grow by keyboard (Tab/Enter), not shape drag
   // No right panel: per-node editing lives in the floating contextual toolbar
   // (MindMapOverlay), map-wide actions in the bottom palette — Whimsical-style.
-  showsRightPalette: false,
 }
 
 const FLOWCHART = {
@@ -55,13 +50,11 @@ const FLOWCHART = {
   isAutoLayout: false, // manual placement allowed; Tidy reflows (spec B7)
   hasBoundedPaper: true, // bounded with base growth (spec B2)
   handlesSurfaceInteraction: true, // + handles, drag-to-empty, node move
-  paletteMode: 'flowchart',
   keyboardMode: 'flowchart',
   surfaceTools: [], // flowchart builds via + handles / keyboard, not bottom tools
   showsShapeTools: false, // flowchart builds via + handles / keyboard
   // No right panel: per-node editing lives in the floating contextual toolbar
   // (FlowchartSelectionEditor); map-wide layout actions in the bottom palette.
-  showsRightPalette: false,
 }
 
 const WHITEBOARD = {
@@ -70,12 +63,11 @@ const WHITEBOARD = {
   isAutoLayout: false,
   hasBoundedPaper: true, // a bounded white canvas/paper, like block
   handlesSurfaceInteraction: true, // pen/highlighter/eraser/sticky/text/laser
-  paletteMode: 'whiteboard',
   keyboardMode: 'whiteboard',
   // Extra bottom-palette pointer modes (spec C6). The whiteboard carries its full
   // tool set here AND each tool's options live in the bottom palette — there is no
-  // whiteboard right panel (showsRightPalette:false). Freehand tools (pen/
-  // highlighter/eraser/sticky/laser) plus straight lines and a basic table.
+  // whiteboard right panel. Freehand tools (pen/highlighter/eraser/sticky/laser)
+  // plus straight lines and a basic table.
   surfaceTools: [
     { tool: 'pen', icon: 'edit-2', label: 'Pen' },
     { tool: 'highlighter', icon: 'edit-3', label: 'Highlighter' },
@@ -87,7 +79,6 @@ const WHITEBOARD = {
     { tool: 'laser', icon: 'zap', label: 'Laser pointer' },
   ],
   showsShapeTools: false, // no shape palette on the whiteboard
-  showsRightPalette: false, // all controls live in the bottom floating palette
 }
 
 const STRATEGIES = {

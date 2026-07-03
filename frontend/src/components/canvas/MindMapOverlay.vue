@@ -11,15 +11,15 @@ import { Popover, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
+import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
 import { layoutMindMap } from '@/diagram/mindmapLayout.js'
 import { isRoot } from '@/diagram/mindmapModel.js'
 import { branchPalette } from '@/diagram/mindmapColors.js'
-import { deleteNodes, linkNodes } from '@/diagram/mindmapOperations.js'
+import { deleteNodes } from '@/diagram/mindmapOperations.js'
 import { mindmapUi, selectedNodeId, selectNode, beginEdit } from '@/stores/mindmapUi.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
-const viewport = editorUi.viewport
 
 const FILL_SWATCHES = ['#EFEAFE', '#EFF6FF', '#F4FFF6', '#FDFAED', '#FCEAF5', '#F3F3F3', '#FFFFFF']
 const EMOJIS = ['💡', '✅', '⭐', '🔥', '⚠️', '❤️', '📌', '🎯', '🚀', '📝', '❓', '👍']
@@ -61,17 +61,9 @@ const box = computed(() => {
   return { x, y, w: right - x, h: bottom - y }
 })
 
-// Toolbar screen position: above the (combined) box, horizontally centred on it.
-// Reads the live viewport (reactive) + the canvas surface origin.
-const toolbarStyle = computed(() => {
-  if (!box.value) return { display: 'none' }
-  const surface = document.querySelector('[data-fdpreset]')
-  const rect = surface ? surface.getBoundingClientRect() : { left: 0, top: 0 }
-  const { panX, panY, zoom } = viewport.state
-  const cx = rect.left + panX + (box.value.x + box.value.w / 2) * zoom
-  const top = rect.top + panY + box.value.y * zoom
-  return { left: `${cx}px`, top: `${top - 12}px` }
-})
+// Toolbar screen position: above the (combined) box, horizontally centred on it
+// (shared with the block/flowchart/whiteboard selection toolbars).
+const toolbarStyle = useCanvasToolbarStyle(box)
 
 // --- per-node actions -------------------------------------------------------
 function patch(p) {

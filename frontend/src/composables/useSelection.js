@@ -7,6 +7,7 @@ import { pointInShape } from '@/diagram/geometry.js'
 import { isInteractable } from '@/diagram/shapeFlags.js'
 import { useShapeTransform } from '@/composables/useShapeTransform.js'
 import { useMarquee } from '@/composables/useMarquee.js'
+import { isAdditiveEvent } from '@/composables/pointer.js'
 
 export function useSelection(store, editorUi) {
   const transform = useShapeTransform(store, editorUi)
@@ -48,11 +49,6 @@ function topShapeAt(store, point) {
   return hits.reduce((top, shape) => ((shape.zIndex || 0) >= (top.zIndex || 0) ? shape : top))
 }
 
-// Shift, Ctrl, or Cmd all act as the "add to selection" modifier.
-function isAdditive(event) {
-  return event.shiftKey || event.ctrlKey || event.metaKey
-}
-
 // Click selects (a modifier toggles); a plain click on an unselected shape
 // replaces the selection, then the body drag moves whatever ends up selected.
 // Selection expands to the clicked shape's whole group so groups act as one unit.
@@ -66,7 +62,7 @@ function selectAndMove(store, transform, shape, event, toLogical, start) {
     transform.startMove({ toLogical, start, ids: copies })
     return
   }
-  if (isAdditive(event)) {
+  if (isAdditiveEvent(event)) {
     const anySelected = groupIds.some((id) => store.state.selection.includes(id))
     store.select(
       anySelected
@@ -83,7 +79,7 @@ function selectAndMove(store, transform, shape, event, toLogical, start) {
 // Empty-canvas press: a modifier keeps the selection, plain press clears it;
 // either way a drag turns into a marquee that selects intersected shapes.
 function beginMarquee(store, marquee, event, toLogical, start) {
-  const additive = isAdditive(event)
+  const additive = isAdditiveEvent(event)
   if (!additive) store.clearSelection()
   marquee.begin({ toLogical, start, additive })
 }

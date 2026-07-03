@@ -1,10 +1,10 @@
 <script setup>
 // Whiteboard tool group for the bottom floating palette. The whiteboard has NO
-// right panel (modeStrategies.showsRightPalette:false), so every control lives
-// here. Tools ARM on a single click (so the next canvas action draws straight
-// away — clicking a tool never steals the first stroke). Options for the active
-// tool sit behind ONE separate "options" disclosure; board-wide settings and the
-// selected-object editor follow. All chrome is Frappe UI.
+// right panel, so every control lives here. Tools ARM on a single click (so the
+// next canvas action draws straight away — clicking a tool never steals the
+// first stroke). Options for the active tool sit behind ONE separate "options"
+// disclosure; board-wide settings and the selected-object editor follow. All
+// chrome is Frappe UI.
 import { computed } from 'vue'
 import { Popover, Tooltip, Button } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'

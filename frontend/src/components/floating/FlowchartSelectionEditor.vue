@@ -7,7 +7,7 @@ import { computed } from 'vue'
 import { Popover, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
-import { useEditorUi } from '@/stores/useEditorUi.js'
+import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
 import {
   NODE_TYPES,
   NODE_TYPE_META,
@@ -19,8 +19,6 @@ import {
 } from '@/diagram/flowchartModel.js'
 
 const store = useDiagramStore()
-const editorUi = useEditorUi()
-const viewport = editorUi.viewport
 
 const FILL_SWATCHES = ['#EFF6FF', '#F4FFF6', '#FDFAED', '#FCEAF5', '#F3F3F3', '#FFFFFF']
 const TYPE_ICONS = {
@@ -53,15 +51,7 @@ const box = computed(() => {
   return { x, y, w: right - x, h: bottom - y }
 })
 
-const style = computed(() => {
-  if (!box.value) return { display: 'none' }
-  const surface = document.querySelector('[data-fdpreset]')
-  const rect = surface ? surface.getBoundingClientRect() : { left: 0, top: 0 }
-  const { panX, panY, zoom } = viewport.state
-  const cx = rect.left + panX + (box.value.x + box.value.w / 2) * zoom
-  const top = rect.top + panY + box.value.y * zoom
-  return { left: `${cx}px`, top: `${top - 12}px` }
-})
+const style = useCanvasToolbarStyle(box)
 
 function swap(type) {
   if (node.value) store.updateFlowchartModel('Swap node type', (m) => swapNodeType(m, node.value.id, type))

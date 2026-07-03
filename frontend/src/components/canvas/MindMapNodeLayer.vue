@@ -20,6 +20,7 @@ import { isRoot, subtreeIds } from '@/diagram/mindmapModel.js'
 import { toggleNodeCollapsed, pasteOutline, linkNodes } from '@/diagram/mindmapOperations.js'
 import { looksLikeOutline } from '@/diagram/mindmapPaste.js'
 import { useMindmapInteraction } from '@/composables/useMindmapInteraction.js'
+import { isAdditiveEvent } from '@/composables/pointer.js'
 import { mindmapUi, selectedNodeId, selectNode, beginEdit, endEdit } from '@/stores/mindmapUi.js'
 import { mindmapKeydownInEdit } from '@/composables/useMindmapEditKeys.js'
 // Side-effect import: registers the mind-map keyboard handler into the shared
@@ -112,11 +113,6 @@ function isSelected(id) {
   return store.state.selection.includes(id)
 }
 
-// Shift/Ctrl/Cmd = the "add to selection" modifier (matches useSelection).
-function isAdditive(event) {
-  return event.shiftKey || event.ctrlKey || event.metaKey
-}
-
 // Focus mode dims everything outside the focused node's branch (M6).
 const focusedSubtree = computed(() =>
   mindmapUi.focusId ? new Set(subtreeIds(props.mindmap, mindmapUi.focusId)) : null,
@@ -203,7 +199,7 @@ function surfaceRect(event) {
 function onNodePointerDown(event, id) {
   event.stopPropagation()
   if (mindmapUi.pendingLinkSource) return finishLink(id)
-  if (isAdditive(event)) return store.toggleInSelection(id)
+  if (isAdditiveEvent(event)) return store.toggleInSelection(id)
   interaction.startDrag(event, id, surfaceRect(event))
 }
 
@@ -215,7 +211,7 @@ function finishLink(id) {
 function onNodeClick(event, id) {
   event.stopPropagation()
   // Additive clicks are handled on pointerdown (toggle); don't clobber the group.
-  if (isAdditive(event)) return
+  if (isAdditiveEvent(event)) return
   selectNode(store, id)
 }
 

@@ -21,6 +21,7 @@ import {
 } from '@/diagram/flowchartModel.js'
 import { placeChild, routeEdge, reflowAuto } from '@/diagram/flowchartLayout.js'
 import { rectsIntersect } from '@/diagram/geometry.js'
+import { isAdditiveEvent, runMarqueeDrag } from '@/composables/pointer.js'
 
 export function useFlowchartInteraction(store, editorUi, interactionRef) {
   // Transient UI state the layer renders against (not part of the document).
@@ -74,7 +75,7 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
   // so a drag moves it together; a plain press elsewhere selects just this node.
   function onNodePointerDown(event, nodeId, point) {
     if (!flowchartNodeById(store.state.flowchart, nodeId)) return
-    if (isAdditive(event)) {
+    if (isAdditiveEvent(event)) {
       store.toggleInSelection(nodeId)
       return
     }
@@ -214,31 +215,17 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
   // listeners (like useMarquee) keep the box correct after the surface scrolls;
   // client→logical is undo-pan then undo-zoom against the surface rect at begin.
   function beginMarquee(event, start) {
-    const additive = isAdditive(event)
+    const additive = isAdditiveEvent(event)
     if (!additive) store.clearSelection()
     const rect = event.currentTarget.getBoundingClientRect()
-    const viewport = editorUi.viewport
-    const toLogical = (moveEvent) => ({
-      x: (moveEvent.clientX - rect.left - viewport.state.panX) / viewport.state.zoom,
-      y: (moveEvent.clientY - rect.top - viewport.state.panY) / viewport.state.zoom,
-    })
     ui.marquee = { x: start.x, y: start.y, w: 0, h: 0 }
-    function handleMove(moveEvent) {
-      const point = toLogical(moveEvent)
-      ui.marquee = {
-        x: Math.min(start.x, point.x),
-        y: Math.min(start.y, point.y),
-        w: Math.abs(point.x - start.x),
-        h: Math.abs(point.y - start.y),
-      }
-    }
-    function handleUp() {
-      window.removeEventListener('pointermove', handleMove)
-      window.removeEventListener('pointerup', handleUp)
-      finishMarquee(additive)
-    }
-    window.addEventListener('pointermove', handleMove)
-    window.addEventListener('pointerup', handleUp)
+    runMarqueeDrag({
+      start,
+      rect,
+      viewport: editorUi.viewport,
+      onUpdate: (box) => (ui.marquee = box),
+      onDone: () => finishMarquee(additive),
+    })
   }
 
   // On release, select every node whose box intersects the marquee. A sub-3px box
@@ -413,11 +400,6 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
 }
 
 // ----- small pure helpers (kept module-local) --------------------------------
-
-// Shift, Ctrl, or Cmd all act as the "add to selection" modifier (matches useSelection).
-function isAdditive(event) {
-  return event.shiftKey || event.ctrlKey || event.metaKey
-}
 
 // Walk up from an event target to the nearest flowchart element carrying our
 // data attributes, returning what kind of element was pressed.

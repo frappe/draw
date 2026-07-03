@@ -11,6 +11,7 @@ import { nodeById, isDescendant } from '@/diagram/mindmapModel.js'
 import { isNodeHidden } from '@/diagram/mindmapLayout.js'
 import { rectsIntersect } from '@/diagram/geometry.js'
 import { selectNode } from '@/stores/mindmapUi.js'
+import { isAdditiveEvent, clientToLogical, runMarqueeDrag } from '@/composables/pointer.js'
 
 const DRAG_THRESHOLD = 5 // canvas units before a press becomes a drag
 const MARQUEE_MIN = 3 // canvas units below which a drag counts as a click
@@ -24,7 +25,7 @@ export function useMindmapInteraction(store, viewport, positionsRef) {
   function startDrag(event, nodeId, surfaceRect) {
     if (event.button !== 0) return
     selectNode(store, nodeId)
-    const start = toCanvas(event, surfaceRect, viewport)
+    const start = clientToLogical(event, surfaceRect, viewport)
     const session = { nodeId, start, surfaceRect, moved: false }
     bindWindow(session)
   }
@@ -42,7 +43,7 @@ export function useMindmapInteraction(store, viewport, positionsRef) {
   }
 
   function onDragMove(event, session) {
-    const point = toCanvas(event, session.surfaceRect, viewport)
+    const point = clientToLogical(event, session.surfaceRect, viewport)
     const dx = point.x - session.start.x
     const dy = point.y - session.start.y
     if (!session.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return
@@ -99,28 +100,19 @@ export function useMindmapInteraction(store, viewport, positionsRef) {
   // undo-zoom against the shared viewport + the canvas surface rect (Part G4).
   function beginMarquee(event) {
     if (event.button !== 0) return
-    const additive = isAdditive(event)
+    const additive = isAdditiveEvent(event)
     if (!additive) store.clearSelection()
     const surface = event.target.closest('[data-fdpreset]')
     const surfaceRect = surface ? surface.getBoundingClientRect() : { left: 0, top: 0 }
-    const start = toCanvas(event, surfaceRect, viewport)
+    const start = clientToLogical(event, surfaceRect, viewport)
     marquee.box = { x: start.x, y: start.y, w: 0, h: 0 }
-    const onMove = (moveEvent) => {
-      const point = toCanvas(moveEvent, surfaceRect, viewport)
-      marquee.box = {
-        x: Math.min(start.x, point.x),
-        y: Math.min(start.y, point.y),
-        w: Math.abs(point.x - start.x),
-        h: Math.abs(point.y - start.y),
-      }
-    }
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-      finishMarquee(additive)
-    }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
+    runMarqueeDrag({
+      start,
+      rect: surfaceRect,
+      viewport,
+      onUpdate: (box) => (marquee.box = box),
+      onDone: () => finishMarquee(additive),
+    })
   }
 
   // On release, select every visible node whose layout box intersects the marquee.
@@ -149,21 +141,7 @@ export function useMindmapInteraction(store, viewport, positionsRef) {
   }
 }
 
-// Shift, Ctrl, or Cmd all act as the "add to selection" modifier (matches useSelection).
-function isAdditive(event) {
-  return event.shiftKey || event.ctrlKey || event.metaKey
-}
-
 function boxContains(box, point) {
   if (!box) return false
   return point.x >= box.x && point.x <= box.x + box.w && point.y >= box.y && point.y <= box.y + box.h
-}
-
-// Client coords -> canvas units via the shared viewport transform (Part G4).
-function toCanvas(event, rect, viewport) {
-  const { panX, panY, zoom } = viewport.state
-  return {
-    x: (event.clientX - rect.left - panX) / zoom,
-    y: (event.clientY - rect.top - panY) / zoom,
-  }
 }
