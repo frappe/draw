@@ -288,7 +288,7 @@ function onDoubleClick(context, store) {
     const cell = tableCellAt(table, point)
     ui.state.editingCell = { tableId: table.id, row: cell.row, col: cell.col }
     ui.selectTable(table.id)
-    return
+    return true
   }
   const w = 180
   const h = 44
@@ -309,4 +309,6 @@ function onDoubleClick(context, store) {
   // Use the setup-scoped editing API passed via the interaction context;
   // calling useTextEditing() here (outside setup) would not resolve.
   context.editing?.beginTextEdit(id)
+  // Consume the event so DiagramCanvas's block double-click path doesn't also run.
+  return true
 }

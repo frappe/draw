@@ -256,9 +256,13 @@ useAutoFitText(richEl, () => ({
       >🔗</text>
     </a>
 
-    <!-- Legacy plain text (shapes saved before rich text). -->
+    <!-- Legacy plain text (shapes with only a plain `content` string, no rich
+         html). Must be its own v-if guarded by !richHtml: a shape with BOTH html
+         and content (e.g. whiteboard text) would otherwise render the rich
+         foreignObject AND this <text>, showing the text twice (Q2). The prior
+         v-else-if chained to the hyperlink <a>, not the foreignObject. -->
     <text
-      v-else-if="!isEditingThis && shape.text?.content"
+      v-if="!isEditingThis && !richHtml && shape.text?.content"
       :x="center.x"
       :y="center.y"
       text-anchor="middle"
