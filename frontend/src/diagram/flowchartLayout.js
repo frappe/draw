@@ -154,16 +154,33 @@ export function placeChild(model, parentId, childNode, branchIndex = null, branc
   const childSize = nodeSize(childNode)
   const parentCenter = nodeCenter(parent)
   const lane = laneOffset(branchIndex, branchCount, childSize, direction)
-  if (direction === 'LR') {
-    return {
-      x: parent.x + parentSize.w + LEVEL_GAP,
-      y: Math.round(parentCenter.y - childSize.h / 2 + lane),
-    }
+  const base = direction === 'LR'
+    ? { x: parent.x + parentSize.w + LEVEL_GAP, y: Math.round(parentCenter.y - childSize.h / 2 + lane) }
+    : { x: Math.round(parentCenter.x - childSize.w / 2 + lane), y: parent.y + parentSize.h + LEVEL_GAP }
+  // Never drop the new node on top of an existing one (P9): nudge it along the
+  // cross-axis (x in TB, y in LR) in sibling steps until its slot is clear.
+  return avoidOverlap(model, { ...base, w: childSize.w, h: childSize.h }, direction)
+}
+
+function rectsOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+}
+
+function avoidOverlap(model, box, direction) {
+  const step = (direction === 'LR' ? box.h : box.w) + SIBLING_GAP
+  const collides = (b) =>
+    model.nodes.some((n) => {
+      const s = nodeSize(n)
+      return rectsOverlap(b, { x: n.x, y: n.y, w: s.w, h: s.h })
+    })
+  const pos = { ...box }
+  let guard = 0
+  while (collides(pos) && guard < 40) {
+    if (direction === 'LR') pos.y += step
+    else pos.x += step
+    guard += 1
   }
-  return {
-    x: Math.round(parentCenter.x - childSize.w / 2 + lane),
-    y: parent.y + parentSize.h + LEVEL_GAP,
-  }
+  return { x: Math.round(pos.x), y: Math.round(pos.y) }
 }
 
 // Symmetric lateral spread for branch children (0 for a single child).

@@ -12,6 +12,7 @@ import {
   toggleDirection,
   flowchartContentBounds,
   nodeCenter,
+  placeChild,
 } from './flowchartLayout.js'
 import { nodeSize } from './flowchartModel.js'
 
@@ -51,6 +52,24 @@ describe('flowchart routing', () => {
     flowchartNodeById(model, b).x += 200
     const after = routeEdge(model, model.edges[0]).end
     expect(after.x).not.toBe(before.x)
+  })
+
+  // P9: adding a node must never drop it on top of an existing one.
+  it('placeChild nudges a new child clear of an existing node', () => {
+    const model = createFlowchart()
+    const a = addFlowchartNode(model, 'process')
+    // First child under A, materialised at its computed slot.
+    const p1 = placeChild(model, a, { nodeType: 'process', x: 0, y: 0 })
+    const c1 = flowchartNodeById(model, addFlowchartNode(model, 'process'))
+    c1.x = p1.x
+    c1.y = p1.y
+    // Second child under the SAME parent lands on the same base slot — must be
+    // nudged so it doesn't overlap the first.
+    const p2 = placeChild(model, a, { nodeType: 'process', x: 0, y: 0 })
+    const size = nodeSize(c1)
+    const box1 = { x: p1.x, y: p1.y, w: size.w, h: size.h }
+    const box2 = { x: p2.x, y: p2.y, w: size.w, h: size.h }
+    expect(overlaps(box1, box2)).toBe(false)
   })
 })
 
