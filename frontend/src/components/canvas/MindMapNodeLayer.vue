@@ -193,6 +193,12 @@ function surfaceRect(event) {
   return surface ? surface.getBoundingClientRect() : { left: 0, top: 0 }
 }
 
+// Whether this node was the sole selection BEFORE the current press — captured on
+// pointerdown (which then selects it), so the click can tell a first click
+// (select) from a second click on an already-selected node (edit) — the Whimsical
+// model (N5).
+const pressSelectedId = ref(null)
+
 // Pointer down on a node: cross-link mode wires two nodes; an additive modifier
 // toggles the node in the shared selection (bulk-select, no drag); otherwise
 // select + begin a possible drag-to-reparent (the composable thresholds it).
@@ -200,6 +206,7 @@ function onNodePointerDown(event, id) {
   event.stopPropagation()
   if (mindmapUi.pendingLinkSource) return finishLink(id)
   if (isAdditiveEvent(event)) return store.toggleInSelection(id)
+  pressSelectedId.value = selectedNodeId(store)
   interaction.startDrag(event, id, surfaceRect(event))
 }
 
@@ -208,10 +215,19 @@ function finishLink(id) {
   mindmapUi.pendingLinkSource = null
 }
 
+// N5 click model: first click selects; clicking the already-selected node again
+// drops the text cursor in. A drag (reparent) is not a click, so it never edits.
+// Double-click (startEdit) still selects+edits immediately.
 function onNodeClick(event, id) {
   event.stopPropagation()
-  // Additive clicks are handled on pointerdown (toggle); don't clobber the group.
   if (isAdditiveEvent(event)) return
+  if (interaction.gesture.moved) return
+  if (pressSelectedId.value === id && mindmapUi.editingId !== id) {
+    beginEdit(id)
+    selectNode(store, id)
+    nextTick(() => focusField(id))
+    return
+  }
   selectNode(store, id)
 }
 

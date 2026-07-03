@@ -21,9 +21,13 @@ export function useMindmapInteraction(store, viewport, positionsRef) {
   const drag = reactive({ active: false, nodeId: null, dx: 0, dy: 0, dropTargetId: null })
   // Live rubber-band box {x,y,w,h} in canvas units while marquee-selecting, else null.
   const marquee = reactive({ box: null })
+  // Whether the most recent node gesture actually moved (a drag) vs was a click.
+  // The node layer reads this to decide click-to-edit (N5) without firing on drags.
+  const gesture = reactive({ moved: false })
 
   function startDrag(event, nodeId, surfaceRect) {
     if (event.button !== 0) return
+    gesture.moved = false
     selectNode(store, nodeId)
     const start = clientToLogical(event, surfaceRect, viewport)
     const session = { nodeId, start, surfaceRect, moved: false }
@@ -48,6 +52,7 @@ export function useMindmapInteraction(store, viewport, positionsRef) {
     const dy = point.y - session.start.y
     if (!session.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return
     session.moved = true
+    gesture.moved = true
     drag.active = true
     drag.nodeId = session.nodeId
     drag.dx = dx
@@ -135,6 +140,7 @@ export function useMindmapInteraction(store, viewport, positionsRef) {
   return {
     drag,
     marquee,
+    gesture,
     startDrag,
     beginMarquee,
     reorderSelected: (id, dir) => reorderNode(store, id, dir),
