@@ -334,12 +334,16 @@ let resizeObserver = null
 
 onMounted(() => {
   fitToView()
+  // Route editorUi.fit() (bottom-left control + ⇧1 shortcut) through fitToView so
+  // it refreshes the per-type content bounds before framing (O9).
+  editorUi.registerFit(fitToView)
   resizeObserver = new ResizeObserver(() => syncMeasure())
   resizeObserver.observe(surface.value)
   window.addEventListener('keydown', onZoomKey)
 })
 
 onBeforeUnmount(() => {
+  editorUi.registerFit(null)
   resizeObserver?.disconnect()
   window.removeEventListener('keydown', onZoomKey)
 })

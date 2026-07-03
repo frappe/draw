@@ -70,7 +70,13 @@ function attachGrid(ui, state) {
 
 function attachZoom(ui, viewport) {
   ui.zoomPercent = computed(() => Math.round(viewport.state.zoom * 100))
-  ui.fit = () => viewport.fit?.()
+  // Fit-to-view must first refresh the per-type content bounds (mind-map tree /
+  // flowchart / whiteboard bbox), which only the canvas knows. DiagramCanvas
+  // registers that handler; without it we fall back to a bare viewport.fit()
+  // (which would frame the stale default canvas, not the actual content — O9).
+  let fitHandler = null
+  ui.registerFit = (fn) => { fitHandler = fn }
+  ui.fit = () => (fitHandler ? fitHandler() : viewport.fit?.())
   ui.reset100 = () => viewport.reset()
   // Set an exact zoom from a typed percentage (clamped 10–400%).
   ui.setZoomPercent = (percent) => {
