@@ -300,31 +300,18 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
 
     <!-- HOME: a file explorer — Pinned (root only) + files + sub/folders. -->
     <template v-if="mode === 'home'">
-      <!-- When something is pinned (root only): a "Pinned" section, a separator,
-           then a distinct "Other diagrams" section with its own header (J1). With
-           nothing pinned, the diagrams render as a single plain list (no headers). -->
-      <template v-if="!folder && pinned.length">
-        <section class="mb-4">
-          <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
-            <LucideIcon name="pin" class="h-3.5 w-3.5" /> Pinned
-          </h2>
-          <DiagramCollection :diagrams="pinned" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
-        </section>
+      <!-- Home order (K1): Pinned (root only) → Folders → loose diagrams, so a
+           new diagram never sorts above the folders. A section shows its header
+           only when another section precedes it, so a lone list stays header-less
+           (J1 two-section behaviour falls out of this). -->
+      <section v-if="!folder && pinned.length" class="mb-6">
+        <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
+          <LucideIcon name="pin" class="h-3.5 w-3.5" /> Pinned
+        </h2>
+        <DiagramCollection :diagrams="pinned" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
+      </section>
 
-        <div v-if="files.length" class="mb-4 h-px bg-surface-gray-2" />
-
-        <section v-if="files.length">
-          <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
-            <LucideIcon name="layers" class="h-3.5 w-3.5" /> Other diagrams
-          </h2>
-          <DiagramCollection :diagrams="files" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
-        </section>
-      </template>
-
-      <!-- Nothing pinned: a single, header-less list. -->
-      <DiagramCollection v-else-if="files.length" :diagrams="files" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
-
-      <section v-if="folderTiles.length" class="mt-8">
+      <section v-if="folderTiles.length" class="mb-6">
         <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
           <LucideIcon name="folder" class="h-3.5 w-3.5" /> Folders
         </h2>
@@ -350,6 +337,13 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
             @drop-diagram="dropOnFolder(group.folder.name, $event)"
           />
         </div>
+      </section>
+
+      <section v-if="files.length">
+        <h2 v-if="(!folder && pinned.length) || folderTiles.length" class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
+          <LucideIcon name="layers" class="h-3.5 w-3.5" /> {{ folder ? 'Diagrams' : 'Other diagrams' }}
+        </h2>
+        <DiagramCollection :diagrams="files" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
       </section>
 
       <p v-if="folder && !files.length && !folderTiles.length" class="py-10 text-center text-[13px] text-ink-gray-5">
