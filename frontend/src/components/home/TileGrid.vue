@@ -300,17 +300,29 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
 
     <!-- HOME: a file explorer — Pinned (root only) + files + sub/folders. -->
     <template v-if="mode === 'home'">
-      <!-- Pinned rows sit directly above the rest with the SAME row gap, so the
-           list reads as one evenly-spaced column (the header + star mark them as
-           pinned; mb-1.5 matches DiagramCollection's gap-1.5). -->
-      <section v-if="!folder && pinned.length" class="mb-1.5">
-        <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
-          <LucideIcon name="bookmark" class="h-3.5 w-3.5" /> Pinned
-        </h2>
-        <DiagramCollection :diagrams="pinned" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
-      </section>
+      <!-- When something is pinned (root only): a "Pinned" section, a separator,
+           then a distinct "Other diagrams" section with its own header (J1). With
+           nothing pinned, the diagrams render as a single plain list (no headers). -->
+      <template v-if="!folder && pinned.length">
+        <section class="mb-4">
+          <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
+            <LucideIcon name="pin" class="h-3.5 w-3.5" /> Pinned
+          </h2>
+          <DiagramCollection :diagrams="pinned" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
+        </section>
 
-      <DiagramCollection v-if="files.length" :diagrams="files" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
+        <div v-if="files.length" class="mb-4 h-px bg-surface-gray-2" />
+
+        <section v-if="files.length">
+          <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
+            <LucideIcon name="layers" class="h-3.5 w-3.5" /> Other diagrams
+          </h2>
+          <DiagramCollection :diagrams="files" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
+        </section>
+      </template>
+
+      <!-- Nothing pinned: a single, header-less list. -->
+      <DiagramCollection v-else-if="files.length" :diagrams="files" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
 
       <section v-if="folderTiles.length" class="mt-8">
         <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
