@@ -4,9 +4,10 @@
 // screen-to-logical point converter used by the canvas interaction layers.
 
 import { ref, computed } from 'vue'
-import { anchorPoint, pointInShape } from '@/diagram/geometry.js'
+import { anchorPoint, pointInShape, axisAlignedBBox } from '@/diagram/geometry.js'
 
 const ARROW_OFFSET = 34
+const ARROW_HIT = 18 // comfort margin around each arrow circle for the keep-alive band
 const SPAWN_GAP = 60
 
 // Where the four arrows sit (mid-edge anchor + outward direction).
@@ -36,9 +37,25 @@ export function useHoverArrows(store, editorUi) {
     return ordered.find((shape) => pointInShape(point, shape)) || null
   }
 
+  // The band around a shape where its hover-arrows live, so the pointer can leave
+  // the shape body to REACH an arrow without the arrows vanishing (F1).
+  function withinArrowBand(point, shape) {
+    const b = axisAlignedBBox(shape)
+    const m = ARROW_OFFSET + ARROW_HIT
+    return point.x >= b.x - m && point.x <= b.x + b.w + m && point.y >= b.y - m && point.y <= b.y + b.h + m
+  }
+
   function setHover(point) {
     const shape = shapeAt(point)
-    hoverShapeId.value = shape ? shape.id : null
+    if (shape) {
+      hoverShapeId.value = shape.id
+      return
+    }
+    // No shape directly under the pointer: keep the current shape's arrows while
+    // the pointer is still within its arrow band (moving out to click one).
+    const current = hoverShape.value
+    if (current && withinArrowBand(point, current)) return
+    hoverShapeId.value = null
   }
 
   function clearHover() {
