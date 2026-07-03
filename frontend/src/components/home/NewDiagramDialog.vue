@@ -1,8 +1,6 @@
 <script setup>
 // New-diagram popup (spec §2). One job on the HOME screen: pick a type. It then
-// creates a blank diagram and opens the canvas, where the blank-vs-template
-// chooser appears (TemplateChooser) — so templates are chosen in-context on the
-// canvas, not over the home grid.
+// creates a blank diagram and opens directly on its blank canvas.
 import { Dialog } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 
@@ -23,11 +21,10 @@ const comingSoon = [
   { key: 'designer', name: 'Designer', hint: 'Pro design — frames & layers', icon: 'pen-tool' },
 ]
 
-// Pick a type → create a blank diagram and open the canvas (the template chooser
-// shows there). document:null means "blank"; the chooser can swap in a template.
-// No title is passed — createDiagram auto-names it ("Flowchart 1", …) uniquely.
+// Pick a type → create a blank diagram and open its canvas. document:null means
+// "blank"; no title is passed — createDiagram auto-names it ("Flowchart 1", …).
 function pickType(type) {
-  emit('create', { type: type.key, document: null, choose: true })
+  emit('create', { type: type.key, document: null })
   emit('update:modelValue', false)
 }
 </script>
@@ -39,7 +36,7 @@ function pickType(type) {
     @update:modelValue="emit('update:modelValue', $event)"
   >
     <template #body-content>
-      <p class="-mt-1 mb-3 text-[13px] text-ink-gray-5">Pick a diagram type — you can choose a template on the next screen.</p>
+      <p class="-mt-1 mb-3 text-[13px] text-ink-gray-5">Pick a diagram type to start with a blank canvas.</p>
       <div class="grid grid-cols-2 gap-2.5">
         <button
           v-for="type in types"

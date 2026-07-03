@@ -10,7 +10,6 @@ import { createHistory } from '@/stores/history.js'
 import { findThemePreset } from '@/diagram/theme.js'
 import { createDiagramDocument, SCHEMA_VERSION, DEFAULT_DIAGRAM_TYPE } from '@/diagram/schema.js'
 import { addChild, addSibling, addRootNode } from '@/diagram/mindmapModel.js'
-import { mindmapToFlowchart, flowchartToMindmap } from '@/diagram/convert.js'
 import {
   addFlowchartNode,
   addFlowchartEdge,
@@ -33,9 +32,6 @@ import {
   removeTable,
   tableById,
   setTableCell,
-  addFrame,
-  removeFrame,
-  frameById,
   addStamp,
   removeStamp,
 } from '@/diagram/whiteboardModel.js'
@@ -161,23 +157,6 @@ function attachFlowchart(store, state, history) {
     if (!state.flowchart) return
     history.commit(label, () => mutatorFn(state.flowchart))
   }
-  // Convert the whole diagram between mindmap and flowchart in one undoable step
-  // (spec 13.5). diagramType is part of the history snapshot, so undo restores it.
-  store.convertDiagram = (target) => {
-    history.commit(`Convert to ${target}`, () => {
-      if (target === 'flowchart' && state.mindmap) {
-        state.flowchart = mindmapToFlowchart(state.mindmap)
-        state.mindmap = null
-      } else if (target === 'mindmap' && state.flowchart) {
-        state.mindmap = flowchartToMindmap(state.flowchart)
-        state.flowchart = null
-      } else {
-        return
-      }
-      state.diagramType = target
-      state.selection = []
-    })
-  }
 }
 
 // Whiteboard mutations (spec diagram-types Part C). Strokes are simplified by the
@@ -216,7 +195,7 @@ function attachWhiteboard(store, state, history) {
   }
   attachWhiteboardLines(store, state, history)
   attachWhiteboardTables(store, state, history)
-  attachWhiteboardFramesStamps(store, state, history)
+  attachWhiteboardStamps(store, state, history)
   // Generic per-type model update (e.g. sketch-style toggle) as one undoable unit.
   store.updateWhiteboardModel = (label, mutatorFn) => {
     if (!state.whiteboard) return
@@ -226,7 +205,7 @@ function attachWhiteboard(store, state, history) {
   // (multi-selection Delete). Per-kind model removers, all in a single commit.
   const WB_REMOVE = {
     stroke: removeStroke, sticky: removeStickyNote, line: removeLine,
-    table: removeTable, frame: removeFrame, stamp: removeStamp,
+    table: removeTable, stamp: removeStamp,
   }
   store.removeWhiteboardObjects = (items) => {
     if (!state.whiteboard || !items?.length) return
@@ -279,23 +258,8 @@ function attachWhiteboardTables(store, state, history) {
   }
 }
 
-// Frames (titled sections, 15.3) + reaction stamps (15.5). One undoable unit each.
-function attachWhiteboardFramesStamps(store, state, history) {
-  store.addFrame = (x, y, w, h, partial = {}) => {
-    if (!state.whiteboard) return null
-    let id = null
-    history.commit('Add frame', () => (id = addFrame(state.whiteboard, x, y, w, h, partial)))
-    return id
-  }
-  store.updateFrame = (id, patch) =>
-    history.commit('Update frame', () => {
-      const frame = frameById(state.whiteboard || {}, id)
-      if (frame) applyPatch(frame, patch)
-    })
-  store.removeFrame = (id) => {
-    if (!state.whiteboard) return
-    history.commit('Delete frame', () => removeFrame(state.whiteboard, id))
-  }
+// Reaction/vote stamps (15.5). One undoable unit each.
+function attachWhiteboardStamps(store, state, history) {
   store.addStamp = (x, y, kind) => {
     if (!state.whiteboard) return null
     let id = null

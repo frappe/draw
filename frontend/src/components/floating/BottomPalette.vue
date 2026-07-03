@@ -29,11 +29,6 @@ const isWhiteboard = computed(() => modeStrategy?.value?.type === 'whiteboard')
 const isMindmap = computed(() => modeStrategy?.value?.type === 'mindmap')
 const isFlowchart = computed(() => modeStrategy?.value?.type === 'flowchart')
 
-// Map-wide mind-map actions (per-node editing lives in the floating toolbar).
-function convertToFlowchart() {
-  store.convertDiagram('flowchart')
-}
-
 // Map-wide flowchart actions (per-node editing lives in the floating toolbar).
 const flowDirection = computed(() => store.state.flowchart?.direction || 'TB')
 const flowNumbered = computed(() => (store.state.flowchart ? isFlowNumbered(store.state.flowchart) : false))
@@ -277,9 +272,6 @@ function commitZoom() {
       <Tooltip text="Expand all">
         <button :class="buttonBase" @click="collapseAll(store, false)"><LucideIcon name="maximize-2" class="h-4 w-4" /></button>
       </Tooltip>
-      <Tooltip text="Convert to flowchart">
-        <button :class="buttonBase" @click="convertToFlowchart"><LucideIcon name="git-commit" class="h-4 w-4" /></button>
-      </Tooltip>
       <Tooltip text="Clear map">
         <button :class="[buttonBase, 'hover:text-red-600']" @click="clearMap(store)"><LucideIcon name="trash-2" class="h-4 w-4" /></button>
       </Tooltip>
@@ -296,9 +288,6 @@ function commitZoom() {
       </Tooltip>
       <Tooltip :text="flowNumbered ? 'Clear numbers' : 'Number steps'">
         <button :class="[buttonBase, toggleClass(flowNumbered)]" @click="flowNumber"><LucideIcon name="list" class="h-4 w-4" /></button>
-      </Tooltip>
-      <Tooltip text="Convert to mind map">
-        <button :class="buttonBase" @click="store.convertDiagram('mindmap')"><LucideIcon name="git-branch" class="h-4 w-4" /></button>
       </Tooltip>
     </template>
 
@@ -318,16 +307,18 @@ function commitZoom() {
       </Tooltip>
     </template>
 
-    <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-
-    <Tooltip :text="guidesLabel">
-      <button
-        :class="[buttonBase, toggleClass(guidesState !== 'no')]"
-        @click="cycleGuides()"
-      >
-        <LucideIcon :name="guidesState === 'rare' ? 'more-horizontal' : 'grid'" class="h-4 w-4" />
-      </button>
-    </Tooltip>
+    <!-- Guides: hidden on the whiteboard (it's a plain white board, Q4). -->
+    <template v-if="!isWhiteboard">
+      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+      <Tooltip :text="guidesLabel">
+        <button
+          :class="[buttonBase, toggleClass(guidesState !== 'no')]"
+          @click="cycleGuides()"
+        >
+          <LucideIcon :name="guidesState === 'rare' ? 'more-horizontal' : 'grid'" class="h-4 w-4" />
+        </button>
+      </Tooltip>
+    </template>
 
     <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
 

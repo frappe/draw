@@ -157,13 +157,11 @@ function handleArrow(event, transform) {
   return runAction(() => transform.nudge(delta[0], delta[1], event.shiftKey))
 }
 
-// Esc exits text-edit, then any armed tool (draw/pen/hand…), then painter,
-// else deselects (§7.2).
+// Esc exits text-edit, then any armed tool (draw/pen/hand…), else deselects (§7.2).
 function escape(store, editorUi) {
   const text = useTextEditing()
   if (text?.isEditing?.value) return cancelTextEdit(text)
   if (editorUi.state.tool !== 'select') return editorUi.setTool('select')
-  if (editorUi.state.formatPainter.active) return editorUi.toggleFormatPainter()
   store.clearSelection()
 }
 

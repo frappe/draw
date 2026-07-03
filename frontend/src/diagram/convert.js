@@ -1,50 +1,8 @@
-// Convert between mind map and flowchart, and export either (plus block /
-// whiteboard) as a Markdown outline (spec 13.5). Pure functions — the store wraps
-// the model swaps in one history step so a convert is undoable.
+// Export a diagram (mind map, flowchart, block, or whiteboard) as a Markdown
+// outline (spec 13.5). Pure functions.
 
-import { createFlowchart, addFlowchartNode, addFlowchartEdge, orderedFlowNodes, stripStepNumber } from './flowchartModel.js'
-import { tidyLayout } from './flowchartLayout.js'
-import { createMindMap, addChild, childrenOf } from './mindmapModel.js'
-
-// Mind map → flowchart: the root becomes a terminator, every other node a
-// process; parent→child links become flow edges. Tidy lays the nodes out.
-export function mindmapToFlowchart(mindmap) {
-  const fc = createFlowchart('TB')
-  const idMap = {}
-  for (const node of mindmap.nodes) {
-    const type = node.id === mindmap.rootId ? 'terminator' : 'process'
-    idMap[node.id] = addFlowchartNode(fc, type, node.text || '', 0, 0)
-  }
-  for (const node of mindmap.nodes) {
-    if (node.parentId && idMap[node.parentId]) addFlowchartEdge(fc, idMap[node.parentId], idMap[node.id])
-  }
-  tidyLayout(fc)
-  return fc
-}
-
-// Flowchart → mind map: the entry node (no incoming edge) becomes the root; a BFS
-// over outgoing edges rebuilds the tree (cycles are visited once).
-export function flowchartToMindmap(flowchart) {
-  const incoming = new Set(flowchart.edges.map((e) => e.to.nodeId))
-  const root = flowchart.nodes.find((n) => !incoming.has(n.id)) || flowchart.nodes[0]
-  const mm = createMindMap(root ? root.text || 'Root' : 'Root')
-  if (!root) return mm
-  const idMap = { [root.id]: mm.rootId }
-  const visited = new Set([root.id])
-  const queue = [root.id]
-  while (queue.length) {
-    const cur = queue.shift()
-    for (const edge of flowchart.edges.filter((e) => e.from.nodeId === cur)) {
-      const childId = edge.to.nodeId
-      if (visited.has(childId)) continue
-      visited.add(childId)
-      const node = flowchart.nodes.find((n) => n.id === childId)
-      idMap[childId] = addChild(mm, idMap[cur], node?.text || '')
-      queue.push(childId)
-    }
-  }
-  return mm
-}
+import { orderedFlowNodes, stripStepNumber } from './flowchartModel.js'
+import { childrenOf } from './mindmapModel.js'
 
 // A Markdown outline for the document, dispatched by type.
 export function outlineMarkdown(doc) {

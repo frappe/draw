@@ -8,11 +8,10 @@ describe('schema diagramType', () => {
     expect(doc.mindmap).toBeNull()
   })
 
-  it('seeds a mind-map document with a root node', () => {
+  it('seeds a blank mind-map document (user adds the first idea)', () => {
     const doc = createDiagramDocument(undefined, 'mindmap')
     expect(doc.diagramType).toBe('mindmap')
-    expect(doc.mindmap.rootId).toBeTruthy()
-    expect(doc.mindmap.nodes).toHaveLength(1)
+    expect(doc.mindmap.nodes).toEqual([])
   })
 
   it('seeds a blank flowchart document (user adds the first node)', () => {
@@ -50,6 +49,6 @@ describe('schema diagramType', () => {
   it('parses a JSON string document', () => {
     const parsed = parseDiagramDocument(JSON.stringify(createDiagramDocument(undefined, 'mindmap')))
     expect(parsed.diagramType).toBe('mindmap')
-    expect(parsed.mindmap.nodes).toHaveLength(1)
+    expect(parsed.mindmap.nodes).toEqual([])
   })
 })

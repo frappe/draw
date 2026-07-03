@@ -31,7 +31,7 @@ function createTextEditing(store, editorUi) {
   const session = reactive({ shapeId: null, connectorId: null })
   const api = { session, store, editorUi }
   attachEditingState(api, session)
-  attachShapeEditing(api, session, store, editorUi)
+  attachShapeEditing(api, session, store)
   attachConnectorEditing(api, session, store)
   return api
 }
@@ -43,24 +43,12 @@ function attachEditingState(api, session) {
   api.isEditing = computed(() => Boolean(session.shapeId || session.connectorId))
 }
 
-function attachShapeEditing(api, session, store, editorUi) {
+function attachShapeEditing(api, session, store) {
   api.beginTextEdit = (shapeId) => {
     session.connectorId = null
     session.shapeId = shapeId
     store.select(shapeId)
   }
-  // Double-click on empty canvas: spawn the last-used (or rectangle) shape at
-  // the point, already in edit mode (spec §7.1).
-  api.beginEmptyCanvasCreate = (point) => createAndEdit(api, store, editorUi, point)
-}
-
-function createAndEdit(api, store, editorUi, point) {
-  const type = editorUi?.state?.lastShapeType || 'rectangle'
-  const w = 180
-  const h = 96
-  const id = store.addShape({ type, x: point.x - w / 2, y: point.y - h / 2, w, h })
-  api.beginTextEdit(id)
-  return id
 }
 
 function attachConnectorEditing(api, session, store) {

@@ -22,10 +22,7 @@ import { useSelection } from '@/composables/useSelection.js'
 import { useShapeCreation } from '@/composables/useShapeCreation.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
 import { useCanvasPaste } from '@/composables/useCanvasPaste.js'
-import { isDocumentEmpty } from '@/composables/useThumbnail.js'
-import { insertExample } from '@/diagram/examples.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
-import { useFormatPainter } from '@/composables/useFormatPainter.js'
 import { useClipboard } from '@/composables/useClipboard.js'
 import ContextMenu from './ContextMenu.vue'
 import GridLayer from './GridLayer.vue'
@@ -103,7 +100,6 @@ function onCanvasDrop(event) {
   creation.onCanvasDrop(event)
 }
 const editing = useTextEditing(store, editorUi)
-const painter = useFormatPainter(store, editorUi)
 const clipboard = useClipboard(store)
 
 // Cmd/Ctrl+V: paste an OS-clipboard image at the viewport centre, else the
@@ -172,10 +168,6 @@ function emptyMenuItems() {
     { label: 'Paste', icon: 'clipboard', shortcut: '⌘V', onClick: () => clipboard.paste() },
     { label: 'Select all', icon: 'maximize', shortcut: '⌘A', onClick: () => store.selectAll() },
   ]
-  // On a blank canvas, offer to drop in a quick example for the active type (10.2).
-  if (isDocumentEmpty(store.getDocument())) {
-    items.push({ label: 'Insert example', icon: 'layout', onClick: () => insertExample(store) })
-  }
   // Escape hatch for hidden objects (no layers panel yet): bring them all back.
   if (store.state.shapes.some((s) => s.hidden)) {
     items.push({ label: 'Unhide all', icon: 'eye', onClick: () => unhideAll() })
@@ -489,8 +481,7 @@ function onZoomKey(event) {
 const panning = computed(() => editorUi.state.tool === 'hand')
 
 // Route a surface pointerdown to the active tool: hand pans, draw creates, and
-// select either applies the format painter to a clicked shape or runs the
-// normal click/move/marquee selection (spec §7.1/§7.2/§4.3).
+// select runs the normal click/move/marquee selection (spec §7.1/§7.2/§4.3).
 function onSurfacePointerDown(event) {
   // A press anywhere but a section's title (which stops propagation) clears the
   // section selection, so its handles/menu disappear.
@@ -504,18 +495,7 @@ function onSurfacePointerDown(event) {
   // (node interactions live on the nodes themselves).
   if (isMindmap.value) return
   if (editorUi.state.tool === 'draw') return creation.onCanvasPointerDown(event)
-  if (painter.isActive()) return applyPainterAt(event)
   selection.onSurfacePointerdown(event)
-}
-
-// While the format painter is armed, a left-click stamps the copied style onto
-// the clicked shape instead of selecting it; an empty click cancels the painter.
-function applyPainterAt(event) {
-  if (event.button !== 0) return
-  const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
-  const shape = topShapeAt(point)
-  if (shape) painter.applyTo(shape.id)
-  else painter.cancel()
 }
 
 function onSurfacePointerMove(event) {
@@ -530,11 +510,11 @@ function onSurfacePointerUp(event) {
   if (!isMindmap.value && editorUi.state.tool === 'draw') creation.onCanvasPointerUp(event)
 }
 
-// Double-click: edit the text of a hit shape, the label of a hit connector, or
-// spawn the last-used shape in edit mode on empty canvas (spec §6/§7.1).
+// Double-click: edit the text of a hit shape or the label of a hit connector.
+// Double-click on the EMPTY canvas does not create anything (block/flowchart):
+// creation is via the bottom palette. Double-click-to-create is whiteboard-only,
+// owned by the whiteboard mode interaction (spec §6/§7.1; P4).
 function onSurfaceDoubleClick(event) {
-  // Whiteboard double-click-to-type / flowchart double-click handling is owned by
-  // the type's mode interaction (Part G5: double-click empty = textbox vs shape).
   if (delegateSurfaceEvent('onDoubleClick', event)) return
   if (isMindmap.value) return // node text editing arrives in M2
   const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
@@ -542,7 +522,6 @@ function onSurfaceDoubleClick(event) {
   if (shape) return editing.beginTextEdit(shape.id)
   const connector = connectorAt(point)
   if (connector) return editing.beginConnectorLabelEdit(connector.id)
-  editing.beginEmptyCanvasCreate(point)
 }
 
 // Topmost shape under a point. By default skips hidden + locked shapes (they

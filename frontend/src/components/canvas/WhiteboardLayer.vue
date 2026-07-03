@@ -24,7 +24,6 @@ import ShapeView from './ShapeView.vue'
 import WhiteboardStickyNote from './WhiteboardStickyNote.vue'
 import WhiteboardLine from './WhiteboardLine.vue'
 import WhiteboardTable from './WhiteboardTable.vue'
-import WhiteboardFrame from './WhiteboardFrame.vue'
 
 const props = defineProps({
   whiteboard: { type: Object, required: true },
@@ -114,27 +113,6 @@ const laserDots = computed(() => {
     >
       Double-click to type · pick a tool below to draw, add lines, tables or sticky notes
     </text>
-
-    <!-- Frames / sections sit behind everything (spec 15.3). -->
-    <WhiteboardFrame
-      v-for="frame in whiteboard.frames || []"
-      :key="frame.id"
-      :frame="frame"
-      :selected="isSelected('frame', frame.id)"
-    />
-    <!-- Live frame being dragged out (before commit). -->
-    <rect
-      v-if="ui.liveFrame.value"
-      :x="ui.liveFrame.value.x"
-      :y="ui.liveFrame.value.y"
-      :width="ui.liveFrame.value.w"
-      :height="ui.liveFrame.value.h"
-      rx="6"
-      fill="rgba(110,86,207,0.06)"
-      stroke="#6E56CF"
-      stroke-width="1.5"
-      stroke-dasharray="6 4"
-    />
 
     <!-- Shared base shapes + connectors live in the common arrays (spec C9). -->
     <ConnectorView

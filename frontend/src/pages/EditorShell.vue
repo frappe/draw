@@ -25,7 +25,6 @@ import BlockSelectionEditor from '@/components/floating/BlockSelectionEditor.vue
 import FlowchartSelectionEditor from '@/components/floating/FlowchartSelectionEditor.vue'
 import WhiteboardSelectionEditor from '@/components/floating/WhiteboardSelectionEditor.vue'
 import CollaboratorCursors from '@/components/canvas/CollaboratorCursors.vue'
-import TemplateChooser from '@/components/canvas/TemplateChooser.vue'
 import BottomPalette from '@/components/floating/BottomPalette.vue'
 import ShortcutsDialog from '@/components/ShortcutsDialog.vue'
 
@@ -107,8 +106,8 @@ const route = useRoute()
 const router = useRouter()
 onMounted(() => {
   if (!folders.data) folders.fetch()
-  // Consume ?new (title auto-select) but KEEP ?choose so the on-canvas template
-  // chooser can still open; the chooser clears its own flag when dismissed.
+  // Consume the ?new flag (title auto-select) so a later refresh of this URL
+  // won't re-open the title editor.
   if (route.query.new) {
     const query = { ...route.query }
     delete query.new
@@ -140,7 +139,6 @@ onMounted(() => {
         <FlowchartSelectionEditor v-if="modeStrategy.type === 'flowchart'" />
         <WhiteboardSelectionEditor v-if="modeStrategy.type === 'whiteboard'" />
         <CollaboratorCursors :collaborators="collab.collaborators.value" :set-cursor="collab.setCursor" />
-        <TemplateChooser />
         <BottomPalette />
       </main>
     </div>

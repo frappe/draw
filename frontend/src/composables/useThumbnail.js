@@ -269,24 +269,13 @@ function whiteboardBody(doc) {
     .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
     .map((s) => shapeBody(s) + shapeText(s))
     .join('')
-  const frames = (model.frames || []).map(whiteboardFrame).join('')
   const strokes = (model.strokes || []).map(whiteboardStroke).join('')
   const stickies = (model.stickyNotes || []).map(whiteboardSticky).join('')
   const stamps = (model.stamps || []).map(whiteboardStamp).join('')
   return {
     viewBox: `${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}`,
-    body: frames + connectors + shapes + strokes + stickies + stamps,
+    body: connectors + shapes + strokes + stickies + stamps,
   }
-}
-
-function whiteboardFrame(frame) {
-  const color = frame.color || '#6E56CF'
-  const rect = `<rect x="${frame.x}" y="${frame.y}" width="${frame.w}" height="${frame.h}" rx="6" fill="rgba(110,86,207,0.04)" stroke="${color}" stroke-width="1.5"/>`
-  const bar = `<rect x="${frame.x}" y="${frame.y}" width="${frame.w}" height="26" rx="6" fill="${color}"/>`
-  const title = frame.title
-    ? `<text x="${frame.x + 8}" y="${frame.y + 17}" fill="#FFFFFF" font-size="12" font-weight="600" font-family="Inter, sans-serif">${escapeText(frame.title)}</text>`
-    : ''
-  return rect + bar + title
 }
 
 function whiteboardStamp(stamp) {

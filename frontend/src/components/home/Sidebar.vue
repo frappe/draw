@@ -9,7 +9,7 @@ import { Sidebar, SidebarItem, Dropdown, Dialog, Button, FormControl } from 'fra
 import LucideIcon from '@/icons/LucideIcon.vue'
 import Logomark from '@/components/Logomark.vue'
 import SettingsDialog from '@/components/home/SettingsDialog.vue'
-import { folders, createFolder, renameFolder, deleteFolder } from '@/data/folders.js'
+import { folders, renameFolder, deleteFolder } from '@/data/folders.js'
 
 const props = defineProps({
   active: { type: String, default: 'all' },
@@ -42,17 +42,17 @@ const NAV = [
 ]
 
 // Only top-level folders in the sidebar; nesting is browsed in the explorer.
+// The sidebar only LISTS folders — creation lives in the top-right CTA (A2).
 const topFolders = computed(() => (folders.data || []).filter((folder) => !folder.parent_folder))
 
-const folderItems = computed(() => [
-  ...topFolders.value.map((folder) => ({
+const folderItems = computed(() =>
+  topFolders.value.map((folder) => ({
     type: 'folder',
     folder,
     label: folder.folder_name || folder.name,
     feather: 'folder',
   })),
-  { type: 'add', label: 'New folder', feather: 'plus' },
-])
+)
 
 // Two sections: unlabeled nav, then Folders. `label` on items keys the section list.
 const sections = computed(() => [
@@ -60,20 +60,14 @@ const sections = computed(() => [
   { label: 'Folders', items: folderItems.value },
 ])
 
-// --- add / rename via a small dialog (Frappe-consistent) -------------------
-const dialog = ref({ open: false, mode: 'new', value: '', folder: null })
-function openNewFolder() {
-  dialog.value = { open: true, mode: 'new', value: '', folder: null }
-}
+// --- rename via a small dialog (Frappe-consistent) -------------------------
+const dialog = ref({ open: false, value: '', folder: null })
 function openRename(folder) {
-  dialog.value = { open: true, mode: 'rename', value: folder.folder_name || folder.name, folder }
+  dialog.value = { open: true, value: folder.folder_name || folder.name, folder }
 }
 async function saveFolder() {
   const name = dialog.value.value.trim()
-  if (name) {
-    if (dialog.value.mode === 'new') await createFolder(name)
-    else await renameFolder(dialog.value.folder.name, name)
-  }
+  if (name) await renameFolder(dialog.value.folder.name, name)
   dialog.value.open = false
 }
 function removeFolder(folder) {
@@ -81,7 +75,6 @@ function removeFolder(folder) {
 }
 
 function onItemClick(item) {
-  if (item.type === 'add') return openNewFolder()
   if (item.type === 'folder') return emit('navigate', 'home')
   emit('navigate', item.key)
 }
@@ -134,7 +127,7 @@ function onItemClick(item) {
 
   <SettingsDialog v-model="showSettings" />
 
-  <Dialog v-model="dialog.open" :options="{ title: dialog.mode === 'new' ? 'New folder' : 'Rename folder' }">
+  <Dialog v-model="dialog.open" :options="{ title: 'Rename folder' }">
     <template #body-content>
       <FormControl
         type="text"
@@ -144,7 +137,7 @@ function onItemClick(item) {
       />
     </template>
     <template #actions>
-      <Button variant="solid" @click="saveFolder">{{ dialog.mode === 'new' ? 'Create folder' : 'Save' }}</Button>
+      <Button variant="solid" @click="saveFolder">Save</Button>
     </template>
   </Dialog>
 </template>

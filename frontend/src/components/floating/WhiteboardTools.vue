@@ -11,8 +11,7 @@ import LucideIcon from '@/icons/LucideIcon.vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
-import { CHALK_COLORS, STICKY_COLORS, PEN_WIDTHS, BOARD_BACKGROUNDS } from '@/diagram/whiteboardColors.js'
-import { tidyStickyNotes } from '@/diagram/whiteboardModel.js'
+import { CHALK_COLORS, STICKY_COLORS, PEN_WIDTHS } from '@/diagram/whiteboardColors.js'
 import LineOptions from './LineOptions.vue'
 import TableOptions from './TableOptions.vue'
 import WhiteboardMinimap from '@/components/canvas/WhiteboardMinimap.vue'
@@ -31,7 +30,6 @@ const TOOLS = [
   { tool: 'sticky', icon: 'square', label: 'Sticky note' },
   { tool: 'line', icon: 'minus', label: 'Line' },
   { tool: 'table', icon: 'grid', label: 'Table' },
-  { tool: 'frame', icon: 'layout', label: 'Frame / section' },
   { tool: 'stamp', icon: 'award', label: 'Stamp / vote' },
   { tool: 'laser', icon: 'zap', label: 'Laser pointer' },
 ]
@@ -39,10 +37,6 @@ const TOOLS = [
 const OPTION_TOOLS = ['pen', 'highlighter', 'sticky', 'line', 'table', 'stamp']
 // Stamp glyphs offered by the stamp tool ('dot' = a vote dot for dot-voting).
 const STAMPS = ['👍', '❤️', '⭐', '✅', '🔥', '🎉', '❓', 'dot']
-
-function tidyStickies() {
-  store.updateWhiteboardModel('Tidy stickies', (m) => tidyStickyNotes(m))
-}
 
 const activeTool = computed(() => editorUi.state.tool)
 const activeHasOptions = computed(() => OPTION_TOOLS.includes(activeTool.value))
@@ -57,7 +51,6 @@ function toggleClass(active) {
   return active ? 'bg-surface-gray-2 text-ink-gray-9' : ''
 }
 
-const boardBackground = () => store.state.canvas?.background || '#FFFFFF'
 const sketchOn = () => Boolean(store.state.whiteboard?.sketchStyle)
 function toggleSketch() {
   store.updateWhiteboardModel('Sketch style', (model) => (model.sketchStyle = !model.sketchStyle))
@@ -202,7 +195,7 @@ function applyTableDefault(patch) {
     </template>
   </Popover>
 
-  <!-- Board options: background + sketch + navigator. -->
+  <!-- Board options: sketch + navigator. -->
   <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
   <Popover>
     <template #target="{ togglePopover }">
@@ -214,25 +207,8 @@ function applyTableDefault(patch) {
     </template>
     <template #body-main>
       <div class="w-56 p-2">
-        <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Background</div>
-        <div class="mb-3 flex gap-1.5">
-          <button
-            v-for="bg in BOARD_BACKGROUNDS"
-            :key="bg.value"
-            class="flex h-8 flex-1 items-center justify-center gap-2 rounded-md border text-xs"
-            :class="boardBackground() === bg.value ? 'border-ink-gray-9 text-ink-gray-9' : 'border-outline-gray-2 text-ink-gray-7'"
-            @click="store.setCanvas({ background: bg.value })"
-          >
-            <span class="h-4 w-4 rounded border border-black/20" :style="{ background: bg.value }" />
-            {{ bg.label }}
-          </button>
-        </div>
-        <Button class="mb-2 w-full" :variant="sketchOn() ? 'solid' : 'subtle'" @click="toggleSketch">
+        <Button class="mb-3 w-full" :variant="sketchOn() ? 'solid' : 'subtle'" @click="toggleSketch">
           {{ sketchOn() ? 'Sketch style: on' : 'Sketch style: off' }}
-        </Button>
-        <Button class="mb-3 w-full" variant="subtle" @click="tidyStickies">
-          <template #prefix><LucideIcon name="grid" class="h-4 w-4" /></template>
-          Tidy sticky notes
         </Button>
         <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Navigator</div>
         <WhiteboardMinimap />

@@ -1,26 +1,14 @@
 <script setup>
-// Transform: swap, rotate 90°, flip, and the format-painter toggle (spec §4.3).
-// Swap needs exactly two shapes; rotate/flip need 1+. Painter toggles editorUi.
-// Each multi-step move is wrapped in store.commit so it is a single undo step.
+// Transform: swap, rotate 90°, and flip (spec §4.3). Swap needs exactly two
+// shapes; rotate/flip need 1+. Each multi-step move is wrapped in store.commit
+// so it is a single undo step.
 import { computed } from 'vue'
 import PaletteSection from './PaletteSection.vue'
 import ActionTile from './ActionTile.vue'
 import { axisAlignedBBox, shapeCenter } from '@/diagram/geometry.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
-import { useEditorUi } from '@/stores/useEditorUi.js'
-import { useFormatPainter } from '@/composables/useFormatPainter.js'
 
 const store = useDiagramStore()
-const editorUi = useEditorUi()
-const painter = useFormatPainter(store, editorUi)
-
-// Toggle the painter: when arming, copy the (first) selected shape's formatting
-// so a subsequent canvas click stamps real style (spec §4.3). When already on,
-// just turn it off.
-function togglePainter() {
-  if (painter.isActive()) painter.cancel()
-  else if (shapes.value.length) painter.copyFrom(shapes.value[0].id)
-}
 
 const shapes = computed(() => store.selectedShapes)
 const hasShapes = computed(() => shapes.value.length > 0)
@@ -82,12 +70,6 @@ function swap() {
       <ActionTile icon="rotate-cw" label="Rotate R" @click="rotate(90)" />
       <ActionTile icon="flip-horizontal" label="Flip H" @click="flip('x')" />
       <ActionTile icon="flip-vertical" label="Flip V" @click="flip('y')" />
-      <ActionTile
-        icon="edit-3"
-        label="Painter"
-        :active="editorUi.state.formatPainter.active"
-        @click="togglePainter()"
-      />
     </div>
   </PaletteSection>
 </template>

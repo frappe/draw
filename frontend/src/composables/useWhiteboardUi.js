@@ -30,7 +30,7 @@ function createWhiteboardUi() {
     // Stamp kind dropped by the stamp tool (emoji or 'dot' for dot-voting, 15.5).
     stampKind: '👍',
     // Multi-select source of truth: an array of { kind, id } (spec — standard
-    // multi-select). `kind` is 'stroke'|'sticky'|'line'|'table'|'frame'|'stamp'.
+    // multi-select). `kind` is 'stroke'|'sticky'|'line'|'table'|'stamp'.
     selection: [],
     // Derived single selection: selection[0] when exactly one object is picked,
     // else null. All the existing single-object logic (options/rendering/drag)
@@ -48,9 +48,7 @@ function createWhiteboardUi() {
   const liveStroke = ref(null)
   // The line being dragged right now (preview), or null.
   const liveLine = ref(null)
-  // The frame being dragged out right now (preview), or null (spec 15.3).
-  const liveFrame = ref(null)
-  const api = { state, laserTrail: readonly(laserTrail), liveStroke, liveLine, liveFrame }
+  const api = { state, laserTrail: readonly(laserTrail), liveStroke, liveLine }
   attachSelection(api, state)
   attachLaser(api, laserTrail)
   return api
@@ -72,7 +70,6 @@ function attachSelection(api, state) {
   api.selectSticky = (id) => setSelection([{ kind: 'sticky', id }])
   api.selectLine = (id) => setSelection([{ kind: 'line', id }])
   api.selectTable = (id) => setSelection([{ kind: 'table', id }])
-  api.selectFrame = (id) => setSelection([{ kind: 'frame', id }])
   api.selectStamp = (id) => setSelection([{ kind: 'stamp', id }])
   api.clearSelection = () => setSelection([])
 

@@ -1,10 +1,10 @@
 // Diagram JSON schema — the single source of truth for a diagram document.
 // Spec §11.3. Every diagram's `document` field holds an object of this shape.
-// Bump SCHEMA_VERSION and add a migration whenever the shape changes; templates,
-// theme presets, hover-arrows, and future diagram types all build on this.
+// Bump SCHEMA_VERSION and add a migration whenever the shape changes; theme
+// presets, hover-arrows, and future diagram types all build on this.
 
 import { DEFAULT_PRESET_NAME, findPreset } from './canvasPresets.js'
-import { createMindMap } from './mindmapModel.js'
+import { createEmptyMindMap } from './mindmapModel.js'
 import { createFlowchart } from './flowchartModel.js'
 import { createWhiteboard } from './whiteboardModel.js'
 
@@ -34,8 +34,10 @@ export function createDiagramDocument(presetName = DEFAULT_PRESET_NAME, diagramT
     connectors: [],
     // Named sections/frames that group content (spec: available in every type).
     sections: [],
-    // Per-type sub-objects; only the active type's is populated.
-    mindmap: diagramType === 'mindmap' ? createMindMap() : null,
+    // Per-type sub-objects; only the active type's is populated. The canvas
+    // always starts fully blank — a mind map begins with NO root node (the
+    // user places the first idea themselves).
+    mindmap: diagramType === 'mindmap' ? createEmptyMindMap() : null,
     flowchart: diagramType === 'flowchart' ? createFlowchart() : null,
     whiteboard: diagramType === 'whiteboard' ? createWhiteboard() : null,
   }

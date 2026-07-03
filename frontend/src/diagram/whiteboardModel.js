@@ -64,21 +64,6 @@ export function makeTable(x, y, partial = {}) {
   }
 }
 
-// A titled section/frame that visually groups content (spec 15.3). Rendered
-// behind everything; its title strip is the grab handle so clicking inside the
-// frame still reaches the content.
-export function makeFrame(x, y, w, h, partial = {}) {
-  return {
-    id: nextId('wf'),
-    x,
-    y,
-    w: Math.max(80, w),
-    h: Math.max(60, h),
-    title: partial.title || 'Frame',
-    color: partial.color || '#6E56CF',
-  }
-}
-
 // A reaction / vote stamp dropped on the board (spec 15.5). `kind` is an emoji
 // (👍 ❤️ …) or 'dot' for dot-voting.
 export function makeStamp(x, y, kind = '👍') {
@@ -86,34 +71,7 @@ export function makeStamp(x, y, kind = '👍') {
 }
 
 export function createWhiteboard(sketchStyle = false) {
-  return { sketchStyle, strokes: [], stickyNotes: [], lines: [], tables: [], frames: [], stamps: [] }
-}
-
-export const FRAME_HEADER_H = 26
-
-export function frameById(model, id) {
-  return (model.frames || []).find((f) => f.id === id)
-}
-
-export function addFrame(model, x, y, w, h, partial = {}) {
-  const frame = makeFrame(x, y, w, h, partial)
-  if (!model.frames) model.frames = []
-  model.frames.push(frame)
-  return frame.id
-}
-
-export function removeFrame(model, id) {
-  model.frames = (model.frames || []).filter((f) => f.id !== id)
-}
-
-// The frame whose title strip is under the point (so the body stays click-through
-// to its contents). Topmost (last drawn) wins.
-export function frameHeaderAt(model, point) {
-  let hit = null
-  for (const f of model.frames || []) {
-    if (point.x >= f.x && point.x <= f.x + f.w && point.y >= f.y && point.y <= f.y + FRAME_HEADER_H) hit = f
-  }
-  return hit
+  return { sketchStyle, strokes: [], stickyNotes: [], lines: [], tables: [], stamps: [] }
 }
 
 export function stampById(model, id) {
@@ -138,24 +96,6 @@ export function stampAt(model, point) {
     if (Math.hypot(point.x - s.x, point.y - s.y) <= STAMP_RADIUS) hit = s
   }
   return hit
-}
-
-// Arrange all sticky notes into a tidy left-to-right, top-to-bottom grid (spec
-// 15.4), preserving their current reading order. Operates in place.
-export function tidyStickyNotes(model, columns = 0) {
-  const notes = model.stickyNotes || []
-  if (!notes.length) return
-  const ordered = [...notes].sort((a, b) => a.y - b.y || a.x - b.x)
-  const gap = 24
-  const cellW = ordered[0].w + gap
-  const cellH = ordered[0].h + gap
-  const cols = columns || Math.max(1, Math.ceil(Math.sqrt(ordered.length)))
-  const originX = Math.min(...ordered.map((n) => n.x))
-  const originY = Math.min(...ordered.map((n) => n.y))
-  ordered.forEach((note, i) => {
-    note.x = originX + (i % cols) * cellW
-    note.y = originY + Math.floor(i / cols) * cellH
-  })
 }
 
 export function tableById(model, id) {
@@ -327,7 +267,6 @@ export function whiteboardObjectBoxes(model) {
   for (const n of model.stickyNotes || []) out.push({ kind: 'sticky', id: n.id, box: { x: n.x, y: n.y, w: n.w, h: n.h } })
   for (const l of model.lines || []) out.push({ kind: 'line', id: l.id, box: lineBox(l) })
   for (const t of model.tables || []) out.push({ kind: 'table', id: t.id, box: { x: t.x, y: t.y, w: tableWidth(t), h: tableHeight(t) } })
-  for (const f of model.frames || []) out.push({ kind: 'frame', id: f.id, box: { x: f.x, y: f.y, w: f.w, h: f.h } })
   for (const st of model.stamps || []) out.push({ kind: 'stamp', id: st.id, box: { x: st.x - STAMP_RADIUS, y: st.y - STAMP_RADIUS, w: STAMP_RADIUS * 2, h: STAMP_RADIUS * 2 } })
   return out
 }
@@ -347,9 +286,6 @@ export function translateWhiteboardObject(model, kind, id, dx, dy) {
   } else if (kind === 'table') {
     const t = tableById(model, id)
     if (t) { t.x += dx; t.y += dy }
-  } else if (kind === 'frame') {
-    const f = frameById(model, id)
-    if (f) { f.x += dx; f.y += dy }
   } else if (kind === 'stamp') {
     const st = stampById(model, id)
     if (st) { st.x += dx; st.y += dy }

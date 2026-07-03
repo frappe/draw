@@ -18,7 +18,7 @@ import { stickyNoteById } from '@/diagram/whiteboardModel.js'
 const TOOL_KEYS = {
   v: 'select', p: 'pen', h: 'highlighter', e: 'eraser',
   t: 'text', s: 'sticky', l: 'laser', n: 'line', g: 'table',
-  f: 'frame', m: 'stamp',
+  m: 'stamp',
 }
 
 export function whiteboardKeydown(event, store, editorUi) {

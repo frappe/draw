@@ -1,9 +1,9 @@
 <script setup>
 // Whimsical-style floating chrome for mind maps (replaces the right palette).
 // - A contextual TOOLBAR that hovers just above the selected node with the common
-//   per-node actions (bold/italic, colour, emoji, add child, cross-link, note,
-//   text size + marker under "more", delete).
-// - The blank-map "Add your first idea" prompt and the root-only keyboard hint.
+//   per-node actions (bold/italic, colour, cross-link, note, text size + marker +
+//   shape under "more", delete). Children are added via the node's hover "+" or Tab.
+// - The blank-map "Add your first idea" prompt.
 // Positions are derived from the node's live layout box + the shared viewport, so
 // the toolbar tracks the node at any pan/zoom. Mounted once per editor (EditorShell).
 import { computed } from 'vue'
@@ -22,14 +22,12 @@ const store = useDiagramStore()
 const editorUi = useEditorUi()
 
 const FILL_SWATCHES = ['#EFEAFE', '#EFF6FF', '#F4FFF6', '#FDFAED', '#FCEAF5', '#F3F3F3', '#FFFFFF']
-const EMOJIS = ['💡', '✅', '⭐', '🔥', '⚠️', '❤️', '📌', '🎯', '🚀', '📝', '❓', '👍']
 const MARKER_ICONS = ['star', 'flag', 'check-circle', 'alert-circle', 'heart', 'zap']
 const FONT_SIZES = [12, 14, 17, 22]
 const SHAPES = ['pill', 'rounded', 'ellipse', 'diamond', 'hexagon']
 
 const model = computed(() => store.state.mindmap)
 const isBlank = computed(() => (model.value?.nodes.length ?? 0) === 0)
-const isRootOnly = computed(() => (model.value?.nodes.length ?? 0) === 1)
 
 const layout = computed(() =>
   model.value && model.value.rootId ? layoutMindMap(model.value) : { positions: {} },
@@ -80,9 +78,6 @@ function setColor(color) {
   // through to the same path.
   for (const n of selectedNodes.value) store.updateNode(n.id, { color })
 }
-function setEmoji(emoji) {
-  patch({ emoji: node.value?.emoji === emoji ? null : emoji })
-}
 function setFontSize(size) {
   patch({ fontSize: size })
 }
@@ -94,12 +89,6 @@ function setShape(shape) {
 }
 function setNote(text) {
   patch({ note: text })
-}
-function addChild() {
-  const id = store.addChildNode(selId.value)
-  if (!id) return
-  selectNode(store, id)
-  beginEdit(id)
 }
 function startCrosslink() {
   mindmapUi.pendingLinkSource = selId.value
@@ -174,30 +163,11 @@ function activeBtn(on) {
         </template>
       </Popover>
 
-      <!-- Emoji … More: single-selection per-node actions only. -->
+      <!-- Cross-link … More: single-selection per-node actions only. Children
+           are added via the node's hover "+" or Tab, not from this toolbar. -->
       <template v-if="node">
-      <!-- Emoji -->
-      <Popover>
-        <template #target="{ togglePopover }">
-          <Tooltip text="Emoji">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()">
-              <span v-if="node.emoji" class="text-[15px] leading-none">{{ node.emoji }}</span>
-              <LucideIcon v-else name="smile" class="h-4 w-4" />
-            </button>
-          </Tooltip>
-        </template>
-        <template #body-main>
-          <div class="grid w-[184px] grid-cols-6 gap-1 p-2">
-            <button v-for="e in EMOJIS" :key="e" class="flex h-7 w-7 items-center justify-center rounded text-[16px] hover:bg-surface-gray-2" @click="setEmoji(e)">{{ e }}</button>
-          </div>
-        </template>
-      </Popover>
-
       <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
 
-      <Tooltip text="Add child (Tab)">
-        <button :class="btn" @click="addChild"><LucideIcon name="plus" class="h-4 w-4" /></button>
-      </Tooltip>
       <Tooltip :text="mindmapUi.pendingLinkSource ? 'Click a target node…' : 'Link to node'">
         <button :class="[btn, activeBtn(!!mindmapUi.pendingLinkSource)]" @click="startCrosslink">
           <LucideIcon name="link-2" class="h-4 w-4" />
@@ -303,16 +273,5 @@ function activeBtn(on) {
     >
       <LucideIcon name="plus" class="h-4 w-4" /> Add your first idea
     </button>
-  </Teleport>
-
-  <!-- Root-only: hint to grow the map. -->
-  <Teleport to="body">
-    <div
-      v-if="isRootOnly"
-      class="pointer-events-none fixed bottom-[86px] left-1/2 z-10 -translate-x-1/2 rounded-full px-3.5 py-1.5 text-[12px] text-white shadow-lg"
-      style="background-color: #171717"
-    >
-      Hover a node and click <b>+</b> to add a branch, or press <b>Tab</b>.
-    </div>
   </Teleport>
 </template>

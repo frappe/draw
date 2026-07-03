@@ -22,7 +22,6 @@ export function createEditorUi() {
     // True for a short window after a layout op (tidy / flip) so node positions
     // tween instead of jumping (spec 17.1). Off during free drag → no lag.
     animateLayout: false,
-    formatPainter: { active: false, style: null },
   })
   return assembleUi(state, viewport)
 }
@@ -32,7 +31,6 @@ function assembleUi(state, viewport) {
   attachTools(ui, state)
   attachGrid(ui, state)
   attachZoom(ui, viewport)
-  attachPainter(ui, state)
   // Pulse the layout-animation flag for one transition window (spec 17.1). A
   // token guards overlapping pulses so a later op doesn't end an earlier one early.
   let pulseToken = 0
@@ -78,13 +76,6 @@ function attachZoom(ui, viewport) {
   ui.setZoomPercent = (percent) => {
     const value = Number(percent)
     if (Number.isFinite(value) && value > 0) viewport.setZoom(value / 100)
-  }
-}
-
-function attachPainter(ui, state) {
-  ui.toggleFormatPainter = (style = null) => {
-    state.formatPainter.active = !state.formatPainter.active
-    state.formatPainter.style = state.formatPainter.active ? style : null
   }
 }
 

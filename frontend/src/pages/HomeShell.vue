@@ -68,11 +68,9 @@ async function create(payload = {}) {
     const name = await createDiagram(payload.title, payload.document, payload.type || 'block')
     if (!name) throw new Error('Server returned no diagram name')
     diagrams.reload()
-    // `new` selects the title for inline renaming; `choose` opens the on-canvas
-    // blank-vs-template chooser (templates are picked in-context on the canvas).
-    const query = { new: '1' }
-    if (payload.choose) query.choose = '1'
-    router.push({ name: 'Editor', params: { name }, query })
+    // A new diagram lands directly on its blank canvas; `new` selects the title
+    // for inline renaming.
+    router.push({ name: 'Editor', params: { name }, query: { new: '1' } })
   } catch (error) {
     // Surface the real reason instead of failing silently (toasts aren't mounted).
     const detail = error?.messages?.join('\n') || error?.exc_type || error?.message || String(error)
@@ -132,7 +130,7 @@ function open(name) {
 
         <EmptyState
           v-if="isEmpty"
-          @create="create({ type: $event, choose: true })"
+          @create="create({ type: $event })"
           @new-folder="openNewFolder"
         />
         <TileGrid
