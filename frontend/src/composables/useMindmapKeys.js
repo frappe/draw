@@ -9,7 +9,7 @@
 import { registerModeKeyboardHandler } from '@/composables/useKeyboard.js'
 import { navigate } from '@/diagram/mindmapNavigation.js'
 import { isRoot } from '@/diagram/mindmapModel.js'
-import { deleteNode, promoteNode, reorderNode } from '@/diagram/mindmapOperations.js'
+import { deleteNodes, promoteNode, reorderNode } from '@/diagram/mindmapOperations.js'
 import { selectedNodeId, selectNode, beginEdit, mindmapUi } from '@/stores/mindmapUi.js'
 
 const ARROW_DIRECTIONS = {
@@ -24,7 +24,7 @@ export function mindmapKeydown(event, store) {
   if (event.key === 'Tab') return handleTab(store, id, event)
   if (event.key === 'Enter') return addSiblingAndEdit(store, id)
   if (ARROW_DIRECTIONS[event.key]) return handleArrow(store, model, id, event)
-  if (event.key === 'Delete' || event.key === 'Backspace') return requestDelete(store, id)
+  if (event.key === 'Delete' || event.key === 'Backspace') return requestDelete(store)
   return false
 }
 
@@ -64,17 +64,25 @@ function handleArrow(store, model, id, event) {
   return true
 }
 
-// Delete/Backspace deletes the node; a node with children is confirmed first and
-// removed as a subtree. The root is never deleted (offer Clear map in palette).
-function requestDelete(store, id) {
-  if (!id || isRoot(store.state.mindmap, id)) return Boolean(id)
-  const node = store.state.mindmap.nodes.find((candidate) => candidate.id === id)
-  const hasChildren = store.state.mindmap.nodes.some((candidate) => candidate.parentId === id)
-  if (hasChildren && !window.confirm(`Delete "${node?.text || 'this node'}" and its sub-branches?`)) {
-    return true
-  }
-  selectNode(store, node?.parentId || null)
-  deleteNode(store, id)
+// Delete/Backspace removes EVERY selected node (single or multi — N11) as one
+// undoable unit; nodes with children are confirmed first and removed as subtrees.
+// The root is never deleted (offer Clear map in the palette). Reads the shared
+// selection array directly, since selectedNodeId() is null during a multi-select.
+function requestDelete(store) {
+  const model = store.state.mindmap
+  const selection = store.state.selection || []
+  if (!selection.length) return false
+  const ids = selection.filter((nid) => !isRoot(model, nid))
+  if (!ids.length) return true // only the root was selected — consume, delete nothing
+  const hasChildren = ids.some((nid) => model.nodes.some((n) => n.parentId === nid))
+  const label = ids.length > 1
+    ? `Delete ${ids.length} nodes and their sub-branches?`
+    : `Delete "${model.nodes.find((n) => n.id === ids[0])?.text || 'this node'}" and its sub-branches?`
+  if (hasChildren && !window.confirm(label)) return true
+  // Land selection on the first node's parent (or clear) for a sensible next focus.
+  const first = model.nodes.find((n) => n.id === ids[0])
+  selectNode(store, first?.parentId || null)
+  deleteNodes(store, ids)
   return true
 }
 
