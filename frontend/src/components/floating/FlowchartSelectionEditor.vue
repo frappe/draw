@@ -22,8 +22,10 @@ const store = useDiagramStore()
 
 const FILL_SWATCHES = ['#EFF6FF', '#F4FFF6', '#FDFAED', '#FCEAF5', '#F3F3F3', '#FFFFFF']
 const TYPE_ICONS = {
-  terminator: 'play-circle', process: 'square', decision: 'git-branch',
-  inputOutput: 'log-in', connector: 'circle',
+  terminator: 'circle-play', process: 'square', decision: 'git-branch',
+  inputOutput: 'log-in', document: 'file-text', database: 'database',
+  predefinedProcess: 'columns-2', manualInput: 'type', preparation: 'hexagon',
+  offPageRef: 'pentagon', connector: 'circle',
 }
 
 const model = computed(() => store.state.flowchart)

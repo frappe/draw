@@ -8,12 +8,18 @@ import { NODE_TYPES, NODE_TYPE_META } from '@/diagram/flowchartModel.js'
 
 defineEmits(['choose', 'close'])
 
-// Curated icon per node type (Feather names) for the picker rows.
+// Curated icon per node type for the picker rows.
 const ICONS = {
-  terminator: 'play-circle',
+  terminator: 'circle-play',
   process: 'square',
   decision: 'git-branch',
   inputOutput: 'log-in',
+  document: 'file-text',
+  database: 'database',
+  predefinedProcess: 'columns-2',
+  manualInput: 'type',
+  preparation: 'hexagon',
+  offPageRef: 'pentagon',
   connector: 'circle',
 }
 
@@ -26,9 +32,10 @@ const options = NODE_TYPES.map((type) => ({
 
 <template>
   <div
-    class="w-44 rounded-lg border border-outline-gray-2 bg-surface-base py-1 shadow-2xl"
+    class="max-h-[288px] w-44 overflow-y-auto rounded-lg border border-outline-gray-2 bg-surface-base py-1 shadow-2xl"
     @pointerdown.stop
     @pointerup.stop
+    @wheel.stop
   >
     <div class="px-2.5 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">
       Add node

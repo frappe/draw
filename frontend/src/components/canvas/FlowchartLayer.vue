@@ -223,6 +223,14 @@ function onLeave(id) {
         :stroke="isSelected(node.id) ? '#006EDB' : stroke"
         :stroke-width="isSelected(node.id) ? 2.5 : 1.5"
       />
+      <path
+        v-else-if="shape.kind === 'path'"
+        :d="shape.d"
+        :fill="fill"
+        :stroke="isSelected(node.id) ? '#006EDB' : stroke"
+        :stroke-width="isSelected(node.id) ? 2.5 : 1.5"
+        stroke-linejoin="round"
+      />
       <polygon
         v-else
         :points="shape.points"
@@ -303,7 +311,7 @@ function onLeave(id) {
       :x="ui.picker.x"
       :y="ui.picker.y"
       width="176"
-      height="220"
+      height="300"
       style="overflow: visible"
     >
       <FlowchartNodeTypePicker @choose="chooseNodeType" @close="closePicker" />
