@@ -26,6 +26,7 @@ import FlowchartSelectionEditor from '@/components/floating/FlowchartSelectionEd
 import WhiteboardSelectionEditor from '@/components/floating/WhiteboardSelectionEditor.vue'
 import CollaboratorCursors from '@/components/canvas/CollaboratorCursors.vue'
 import BottomPalette from '@/components/floating/BottomPalette.vue'
+import ViewportControls from '@/components/floating/ViewportControls.vue'
 import ShortcutsDialog from '@/components/ShortcutsDialog.vue'
 
 const props = defineProps({
@@ -139,6 +140,7 @@ onMounted(() => {
         <FlowchartSelectionEditor v-if="modeStrategy.type === 'flowchart'" />
         <WhiteboardSelectionEditor v-if="modeStrategy.type === 'whiteboard'" />
         <CollaboratorCursors :collaborators="collab.collaborators.value" :set-cursor="collab.setCursor" />
+        <ViewportControls />
         <BottomPalette />
       </main>
     </div>

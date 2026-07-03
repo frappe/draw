@@ -1,8 +1,8 @@
 <script setup>
 // Floating bottom-center palette (spec §7.1, README 4c): pointer modes (select /
-// hand / draw), grid-guide toggle, and zoom controls (out / 100% reset / in /
-// fit). Wired to editorUi tool/grid and the viewport.
-import { computed, ref, nextTick } from 'vue'
+// hand), per-type creation + map tools, and the guides toggle. Zoom + fit live
+// in the separate bottom-left ViewportControls. Wired to editorUi + the viewport.
+import { computed, ref } from 'vue'
 import { Tooltip, Popover } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
@@ -108,7 +108,7 @@ function isArmed(type) {
 // the per-type surface tools below (whiteboard).
 const modes = [
   { tool: 'select', icon: 'mouse-pointer', label: 'Select' },
-  { tool: 'hand', icon: 'move', label: 'Pan' },
+  { tool: 'hand', icon: 'hand', label: 'Hand' },
 ]
 
 // Mode-specific tool seam (spec diagram-types C6): the active strategy may
@@ -137,24 +137,6 @@ function cycleGuides() {
   editorUi.state.gridVisible = next !== 'no'
   if (next === 'rare') editorUi.setGridDensity('sparse')
   if (next === 'dense') editorUi.setGridDensity('dense')
-}
-
-// Click the zoom % to type an exact value (spec 1.6).
-const zoomEditing = ref(false)
-const zoomDraft = ref('')
-const zoomInput = ref(null)
-function startZoomEdit() {
-  zoomDraft.value = String(editorUi.zoomPercent)
-  zoomEditing.value = true
-  nextTick(() => {
-    zoomInput.value?.focus()
-    zoomInput.value?.select()
-  })
-}
-function commitZoom() {
-  if (!zoomEditing.value) return
-  zoomEditing.value = false
-  editorUi.setZoomPercent(zoomDraft.value)
 }
 </script>
 
@@ -320,41 +302,5 @@ function commitZoom() {
       </Tooltip>
     </template>
 
-    <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-
-    <Tooltip text="Zoom out">
-      <button :class="buttonBase" @click="viewport.zoomStep(-1)">
-        <LucideIcon name="minus" class="h-4 w-4" />
-      </button>
-    </Tooltip>
-    <input
-      v-if="zoomEditing"
-      ref="zoomInput"
-      v-model="zoomDraft"
-      type="text"
-      inputmode="numeric"
-      class="h-[34px] w-[52px] rounded-md border border-outline-gray-2 bg-surface-base text-center text-xs font-medium text-ink-gray-8 outline-none focus:border-outline-gray-3"
-      @keydown.enter="commitZoom"
-      @keydown.esc="zoomEditing = false"
-      @blur="commitZoom"
-    />
-    <Tooltip v-else text="Click to set zoom (⌘0 = 100%, ⇧1 = fit)">
-      <button
-        class="h-[34px] min-w-[46px] rounded-md px-1.5 text-xs font-medium text-ink-gray-7 hover:bg-surface-gray-2"
-        @click="startZoomEdit"
-      >
-        {{ editorUi.zoomPercent }}%
-      </button>
-    </Tooltip>
-    <Tooltip text="Zoom in">
-      <button :class="buttonBase" @click="viewport.zoomStep(1)">
-        <LucideIcon name="plus" class="h-4 w-4" />
-      </button>
-    </Tooltip>
-    <Tooltip text="Fit to view">
-      <button :class="buttonBase" @click="editorUi.fit()">
-        <LucideIcon name="maximize-2" class="h-4 w-4" />
-      </button>
-    </Tooltip>
   </div>
 </template>
