@@ -23,17 +23,11 @@ const comingSoon = [
   { key: 'designer', name: 'Designer', hint: 'Pro design — frames & layers', icon: 'pen-tool' },
 ]
 
-const TYPE_TITLE = {
-  block: 'Untitled diagram',
-  mindmap: 'Untitled mind map',
-  flowchart: 'Untitled flowchart',
-  whiteboard: 'Untitled whiteboard',
-}
-
 // Pick a type → create a blank diagram and open the canvas (the template chooser
 // shows there). document:null means "blank"; the chooser can swap in a template.
+// No title is passed — createDiagram auto-names it ("Flowchart 1", …) uniquely.
 function pickType(type) {
-  emit('create', { type: type.key, title: TYPE_TITLE[type.key] || 'Untitled diagram', document: null, choose: true })
+  emit('create', { type: type.key, document: null, choose: true })
   emit('update:modelValue', false)
 }
 </script>

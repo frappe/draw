@@ -300,7 +300,10 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
 
     <!-- HOME: a file explorer — Pinned (root only) + files + sub/folders. -->
     <template v-if="mode === 'home'">
-      <section v-if="!folder && pinned.length" class="mb-8">
+      <!-- Pinned rows sit directly above the rest with the SAME row gap, so the
+           list reads as one evenly-spaced column (the header + star mark them as
+           pinned; mb-1.5 matches DiagramCollection's gap-1.5). -->
+      <section v-if="!folder && pinned.length" class="mb-1.5">
         <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
           <LucideIcon name="bookmark" class="h-3.5 w-3.5" /> Pinned
         </h2>
@@ -357,9 +360,10 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       </div>
     </div>
 
-    <!-- RECENT / ALL: a single flat list. -->
+    <!-- RECENT / ALL: a single flat list. (Only these modes — home renders its
+         own explorer above; v-else-if keeps it from double-rendering there.) -->
     <DiagramCollection
-      v-else
+      v-else-if="mode !== 'home'"
       :diagrams="mode === 'recent' ? recentList : allFlat"
       :view="view"
       :selected="selected"

@@ -11,11 +11,31 @@ export const diagrams = createListResource({
   orderBy: 'modified desc',
 })
 
+// Default title base per type. New diagrams are named "<base> <n>" (auto-
+// incrementing) rather than "Untitled …", so no two new files share a name.
+const TYPE_TITLE_BASE = {
+  block: 'Diagram',
+  mindmap: 'Mind map',
+  flowchart: 'Flowchart',
+  whiteboard: 'Whiteboard',
+}
+
+// Next unused default title for a type — "Flowchart 1", "Flowchart 2", … —
+// unique among the currently-loaded diagrams (falls back to "Diagram n").
+export function nextDiagramTitle(diagramType = 'block') {
+  const base = TYPE_TITLE_BASE[diagramType] || 'Diagram'
+  const taken = new Set((diagrams.data || []).map((d) => d.title))
+  let n = 1
+  while (taken.has(`${base} ${n}`)) n += 1
+  return `${base} ${n}`
+}
+
 // Create a new diagram, returning its name. A template's pre-filled document may
 // be supplied (NewDiagramDialog); otherwise a fresh document for `diagramType` is
 // built (e.g. a mind map seeded with a root node). diagramType is carried inside
 // the document JSON; the backend mirrors it to the diagram_type field on save.
-export async function createDiagram(title = 'Untitled diagram', document = null, diagramType = 'block') {
+export async function createDiagram(title, document = null, diagramType = 'block') {
+  if (!title) title = nextDiagramTitle(diagramType)
   const finalDocument = document || createDiagramDocument(undefined, diagramType)
   if (!finalDocument.diagramType) finalDocument.diagramType = diagramType
   const created = await diagrams.insert.submit({

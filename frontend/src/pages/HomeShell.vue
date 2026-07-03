@@ -58,7 +58,12 @@ function crumbTo(index) {
   folderPath.value = index < 0 ? [] : folderPath.value.slice(0, index + 1)
 }
 
+// Guard against double-submission: a fast double-click (or a stray double event)
+// on "New diagram" would otherwise fire create() twice and insert two diagrams.
+const isCreating = ref(false)
 async function create(payload = {}) {
+  if (isCreating.value) return
+  isCreating.value = true
   try {
     const name = await createDiagram(payload.title, payload.document, payload.type || 'block')
     if (!name) throw new Error('Server returned no diagram name')
@@ -73,6 +78,8 @@ async function create(payload = {}) {
     const detail = error?.messages?.join('\n') || error?.exc_type || error?.message || String(error)
     console.error('Create diagram failed:', error)
     window.alert('Could not create the diagram:\n\n' + detail)
+  } finally {
+    isCreating.value = false
   }
 }
 
