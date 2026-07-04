@@ -27,10 +27,8 @@ function createWhiteboardUi() {
     // Default grid size for new tables.
     tableRows: 3,
     tableCols: 3,
-    // Stamp kind dropped by the stamp tool (emoji or 'dot' for dot-voting, 15.5).
-    stampKind: '👍',
     // Multi-select source of truth: an array of { kind, id } (spec — standard
-    // multi-select). `kind` is 'stroke'|'sticky'|'line'|'table'|'stamp'.
+    // multi-select). `kind` is 'stroke'|'sticky'|'line'|'table'.
     selection: [],
     // Derived single selection: selection[0] when exactly one object is picked,
     // else null. All the existing single-object logic (options/rendering/drag)
@@ -70,7 +68,6 @@ function attachSelection(api, state) {
   api.selectSticky = (id) => setSelection([{ kind: 'sticky', id }])
   api.selectLine = (id) => setSelection([{ kind: 'line', id }])
   api.selectTable = (id) => setSelection([{ kind: 'table', id }])
-  api.selectStamp = (id) => setSelection([{ kind: 'stamp', id }])
   api.clearSelection = () => setSelection([])
 
   api.isSelected = (kind, id) => state.selection.some((item) => item.kind === kind && item.id === id)

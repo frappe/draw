@@ -271,18 +271,10 @@ function whiteboardBody(doc) {
     .join('')
   const strokes = (model.strokes || []).map(whiteboardStroke).join('')
   const stickies = (model.stickyNotes || []).map(whiteboardSticky).join('')
-  const stamps = (model.stamps || []).map(whiteboardStamp).join('')
   return {
     viewBox: `${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}`,
-    body: connectors + shapes + strokes + stickies + stamps,
+    body: connectors + shapes + strokes + stickies,
   }
-}
-
-function whiteboardStamp(stamp) {
-  if (stamp.kind === 'dot') {
-    return `<circle cx="${stamp.x}" cy="${stamp.y}" r="9" fill="#E03636" stroke="#FFFFFF" stroke-width="1.5"/>`
-  }
-  return `<text x="${stamp.x}" y="${stamp.y}" text-anchor="middle" dominant-baseline="central" font-size="22">${escapeText(stamp.kind)}</text>`
 }
 
 function whiteboardStroke(stroke) {

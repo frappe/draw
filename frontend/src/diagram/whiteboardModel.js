@@ -64,38 +64,36 @@ export function makeTable(x, y, partial = {}) {
   }
 }
 
-// A reaction / vote stamp dropped on the board (spec 15.5). `kind` is an emoji
-// (👍 ❤️ …) or 'dot' for dot-voting.
-export function makeStamp(x, y, kind = '👍') {
-  return { id: nextId('ws'), x, y, kind }
-}
-
 export function createWhiteboard(sketchStyle = false) {
-  return { sketchStyle, strokes: [], stickyNotes: [], lines: [], tables: [], stamps: [] }
+  return { sketchStyle, strokes: [], stickyNotes: [], lines: [], tables: [], votes: {} }
 }
 
-export function stampById(model, id) {
-  return (model.stamps || []).find((s) => s.id === id)
+// --- Per-object votes (T3): a chat-reaction-style up/down tally attached to any
+// board object (stroke/sticky/line/table/image), keyed by "kind:id". Kept in one
+// map on the model rather than on each heterogeneous object, so rendering and
+// cleanup stay in a single place. Replaces the old free-floating stamp/dot tool.
+export function voteKey(kind, id) {
+  return `${kind}:${id}`
 }
 
-export function addStamp(model, x, y, kind) {
-  const stamp = makeStamp(x, y, kind)
-  if (!model.stamps) model.stamps = []
-  model.stamps.push(stamp)
-  return stamp.id
+export function voteFor(model, kind, id) {
+  return (model?.votes || {})[voteKey(kind, id)] || { up: 0, down: 0 }
 }
 
-export function removeStamp(model, id) {
-  model.stamps = (model.stamps || []).filter((s) => s.id !== id)
+// Bump the up or down tally for an object, never below zero. Returns nothing;
+// callers wrap it in a history commit.
+export function applyVote(model, kind, id, dir, delta = 1) {
+  if (!model.votes) model.votes = {}
+  const key = voteKey(kind, id)
+  const current = model.votes[key] || { up: 0, down: 0 }
+  const next = { ...current, [dir]: Math.max(0, (current[dir] || 0) + delta) }
+  if (!next.up && !next.down) delete model.votes[key]
+  else model.votes[key] = next
 }
 
-const STAMP_RADIUS = 16
-export function stampAt(model, point) {
-  let hit = null
-  for (const s of model.stamps || []) {
-    if (Math.hypot(point.x - s.x, point.y - s.y) <= STAMP_RADIUS) hit = s
-  }
-  return hit
+// Drop an object's votes when it is deleted so the map never leaks stale keys.
+export function clearVote(model, kind, id) {
+  if (model?.votes) delete model.votes[voteKey(kind, id)]
 }
 
 export function tableById(model, id) {
@@ -267,7 +265,6 @@ export function whiteboardObjectBoxes(model) {
   for (const n of model.stickyNotes || []) out.push({ kind: 'sticky', id: n.id, box: { x: n.x, y: n.y, w: n.w, h: n.h } })
   for (const l of model.lines || []) out.push({ kind: 'line', id: l.id, box: lineBox(l) })
   for (const t of model.tables || []) out.push({ kind: 'table', id: t.id, box: { x: t.x, y: t.y, w: tableWidth(t), h: tableHeight(t) } })
-  for (const st of model.stamps || []) out.push({ kind: 'stamp', id: st.id, box: { x: st.x - STAMP_RADIUS, y: st.y - STAMP_RADIUS, w: STAMP_RADIUS * 2, h: STAMP_RADIUS * 2 } })
   return out
 }
 
@@ -286,9 +283,6 @@ export function translateWhiteboardObject(model, kind, id, dx, dy) {
   } else if (kind === 'table') {
     const t = tableById(model, id)
     if (t) { t.x += dx; t.y += dy }
-  } else if (kind === 'stamp') {
-    const st = stampById(model, id)
-    if (st) { st.x += dx; st.y += dy }
   }
 }
 

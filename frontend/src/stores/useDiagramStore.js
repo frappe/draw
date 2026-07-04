@@ -32,8 +32,8 @@ import {
   removeTable,
   tableById,
   setTableCell,
-  addStamp,
-  removeStamp,
+  applyVote,
+  clearVote,
 } from '@/diagram/whiteboardModel.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 
@@ -196,7 +196,11 @@ function attachWhiteboard(store, state, history) {
   }
   attachWhiteboardLines(store, state, history)
   attachWhiteboardTables(store, state, history)
-  attachWhiteboardStamps(store, state, history)
+  // Per-object up/down vote (T3): one undoable unit; dir is 'up' | 'down'.
+  store.voteWhiteboardObject = (kind, id, dir, delta = 1) => {
+    if (!state.whiteboard) return
+    history.commit('Vote', () => applyVote(state.whiteboard, kind, id, dir, delta))
+  }
   // Generic per-type model update (e.g. sketch-style toggle) as one undoable unit.
   store.updateWhiteboardModel = (label, mutatorFn) => {
     if (!state.whiteboard) return
@@ -206,12 +210,15 @@ function attachWhiteboard(store, state, history) {
   // (multi-selection Delete). Per-kind model removers, all in a single commit.
   const WB_REMOVE = {
     stroke: removeStroke, sticky: removeStickyNote, line: removeLine,
-    table: removeTable, stamp: removeStamp,
+    table: removeTable,
   }
   store.removeWhiteboardObjects = (items) => {
     if (!state.whiteboard || !items?.length) return
     history.commit('Delete objects', () => {
-      for (const { kind, id } of items) WB_REMOVE[kind]?.(state.whiteboard, id)
+      for (const { kind, id } of items) {
+        WB_REMOVE[kind]?.(state.whiteboard, id)
+        clearVote(state.whiteboard, kind, id) // don't leak votes for deleted objects
+      }
     })
   }
 }
@@ -256,20 +263,6 @@ function attachWhiteboardTables(store, state, history) {
   store.removeTable = (id) => {
     if (!state.whiteboard) return
     history.commit('Delete table', () => removeTable(state.whiteboard, id))
-  }
-}
-
-// Reaction/vote stamps (15.5). One undoable unit each.
-function attachWhiteboardStamps(store, state, history) {
-  store.addStamp = (x, y, kind) => {
-    if (!state.whiteboard) return null
-    let id = null
-    history.commit('Add stamp', () => (id = addStamp(state.whiteboard, x, y, kind)))
-    return id
-  }
-  store.removeStamp = (id) => {
-    if (!state.whiteboard) return
-    history.commit('Delete stamp', () => removeStamp(state.whiteboard, id))
   }
 }
 
@@ -437,10 +430,10 @@ function attachSelection(store, state) {
       ...state.shapes.filter((s) => !s.locked && !s.hidden).map((shape) => shape.id),
       ...state.connectors.map((c) => c.id),
     ]
-    // A whiteboard's freehand/sticky/line/table/stamp objects live in the
-    // whiteboard UI selection, not state.selection — Select All must reach them
-    // too, or Cmd+A → Delete would leave the board untouched (T1). Image shapes
-    // (ordinary block shapes) are already covered by state.selection above.
+    // A whiteboard's freehand/sticky/line/table objects live in the whiteboard UI
+    // selection, not state.selection — Select All must reach them too, or Cmd+A →
+    // Delete would leave the board untouched (T1). Image shapes (ordinary block
+    // shapes) are already covered by state.selection above.
     if (state.diagramType === 'whiteboard' && state.whiteboard) {
       const wb = state.whiteboard
       const all = [
@@ -448,7 +441,6 @@ function attachSelection(store, state) {
         ...wb.stickyNotes.map((o) => ({ kind: 'sticky', id: o.id })),
         ...(wb.lines || []).map((o) => ({ kind: 'line', id: o.id })),
         ...(wb.tables || []).map((o) => ({ kind: 'table', id: o.id })),
-        ...(wb.stamps || []).map((o) => ({ kind: 'stamp', id: o.id })),
       ]
       useWhiteboardUi().setSelection(all)
     }

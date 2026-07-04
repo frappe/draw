@@ -16,7 +16,7 @@ import { registerModeInteraction, useModeInteraction } from '@/composables/useMo
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { simplifyStroke } from '@/diagram/strokeSimplify.js'
 import {
-  strokeAt, lineAt, tableAt, tableCellAt, stampAt,
+  strokeAt, lineAt, tableAt, tableCellAt,
   whiteboardObjectBoxes, translateWhiteboardObject,
 } from '@/diagram/whiteboardModel.js'
 import { rectsIntersect } from '@/diagram/geometry.js'
@@ -29,7 +29,7 @@ const MARQUEE_MIN = 3 // ignore sub-3px drags (treat as a click)
 // The select-helper on the whiteboard UI for each object kind.
 const SELECT_FN = {
   stroke: 'selectStroke', sticky: 'selectSticky', line: 'selectLine',
-  table: 'selectTable', stamp: 'selectStamp',
+  table: 'selectTable',
 }
 
 export function useWhiteboardInteraction(store, editorUi) {
@@ -211,11 +211,8 @@ function selectAt(context, store, ui) {
   ui[SELECT_FN[hit.kind]](hit.id)
 }
 
-// Topmost whiteboard object under the point, or null. Stamps > tables > lines >
-// strokes.
+// Topmost whiteboard object under the point, or null. Tables > lines > strokes.
 function whiteboardHitAt(model, point) {
-  const stamp = stampAt(model, point)
-  if (stamp) return { kind: 'stamp', id: stamp.id }
   const table = tableAt(model, point)
   if (table) return { kind: 'table', id: table.id }
   const line = lineAt(model, point, ERASER_TOLERANCE)

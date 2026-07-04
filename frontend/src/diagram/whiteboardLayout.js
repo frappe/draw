@@ -14,7 +14,6 @@ export function whiteboardContentBounds(model, shapes = []) {
   unionStrokes(box, model)
   unionStickies(box, model)
   unionShapes(box, shapes)
-  unionStamps(box, model)
   unionLines(box, model)
   unionTables(box, model)
   // Empty board: center the fallback box on the canvas centre (1280×720 default)
@@ -56,10 +55,6 @@ function unionShapes(box, shapes) {
     expand(box, rect.x, rect.y)
     expand(box, rect.x + rect.w, rect.y + rect.h)
   }
-}
-
-function unionStamps(box, model) {
-  for (const stamp of model?.stamps || []) expand(box, stamp.x, stamp.y)
 }
 
 function unionLines(box, model) {
