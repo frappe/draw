@@ -124,19 +124,21 @@ function toggleClass(active) {
   return active ? 'bg-surface-gray-2 text-ink-gray-9' : ''
 }
 
-// Dotted guides cycle through three states: No → Rare → Dense → No.
+// Dotted guides: a popover menu with the three states (S7), the current one
+// marked selected — instead of cycling on click (which wasn't discoverable).
 const guidesState = computed(() => {
   if (!editorUi.state.gridVisible) return 'no'
   return editorUi.state.gridDensity === 'sparse' ? 'rare' : 'dense'
 })
-const guidesLabel = computed(() =>
-  ({ no: 'Guides: off', rare: 'Guides: rare', dense: 'Guides: dense' })[guidesState.value],
-)
-function cycleGuides() {
-  const next = { no: 'rare', rare: 'dense', dense: 'no' }[guidesState.value]
-  editorUi.state.gridVisible = next !== 'no'
-  if (next === 'rare') editorUi.setGridDensity('sparse')
-  if (next === 'dense') editorUi.setGridDensity('dense')
+const GUIDE_OPTIONS = [
+  { key: 'no', label: 'No guides', icon: 'square' },
+  { key: 'rare', label: 'Rare guides', icon: 'more-horizontal' },
+  { key: 'dense', label: 'Dense guides', icon: 'grid' },
+]
+function setGuides(state) {
+  editorUi.state.gridVisible = state !== 'no'
+  if (state === 'rare') editorUi.setGridDensity('sparse')
+  if (state === 'dense') editorUi.setGridDensity('dense')
 }
 </script>
 
@@ -294,17 +296,33 @@ function cycleGuides() {
       </Tooltip>
     </template>
 
-    <!-- Guides: hidden on the whiteboard (it's a plain white board, Q4). -->
+    <!-- Guides: a popover menu (No / Rare / Dense); hidden on the whiteboard (Q4). -->
     <template v-if="!isWhiteboard">
       <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-      <Tooltip :text="guidesLabel">
-        <button
-          :class="[buttonBase, toggleClass(guidesState !== 'no')]"
-          @click="cycleGuides()"
-        >
-          <LucideIcon :name="guidesState === 'rare' ? 'more-horizontal' : 'grid'" class="h-4 w-4" />
-        </button>
-      </Tooltip>
+      <Popover>
+        <template #target="{ togglePopover }">
+          <Tooltip text="Guides">
+            <button :class="[buttonBase, toggleClass(guidesState !== 'no')]" @click="togglePopover()">
+              <LucideIcon :name="guidesState === 'rare' ? 'more-horizontal' : 'grid'" class="h-4 w-4" />
+            </button>
+          </Tooltip>
+        </template>
+        <template #body-main="{ togglePopover }">
+          <div class="w-40 p-1">
+            <button
+              v-for="opt in GUIDE_OPTIONS"
+              :key="opt.key"
+              class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-surface-gray-2"
+              :class="guidesState === opt.key ? 'text-ink-gray-9' : 'text-ink-gray-7'"
+              @click="setGuides(opt.key); togglePopover()"
+            >
+              <LucideIcon :name="opt.icon" class="h-4 w-4 text-ink-gray-6" />
+              {{ opt.label }}
+              <LucideIcon v-if="guidesState === opt.key" name="check" class="ml-auto h-4 w-4 text-ink-gray-9" />
+            </button>
+          </div>
+        </template>
+      </Popover>
     </template>
 
   </div>

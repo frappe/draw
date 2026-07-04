@@ -80,16 +80,8 @@ watch(
   },
 )
 
-// Only block diagrams open with dotted guides; every other type starts on a
-// plain white canvas (guides can be turned on from the bottom palette). The type
-// is only known once the document loads, so default it then.
-watch(
-  () => store.state.diagramType,
-  (type) => {
-    if (type && type !== 'block') editorUi.state.gridVisible = false
-  },
-  { immediate: true },
-)
+// Every type now opens on a plain white canvas (S6); guides are off by default
+// (editorUi.state.gridVisible) and turned on from the bottom-palette control.
 
 function rename(title) {
   diagram.setValue.submit({ title })

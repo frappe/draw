@@ -13,7 +13,7 @@ export function createEditorUi() {
     tool: 'select',
     drawShapeType: 'rectangle',
     lastShapeType: 'rectangle',
-    gridVisible: true,
+    gridVisible: false,
     gridDensity: 'dense',
     snapToGrid: false,
     infiniteCanvas: false,
