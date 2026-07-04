@@ -314,11 +314,38 @@ function fitContentSize() {
   return { w: canvas.value.width, h: canvas.value.height }
 }
 
+// A brand-new whiteboard has no content to frame; opening it zoomed-to-fit the
+// empty fallback box lands at ~84%, which reads as "already zoomed" (U3). Open a
+// blank board at a clean 100% instead.
+const isBlankWhiteboard = computed(() => {
+  if (!isWhiteboard.value) return false
+  const wb = store.state.whiteboard
+  return (
+    wb &&
+    !wb.strokes.length &&
+    !wb.stickyNotes.length &&
+    !(wb.lines || []).length &&
+    !(wb.tables || []).length &&
+    !store.state.shapes.length
+  )
+})
+
 function fitToView() {
   if (!surface.value) return
   const bounds = surface.value.getBoundingClientRect()
   viewWidth.value = bounds.width
   viewHeight.value = bounds.height
+  if (isBlankWhiteboard.value) {
+    viewport.setMeasure({
+      containerW: bounds.width,
+      containerH: bounds.height,
+      canvasW: canvas.value.width,
+      canvasH: canvas.value.height,
+      originX: 0,
+      originY: 0,
+    })
+    return viewport.reset() // 100%, centred on the paper
+  }
   const size = fitContentSize()
   const framesOwnBounds = rendersOwnLayer.value && !!ownLayerBounds.value
   const origin = (framesOwnBounds && ownLayerBounds.value) || { x: 0, y: 0 }

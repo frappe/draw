@@ -24,7 +24,9 @@ const HEIGHT = 120
 const PAD = 24
 
 const type = computed(() => modeStrategy.value.type)
-const shown = computed(() => type.value !== 'whiteboard' && items.value.length > 0)
+// The whiteboard has its own navigator; every other type shows this one, even
+// when empty, so the mini-navigator is always available (S4/B2/N15).
+const shown = computed(() => type.value !== 'whiteboard')
 
 // Live surface pixel size (for the viewport rectangle).
 const surfaceSize = ref({ w: 0, h: 0 })
