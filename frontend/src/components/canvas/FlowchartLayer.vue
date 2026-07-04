@@ -239,17 +239,31 @@ function onLeave(id) {
         :stroke-width="isSelected(node.id) ? 2.5 : 1.5"
       />
 
-      <!-- Inline text editor (foreignObject) or static label. -->
+      <!-- Inline text editor (wraps; Enter commits, Shift+Enter adds a line). -->
       <foreignObject v-if="editingId === node.id" x="6" y="6" :width="size.w - 12" :height="size.h - 12">
-        <input
+        <textarea
           :value="node.text"
-          class="h-full w-full bg-transparent text-center text-[14px] outline-none"
-          style="font-family: Inter, sans-serif; color: #1f2933"
+          class="h-full w-full resize-none bg-transparent text-center text-[14px] outline-none"
+          style="font-family: Inter, sans-serif; color: #1f2933; line-height: 1.2; overflow: hidden"
           autofocus
-          @keydown.enter.prevent="commitEdit(node.id, $event.target.value)"
+          @keydown.enter.exact.prevent="commitEdit(node.id, $event.target.value)"
           @blur="commitEdit(node.id, $event.target.value)"
           @pointerdown.stop
         />
+      </foreignObject>
+      <!-- Junction text wraps horizontally and overflows vertically past the small
+           circle (P11): a tall, node-centred box that spills up/down as text grows. -->
+      <foreignObject
+        v-else-if="node.nodeType === 'connector' && node.text"
+        x="2"
+        :y="(size.h - 220) / 2"
+        :width="size.w - 4"
+        height="220"
+        style="overflow: visible; pointer-events: none"
+      >
+        <div class="flex h-full w-full items-center justify-center text-center">
+          <span :style="{ color: ink, fontFamily: 'Inter, sans-serif', fontSize: '13px', lineHeight: '1.2', wordBreak: 'break-word' }">{{ node.text }}</span>
+        </div>
       </foreignObject>
       <text
         v-else-if="node.nodeType !== 'connector'"
