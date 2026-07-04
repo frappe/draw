@@ -27,7 +27,7 @@ const RECENT_LIMIT = 24
 
 const enriched = createListResource({
   doctype: 'Draw Diagram',
-  fields: ['name', 'title', 'creation', 'modified', 'folder', 'diagram_type', 'is_pinned', 'document'],
+  fields: ['name', 'title', 'creation', 'modified', 'folder', 'diagram_type', 'is_pinned', 'owner', 'document'],
   filters: { is_trashed: 0 },
   orderBy: 'modified desc',
   pageLength: 500,
@@ -293,6 +293,7 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       <span class="w-[18px] flex-none" />
       <span class="h-8 w-8 flex-none" />
       <span class="min-w-0 flex-1">Name</span>
+      <span class="hidden w-28 flex-none lg:inline">Owner</span>
       <span class="hidden w-28 flex-none md:inline">Created</span>
       <span class="hidden w-28 flex-none sm:inline">Last edited</span>
       <span class="w-7 flex-none" />

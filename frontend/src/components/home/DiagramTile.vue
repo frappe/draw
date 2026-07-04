@@ -4,7 +4,7 @@
 // carry the title, created + edited times, a selection checkbox, and a ⋯ menu
 // (Pin/Unpin · Rename · Duplicate · Delete).
 import { computed } from 'vue'
-import { Dropdown } from 'frappe-ui'
+import { Dropdown, toast } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { documentToSvg, isDocumentEmpty } from '@/composables/useThumbnail.js'
 import { typeIcon, typeLabel } from '@/data/diagramTypes.js'
@@ -29,18 +29,38 @@ const typeName = computed(() => typeLabel(props.diagram.diagram_type))
 const isPinned = computed(() => Boolean(props.diagram.is_pinned))
 const createdLabel = computed(() => relativeTime(props.diagram.creation))
 const editedLabel = computed(() => relativeTime(props.diagram.modified))
+// Owner column (I3): friendly name — drop the @domain from a user-id email.
+const ownerLabel = computed(() => {
+  const owner = props.diagram.owner || ''
+  return owner.includes('@') ? owner.split('@')[0] : owner
+})
 
 // Pinning is capped (5). An unpinned diagram can't be pinned once the cap is
 // hit — its menu item greys out and says why.
 const pinBlocked = computed(() => !isPinned.value && props.pinLimitReached)
 
-// Pin lives on the one-click star now (Gmail-style), so the ⋯ menu is just
-// rename / duplicate / delete.
+// Curated ⋯ menu (Drive-style, I5): pin/unpin, copy link, rename, duplicate,
+// delete. (Move / Show info / Share need dedicated dialogs — tracked separately.)
 const menuItems = computed(() => [
+  {
+    label: isPinned.value ? 'Unpin' : 'Pinned',
+    icon: 'pin',
+    onClick: togglePin,
+  },
+  { label: 'Copy link', icon: 'link', onClick: copyLink },
   { label: 'Rename', icon: 'edit-2', onClick: () => emit('rename', props.diagram) },
   { label: 'Duplicate', icon: 'copy', onClick: () => emit('duplicate', props.diagram) },
   { label: 'Delete', icon: 'trash-2', theme: 'red', onClick: () => emit('delete', props.diagram) },
 ])
+
+// Copy the diagram's editor link to the clipboard (spec I5, "under sharing").
+function copyLink() {
+  const url = `${window.location.origin}/frappe_draw/d/${props.diagram.name}`
+  navigator.clipboard?.writeText(url).then(
+    () => toast.success('Link copied'),
+    () => toast.error('Could not copy link'),
+  )
+}
 
 // The star's title/behaviour depends on whether pinning is still allowed (cap 5).
 const pinTitle = computed(() =>
@@ -113,6 +133,7 @@ function onDragStart(event) {
       <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-ink-gray-9">
         {{ diagram.title }}
       </span>
+      <span class="hidden w-28 flex-none truncate text-[11px] text-ink-gray-5 lg:inline">{{ ownerLabel }}</span>
       <span class="hidden w-28 flex-none text-[11px] text-ink-gray-5 md:inline">Created {{ createdLabel }}</span>
       <span class="hidden w-28 flex-none text-[11px] text-ink-gray-5 sm:inline">Edited {{ editedLabel }}</span>
     </button>
