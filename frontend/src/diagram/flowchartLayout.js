@@ -101,16 +101,36 @@ export function pointsToPath(points) {
   return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
 }
 
+// Where a branch label (a decision's Yes/No) sits: a short way along the route
+// from the source port, so it hugs the edge just OUTSIDE the node it leaves
+// rather than overlapping the shape (P10). On a very short edge it falls back to
+// the true midpoint so the pill still lands on the line.
+const LABEL_OFFSET = 30
 function midpointOf(points) {
-  // Midpoint of the longest interior segment reads best for a label pill.
-  let best = { length: -1, point: points[0] }
+  const total = totalLength(points)
+  return pointAtDistance(points, Math.min(LABEL_OFFSET, total / 2))
+}
+
+function totalLength(points) {
+  let sum = 0
+  for (let i = 0; i < points.length - 1; i += 1) sum += Math.hypot(points[i + 1].x - points[i].x, points[i + 1].y - points[i].y)
+  return sum
+}
+
+// Walk the polyline from the start until `dist` is consumed; return that point.
+function pointAtDistance(points, dist) {
+  let remaining = dist
   for (let i = 0; i < points.length - 1; i += 1) {
     const a = points[i]
     const b = points[i + 1]
-    const length = Math.hypot(b.x - a.x, b.y - a.y)
-    if (length > best.length) best = { length, point: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } }
+    const segLen = Math.hypot(b.x - a.x, b.y - a.y)
+    if (segLen >= remaining) {
+      const t = segLen === 0 ? 0 : remaining / segLen
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
+    }
+    remaining -= segLen
   }
-  return best.point
+  return points[points.length - 1]
 }
 
 // Arrowhead angle (degrees) from the last segment of the route.

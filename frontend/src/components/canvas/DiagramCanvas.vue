@@ -689,7 +689,7 @@ const surfaceCursor = computed(() => {
     role="application"
     aria-label="Diagram canvas"
     :data-fdpreset="store.state.themePreset"
-    :style="[themeStyle, { cursor: surfaceCursor, background: canvas.background || '#FFFFFF' }]"
+    :style="[themeStyle, { cursor: surfaceCursor, background: canvas.background || '#FFFFFF', userSelect: 'none', WebkitUserSelect: 'none' }]"
     class="relative h-full w-full overflow-auto"
     @wheel.prevent="onWheel"
     @scroll="onScroll"
@@ -821,3 +821,16 @@ const surfaceCursor = computed(() => {
     />
   </div>
 </template>
+
+<style scoped>
+/* The canvas suppresses native text selection so drawing a line / dragging never
+   flashes-selects the text inside shape/sticky foreignObjects (Q15). Editable
+   fields (inline text/table/sticky editors) re-enable it so typing + caret
+   selection still work. */
+:deep([contenteditable='true']),
+:deep(input),
+:deep(textarea) {
+  user-select: text;
+  -webkit-user-select: text;
+}
+</style>
