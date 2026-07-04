@@ -94,6 +94,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
           />
           <TableOptions
             v-else
+            mode="edit"
             :rows="table.rows"
             :cols="table.cols"
             :color="table.color"

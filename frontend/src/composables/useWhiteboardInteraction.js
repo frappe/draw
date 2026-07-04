@@ -208,6 +208,17 @@ function selectAt(context, store, ui) {
   const hit = whiteboardHitAt(store.state.whiteboard, context.point)
   if (!hit) return beginMarquee(context, store, ui)
   if (isAdditiveEvent(context.event)) return ui.toggleSelected(hit.kind, hit.id)
+  // Frappe-Writer-style table editing (T2): the first click selects the table;
+  // once it's selected, clicking a cell drops the caret straight into that cell
+  // (no double-click needed). Tables aren't drag-moved, so this steals no gesture.
+  if (hit.kind === 'table' && ui.isSelected('table', hit.id)) {
+    const table = tableAt(store.state.whiteboard, context.point)
+    const cell = table && tableCellAt(table, context.point)
+    if (cell) {
+      ui.state.editingCell = { tableId: table.id, row: cell.row, col: cell.col }
+      return
+    }
+  }
   ui[SELECT_FN[hit.kind]](hit.id)
 }
 

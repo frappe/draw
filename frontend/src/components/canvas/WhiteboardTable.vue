@@ -101,6 +101,20 @@ function cancelEdit() {
       stroke-width="1"
     />
 
+    <!-- Active cell highlight so the selected/editing cell reads clearly (T2). -->
+    <rect
+      v-if="editingCell"
+      :x="table.x + editingCell.col * table.cellW"
+      :y="table.y + editingCell.row * table.cellH"
+      :width="table.cellW"
+      :height="table.cellH"
+      fill="#006EDB"
+      fill-opacity="0.08"
+      stroke="#006EDB"
+      stroke-width="1.5"
+      style="pointer-events: none"
+    />
+
     <!-- Committed cell text (centered). -->
     <text
       v-for="cell in cells"
