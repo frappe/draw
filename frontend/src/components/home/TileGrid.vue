@@ -12,7 +12,7 @@ import { createListResource, Dialog, Button, FormControl, Dropdown, TextInput, T
 import LucideIcon from '@/icons/LucideIcon.vue'
 import DiagramCollection from './DiagramCollection.vue'
 import FolderItem from './FolderItem.vue'
-import { folders, moveDiagramToFolder } from '@/data/folders.js'
+import { folders, moveDiagramToFolder, deleteFolder } from '@/data/folders.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
 import { DIAGRAM_TYPES, typeLabel } from '@/data/diagramTypes.js'
 
@@ -116,14 +116,22 @@ const recentList = computed(() => [...visibleRows.value].sort(byNewest).slice(0,
 const allFlat = computed(() => [...visibleRows.value].sort(bySort))
 
 // --- selection + bulk delete ----------------------------------------------
+// Diagrams and folders select in parallel sets (they delete via different paths:
+// diagrams trash, folders delete). The bulk bar + Delete act on both (H2).
 const selected = reactive(new Set())
-const selectedCount = computed(() => selected.size)
+const selectedFolders = reactive(new Set())
+const selectedCount = computed(() => selected.size + selectedFolders.size)
 function toggleSelect(name) {
   if (selected.has(name)) selected.delete(name)
   else selected.add(name)
 }
+function toggleSelectFolder(name) {
+  if (selectedFolders.has(name)) selectedFolders.delete(name)
+  else selectedFolders.add(name)
+}
 function clearSelection() {
   selected.clear()
+  selectedFolders.clear()
 }
 
 // The diagrams selectable in the current view (folders excluded), so Select all
@@ -160,26 +168,36 @@ watchEffect(() => {
   if (masterCheckbox.value) masterCheckbox.value.indeterminate = someSelected.value
 })
 
-const confirmDelete = reactive({ open: false, names: [] })
-function askDelete(names) {
+const confirmDelete = reactive({ open: false, names: [], folders: [] })
+function askDelete(names, folderNames = []) {
   confirmDelete.names = names
+  confirmDelete.folders = folderNames
   confirmDelete.open = true
 }
 const confirmMessage = computed(() => {
   const n = confirmDelete.names.length
-  return `Move ${n} diagram${n === 1 ? '' : 's'} to Trash? You can restore ${n === 1 ? 'it' : 'them'} from Trash.`
+  const f = confirmDelete.folders.length
+  const parts = []
+  if (n) parts.push(`move ${n} diagram${n === 1 ? '' : 's'} to Trash`)
+  if (f) parts.push(`delete ${f} folder${f === 1 ? '' : 's'}`)
+  const tail = f ? ' Folders are removed; the diagrams inside keep their data.' : ` You can restore ${n === 1 ? 'it' : 'them'} from Trash.`
+  return `${parts.join(' and ').replace(/^./, (c) => c.toUpperCase())}?${tail}`
 })
 async function performDelete() {
   for (const name of confirmDelete.names) {
     await enriched.setValue.submit({ name, is_trashed: 1, trashed_on: frappeNow() })
   }
+  for (const folderName of confirmDelete.folders) {
+    await deleteFolder(folderName)
+  }
   confirmDelete.open = false
   confirmDelete.names = []
+  confirmDelete.folders = []
   clearSelection()
   refresh()
 }
 function deleteSelected() {
-  askDelete([...selected])
+  askDelete([...selected], [...selectedFolders])
 }
 function trash(diagram) {
   askDelete([diagram.name])
@@ -329,8 +347,10 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
             :key="group.folder.name"
             :folder="group.folder"
             :count="group.count"
+            :selected="selectedFolders.has(group.folder.name)"
             view="tile"
             @open="emit('open-folder', group.folder)"
+            @toggle-select="toggleSelectFolder"
             @drop-diagram="dropOnFolder(group.folder.name, $event)"
           />
         </div>
@@ -340,8 +360,10 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
             :key="group.folder.name"
             :folder="group.folder"
             :count="group.count"
+            :selected="selectedFolders.has(group.folder.name)"
             view="list"
             @open="emit('open-folder', group.folder)"
+            @toggle-select="toggleSelectFolder"
             @drop-diagram="dropOnFolder(group.folder.name, $event)"
           />
         </div>
