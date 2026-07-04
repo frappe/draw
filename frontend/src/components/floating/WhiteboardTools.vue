@@ -6,7 +6,7 @@
 // disclosure; board-wide settings and the selected-object editor follow. All
 // chrome is Frappe UI.
 import { computed } from 'vue'
-import { Popover, Tooltip, Button } from 'frappe-ui'
+import { Popover, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
@@ -22,20 +22,17 @@ const ui = useWhiteboardUi()
 const imageInsert = useImageInsert(store)
 
 const TOOLS = [
-  { tool: 'pen', icon: 'edit-2', label: 'Pen' },
-  { tool: 'highlighter', icon: 'edit-3', label: 'Highlighter' },
-  { tool: 'eraser', icon: 'delete', label: 'Eraser' },
-  { tool: 'text', icon: 'type', label: 'Text (or double-click)' },
+  { tool: 'pen', icon: 'pen-line', label: 'Pen' },
+  { tool: 'highlighter', icon: 'highlighter', label: 'Highlighter' },
+  { tool: 'eraser', icon: 'eraser', label: 'Eraser' },
+  { tool: 'text', icon: 'type', label: 'Text' },
   { tool: 'sticky', icon: 'square', label: 'Sticky note' },
   { tool: 'line', icon: 'minus', label: 'Line' },
   { tool: 'table', icon: 'grid', label: 'Table' },
-  { tool: 'stamp', icon: 'award', label: 'Stamp / vote' },
   { tool: 'laser', icon: 'zap', label: 'Laser pointer' },
 ]
 // Tools that expose options in the disclosure popover.
-const OPTION_TOOLS = ['pen', 'highlighter', 'sticky', 'line', 'table', 'stamp']
-// Stamp glyphs offered by the stamp tool ('dot' = a vote dot for dot-voting).
-const STAMPS = ['👍', '❤️', '⭐', '✅', '🔥', '🎉', '❓', 'dot']
+const OPTION_TOOLS = ['pen', 'highlighter', 'sticky', 'line', 'table']
 
 const activeTool = computed(() => editorUi.state.tool)
 const activeHasOptions = computed(() => OPTION_TOOLS.includes(activeTool.value))
@@ -48,11 +45,6 @@ const buttonBase =
   'flex h-[34px] w-[34px] items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2'
 function toggleClass(active) {
   return active ? 'bg-surface-gray-2 text-ink-gray-9' : ''
-}
-
-const sketchOn = () => Boolean(store.state.whiteboard?.sketchStyle)
-function toggleSketch() {
-  store.updateWhiteboardModel('Sketch style', (model) => (model.sketchStyle = !model.sketchStyle))
 }
 
 // New-line / new-table defaults live on ui.state; LineOptions/TableOptions emit a
@@ -173,43 +165,6 @@ function applyTableDefault(patch) {
         :color="ui.state.penColor"
         @change="applyTableDefault"
       />
-
-      <!-- Stamp: which glyph the stamp tool drops (dot = a vote dot). -->
-      <div v-else-if="activeTool === 'stamp'" class="w-48 p-2">
-        <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Stamp</div>
-        <div class="grid grid-cols-8 gap-1.5">
-          <button
-            v-for="s in STAMPS"
-            :key="s"
-            class="flex h-6 w-6 items-center justify-center rounded text-[16px] leading-none"
-            :class="ui.state.stampKind === s ? 'bg-surface-gray-3' : 'hover:bg-surface-gray-2'"
-            :aria-label="`Stamp ${s}`"
-            @click="ui.state.stampKind = s"
-          >
-            <span v-if="s === 'dot'" class="h-3.5 w-3.5 rounded-full bg-[#E03636]" />
-            <span v-else>{{ s }}</span>
-          </button>
-        </div>
-      </div>
-    </template>
-  </Popover>
-
-  <!-- Board options: sketch + navigator. -->
-  <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-  <Popover>
-    <template #target="{ togglePopover }">
-      <Tooltip text="Board options">
-        <button :class="buttonBase" @click="togglePopover()">
-          <LucideIcon name="settings" class="h-4 w-4" />
-        </button>
-      </Tooltip>
-    </template>
-    <template #body-main>
-      <div class="w-56 p-2">
-        <Button class="w-full" :variant="sketchOn() ? 'solid' : 'subtle'" @click="toggleSketch">
-          {{ sketchOn() ? 'Sketch style: on' : 'Sketch style: off' }}
-        </Button>
-      </div>
     </template>
   </Popover>
 </template>

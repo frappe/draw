@@ -62,14 +62,30 @@ function onPointerDown(event, context, ctx) {
   if (tool === 'sticky') return placeSticky(context, store, ui)
   if (tool === 'line') return beginLine(context, ui, lining)
   if (tool === 'table') return placeTable(context, store, editorUi, ui)
-  if (tool === 'stamp') return placeStamp(context, store, editorUi, ui)
+  if (tool === 'text') return placeText(context, store)
   if (tool === 'select') return selectAt(context, store, ui)
 }
 
-// Drop a reaction/vote stamp at the click and stay on the tool (so you can keep
-// stamping — e.g. dot-voting), per spec 15.5.
-function placeStamp(context, store, editorUi, ui) {
-  store.addStamp(context.point.x, context.point.y, ui.state.stampKind)
+// Drop a text box at the click and enter edit (S12 — the text tool now places on
+// a single click, cursor already a crosshair). Shared with double-click-to-type.
+function placeText(context, store) {
+  const w = 180
+  const h = 44
+  const id = store.addShape({
+    type: 'text',
+    x: context.point.x - w / 2,
+    y: context.point.y - h / 2,
+    w,
+    h,
+    text: {
+      content: '',
+      align: 'left',
+      valign: 'top',
+      style: { font: HANDWRITTEN_FONT, color: contrastInk(store.state.canvas.background || '#FFFFFF') },
+    },
+  })
+  context.editorUi.setTool('select')
+  context.editing?.beginTextEdit(id)
 }
 
 // Start a straight line; the live preview renders from ui.liveLine until pointer-up.

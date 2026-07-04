@@ -574,9 +574,14 @@ function distanceToSegment(point, a, b) {
 const DRAW_CURSOR =
   "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><line x1='12' y1='3' x2='12' y2='21' stroke='black' stroke-width='1.5' stroke-dasharray='2 2'/><line x1='3' y1='12' x2='21' y2='12' stroke='black' stroke-width='1.5' stroke-dasharray='2 2'/></svg>\") 12 12, crosshair"
 
+// Whiteboard placement/drawing tools show a crosshair so it's clear a click will
+// place/draw (S12: arming Text → crosshair, click starts the text box).
+const CROSSHAIR_TOOLS = ['text', 'sticky', 'line', 'table', 'pen', 'highlighter', 'eraser']
 const surfaceCursor = computed(() => {
-  if (editorUi.state.tool === 'hand') return 'grab'
-  if (editorUi.state.tool === 'draw') return DRAW_CURSOR
+  const tool = editorUi.state.tool
+  if (tool === 'hand') return 'grab'
+  if (tool === 'draw') return DRAW_CURSOR
+  if (CROSSHAIR_TOOLS.includes(tool)) return 'crosshair'
   return 'default'
 })
 </script>

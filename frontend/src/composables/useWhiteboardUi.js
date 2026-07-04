@@ -99,7 +99,9 @@ const LASER_FADE_MS = 650
 function attachLaser(api, laserTrail) {
   let raf = null
   api.pushLaserPoint = (point) => {
-    laserTrail.value = [...prune(laserTrail.value), { ...point, at: performance.now() }]
+    // A single dot that follows the pointer — no fading trail (S8). Keep only the
+    // latest point; the prune loop clears it shortly after the pointer stops.
+    laserTrail.value = [{ ...point, at: performance.now() }]
     schedulePrune()
   }
   api.clearLaser = () => {
