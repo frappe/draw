@@ -84,7 +84,7 @@ const panel = 'max-h-[70vh] w-[264px] overflow-y-auto'
         </Popover>
       </template>
 
-      <!-- Shapes selected: fill, text, arrange, link, opacity. -->
+      <!-- Shapes selected: fill+border+opacity, text, arrange, link. -->
       <template v-else-if="hasShapes">
         <Popover>
           <template #target="{ togglePopover }">
@@ -94,7 +94,7 @@ const panel = 'max-h-[70vh] w-[264px] overflow-y-auto'
               </button>
             </Tooltip>
           </template>
-          <template #body-main><div :class="panel"><FillBorderSection /></div></template>
+          <template #body-main><div :class="panel"><FillBorderSection /><TransparencySection /></div></template>
         </Popover>
 
         <Popover>
@@ -124,14 +124,13 @@ const panel = 'max-h-[70vh] w-[264px] overflow-y-auto'
 
         <Popover>
           <template #target="{ togglePopover }">
-            <Tooltip text="Link & opacity">
+            <Tooltip text="Link">
               <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="link" class="h-4 w-4" /></button>
             </Tooltip>
           </template>
           <template #body-main>
             <div :class="panel">
               <LinkSection />
-              <TransparencySection />
             </div>
           </template>
         </Popover>
