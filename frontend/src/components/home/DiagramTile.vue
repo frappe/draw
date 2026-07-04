@@ -97,7 +97,7 @@ function onDragStart(event) {
   <!-- LIST ROW -->
   <div
     v-if="view === 'list'"
-    class="group relative flex items-center gap-3 rounded-lg border px-3 py-2"
+    class="group relative flex items-center gap-3 rounded-lg border px-3 py-1.5"
     :class="selected ? 'border-outline-blue-2 bg-surface-blue-1' : 'border-outline-gray-1 bg-surface-base hover:bg-surface-gray-1'"
     draggable="true"
     @dragstart="onDragStart"

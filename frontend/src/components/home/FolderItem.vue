@@ -26,7 +26,7 @@ function onDrop(event) {
   <!-- LIST ROW -->
   <div
     v-if="view === 'list'"
-    class="group flex w-full items-center gap-3 rounded-lg border px-3 py-2"
+    class="group flex w-full items-center gap-3 rounded-lg border px-3 py-1.5"
     :class="selected ? 'border-outline-blue-2 bg-surface-blue-1' : dragOver ? 'border-outline-blue-3 bg-surface-blue-1' : 'border-outline-gray-1 bg-surface-base hover:bg-surface-gray-1'"
     @dragover.prevent="dragOver = true"
     @dragleave="dragOver = false"
