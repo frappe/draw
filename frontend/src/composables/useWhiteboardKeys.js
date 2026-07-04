@@ -72,11 +72,9 @@ function deleteSelected(store, ui) {
   const shapeSelection = store.state.selection
   if (!wbSelection.length && !shapeSelection.length) return false
   // Delete every selected whiteboard object AND any selected image shapes (both
-  // reachable after Select All) — as undoable units.
-  if (wbSelection.length) {
-    store.removeWhiteboardObjects([...wbSelection])
-    ui.clearSelection()
-  }
-  if (shapeSelection.length) store.removeSelectionOrIds()
+  // reachable after Select All) as ONE undoable unit.
+  store.removeWhiteboardSelection([...wbSelection], [...shapeSelection])
+  ui.clearSelection()
+  if (shapeSelection.length) store.clearSelection()
   return true
 }

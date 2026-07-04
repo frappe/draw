@@ -18,6 +18,7 @@ import { isVisible, isInteractable } from '@/diagram/shapeFlags.js'
 import { layoutMindMap } from '@/diagram/mindmapLayout.js'
 import { flowchartContentBounds } from '@/diagram/flowchartLayout.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
+import { isWhiteboardEmpty } from '@/diagram/whiteboardModel.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { useSelection } from '@/composables/useSelection.js'
 import { useShapeCreation } from '@/composables/useShapeCreation.js'
@@ -87,6 +88,15 @@ const imageInsert = useImageInsert(store)
 // selection); we clear it when a block shape on the board is picked, so the two
 // selections never both show (S13/U1).
 const whiteboardUi = useWhiteboardUi()
+// The reverse guard: when a whiteboard object gets selected — including a sticky,
+// whose own handler stops propagation and never reaches the surface — drop any
+// lingering block-shape selection, so only one contextual toolbar is ever shown.
+watch(
+  () => whiteboardUi.state.selection.length,
+  (n) => {
+    if (n && store.state.selection.length) store.clearSelection()
+  },
+)
 
 // Dropping an image FILE inserts it at the drop point; otherwise fall back to the
 // palette-tile drop. dragover must preventDefault for files so the drop fires.
@@ -322,18 +332,9 @@ function fitContentSize() {
 // A brand-new whiteboard has no content to frame; opening it zoomed-to-fit the
 // empty fallback box lands at ~84%, which reads as "already zoomed" (U3). Open a
 // blank board at a clean 100% instead.
-const isBlankWhiteboard = computed(() => {
-  if (!isWhiteboard.value) return false
-  const wb = store.state.whiteboard
-  return (
-    wb &&
-    !wb.strokes.length &&
-    !wb.stickyNotes.length &&
-    !(wb.lines || []).length &&
-    !(wb.tables || []).length &&
-    !store.state.shapes.length
-  )
-})
+const isBlankWhiteboard = computed(
+  () => isWhiteboard.value && isWhiteboardEmpty(store.state.whiteboard, store.state.shapes),
+)
 
 function fitToView() {
   if (!surface.value) return
@@ -531,6 +532,10 @@ function logicalPoint(event) {
   return selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
 }
 function startSectionDraft(event) {
+  // Capture the pointer so the surface still gets move/up even if the drag ends
+  // off-canvas (over a toolbar / outside the pane) — otherwise the draft rect
+  // would be left stuck on screen.
+  event.currentTarget?.setPointerCapture?.(event.pointerId)
   sectionStart = logicalPoint(event)
   sectionDraft.value = { x: sectionStart.x, y: sectionStart.y, w: 0, h: 0 }
 }
@@ -544,6 +549,12 @@ function updateSectionDraft(event) {
     h: Math.abs(p.y - sectionStart.y),
   }
 }
+// Abandon an in-progress section draft (pointer cancelled) without committing.
+function cancelSectionDraft() {
+  sectionDraft.value = null
+  sectionStart = null
+}
+
 function commitSectionDraft() {
   const d = sectionDraft.value
   sectionDraft.value = null
@@ -696,6 +707,7 @@ const surfaceCursor = computed(() => {
     @pointerdown="onSurfacePointerDown"
     @pointermove="onSurfacePointerMove"
     @pointerup="onSurfacePointerUp"
+    @pointercancel="cancelSectionDraft"
     @pointerleave="viewport.endPan()"
     @dblclick="onSurfaceDoubleClick"
     @contextmenu.prevent="onContextMenu"

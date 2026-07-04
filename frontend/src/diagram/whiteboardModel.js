@@ -68,6 +68,20 @@ export function createWhiteboard(sketchStyle = false) {
   return { sketchStyle, strokes: [], stickyNotes: [], lines: [], tables: [], votes: {} }
 }
 
+// True when a whiteboard has no drawn content — no strokes, stickies, lines,
+// tables or shared shapes. One source of truth for the blank-board 100% open
+// (DiagramCanvas) and the empty-state hint (WhiteboardLayer).
+export function isWhiteboardEmpty(model, shapes = []) {
+  return (
+    !!model &&
+    !model.strokes.length &&
+    !model.stickyNotes.length &&
+    !(model.lines || []).length &&
+    !(model.tables || []).length &&
+    !shapes.length
+  )
+}
+
 // --- Per-object votes (T3): a chat-reaction-style up/down tally attached to any
 // board object (stroke/sticky/line/table/image), keyed by "kind:id". Kept in one
 // map on the model rather than on each heterogeneous object, so rendering and

@@ -12,7 +12,7 @@ const props = defineProps({
   cols: { type: Number, default: 3 },
   color: { type: String, default: '#171717' },
   // 'create' → grid picker to size a new table; 'edit' → steppers on the table.
-  mode: { type: String, default: 'create' },
+  mode: { type: String, default: 'create', validator: (v) => ['create', 'edit'].includes(v) },
 })
 const emit = defineEmits(['change'])
 

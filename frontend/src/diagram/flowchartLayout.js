@@ -66,7 +66,7 @@ export function branchInfoFor(node, port) {
 // Compute an elbow polyline (array of points) for one edge, re-routing as the
 // nodes move (the points are derived from current node positions every render).
 // `offsetIndex` nudges parallel runs sideways so overlapping routes separate
-// (spec B6, no obstacle-avoidance). Returns { points, midpoint, end, angle }.
+// (spec B6, no obstacle-avoidance). Returns { points, labelPoint, end, angle }.
 export function routeEdge(model, edge, offsetIndex = 0) {
   const fromNode = flowchartNodeById(model, edge.from.nodeId)
   const toNode = flowchartNodeById(model, edge.to.nodeId)
@@ -77,7 +77,7 @@ export function routeEdge(model, edge, offsetIndex = 0) {
   const points = elbowPoints(start, end, direction, offsetIndex)
   return {
     points,
-    midpoint: midpointOf(points),
+    labelPoint: labelAnchor(points),
     end,
     angle: arrowAngle(points),
   }
@@ -106,7 +106,7 @@ export function pointsToPath(points) {
 // rather than overlapping the shape (P10). On a very short edge it falls back to
 // the true midpoint so the pill still lands on the line.
 const LABEL_OFFSET = 30
-function midpointOf(points) {
+function labelAnchor(points) {
   const total = totalLength(points)
   return pointAtDistance(points, Math.min(LABEL_OFFSET, total / 2))
 }

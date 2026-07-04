@@ -15,7 +15,7 @@ import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
 import { layoutMindMap } from '@/diagram/mindmapLayout.js'
 import { isRoot } from '@/diagram/mindmapModel.js'
-import { branchPalette } from '@/diagram/mindmapColors.js'
+import { branchPalette, resolveNodeColor, nodeFill } from '@/diagram/mindmapColors.js'
 import { deleteNodes } from '@/diagram/mindmapOperations.js'
 import { mindmapUi, selectedNodeId, selectNode, beginEdit } from '@/stores/mindmapUi.js'
 
@@ -38,19 +38,31 @@ const layout = computed(() =>
   model.value && model.value.rootId ? layoutMindMap(model.value) : { positions: {} },
 )
 const selId = computed(() => selectedNodeId(store))
-// Every selected node (Colour + Delete act on all of them when >1 selected).
+// Every selected node (Fill/Border + Delete act on all of them when >1 selected).
 const selectedNodes = computed(() =>
   (store.state.selection || []).map((id) => model.value?.nodes.find((n) => n.id === id)).filter(Boolean),
 )
 const multi = computed(() => selectedNodes.value.length > 1)
-// Single-node controls (bold/italic, emoji, add-child, cross-link, note, more…)
+// Single-node controls (bold/italic, shape, text size, marker, cross-link, note)
 // only make sense for a lone selection; `node` is null while multi-selecting.
 const node = computed(() => (selectedNodes.value.length === 1 ? selectedNodes.value[0] : null))
 const branchSwatches = computed(() => branchPalette(store.state.themePreset))
 const selectedIsRoot = computed(() => node.value && isRoot(model.value, node.value.id))
-// Colour swatch preview + whether a delete would remove anything (never the root).
-const colorPreview = computed(() => selectedNodes.value[0]?.color || '#EFEAFE')
-const borderPreview = computed(() => selectedNodes.value[0]?.border || '#7C7C7C')
+// Swatch previews mirror what the node layer actually renders (fillOf / strokeColor
+// in MindMapNodeLayer): an uncoloured node shows its resolved branch tint, not a
+// fixed constant, so the toolbar dots match the node on canvas. Delete is enabled
+// only when the selection holds a non-root node.
+const colorPreview = computed(() => {
+  const n = selectedNodes.value[0]
+  if (!n) return '#EFEAFE'
+  if (n.color) return nodeFill(n.color)
+  return isRoot(model.value, n.id) ? '#F3F3F3' : nodeFill(resolveNodeColor(model.value, n, store.state.themePreset))
+})
+const borderPreview = computed(() => {
+  const n = selectedNodes.value[0]
+  if (!n) return '#7C7C7C'
+  return n.border || resolveNodeColor(model.value, n, store.state.themePreset)
+})
 const canDelete = computed(() => selectedNodes.value.some((n) => !isRoot(model.value, n.id)))
 
 // Combined bounding box of the selected nodes (a single node's own box when one

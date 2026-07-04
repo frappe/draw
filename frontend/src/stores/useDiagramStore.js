@@ -177,7 +177,10 @@ function attachWhiteboard(store, state, history) {
     })
   store.removeStroke = (id) => {
     if (!state.whiteboard) return
-    history.commit('Erase', () => removeStroke(state.whiteboard, id))
+    history.commit('Erase', () => {
+      removeStroke(state.whiteboard, id)
+      clearVote(state.whiteboard, 'stroke', id)
+    })
   }
   store.addStickyNote = (x, y, partial = {}) => {
     if (!state.whiteboard) return null
@@ -192,7 +195,10 @@ function attachWhiteboard(store, state, history) {
     })
   store.removeStickyNote = (id) => {
     if (!state.whiteboard) return
-    history.commit('Delete sticky', () => removeStickyNote(state.whiteboard, id))
+    history.commit('Delete sticky', () => {
+      removeStickyNote(state.whiteboard, id)
+      clearVote(state.whiteboard, 'sticky', id)
+    })
   }
   attachWhiteboardLines(store, state, history)
   attachWhiteboardTables(store, state, history)
@@ -212,13 +218,27 @@ function attachWhiteboard(store, state, history) {
     stroke: removeStroke, sticky: removeStickyNote, line: removeLine,
     table: removeTable,
   }
+  const removeWhiteboardObjectsInto = (items) => {
+    for (const { kind, id } of items || []) {
+      WB_REMOVE[kind]?.(state.whiteboard, id)
+      clearVote(state.whiteboard, kind, id) // don't leak votes for deleted objects
+    }
+  }
   store.removeWhiteboardObjects = (items) => {
     if (!state.whiteboard || !items?.length) return
-    history.commit('Delete objects', () => {
-      for (const { kind, id } of items) {
-        WB_REMOVE[kind]?.(state.whiteboard, id)
-        clearVote(state.whiteboard, kind, id) // don't leak votes for deleted objects
-      }
+    history.commit('Delete objects', () => removeWhiteboardObjectsInto(items))
+  }
+  // Delete whiteboard objects AND block shapes/connectors (e.g. images) as ONE
+  // undoable unit — Select All on a whiteboard can select both, so a single
+  // Delete should undo in one step (not two).
+  store.removeWhiteboardSelection = (items, ids = []) => {
+    if (!state.whiteboard) return
+    const shapeIds = ids.filter((id) => store.shapeById(id))
+    const connectorIds = ids.filter((id) => store.connectorById(id))
+    history.commit('Delete', () => {
+      removeWhiteboardObjectsInto(items)
+      if (shapeIds.length) removeShapesInternal(state, shapeIds)
+      if (connectorIds.length) removeConnectorsInternal(state, connectorIds)
     })
   }
 }
@@ -238,7 +258,10 @@ function attachWhiteboardLines(store, state, history) {
     })
   store.removeLine = (id) => {
     if (!state.whiteboard) return
-    history.commit('Delete line', () => removeLine(state.whiteboard, id))
+    history.commit('Delete line', () => {
+      removeLine(state.whiteboard, id)
+      clearVote(state.whiteboard, 'line', id)
+    })
   }
 }
 
@@ -262,7 +285,10 @@ function attachWhiteboardTables(store, state, history) {
     })
   store.removeTable = (id) => {
     if (!state.whiteboard) return
-    history.commit('Delete table', () => removeTable(state.whiteboard, id))
+    history.commit('Delete table', () => {
+      removeTable(state.whiteboard, id)
+      clearVote(state.whiteboard, 'table', id)
+    })
   }
 }
 

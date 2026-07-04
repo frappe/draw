@@ -220,8 +220,8 @@ function flowchartEdge(model, edge, offsetIndex) {
   const path = `<path d="${flowchartPointsToPath(route.points)}" fill="none" stroke="#7C7C7C" stroke-width="2"${markerEnd}/>`
   if (!edge.label) return path
   const half = edge.label.length * 4 + 8
-  const pill = `<rect x="${route.midpoint.x - half}" y="${route.midpoint.y - 10}" width="${edge.label.length * 8 + 16}" height="20" rx="6" fill="#FFFFFF" stroke="#E2E2E2"/>`
-  const label = `<text x="${route.midpoint.x}" y="${route.midpoint.y}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#525252" font-family="Inter, sans-serif">${escapeText(edge.label)}</text>`
+  const pill = `<rect x="${route.labelPoint.x - half}" y="${route.labelPoint.y - 10}" width="${edge.label.length * 8 + 16}" height="20" rx="6" fill="#FFFFFF" stroke="#E2E2E2"/>`
+  const label = `<text x="${route.labelPoint.x}" y="${route.labelPoint.y}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#525252" font-family="Inter, sans-serif">${escapeText(edge.label)}</text>`
   return path + pill + label
 }
 

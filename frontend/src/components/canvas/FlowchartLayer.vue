@@ -1,7 +1,7 @@
 <script setup>
 // Flowchart render layer (spec diagram-types Part B, F1-F5). Draws the typed
 // node shapes (terminator/process/decision/inputOutput/connector), orthogonal
-// arrowed edges with midpoint labels, the "+" extend handles on the selected /
+// arrowed edges with branch labels near the source, the "+" extend handles on the selected /
 // hovered node (decision shows one per labelled branch), inline text editing, the
 // drag-to-empty connector preview, and the node-type picker overlay.
 //
@@ -53,6 +53,9 @@ const triad = computed(() => primaryTriad(store.state.themePreset))
 const selectedIds = computed(() => store.state.selection)
 const editingId = ref(null) // node whose text is being edited inline
 const zoom = computed(() => editorUi.viewport.state.zoom || 1)
+// Height of the junction's node-centred label box. Tall enough that wrapped text
+// spills up/down past the small circle (P11); text beyond ±half of this clips.
+const JUNCTION_LABEL_H = 220
 
 function isSelected(id) {
   return selectedIds.value.includes(id)
@@ -148,7 +151,7 @@ function onLeave(id) {
       </marker>
     </defs>
 
-    <!-- Edges: orthogonal elbow paths with arrowheads + midpoint labels. -->
+    <!-- Edges: orthogonal elbow paths with arrowheads + labels near the source. -->
     <g v-for="{ edge, route } in edges" :key="edge.id">
       <path
         :d="pointsToPath(route.points)"
@@ -157,7 +160,7 @@ function onLeave(id) {
         stroke-width="2"
         :marker-end="edge.arrowheads.end ? 'url(#fc-arrow)' : null"
       />
-      <g v-if="edge.label" :transform="`translate(${route.midpoint.x} ${route.midpoint.y})`">
+      <g v-if="edge.label" :transform="`translate(${route.labelPoint.x} ${route.labelPoint.y})`">
         <rect
           :x="-(edge.label.length * 4 + 8)"
           y="-10"
@@ -256,9 +259,9 @@ function onLeave(id) {
       <foreignObject
         v-else-if="node.nodeType === 'connector' && node.text"
         x="2"
-        :y="(size.h - 220) / 2"
+        :y="(size.h - JUNCTION_LABEL_H) / 2"
         :width="size.w - 4"
-        height="220"
+        :height="JUNCTION_LABEL_H"
         style="overflow: visible; pointer-events: none"
       >
         <div class="flex h-full w-full items-center justify-center text-center">

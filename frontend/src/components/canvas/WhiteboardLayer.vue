@@ -19,7 +19,7 @@ import { useWhiteboardInteraction } from '@/composables/useWhiteboardInteraction
 import { useWhiteboardUi, LASER_FADE_MS } from '@/composables/useWhiteboardUi.js'
 import { roughenSegment, pointsToPath } from '@/diagram/sketch.js'
 import { HIGHLIGHTER_OPACITY } from '@/diagram/whiteboardColors.js'
-import { whiteboardObjectBoxes, voteFor } from '@/diagram/whiteboardModel.js'
+import { whiteboardObjectBoxes, isWhiteboardEmpty } from '@/diagram/whiteboardModel.js'
 import ConnectorView from './ConnectorView.vue'
 import ShapeView from './ShapeView.vue'
 import WhiteboardStickyNote from './WhiteboardStickyNote.vue'
@@ -76,30 +76,20 @@ const liveLine = computed(() => ui.liveLine.value)
 
 // Empty-state hint (spec C8/W6): a faint center prompt while the board has no
 // strokes, stickies, or base shapes. Placed near the canvas origin/center.
-const isEmpty = computed(
-  () =>
-    !props.whiteboard.strokes.length &&
-    !props.whiteboard.stickyNotes.length &&
-    !(props.whiteboard.lines || []).length &&
-    !(props.whiteboard.tables || []).length &&
-    !store.state.shapes.length,
-)
+const isEmpty = computed(() => isWhiteboardEmpty(props.whiteboard, store.state.shapes))
 const hintCenter = computed(() => ({
   x: (store.state.canvas.width || 1280) / 2,
   y: (store.state.canvas.height || 720) / 2,
 }))
 
 // Per-object vote badges (T3): a small pill at each voted object's top-right
-// showing 👍/👎 tallies, chat-reaction style. Image shapes vote too, so their
-// boxes are unioned in alongside the whiteboard objects.
+// showing 👍/👎 tallies, chat-reaction style. The common case is an empty vote
+// map, so bail before scanning every object's geometry.
 const voteBadges = computed(() => {
   const votes = props.whiteboard.votes || {}
-  const boxes = [
-    ...whiteboardObjectBoxes(props.whiteboard),
-    ...store.state.shapes.map((s) => ({ kind: 'shape', id: s.id, box: { x: s.x, y: s.y, w: s.w, h: s.h } })),
-  ]
+  if (!Object.keys(votes).length) return []
   const out = []
-  for (const o of boxes) {
+  for (const o of whiteboardObjectBoxes(props.whiteboard)) {
     const v = votes[`${o.kind}:${o.id}`]
     if (!v || (!v.up && !v.down)) continue
     out.push({ key: `${o.kind}:${o.id}`, x: o.box.x + o.box.w - 6, y: o.box.y + 4, up: v.up || 0, down: v.down || 0 })
