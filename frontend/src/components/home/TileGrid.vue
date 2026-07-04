@@ -365,55 +365,31 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
 
     <!-- HOME: a file explorer — Pinned (root only) + files + sub/folders. -->
     <template v-if="mode === 'home'">
-      <!-- Home order (K1): Pinned (root only) → Folders → loose diagrams, so a
-           new diagram never sorts above the folders. A section shows its header
-           only when another section precedes it, so a lone list stays header-less
-           (J1 two-section behaviour falls out of this). -->
-      <section v-if="!folder && pinned.length" class="mb-6">
-        <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
-          <LucideIcon name="pin" class="h-3.5 w-3.5" /> Pinned
-        </h2>
+      <!-- Home layout (S1/S2): pinned rows set apart by a separator (no "Other"
+           label), then FOLDERS first and loose diagrams — no section headers, one
+           continuous flow. Inside a folder: sub-folders then that folder's files. -->
+      <template v-if="!folder && pinned.length">
         <DiagramCollection :diagrams="pinned" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
-      </section>
+        <div class="my-3 h-px bg-surface-gray-2" />
+      </template>
 
-      <section v-if="folderTiles.length" class="mb-6">
-        <h2 class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
-          <LucideIcon name="folder" class="h-3.5 w-3.5" /> Folders
-        </h2>
-        <div v-if="view === 'tile'" class="grid gap-[18px]" :style="TILE_COLS">
-          <FolderItem
-            v-for="group in folderTiles"
-            :key="group.folder.name"
-            :folder="group.folder"
-            :count="group.count"
-            :selected="selectedFolders.has(group.folder.name)"
-            view="tile"
-            @open="emit('open-folder', group.folder)"
-            @toggle-select="toggleSelectFolder"
-            @drop-diagram="dropOnFolder(group.folder.name, $event)"
-          />
-        </div>
-        <div v-else class="flex flex-col gap-1.5">
-          <FolderItem
-            v-for="group in folderTiles"
-            :key="group.folder.name"
-            :folder="group.folder"
-            :count="group.count"
-            :selected="selectedFolders.has(group.folder.name)"
-            view="list"
-            @open="emit('open-folder', group.folder)"
-            @toggle-select="toggleSelectFolder"
-            @drop-diagram="dropOnFolder(group.folder.name, $event)"
-          />
-        </div>
-      </section>
+      <!-- Folders first (no header). -->
+      <div v-if="folderTiles.length" :class="view === 'tile' ? 'mb-[18px] grid gap-[18px]' : 'mb-1.5 flex flex-col gap-1.5'" :style="view === 'tile' ? TILE_COLS : ''">
+        <FolderItem
+          v-for="group in folderTiles"
+          :key="group.folder.name"
+          :folder="group.folder"
+          :count="group.count"
+          :selected="selectedFolders.has(group.folder.name)"
+          :view="view"
+          @open="emit('open-folder', group.folder)"
+          @toggle-select="toggleSelectFolder"
+          @drop-diagram="dropOnFolder(group.folder.name, $event)"
+        />
+      </div>
 
-      <section v-if="files.length">
-        <h2 v-if="(!folder && pinned.length) || folderTiles.length" class="mb-3 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-gray-5">
-          <LucideIcon name="layers" class="h-3.5 w-3.5" /> {{ folder ? 'Diagrams' : 'Other diagrams' }}
-        </h2>
-        <DiagramCollection :diagrams="files" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
-      </section>
+      <!-- Then loose diagrams (no header). -->
+      <DiagramCollection v-if="files.length" :diagrams="files" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
 
       <p v-if="folder && !files.length && !folderTiles.length" class="py-10 text-center text-[13px] text-ink-gray-5">
         This folder is empty.

@@ -3,45 +3,29 @@
 // shows the title with a faint pencil; clicking turns it into an inline input.
 // Enter / blur commits, Escape cancels. Empty titles fall back to the default.
 // Emits update:title; EditorShell renames through the diagram resource.
-import { ref, nextTick, watch, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, nextTick, watch } from 'vue'
 import LucideIcon from '@/icons/LucideIcon.vue'
 
 const props = defineProps({
   title: { type: String, default: 'Untitled diagram' },
 })
 const emit = defineEmits(['update:title'])
-const route = useRoute()
 
 const DEFAULT_TITLE = 'Untitled diagram'
 const editing = ref(false)
 const draft = ref(props.title)
 const input = ref(null)
 
-// A freshly created diagram arrives with ?new=1 — open the title for editing and
-// preselect it so the user can type the name right away. But the doc (and its
-// real auto-name, e.g. "Mind map 2") loads asynchronously, so we must NOT select
-// on mount while the title is still the "Untitled diagram" placeholder — blurring
-// would then clobber the real name. Capture the intent (the flag is stripped by
-// EditorShell), then fire once the real title has arrived.
-const wantsAutoSelect = route.query.new === '1'
-let autoSelected = false
-function maybeAutoSelect(title) {
-  if (!wantsAutoSelect || autoSelected) return
-  if (!title || title === DEFAULT_TITLE) return
-  autoSelected = true
-  nextTick(startEditing)
-}
-onMounted(() => maybeAutoSelect(props.title))
+// A new diagram now opens with its auto-name already saved (e.g. "Diagram 2") and
+// is NOT auto-opened for editing (S3): auto-selecting risked clobbering the name
+// if the user clicked away without typing. The user clicks the title to rename.
 
 // Keep the draft in sync when the title arrives/changes from outside (e.g. the
-// doc loads asynchronously) and we are not mid-edit; also trigger the deferred
-// auto-select once the real title lands.
+// doc loads asynchronously) and we are not mid-edit.
 watch(
   () => props.title,
   (next) => {
     if (!editing.value) draft.value = next
-    maybeAutoSelect(next)
   },
 )
 
