@@ -23,7 +23,8 @@ const editorUi = useEditorUi()
 
 const FILL_SWATCHES = ['#EFEAFE', '#EFF6FF', '#F4FFF6', '#FDFAED', '#FCEAF5', '#F3F3F3', '#FFFFFF']
 const MARKER_ICONS = ['star', 'flag', 'check-circle', 'alert-circle', 'heart', 'zap']
-const FONT_SIZES = [12, 14, 17, 22]
+const MIN_FONT = 10
+const MAX_FONT = 48
 const SHAPES = ['pill', 'rounded', 'ellipse', 'diamond', 'hexagon']
 
 const model = computed(() => store.state.mindmap)
@@ -80,6 +81,11 @@ function setColor(color) {
 }
 function setFontSize(size) {
   patch({ fontSize: size })
+}
+// Text size as a +/- stepper (O6), not a row of preset buttons.
+const currentFontSize = computed(() => node.value?.fontSize ?? (selectedIsRoot.value ? 17 : 14))
+function stepFontSize(delta) {
+  setFontSize(Math.max(MIN_FONT, Math.min(MAX_FONT, currentFontSize.value + delta)))
 }
 function setMarker(icon) {
   patch({ marker: { icon: node.value?.marker?.icon === icon ? null : icon } })
@@ -206,14 +212,14 @@ function activeBtn(on) {
         <template #body-main>
           <div class="w-[196px] p-2">
             <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Text size</div>
-            <div class="mb-2 flex gap-1">
-              <button
-                v-for="s in FONT_SIZES"
-                :key="s"
-                class="flex-1 rounded-md border px-2 py-1 text-xs"
-                :class="(node.fontSize ?? (selectedIsRoot ? 17 : 14)) === s ? 'border-ink-gray-9 bg-surface-gray-2 text-ink-gray-9' : 'border-outline-gray-2 text-ink-gray-7'"
-                @click="setFontSize(s)"
-              >{{ s }}</button>
+            <div class="mb-2 flex items-center gap-1.5">
+              <button class="flex h-7 w-7 items-center justify-center rounded-md border border-outline-gray-2 text-ink-gray-7 hover:bg-surface-gray-2" @click="stepFontSize(-1)">
+                <LucideIcon name="minus" class="h-3.5 w-3.5" />
+              </button>
+              <span class="flex-1 text-center text-[13px] font-medium text-ink-gray-9">{{ currentFontSize }}px</span>
+              <button class="flex h-7 w-7 items-center justify-center rounded-md border border-outline-gray-2 text-ink-gray-7 hover:bg-surface-gray-2" @click="stepFontSize(1)">
+                <LucideIcon name="plus" class="h-3.5 w-3.5" />
+              </button>
             </div>
             <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Marker</div>
             <div class="mb-2 flex flex-wrap gap-1.5">
