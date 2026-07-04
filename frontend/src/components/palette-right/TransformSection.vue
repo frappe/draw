@@ -1,7 +1,7 @@
 <script setup>
-// Transform: swap, rotate 90°, and flip (spec §4.3). Swap needs exactly two
-// shapes; rotate/flip need 1+. Each multi-step move is wrapped in store.commit
-// so it is a single undo step.
+// Transform: swap + flip (spec §4.3). Swap needs exactly two shapes; flip needs
+// 1+. Rotation is on-canvas via the selection rotation handle. Each multi-step
+// move is wrapped in store.commit so it is a single undo step.
 import { computed } from 'vue'
 import PaletteSection from './PaletteSection.vue'
 import ActionTile from './ActionTile.vue'
@@ -13,16 +13,6 @@ const store = useDiagramStore()
 const shapes = computed(() => store.selectedShapes)
 const hasShapes = computed(() => shapes.value.length > 0)
 const canSwap = computed(() => shapes.value.length === 2)
-
-// Rotate every selected shape by ±90°, normalised to 0–359. Fields are mutated
-// inside one commit (not via updateShape) so the rotation is one undo step.
-function rotate(delta) {
-  store.commit('Rotate', () => {
-    for (const shape of shapes.value) {
-      shape.rotation = ((((shape.rotation || 0) + delta) % 360) + 360) % 360
-    }
-  })
-}
 
 // Mirror the selection across the axis at its combined bounding-box center.
 function flip(axis) {
@@ -64,10 +54,10 @@ function swap() {
 
 <template>
   <PaletteSection v-if="hasShapes" label="Transform">
+    <!-- Rotation is done with the on-canvas rotation handle now (D10), so the
+         rotate-left/right buttons are gone; Swap + Flip remain. -->
     <div class="grid grid-cols-6 gap-1.5">
       <ActionTile v-if="canSwap" icon="repeat" label="Swap" @click="swap()" />
-      <ActionTile icon="rotate-ccw" label="Rotate L" @click="rotate(-90)" />
-      <ActionTile icon="rotate-cw" label="Rotate R" @click="rotate(90)" />
       <ActionTile icon="flip-horizontal" label="Flip H" @click="flip('x')" />
       <ActionTile icon="flip-vertical" label="Flip V" @click="flip('y')" />
     </div>
