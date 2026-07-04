@@ -16,7 +16,7 @@ const props = defineProps({
   selectionActive: { type: Boolean, default: false },
   pinLimitReached: { type: Boolean, default: false },
 })
-const emit = defineEmits(['open', 'toggle-select', 'toggle-pin', 'rename', 'duplicate', 'delete'])
+const emit = defineEmits(['open', 'toggle-select', 'toggle-pin', 'rename', 'duplicate', 'delete', 'move', 'show-info'])
 
 const previewSvg = computed(() => {
   const document = props.diagram.document
@@ -48,6 +48,8 @@ const menuItems = computed(() => [
     onClick: togglePin,
   },
   { label: 'Copy link', icon: 'link', onClick: copyLink },
+  { label: 'Move to…', icon: 'folder', onClick: () => emit('move', props.diagram) },
+  { label: 'Show info', icon: 'file-text', onClick: () => emit('show-info', props.diagram) },
   { label: 'Rename', icon: 'edit-2', onClick: () => emit('rename', props.diagram) },
   { label: 'Duplicate', icon: 'copy', onClick: () => emit('duplicate', props.diagram) },
   { label: 'Delete', icon: 'trash-2', theme: 'red', onClick: () => emit('delete', props.diagram) },

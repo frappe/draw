@@ -10,7 +10,7 @@ defineProps({
   selected: { type: Object, default: () => new Set() },
   pinLimitReached: { type: Boolean, default: false },
 })
-const emit = defineEmits(['open', 'toggle-select', 'toggle-pin', 'rename', 'duplicate', 'delete'])
+const emit = defineEmits(['open', 'toggle-select', 'toggle-pin', 'rename', 'duplicate', 'delete', 'move', 'show-info'])
 
 const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
 </script>
@@ -30,6 +30,8 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       @rename="emit('rename', $event)"
       @duplicate="emit('duplicate', $event)"
       @delete="emit('delete', $event)"
+      @move="emit('move', $event)"
+      @show-info="emit('show-info', $event)"
     />
     <slot name="append" />
   </div>
@@ -49,6 +51,8 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       @rename="emit('rename', $event)"
       @duplicate="emit('duplicate', $event)"
       @delete="emit('delete', $event)"
+      @move="emit('move', $event)"
+      @show-info="emit('show-info', $event)"
     />
     <slot name="append" />
   </div>

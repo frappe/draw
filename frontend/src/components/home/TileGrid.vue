@@ -231,6 +231,43 @@ async function dropOnFolder(folderName, diagramName) {
   refresh()
 }
 
+// --- move to folder (I5) ---------------------------------------------------
+const moveTarget = reactive({ open: false, diagram: null })
+function startMove(diagram) {
+  Object.assign(moveTarget, { open: true, diagram })
+}
+// Destinations: every folder + a "Home" (root) option; the current folder is
+// marked so it's clear where the diagram already lives.
+const moveDestinations = computed(() => [
+  { name: null, label: 'Home (no folder)' },
+  ...(folders.data || []).map((f) => ({ name: f.name, label: f.folder_name || f.name })),
+])
+async function moveTo(folderName) {
+  if (moveTarget.diagram) await moveDiagramToFolder(enriched, moveTarget.diagram.name, folderName)
+  moveTarget.open = false
+  moveTarget.diagram = null
+  refresh()
+}
+
+// --- show info (I5) --------------------------------------------------------
+const info = reactive({ open: false, diagram: null })
+function startInfo(diagram) {
+  Object.assign(info, { open: true, diagram })
+}
+const infoRows = computed(() => {
+  const d = info.diagram
+  if (!d) return []
+  const folderName = (folders.data || []).find((f) => f.name === d.folder)?.folder_name
+  return [
+    ['Name', d.title],
+    ['Type', typeLabel(d.diagram_type)],
+    ['Owner', d.owner || '—'],
+    ['Location', folderName || 'Home'],
+    ['Created', d.creation ? d.creation.slice(0, 16).replace(' ', ' · ') : '—'],
+    ['Last edited', d.modified ? d.modified.slice(0, 16).replace(' ', ' · ') : '—'],
+  ]
+})
+
 function refresh() {
   enriched.reload()
   emit('changed')
@@ -246,6 +283,8 @@ const collectionHandlers = {
   rename: startRename,
   duplicate,
   delete: trash,
+  move: startMove,
+  'show-info': startInfo,
 }
 const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
 </script>
@@ -429,6 +468,38 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       </template>
       <template #actions>
         <Button variant="solid" @click="saveEditor">Save</Button>
+      </template>
+    </Dialog>
+
+    <!-- Move to folder (I5). -->
+    <Dialog v-model="moveTarget.open" :options="{ title: 'Move to…' }">
+      <template #body-content>
+        <div class="flex flex-col gap-1">
+          <button
+            v-for="dest in moveDestinations"
+            :key="dest.name || 'root'"
+            class="flex items-center gap-2 rounded-md px-2 py-2 text-left text-[13px] hover:bg-surface-gray-2"
+            :class="(moveTarget.diagram?.folder || null) === dest.name ? 'text-ink-gray-5' : 'text-ink-gray-8'"
+            :disabled="(moveTarget.diagram?.folder || null) === dest.name"
+            @click="moveTo(dest.name)"
+          >
+            <LucideIcon :name="dest.name ? 'folder' : 'house'" class="h-4 w-4 text-ink-gray-6" />
+            {{ dest.label }}
+            <span v-if="(moveTarget.diagram?.folder || null) === dest.name" class="ml-auto text-[11px]">Current</span>
+          </button>
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- Show info (I5): read-only metadata. -->
+    <Dialog v-model="info.open" :options="{ title: 'Diagram info' }">
+      <template #body-content>
+        <dl class="grid grid-cols-[92px_1fr] gap-x-3 gap-y-2 text-[13px]">
+          <template v-for="[label, value] in infoRows" :key="label">
+            <dt class="text-ink-gray-5">{{ label }}</dt>
+            <dd class="truncate text-ink-gray-8">{{ value }}</dd>
+          </template>
+        </dl>
       </template>
     </Dialog>
 
