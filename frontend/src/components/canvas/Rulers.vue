@@ -26,6 +26,7 @@ const MIN_TICK_GAP = 60 // minimum screen px between major ticks
 const RULER_BG = '#F1F1F4'
 const RULER_BORDER = '1px solid #C7C7CE'
 const TICK_LINE = '1px solid #9A9AA3'
+const TICK_LINE_MINOR = '1px solid #CBCBD2'
 
 // Logical units between major ticks, snapped to a 1/2/5 ladder so the on-screen
 // gap never drops below MIN_TICK_GAP at the current zoom.
@@ -39,14 +40,18 @@ const step = computed(() => {
   return power * 10
 })
 
+// Ticks at 1/5 of the major step: every 5th is a MAJOR tick (labelled, taller),
+// the rest MINOR (short, unlabelled) — Google-Docs-style subdivisions (G2). Using
+// an integer index keeps majors exactly on multiples of the step (0 is a major).
 function buildTicks(panOffset, extent) {
   const zoom = editorUi.viewport.state.zoom || 1
-  const gap = step.value
-  const first = Math.floor(-panOffset / zoom / gap) * gap
-  const last = (-panOffset + extent) / zoom
+  const minor = step.value / 5
+  const firstIndex = Math.floor(-panOffset / zoom / minor)
+  const lastIndex = Math.ceil((-panOffset + extent) / zoom / minor)
   const ticks = []
-  for (let value = first; value <= last; value += gap) {
-    ticks.push({ value, screen: panOffset + value * zoom })
+  for (let index = firstIndex; index <= lastIndex; index += 1) {
+    const value = index * minor
+    ticks.push({ value, screen: panOffset + value * zoom, major: index % 5 === 0 })
   }
   return ticks
 }
@@ -69,10 +74,11 @@ const verticalTicks = computed(() =>
       <div
         v-for="tick in horizontalTicks"
         :key="'h' + tick.value"
-        class="absolute bottom-0 h-2.5"
-        :style="{ left: tick.screen - THICKNESS + 'px', borderLeft: TICK_LINE }"
+        class="absolute bottom-0"
+        :class="tick.major ? 'h-2.5' : 'h-1.5'"
+        :style="{ left: tick.screen - THICKNESS + 'px', borderLeft: tick.major ? TICK_LINE : TICK_LINE_MINOR }"
       >
-        <span class="absolute left-1 -top-[15px] text-[10px] font-medium leading-none text-ink-gray-7">{{ Math.round(tick.value) }}</span>
+        <span v-if="tick.major" class="absolute left-1 -top-[15px] text-[10px] font-medium leading-none text-ink-gray-7">{{ Math.round(tick.value) }}</span>
       </div>
     </div>
 
@@ -84,10 +90,11 @@ const verticalTicks = computed(() =>
       <div
         v-for="tick in verticalTicks"
         :key="'v' + tick.value"
-        class="absolute right-0 w-2.5"
-        :style="{ top: tick.screen - THICKNESS + 'px', borderTop: TICK_LINE }"
+        class="absolute right-0"
+        :class="tick.major ? 'w-2.5' : 'w-1.5'"
+        :style="{ top: tick.screen - THICKNESS + 'px', borderTop: tick.major ? TICK_LINE : TICK_LINE_MINOR }"
       >
-        <span class="absolute left-0.5 top-0.5 text-[10px] font-medium leading-none text-ink-gray-7">{{ Math.round(tick.value) }}</span>
+        <span v-if="tick.major" class="absolute left-0.5 top-0.5 text-[10px] font-medium leading-none text-ink-gray-7">{{ Math.round(tick.value) }}</span>
       </div>
     </div>
 
