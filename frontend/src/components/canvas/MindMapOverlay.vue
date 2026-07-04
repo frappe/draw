@@ -156,7 +156,7 @@ function activeBtn(on) {
       </template>
 
       <!-- Fill — surfaced directly; applies to every selected node. -->
-      <Popover>
+      <Popover side="top">
         <template #target="{ togglePopover }">
           <Tooltip text="Fill">
             <button :class="btn" @mousedown.prevent @click="togglePopover()">
@@ -179,7 +179,7 @@ function activeBtn(on) {
       </Popover>
 
       <!-- Border — its own control, separate from fill (U5/O2). -->
-      <Popover>
+      <Popover side="top">
         <template #target="{ togglePopover }">
           <Tooltip text="Border">
             <button :class="btn" @mousedown.prevent @click="togglePopover()">
@@ -206,7 +206,7 @@ function activeBtn(on) {
       <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
 
       <!-- Shape — surfaced directly (O8). -->
-      <Popover>
+      <Popover side="top">
         <template #target="{ togglePopover }">
           <Tooltip text="Shape">
             <button :class="btn" @mousedown.prevent @click="togglePopover()">
@@ -240,7 +240,7 @@ function activeBtn(on) {
       </Popover>
 
       <!-- Text size — surfaced directly as a stepper (O5/O6). -->
-      <Popover>
+      <Popover side="top">
         <template #target="{ togglePopover }">
           <Tooltip text="Text size">
             <button :class="btn" @mousedown.prevent @click="togglePopover()">
@@ -265,7 +265,7 @@ function activeBtn(on) {
       </Popover>
 
       <!-- Marker — surfaced directly. -->
-      <Popover>
+      <Popover side="top">
         <template #target="{ togglePopover }">
           <Tooltip text="Marker">
             <button :class="[btn, activeBtn(!!node.marker?.icon)]" @mousedown.prevent @click="togglePopover()">
@@ -300,7 +300,7 @@ function activeBtn(on) {
       </Tooltip>
 
       <!-- Note -->
-      <Popover>
+      <Popover side="top">
         <template #target="{ togglePopover }">
           <Tooltip text="Note">
             <button :class="[btn, activeBtn(!!node.note)]" @mousedown.prevent @click="togglePopover()">

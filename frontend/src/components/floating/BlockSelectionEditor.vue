@@ -74,7 +74,7 @@ const panel = 'max-h-[70vh] w-[264px] overflow-y-auto'
     >
       <!-- Connector selected: just its line controls. -->
       <template v-if="connector">
-        <Popover>
+        <Popover side="top">
           <template #target="{ togglePopover }">
             <Tooltip text="Line">
               <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="minus" class="h-4 w-4" /></button>
@@ -86,7 +86,7 @@ const panel = 'max-h-[70vh] w-[264px] overflow-y-auto'
 
       <!-- Shapes selected: fill+border+opacity, text, arrange, link. -->
       <template v-else-if="hasShapes">
-        <Popover>
+        <Popover side="top">
           <template #target="{ togglePopover }">
             <Tooltip text="Fill & border">
               <button :class="btn" @mousedown.prevent @click="togglePopover()">
@@ -97,7 +97,7 @@ const panel = 'max-h-[70vh] w-[264px] overflow-y-auto'
           <template #body-main><div :class="panel"><FillBorderSection /><TransparencySection /></div></template>
         </Popover>
 
-        <Popover>
+        <Popover side="top">
           <template #target="{ togglePopover }">
             <Tooltip text="Text">
               <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="type" class="h-4 w-4" /></button>
@@ -106,7 +106,7 @@ const panel = 'max-h-[70vh] w-[264px] overflow-y-auto'
           <template #body-main><div :class="panel"><TextSection /></div></template>
         </Popover>
 
-        <Popover>
+        <Popover side="top">
           <template #target="{ togglePopover }">
             <Tooltip text="Arrange & align">
               <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="layout" class="h-4 w-4" /></button>
@@ -122,7 +122,7 @@ const panel = 'max-h-[70vh] w-[264px] overflow-y-auto'
           </template>
         </Popover>
 
-        <Popover>
+        <Popover side="top">
           <template #target="{ togglePopover }">
             <Tooltip text="Link">
               <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="link" class="h-4 w-4" /></button>

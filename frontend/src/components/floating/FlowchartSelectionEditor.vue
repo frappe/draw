@@ -102,7 +102,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
       :style="style"
     >
       <!-- Node type — single selection only. -->
-      <Popover v-if="node">
+      <Popover v-if="node" side="top">
         <template #target="{ togglePopover }">
           <Tooltip text="Node type">
             <button :class="btn" @mousedown.prevent @click="togglePopover()">
@@ -130,7 +130,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
       </Popover>
 
       <!-- Fill -->
-      <Popover>
+      <Popover side="top">
         <template #target="{ togglePopover }">
           <Tooltip text="Fill">
             <button :class="btn" @mousedown.prevent @click="togglePopover()">
@@ -149,7 +149,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
       </Popover>
 
       <!-- Decision branches — single selection only. -->
-      <Popover v-if="node && node.nodeType === 'decision'">
+      <Popover v-if="node && node.nodeType === 'decision'" side="top">
         <template #target="{ togglePopover }">
           <Tooltip text="Branches">
             <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="git-branch" class="h-4 w-4" /></button>

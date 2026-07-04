@@ -77,7 +77,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
       </template>
 
       <!-- Lone line/table: its option controls in a popover. -->
-      <Popover v-else-if="line || table">
+      <Popover v-else-if="line || table" side="top">
         <template #target="{ togglePopover }">
           <Tooltip :text="`Edit ${label.toLowerCase()}`">
             <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon :name="icon" class="h-4 w-4" /></button>
