@@ -133,7 +133,10 @@ onMounted(() => {
         <WhiteboardMinimap v-if="modeStrategy.type === 'whiteboard'" />
         <MindMapOverlay v-if="modeStrategy.type === 'mindmap'" />
         <FlowchartOverlay v-if="modeStrategy.type === 'flowchart'" />
-        <BlockSelectionEditor v-if="modeStrategy.type === 'block'" />
+        <!-- Also on the whiteboard: text/image are block shapes, so their format
+             menu (font, size, colour…) is the block editor, shown when one is
+             selected (S13/S14/U1). WhiteboardSelectionEditor handles board objects. -->
+        <BlockSelectionEditor v-if="modeStrategy.type === 'block' || modeStrategy.type === 'whiteboard'" />
         <FlowchartSelectionEditor v-if="modeStrategy.type === 'flowchart'" />
         <WhiteboardSelectionEditor v-if="modeStrategy.type === 'whiteboard'" />
         <CollaboratorCursors :collaborators="collab.collaborators.value" :set-cursor="collab.setCursor" />

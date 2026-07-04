@@ -18,6 +18,7 @@ import { isVisible, isInteractable } from '@/diagram/shapeFlags.js'
 import { layoutMindMap } from '@/diagram/mindmapLayout.js'
 import { flowchartContentBounds } from '@/diagram/flowchartLayout.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
+import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { useSelection } from '@/composables/useSelection.js'
 import { useShapeCreation } from '@/composables/useShapeCreation.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
@@ -82,6 +83,10 @@ const ownLayerBounds = computed(() => {
 const selection = useSelection(store, editorUi)
 const creation = useShapeCreation(store, editorUi)
 const imageInsert = useImageInsert(store)
+// The whiteboard object selection lives here (separate from block shape
+// selection); we clear it when a block shape on the board is picked, so the two
+// selections never both show (S13/U1).
+const whiteboardUi = useWhiteboardUi()
 
 // Dropping an image FILE inserts it at the drop point; otherwise fall back to the
 // palette-tile drop. dragover must preventDefault for files so the drop fires.
@@ -562,6 +567,19 @@ function onSurfacePointerDown(event) {
   if (editorUi.state.tool === 'section') return startSectionDraft(event)
   // Hand tool always pans, for every type (shared transform, Part G4).
   if (editorUi.state.tool === 'hand') return viewport.startPan(event)
+  // On the whiteboard, text boxes and images are ordinary block shapes. With the
+  // select tool, hand a press that lands on such a shape to the shared block
+  // selection (select + drag + shift-add), so they're usable like any shape
+  // (S13/U1). A press that misses every shape drops any shape selection and falls
+  // through to the whiteboard interaction (strokes/stickies/marquee).
+  if (isWhiteboard.value && editorUi.state.tool === 'select') {
+    const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
+    if (topShapeAt(point)) {
+      whiteboardUi.clearSelection()
+      return selection.onSurfacePointerdown(event)
+    }
+    if (!event.shiftKey && !event.metaKey && !event.ctrlKey) store.clearSelection()
+  }
   // Flowchart/whiteboard own the surface (+ handles, drag-to-empty, pen, sticky):
   // delegate to the registered mode interaction (Part G1).
   if (delegateSurfaceEvent('onPointerDown', event)) return
@@ -591,6 +609,13 @@ function onSurfacePointerUp(event) {
 // creation is via the bottom palette. Double-click-to-create is whiteboard-only,
 // owned by the whiteboard mode interaction (spec §6/§7.1; P4).
 function onSurfaceDoubleClick(event) {
+  // On the whiteboard, double-clicking an existing text box edits it instead of
+  // dropping a new box on top of it (S13). Check shapes before the mode delegate.
+  if (isWhiteboard.value) {
+    const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
+    const shape = topShapeAt(point)
+    if (shape) return editing.beginTextEdit(shape.id)
+  }
   if (delegateSurfaceEvent('onDoubleClick', event)) return
   if (isMindmap.value) return // node text editing arrives in M2
   const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
@@ -776,6 +801,8 @@ const surfaceCursor = computed(() => {
              TextEditor overlay for inline double-click-to-type (W1). -->
         <template v-else-if="isWhiteboard && store.state.whiteboard">
           <WhiteboardLayer :whiteboard="store.state.whiteboard" />
+          <!-- Selection handles for text/image shapes selected on the board (S13/U1). -->
+          <SelectionLayer v-if="store.state.selection.length" />
           <TextEditor />
         </template>
       </g>
