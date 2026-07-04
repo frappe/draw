@@ -30,6 +30,12 @@ const richStyle = computed(() => {
     boxSizing: 'border-box',
     pointerEvents: 'none',
     overflow: 'hidden',
+    // Wrap inside the shape and break over-long words, so committed text never
+    // spills horizontally past the box (G3). wordBreak is inherited by the inner
+    // <p>, so the rendered label matches how it wrapped while editing.
+    whiteSpace: 'normal',
+    wordBreak: 'break-word',
+    overflowWrap: 'break-word',
     opacity: props.shape.opacity ?? 1,
   }
 })

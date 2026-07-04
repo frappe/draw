@@ -153,6 +153,9 @@ function onKeydown(event) {
 <style>
 /* Rich-text content styling, shared by the editor and the on-canvas render.
    Tailwind's base reset strips list markers, so restore them explicitly. */
+/* Wrap + break long words in BOTH the editor and the committed render, so text
+   stays inside the shape and doesn't reflow/garble on blur (G3). */
+.fd-richtext { overflow-wrap: break-word; word-break: break-word; white-space: normal; }
 .fd-richtext .ProseMirror { outline: none; min-height: 1em; }
 .fd-richtext p { margin: 0; }
 .fd-richtext ul,
