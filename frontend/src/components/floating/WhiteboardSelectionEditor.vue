@@ -14,6 +14,7 @@ import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { lineById, tableById, whiteboardObjectBoxes, voteFor } from '@/diagram/whiteboardModel.js'
 import LineOptions from './LineOptions.vue'
 import TableOptions from './TableOptions.vue'
+import VoteButtons from './VoteButtons.vue'
 
 const store = useDiagramStore()
 const ui = useWhiteboardUi()
@@ -105,18 +106,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
 
       <!-- Up / down vote for a lone object (chat-reaction style, T3). -->
       <template v-if="!multi && selected">
-        <Tooltip text="Upvote">
-          <button :class="btn" @mousedown.prevent @click="vote('up')">
-            <span class="text-[13px]">👍</span>
-            <span v-if="votes.up" class="ml-0.5 text-[11px] text-ink-gray-6">{{ votes.up }}</span>
-          </button>
-        </Tooltip>
-        <Tooltip text="Downvote">
-          <button :class="btn" @mousedown.prevent @click="vote('down')">
-            <span class="text-[13px]">👎</span>
-            <span v-if="votes.down" class="ml-0.5 text-[11px] text-ink-gray-6">{{ votes.down }}</span>
-          </button>
-        </Tooltip>
+        <VoteButtons :votes="votes" @vote="vote" />
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
       </template>
 

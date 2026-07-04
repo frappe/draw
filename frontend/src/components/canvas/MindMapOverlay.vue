@@ -10,6 +10,7 @@
 import { computed } from 'vue'
 import { Popover, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
+import SwatchGrid from '@/components/floating/SwatchGrid.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
@@ -179,13 +180,9 @@ function activeBtn(on) {
         <template #body-main>
           <div class="w-[180px] p-2">
             <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Fill</div>
-            <div class="mb-2 flex flex-wrap gap-1.5">
-              <button v-for="c in FILL_SWATCHES" :key="c" class="h-6 w-6 rounded-md border border-black/10" :style="{ background: c }" @click="setColor(c)" />
-            </div>
+            <SwatchGrid :colors="FILL_SWATCHES" shape="square" class="mb-2" @select="setColor" />
             <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Branch</div>
-            <div class="flex flex-wrap gap-1.5">
-              <button v-for="c in branchSwatches" :key="c" class="h-6 w-6 rounded-full border border-black/10" :style="{ background: c }" @click="setColor(c)" />
-            </div>
+            <SwatchGrid :colors="branchSwatches" @select="setColor" />
           </div>
         </template>
       </Popover>
@@ -202,9 +199,7 @@ function activeBtn(on) {
         <template #body-main>
           <div class="w-[180px] p-2">
             <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Border</div>
-            <div class="mb-2 flex flex-wrap gap-1.5">
-              <button v-for="c in BORDER_SWATCHES" :key="c" class="h-6 w-6 rounded-full border border-black/10" :style="{ background: c }" @click="setBorder(c)" />
-            </div>
+            <SwatchGrid :colors="BORDER_SWATCHES" class="mb-2" @select="setBorder" />
             <button class="flex w-full items-center justify-center gap-1 rounded-md border border-outline-gray-2 py-1 text-[12px] text-ink-gray-6 hover:bg-surface-gray-2" @click="setBorder(null)">
               Match fill
             </button>

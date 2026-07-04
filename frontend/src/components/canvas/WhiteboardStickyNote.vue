@@ -16,6 +16,7 @@ import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { startGroupMove } from '@/composables/useWhiteboardInteraction.js'
 import { voteFor } from '@/diagram/whiteboardModel.js'
+import VoteButtons from '@/components/floating/VoteButtons.vue'
 import { isAdditiveEvent } from '@/composables/pointer.js'
 import { contrastInk, STICKY_COLORS } from '@/diagram/whiteboardColors.js'
 import { roughenRect, pointsToPath } from '@/diagram/sketch.js'
@@ -248,12 +249,7 @@ function openLink(event) {
           @click="setColor(c)"
         />
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-        <button class="flex h-7 items-center justify-center rounded-md px-1.5 text-ink-gray-7 hover:bg-surface-gray-2" title="Upvote" @pointerdown.stop @click="vote('up')">
-          <span class="text-[13px]">👍</span><span v-if="votes.up" class="ml-0.5 text-[11px] text-ink-gray-6">{{ votes.up }}</span>
-        </button>
-        <button class="flex h-7 items-center justify-center rounded-md px-1.5 text-ink-gray-7 hover:bg-surface-gray-2" title="Downvote" @pointerdown.stop @click="vote('down')">
-          <span class="text-[13px]">👎</span><span v-if="votes.down" class="ml-0.5 text-[11px] text-ink-gray-6">{{ votes.down }}</span>
-        </button>
+        <VoteButtons :votes="votes" @vote="vote" />
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
         <button class="flex h-7 w-7 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2" title="Duplicate" aria-label="Duplicate" @pointerdown.stop @click="duplicate">
           <LucideIcon name="copy" class="h-4 w-4" />
