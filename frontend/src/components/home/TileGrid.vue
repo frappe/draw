@@ -51,6 +51,7 @@ function matchesQuery(diagram) {
 }
 
 const SORTS = [
+  { key: 'smart', label: 'Smart' },
   { key: 'modified', label: 'Last edited' },
   { key: 'creation', label: 'Date created' },
   { key: 'title', label: 'Name (A–Z)' },
@@ -69,6 +70,12 @@ function ts(value) {
 }
 function bySort(a, b) {
   if (sortKey.value === 'title') return (a.title || '').localeCompare(b.title || '')
+  // Smart: surface what you'd likely want next — pinned first, then most recently
+  // edited. (Without open-frequency data this is the best local heuristic; I6.)
+  if (sortKey.value === 'smart') {
+    const pin = (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0)
+    return pin || ts(b.modified) - ts(a.modified)
+  }
   return ts(b[sortKey.value]) - ts(a[sortKey.value])
 }
 function byNewest(a, b) {
