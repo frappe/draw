@@ -3,15 +3,15 @@
 // fill / border colour across the whole selection; a compact weight + dash row
 // updates the border. Field text/heights match the rest of the palette.
 import { computed } from 'vue'
-import { Select } from 'frappe-ui'
 import PaletteSection from './PaletteSection.vue'
 import ColorPicker from './ColorPicker.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 
 const store = useDiagramStore()
 
+// Border styles shown VISUALLY (a line preview), not as text (D4).
 const dashStyles = ['solid', 'dashed', 'dotted']
-const dashOptions = dashStyles.map((style) => ({ label: style[0].toUpperCase() + style.slice(1), value: style }))
+const DASH_ARRAY = { solid: '0', dashed: '5 3', dotted: '1.5 3' }
 
 // Selected shape ids (fill/border apply to all of them at once, §4.3).
 const selectedIds = computed(() => store.selectedShapes.map((shape) => shape.id))
@@ -47,14 +47,15 @@ function setDash(value) {
 
 // One-click quick styles: a curated fill+border combo applied to the whole
 // selection (spec 8.4). Swatch shows the fill; the ring shows the border.
+// Neutral tones first (matching the default palette), then a few soft accents.
 const QUICK_STYLES = [
-  { fill: '#EFF6FF', border: '#4F94FF' },
-  { fill: '#F4FFF6', border: '#88D5A5' },
-  { fill: '#FDFAED', border: '#FBCC55' },
-  { fill: '#FCEAF5', border: '#E68AC4' },
+  { fill: '#FFFFFF', border: '#C7C7C7' },
   { fill: '#F3F3F3', border: '#7C7C7C' },
   { fill: 'none', border: '#171717' },
-  { fill: '#1F2933', border: '#1F2933' },
+  { fill: '#171717', border: '#171717' },
+  { fill: '#EFF6FF', border: '#8FBEF5' },
+  { fill: '#F4FFF6', border: '#88D5A5' },
+  { fill: '#FDFAED', border: '#EBC968' },
 ]
 function applyQuickStyle(preset) {
   if (!selectedIds.value.length) return
@@ -92,7 +93,21 @@ function applyQuickStyle(preset) {
         />
         <span class="text-[11px] text-ink-gray-5">px</span>
       </label>
-      <Select class="flex-1" :model-value="dash" :options="dashOptions" @update:model-value="setDash" />
+      <div class="flex flex-1 gap-1">
+        <button
+          v-for="style in dashStyles"
+          :key="style"
+          class="flex h-8 flex-1 items-center justify-center rounded-md border"
+          :class="dash === style ? 'border-ink-gray-9 bg-surface-gray-2' : 'border-outline-gray-2 hover:bg-surface-gray-1'"
+          :title="style"
+          :aria-label="style"
+          @click="setDash(style)"
+        >
+          <svg width="30" height="8" viewBox="0 0 30 8">
+            <line x1="2" y1="4" x2="28" y2="4" stroke="currentColor" class="text-ink-gray-8" stroke-width="2" stroke-linecap="round" :stroke-dasharray="DASH_ARRAY[style]" />
+          </svg>
+        </button>
+      </div>
     </div>
   </PaletteSection>
 </template>
