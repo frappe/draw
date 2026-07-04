@@ -7,6 +7,10 @@ import { useSmartGuides } from '@/composables/useSmartGuides.js'
 const ROTATION_SNAP = [0, 30, 45, 60, 90]
 const NUDGE_SMALL = 1
 const NUDGE_LARGE = 10
+// Logical-unit dead-zone before a body drag actually moves the selection, so the
+// tiny pointer jitter during a click / double-click-to-edit never nudges a shape
+// (G1: "starting to type moves the shape").
+const MOVE_THRESHOLD = 3
 
 export function useShapeTransform(store, editorUi) {
   const move = createMover(store, editorUi)
@@ -71,6 +75,7 @@ function createMover(store, editorUi) {
     // free-translated here — attached connectors follow their shapes' anchors.
     const shapeIds = ids.filter((id) => store.shapeById(id))
     const originals = snapshotShapes(store, shapeIds)
+    let dragging = false
     const apply = (point) => {
       const raw = { x: point.x - start.x, y: point.y - start.y }
       // Snap-to-grid (when on) takes priority over alignment guides: snap the
@@ -88,9 +93,17 @@ function createMover(store, editorUi) {
     }
     runDrag(
       toLogical,
-      (event, point) => applyLive(store, apply(point)),
       (event, point) => {
-        finishGesture(store, 'Move', originals, apply(point))
+        // Ignore sub-threshold jitter until the pointer clearly starts dragging,
+        // so a click / double-click-to-edit doesn't move the shape (G1).
+        if (!dragging) {
+          if (Math.abs(point.x - start.x) < MOVE_THRESHOLD && Math.abs(point.y - start.y) < MOVE_THRESHOLD) return
+          dragging = true
+        }
+        applyLive(store, apply(point))
+      },
+      (event, point) => {
+        if (dragging) finishGesture(store, 'Move', originals, apply(point))
         smartGuides.clear()
       },
     )
