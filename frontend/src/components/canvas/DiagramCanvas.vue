@@ -487,12 +487,52 @@ function onZoomKey(event) {
 
 const panning = computed(() => editorUi.state.tool === 'hand')
 
+// --- Section as a draw tool (T4/B6): the 'section' tool arms a crosshair; press
+// starts a frame, drag sizes it, release commits + selects it. Works in every
+// diagram type, so it's handled here on the shared surface, before the per-type
+// delegation. A too-small drag (a plain click) falls back to a default size.
+const sectionDraft = ref(null)
+let sectionStart = null
+const SECTION_MIN_DRAG = 24
+
+function logicalPoint(event) {
+  return selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
+}
+function startSectionDraft(event) {
+  sectionStart = logicalPoint(event)
+  sectionDraft.value = { x: sectionStart.x, y: sectionStart.y, w: 0, h: 0 }
+}
+function updateSectionDraft(event) {
+  if (!sectionStart) return
+  const p = logicalPoint(event)
+  sectionDraft.value = {
+    x: Math.min(sectionStart.x, p.x),
+    y: Math.min(sectionStart.y, p.y),
+    w: Math.abs(p.x - sectionStart.x),
+    h: Math.abs(p.y - sectionStart.y),
+  }
+}
+function commitSectionDraft() {
+  const d = sectionDraft.value
+  sectionDraft.value = null
+  sectionStart = null
+  if (!d) return
+  // A click (or tiny drag) drops a comfortable default; a real drag uses its box.
+  const draggedEnough = d.w >= SECTION_MIN_DRAG && d.h >= SECTION_MIN_DRAG
+  const box = draggedEnough ? d : { x: d.x - 180, y: d.y - 120, w: 360, h: 240 }
+  const id = store.addSection(Math.round(box.x), Math.round(box.y), Math.round(box.w), Math.round(box.h))
+  editorUi.selectSection(id)
+  editorUi.setTool('select')
+}
+
 // Route a surface pointerdown to the active tool: hand pans, draw creates, and
 // select runs the normal click/move/marquee selection (spec §7.1/§7.2/§4.3).
 function onSurfacePointerDown(event) {
   // A press anywhere but a section's title (which stops propagation) clears the
   // section selection, so its handles/menu disappear.
   editorUi.clearSection()
+  // Section draw tool wins before any per-type handling (works in every type).
+  if (editorUi.state.tool === 'section') return startSectionDraft(event)
   // Hand tool always pans, for every type (shared transform, Part G4).
   if (editorUi.state.tool === 'hand') return viewport.startPan(event)
   // Flowchart/whiteboard own the surface (+ handles, drag-to-empty, pen, sticky):
@@ -507,12 +547,14 @@ function onSurfacePointerDown(event) {
 
 function onSurfacePointerMove(event) {
   if (panning.value) return viewport.movePan(event)
+  if (editorUi.state.tool === 'section' && sectionDraft.value) return updateSectionDraft(event)
   if (delegateSurfaceEvent('onPointerMove', event)) return
   if (!isMindmap.value && editorUi.state.tool === 'draw') creation.onCanvasPointerMove(event)
 }
 
 function onSurfacePointerUp(event) {
   viewport.endPan()
+  if (editorUi.state.tool === 'section' && sectionDraft.value) return commitSectionDraft()
   if (delegateSurfaceEvent('onPointerUp', event)) return
   if (!isMindmap.value && editorUi.state.tool === 'draw') creation.onCanvasPointerUp(event)
 }
@@ -579,7 +621,7 @@ const DRAW_CURSOR =
 
 // Whiteboard placement/drawing tools show a crosshair so it's clear a click will
 // place/draw (S12: arming Text → crosshair, click starts the text box).
-const CROSSHAIR_TOOLS = ['text', 'sticky', 'line', 'table', 'pen', 'highlighter', 'eraser']
+const CROSSHAIR_TOOLS = ['text', 'sticky', 'line', 'table', 'pen', 'highlighter', 'eraser', 'section']
 const surfaceCursor = computed(() => {
   const tool = editorUi.state.tool
   if (tool === 'hand') return 'grab'
@@ -632,6 +674,20 @@ const surfaceCursor = computed(() => {
           :key="section.id"
           :section="section"
           :selected="editorUi.state.selectedSectionId === section.id"
+        />
+
+        <!-- Live frame while drawing a section with the section tool (T4). -->
+        <rect
+          v-if="sectionDraft"
+          :x="sectionDraft.x"
+          :y="sectionDraft.y"
+          :width="sectionDraft.w"
+          :height="sectionDraft.h"
+          rx="6"
+          fill="rgba(110,86,207,0.06)"
+          stroke="#006EDB"
+          stroke-width="1.5"
+          stroke-dasharray="6 4"
         />
 
         <!-- Block mode: shapes/connectors + overlays on the canvas. -->

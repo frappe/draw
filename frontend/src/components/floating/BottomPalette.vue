@@ -44,17 +44,11 @@ function flowNumber() {
   store.updateFlowchartModel('Number steps', (m) => autoNumberFlow(m))
 }
 
-// Add a named section at the centre of the current view (works in every type).
+// Arm the section DRAW tool (T4/B6): the next press-drag on the canvas sizes the
+// frame (DiagramCanvas owns the drag-create); a plain click drops a default one.
+// Toggles off if it's already armed.
 function addSection() {
-  const surface = document.querySelector('[data-fdpreset]')
-  const rect = surface ? surface.getBoundingClientRect() : { width: 1000, height: 700 }
-  const { panX, panY, zoom } = viewport.state
-  const w = 360
-  const h = 240
-  const cx = (-panX + rect.width / 2) / zoom
-  const cy = (-panY + rect.height / 2) / zoom
-  const id = store.addSection(Math.round(cx - w / 2), Math.round(cy - h / 2), w, h)
-  editorUi.selectSection(id)
+  editorUi.setTool(editorUi.state.tool === 'section' ? 'select' : 'section')
 }
 const SHAPES = [
   { type: 'rectangle', icon: 'square', label: 'Rectangle' },
@@ -157,8 +151,8 @@ function setGuides(state) {
 
     <!-- Section (named grouping frame) — available in every diagram type. -->
     <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-    <Tooltip text="Add section">
-      <button :class="buttonBase" @click="addSection"><LucideIcon name="layout" class="h-4 w-4" /></button>
+    <Tooltip text="Draw section">
+      <button :class="[buttonBase, toggleClass(editorUi.state.tool === 'section')]" @click="addSection"><LucideIcon name="layout" class="h-4 w-4" /></button>
     </Tooltip>
 
     <!-- Block creation tools: Shapes + Connectors popovers + Text. -->
