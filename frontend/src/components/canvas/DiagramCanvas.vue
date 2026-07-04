@@ -307,7 +307,10 @@ const stageStyle = computed(() => ({
 // The box fit-to-view should frame: the mind-map tree's bbox, else the paper.
 function fitContentSize() {
   const bounds = ownLayerBounds.value
-  if (rendersOwnLayer.value && bounds && !isWhiteboard.value) return { w: bounds.w, h: bounds.h }
+  // Every own-layer type — mind map, flowchart AND whiteboard — frames its
+  // derived content bbox (T6). whiteboardContentBounds falls back to a centred
+  // box on an empty board, so fit still lands somewhere sensible.
+  if (rendersOwnLayer.value && bounds) return { w: bounds.w, h: bounds.h }
   return { w: canvas.value.width, h: canvas.value.height }
 }
 
@@ -317,7 +320,7 @@ function fitToView() {
   viewWidth.value = bounds.width
   viewHeight.value = bounds.height
   const size = fitContentSize()
-  const framesOwnBounds = rendersOwnLayer.value && !isWhiteboard.value
+  const framesOwnBounds = rendersOwnLayer.value && !!ownLayerBounds.value
   const origin = (framesOwnBounds && ownLayerBounds.value) || { x: 0, y: 0 }
   viewport.setMeasure({
     containerW: bounds.width,

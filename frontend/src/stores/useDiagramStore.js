@@ -35,6 +35,7 @@ import {
   addStamp,
   removeStamp,
 } from '@/diagram/whiteboardModel.js'
+import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 
 const STORE_KEY = 'diagramStore'
 
@@ -436,6 +437,21 @@ function attachSelection(store, state) {
       ...state.shapes.filter((s) => !s.locked && !s.hidden).map((shape) => shape.id),
       ...state.connectors.map((c) => c.id),
     ]
+    // A whiteboard's freehand/sticky/line/table/stamp objects live in the
+    // whiteboard UI selection, not state.selection — Select All must reach them
+    // too, or Cmd+A → Delete would leave the board untouched (T1). Image shapes
+    // (ordinary block shapes) are already covered by state.selection above.
+    if (state.diagramType === 'whiteboard' && state.whiteboard) {
+      const wb = state.whiteboard
+      const all = [
+        ...wb.strokes.map((o) => ({ kind: 'stroke', id: o.id })),
+        ...wb.stickyNotes.map((o) => ({ kind: 'sticky', id: o.id })),
+        ...(wb.lines || []).map((o) => ({ kind: 'line', id: o.id })),
+        ...(wb.tables || []).map((o) => ({ kind: 'table', id: o.id })),
+        ...(wb.stamps || []).map((o) => ({ kind: 'stamp', id: o.id })),
+      ]
+      useWhiteboardUi().setSelection(all)
+    }
   }
   // Expand a set of shape ids to include every shape sharing a groupId with any
   // of them, so a group selects/moves/deletes as one unit. Non-grouped ids pass

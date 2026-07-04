@@ -18,7 +18,6 @@ import { stickyNoteById } from '@/diagram/whiteboardModel.js'
 const TOOL_KEYS = {
   v: 'select', p: 'pen', h: 'highlighter', e: 'eraser',
   t: 'text', s: 'sticky', l: 'laser', n: 'line', g: 'table',
-  m: 'stamp',
 }
 
 export function whiteboardKeydown(event, store, editorUi) {
@@ -69,10 +68,15 @@ function dropAdjacentSticky(store, ui) {
 }
 
 function deleteSelected(store, ui) {
-  const selection = ui.state.selection
-  if (!selection.length) return false
-  // Delete every selected object (single or multi) as one undoable unit.
-  store.removeWhiteboardObjects([...selection])
-  ui.clearSelection()
+  const wbSelection = ui.state.selection
+  const shapeSelection = store.state.selection
+  if (!wbSelection.length && !shapeSelection.length) return false
+  // Delete every selected whiteboard object AND any selected image shapes (both
+  // reachable after Select All) — as undoable units.
+  if (wbSelection.length) {
+    store.removeWhiteboardObjects([...wbSelection])
+    ui.clearSelection()
+  }
+  if (shapeSelection.length) store.removeSelectionOrIds()
   return true
 }
