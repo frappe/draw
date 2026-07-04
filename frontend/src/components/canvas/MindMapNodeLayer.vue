@@ -100,7 +100,7 @@ function colorOf(node) {
 }
 
 function fillOf(node) {
-  return node.color ? nodeFill(node.color) : isRoot(props.mindmap, node.id) ? '#ECE7FE' : nodeFill(colorOf(node))
+  return node.color ? nodeFill(node.color) : isRoot(props.mindmap, node.id) ? '#F3F3F3' : nodeFill(colorOf(node))
 }
 
 function inkOf(node) {
@@ -182,7 +182,7 @@ function editStyle(node, b) {
     height: b.h + 'px',
     lineHeight: b.h + 'px',
     fontSize: nodeFontSize(node) + 'px',
-    fontWeight: node.bold || isRoot(props.mindmap, node.id) ? 700 : 500,
+    fontWeight: node.bold ? 700 : isRoot(props.mindmap, node.id) ? 600 : 500,
     fontStyle: node.italic ? 'italic' : 'normal',
     color: inkOf(node),
   }
@@ -314,7 +314,10 @@ function nodeStroke(node) {
   return isSelected(node.id) || isDropTarget(node.id) ? 3 : isRoot(props.mindmap, node.id) ? 2.5 : 1.8
 }
 function strokeColor(node) {
-  return isDropTarget(node.id) ? '#006EDB' : colorOf(node)
+  // Border is its own knob (U5/O2): an explicit node.border wins; otherwise the
+  // outline follows the resolved branch/fill colour as before.
+  if (isDropTarget(node.id)) return '#006EDB'
+  return node.border || colorOf(node)
 }
 function nodeRx(node, b) {
   if (node.shape === 'rounded') return 12
@@ -430,7 +433,7 @@ function nodePoly(node, b) {
           text-anchor="middle"
           dominant-baseline="central"
           :font-size="node.fontSize || (isRoot(props.mindmap, node.id) ? 17 : 14)"
-          :font-weight="node.bold || isRoot(props.mindmap, node.id) ? 700 : 500"
+          :font-weight="node.bold ? 700 : isRoot(props.mindmap, node.id) ? 600 : 500"
           :font-style="node.italic ? 'italic' : 'normal'"
           :fill="node.text ? inkOf(node) : '#9AA5B1'"
           style="font-family: Inter, sans-serif; pointer-events: none"

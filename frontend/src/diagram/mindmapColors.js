@@ -13,7 +13,9 @@ const BRANCH_PALETTES = {
   sunset: ['#F6A360', '#F08A8A', '#EFC53F', '#E68AC4', '#8A6BF0', '#4F94FF'],
 }
 
-const ROOT_COLOR = '#6846E3'
+// Root is a neutral slate — a mind map's centre should read as a calm anchor,
+// not a saturated brand splash (U4/N7). Branches still get the vivid palette.
+const ROOT_COLOR = '#525252'
 
 export function branchPalette(themePreset) {
   return BRANCH_PALETTES[themePreset] || BRANCH_PALETTES.ocean
