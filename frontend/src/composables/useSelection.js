@@ -25,19 +25,22 @@ export function useSelection(store, editorUi) {
   return { onSurfacePointerdown, transform, marquee, toLogicalFor }
 }
 
-// Build a client→logical converter closed over the surface rect + viewport, so
-// it stays correct for window-level move events after the surface scrolls away.
+// Build a client→logical converter closed over the surface element + viewport.
+// The surface doesn't move or scroll mid-gesture, so reading its rect/scroll live
+// per event stays correct for window-level move events too.
 function makeConverter(surfaceElement, viewport) {
-  const rect = surfaceElement.getBoundingClientRect()
-  return (event) => toLogicalFor(event, rect, viewport)
+  return (event) => toLogicalFor(event, surfaceElement, viewport)
 }
 
-// Convert a pointer event to logical canvas units: undo pan, then undo zoom.
-function toLogicalFor(event, rect, viewport) {
+// Convert a pointer event to logical canvas units: undo the surface scroll (the
+// canvas SVG scrolls inside the surface's overflow box), then pan, then zoom.
+// `el` is the surface element (carrying getBoundingClientRect + scrollLeft/Top).
+function toLogicalFor(event, el, viewport) {
+  const rect = el.getBoundingClientRect()
   const { panX, panY, zoom } = viewport.state
   return {
-    x: (event.clientX - rect.left - panX) / zoom,
-    y: (event.clientY - rect.top - panY) / zoom,
+    x: (event.clientX - rect.left + el.scrollLeft - panX) / zoom,
+    y: (event.clientY - rect.top + el.scrollTop - panY) / zoom,
   }
 }
 

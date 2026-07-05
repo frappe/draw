@@ -84,11 +84,15 @@ export function isConnectorType(type) {
 
 // Convert a pointer event to logical canvas units by undoing the SVG <g> pan +
 // zoom transform applied by DiagramCanvas (translate(panX panY) scale(zoom)).
+// The SVG lives inside the surface's own scroll box, so its content shifts by
+// the surface's scrollLeft/scrollTop too — fold that in, or a shape drawn on a
+// scrolled (panned) canvas lands offset from the pointer.
 function toLogicalPoint(event, viewport) {
-  const bounds = event.currentTarget.getBoundingClientRect()
+  const el = event.currentTarget
+  const bounds = el.getBoundingClientRect()
   return {
-    x: (event.clientX - bounds.left - viewport.panX) / viewport.zoom,
-    y: (event.clientY - bounds.top - viewport.panY) / viewport.zoom,
+    x: (event.clientX - bounds.left + el.scrollLeft - viewport.panX) / viewport.zoom,
+    y: (event.clientY - bounds.top + el.scrollTop - viewport.panY) / viewport.zoom,
   }
 }
 

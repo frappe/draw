@@ -108,7 +108,7 @@ function onCanvasDrop(event) {
   const file = Array.from(event.dataTransfer?.files || []).find((f) => f.type.startsWith('image/'))
   if (file) {
     event.preventDefault()
-    const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
+    const point = selection.toLogicalFor(event, surface.value, viewport)
     imageInsert.insert(file, point)
     return
   }
@@ -133,7 +133,7 @@ function viewportCenterPoint() {
 const contextMenu = reactive({ show: false, x: 0, y: 0, items: [] })
 
 function onContextMenu(event) {
-  const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
+  const point = selection.toLogicalFor(event, surface.value, viewport)
   const shape = activeType.value === 'block' ? topShapeAt(point, { includeLocked: true }) : null
   if (shape && shape.locked) {
     // Don't pull a locked shape into the selection; just offer to unlock it.
@@ -480,7 +480,7 @@ function delegatesSurface() {
 // Context handed to mode interaction handlers; `point` is already in canvas units
 // (Part G4) via the shared viewport transform.
 function interactionContext(event) {
-  const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
+  const point = selection.toLogicalFor(event, surface.value, viewport)
   // `editing` is the shared text-editing API (setup-scoped here) so mode
   // interactions can begin inline text edits without re-calling the composable
   // outside setup (e.g. whiteboard double-click-to-type, spec C1/W1).
@@ -529,7 +529,7 @@ let sectionStart = null
 const SECTION_MIN_DRAG = 24
 
 function logicalPoint(event) {
-  return selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
+  return selection.toLogicalFor(event, surface.value, viewport)
 }
 function startSectionDraft(event) {
   // Capture the pointer so the surface still gets move/up even if the drag ends
@@ -584,7 +584,7 @@ function onSurfacePointerDown(event) {
   // (S13/U1). A press that misses every shape drops any shape selection and falls
   // through to the whiteboard interaction (strokes/stickies/marquee).
   if (isWhiteboard.value && editorUi.state.tool === 'select') {
-    const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
+    const point = selection.toLogicalFor(event, surface.value, viewport)
     if (topShapeAt(point)) {
       whiteboardUi.clearSelection()
       return selection.onSurfacePointerdown(event)
@@ -623,13 +623,13 @@ function onSurfaceDoubleClick(event) {
   // On the whiteboard, double-clicking an existing text box edits it instead of
   // dropping a new box on top of it (S13). Check shapes before the mode delegate.
   if (isWhiteboard.value) {
-    const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
+    const point = selection.toLogicalFor(event, surface.value, viewport)
     const shape = topShapeAt(point)
     if (shape) return editing.beginTextEdit(shape.id)
   }
   if (delegateSurfaceEvent('onDoubleClick', event)) return
   if (isMindmap.value) return // node text editing arrives in M2
-  const point = selection.toLogicalFor(event, surface.value.getBoundingClientRect(), viewport)
+  const point = selection.toLogicalFor(event, surface.value, viewport)
   const shape = topShapeAt(point)
   if (shape) return editing.beginTextEdit(shape.id)
   const connector = connectorAt(point)
