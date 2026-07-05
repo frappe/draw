@@ -10,8 +10,9 @@ defineProps({
   view: { type: String, default: 'tile' },
   count: { type: Number, default: 0 },
   selected: { type: Boolean, default: false },
+  pinned: { type: Boolean, default: false },
 })
-const emit = defineEmits(['open', 'drop-diagram', 'toggle-select'])
+const emit = defineEmits(['open', 'drop-diagram', 'toggle-select', 'toggle-pin'])
 
 const dragOver = ref(false)
 
@@ -38,6 +39,14 @@ function onDrop(event) {
       @click.stop="emit('toggle-select', folder.name)"
     >
       <LucideIcon name="check" class="h-3 w-3" />
+    </button>
+    <!-- One-click pin (folders pin like diagrams). -->
+    <button
+      class="flex h-6 w-6 flex-none items-center justify-center rounded hover:bg-surface-gray-2"
+      :title="pinned ? 'Unpin' : 'Pin'"
+      @click.stop="emit('toggle-pin', folder.name)"
+    >
+      <LucideIcon name="pin" class="h-4 w-4" :class="pinned ? 'fill-amber-400 text-amber-400' : 'text-ink-gray-4 hover:text-ink-gray-6'" />
     </button>
     <button class="flex min-w-0 flex-1 items-center gap-3 text-left" @click="emit('open')">
       <div class="flex h-8 w-8 flex-none items-center justify-center rounded-md bg-surface-gray-2 text-ink-gray-7">
@@ -66,6 +75,15 @@ function onDrop(event) {
       @click.stop="emit('toggle-select', folder.name)"
     >
       <LucideIcon name="check" class="h-3 w-3" />
+    </button>
+    <!-- One-click pin, top-right (parity with diagram tiles). -->
+    <button
+      class="absolute right-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded hover:bg-surface-gray-2 transition-opacity"
+      :class="pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+      :title="pinned ? 'Unpin' : 'Pin'"
+      @click.stop="emit('toggle-pin', folder.name)"
+    >
+      <LucideIcon name="pin" class="h-4 w-4" :class="pinned ? 'fill-amber-400 text-amber-400' : 'text-ink-gray-5'" />
     </button>
     <button class="flex flex-col items-center gap-2" @click="emit('open')">
       <LucideIcon name="folder" class="h-9 w-9 text-ink-gray-6" />

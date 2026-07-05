@@ -12,7 +12,7 @@ import { createListResource, Dialog, Button, FormControl, Dropdown, TextInput, T
 import LucideIcon from '@/icons/LucideIcon.vue'
 import DiagramCollection from './DiagramCollection.vue'
 import FolderItem from './FolderItem.vue'
-import { folders, moveDiagramToFolder, deleteFolder } from '@/data/folders.js'
+import { folders, moveDiagramToFolder, deleteFolder, toggleFolderPin } from '@/data/folders.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
 import { DIAGRAM_TYPES, typeLabel } from '@/data/diagramTypes.js'
 
@@ -105,10 +105,23 @@ function folderItemCount(folderName) {
   const subs = (folders.data || []).filter((f) => f.parent_folder === folderName).length
   return subs + rows.value.filter((d) => d.folder === folderName).length
 }
+// Unpinned folders at the current level. Pinned folders (any level) are lifted
+// into the root Pinned section instead, mirroring pinned diagrams.
 const folderTiles = computed(() =>
   (folders.data || [])
-    .filter((f) => (f.parent_folder || null) === parentFolderName.value)
+    .filter((f) => (f.parent_folder || null) === parentFolderName.value && !f.is_pinned)
     .map((folder) => ({ folder, count: folderItemCount(folder.name) })),
+)
+const pinnedFolderTiles = computed(() =>
+  (folders.data || [])
+    .filter((f) => f.is_pinned)
+    .map((folder) => ({ folder, count: folderItemCount(folder.name) })),
+)
+// The root shows a titled "Pinned" section whenever anything (diagram or folder)
+// is pinned; the remaining folders + files then get their own titled section.
+const hasPinnedSection = computed(() => !props.folder && (pinned.value.length > 0 || pinnedFolderTiles.value.length > 0))
+const folderGridClass = computed(() =>
+  view.value === 'tile' ? 'mb-[18px] grid gap-[18px]' : 'mb-1.5 flex flex-col gap-1.5',
 )
 
 // Recent + All are flat across the whole (filtered) library.
@@ -208,6 +221,13 @@ async function togglePin(diagram) {
   if (!diagram.is_pinned && pinLimitReached.value) return
   await enriched.setValue.submit({ name: diagram.name, is_pinned: diagram.is_pinned ? 0 : 1 })
   refresh()
+}
+
+// Pin / unpin a folder — it moves in/out of the root Pinned section.
+async function togglePinFolder(name) {
+  const folder = (folders.data || []).find((f) => f.name === name)
+  if (!folder) return
+  await toggleFolderPin(name, !folder.is_pinned)
 }
 
 const editor = reactive({ open: false, value: '', name: null })
@@ -363,18 +383,34 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       <span class="w-7 flex-none" />
     </div>
 
-    <!-- HOME: a file explorer — Pinned (root only) + files + sub/folders. -->
+    <!-- HOME: a file explorer — a titled Pinned section (root only, folders +
+         diagrams) then a titled "Files & folders" section; inside a folder just
+         its sub-folders + files. -->
     <template v-if="mode === 'home'">
-      <!-- Home layout (S1/S2): pinned rows set apart by a separator (no "Other"
-           label), then FOLDERS first and loose diagrams — no section headers, one
-           continuous flow. Inside a folder: sub-folders then that folder's files. -->
-      <template v-if="!folder && pinned.length">
-        <DiagramCollection :diagrams="pinned" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
+      <template v-if="hasPinnedSection">
+        <div class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-gray-5">Pinned</div>
+        <div v-if="pinnedFolderTiles.length" :class="folderGridClass" :style="view === 'tile' ? TILE_COLS : ''">
+          <FolderItem
+            v-for="group in pinnedFolderTiles"
+            :key="group.folder.name"
+            :folder="group.folder"
+            :count="group.count"
+            :selected="selectedFolders.has(group.folder.name)"
+            :view="view"
+            :pinned="true"
+            @open="emit('open-folder', group.folder)"
+            @toggle-select="toggleSelectFolder"
+            @toggle-pin="togglePinFolder"
+            @drop-diagram="dropOnFolder(group.folder.name, $event)"
+          />
+        </div>
+        <DiagramCollection v-if="pinned.length" :diagrams="pinned" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
         <div class="my-3 h-px bg-surface-gray-2" />
+        <div class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-gray-5">Files &amp; folders</div>
       </template>
 
-      <!-- Folders first (no header). -->
-      <div v-if="folderTiles.length" :class="view === 'tile' ? 'mb-[18px] grid gap-[18px]' : 'mb-1.5 flex flex-col gap-1.5'" :style="view === 'tile' ? TILE_COLS : ''">
+      <!-- Unpinned folders. -->
+      <div v-if="folderTiles.length" :class="folderGridClass" :style="view === 'tile' ? TILE_COLS : ''">
         <FolderItem
           v-for="group in folderTiles"
           :key="group.folder.name"
@@ -382,13 +418,15 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
           :count="group.count"
           :selected="selectedFolders.has(group.folder.name)"
           :view="view"
+          :pinned="false"
           @open="emit('open-folder', group.folder)"
           @toggle-select="toggleSelectFolder"
+          @toggle-pin="togglePinFolder"
           @drop-diagram="dropOnFolder(group.folder.name, $event)"
         />
       </div>
 
-      <!-- Then loose diagrams (no header). -->
+      <!-- Loose diagrams. -->
       <DiagramCollection v-if="files.length" :diagrams="files" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
 
       <p v-if="folder && !files.length && !folderTiles.length" class="py-10 text-center text-[13px] text-ink-gray-5">

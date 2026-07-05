@@ -4,9 +4,16 @@ import { createListResource } from 'frappe-ui'
 
 export const folders = createListResource({
   doctype: 'Draw Folder',
-  fields: ['name', 'folder_name', 'parent_folder', 'sort_order'],
+  fields: ['name', 'folder_name', 'parent_folder', 'sort_order', 'is_pinned'],
   orderBy: 'sort_order asc',
 })
+
+// Pin / unpin a folder so it surfaces in the home "Pinned" section (like a
+// pinned diagram). Reloads so the explorer reflects it immediately.
+export async function toggleFolderPin(name, pinned) {
+  await folders.setValue.submit({ name, is_pinned: pinned ? 1 : 0 })
+  await folders.reload()
+}
 
 // Create a new folder (optionally nested under parentFolder), returning its
 // name. Reloads the list so the sidebar/explorer reflect it immediately.

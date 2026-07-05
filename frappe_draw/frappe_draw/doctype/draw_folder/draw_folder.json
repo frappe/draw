@@ -8,7 +8,8 @@
  "field_order": [
   "folder_name",
   "parent_folder",
-  "sort_order"
+  "sort_order",
+  "is_pinned"
  ],
  "fields": [
   {
@@ -29,6 +30,13 @@
    "fieldname": "sort_order",
    "fieldtype": "Int",
    "label": "Sort Order"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_pinned",
+   "fieldtype": "Check",
+   "in_standard_filter": 1,
+   "label": "Is Pinned"
   }
  ],
  "index_web_pages_for_search": 1,
