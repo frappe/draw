@@ -280,10 +280,16 @@ const isInfiniteBlock = computed(() => editorUi.state.infiniteCanvas && activeTy
 // A small pad guarantees dots reach every edge.
 const gridBounds = computed(() => {
   const { panX, panY, zoom } = viewport.state
+  // The <g> also rides the surface's native scroll, so the viewport's top-left in
+  // canvas units folds scrollLeft/Top in — without it the dots drift off one edge
+  // as you pan/scroll and appear to "end". (pan and scroll stay in sync, so this
+  // recomputes on pan.)
+  const scrollLeft = surface.value ? surface.value.scrollLeft : 0
+  const scrollTop = surface.value ? surface.value.scrollTop : 0
   const pad = 8
   return {
-    x: -panX / zoom - pad,
-    y: -panY / zoom - pad,
+    x: (scrollLeft - panX) / zoom - pad,
+    y: (scrollTop - panY) / zoom - pad,
     w: viewWidth.value / zoom + pad * 2,
     h: viewHeight.value / zoom + pad * 2,
   }

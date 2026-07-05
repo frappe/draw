@@ -82,6 +82,15 @@ function handleKeydown(event, store, editorUi, clipboard, transform) {
     event.preventDefault()
     return
   }
+  // Delete/Backspace removes a selected section (chrome, in every diagram type) —
+  // before per-mode handling, so it isn't swallowed and works via the keyboard
+  // like the section's own X button.
+  if ((event.key === 'Delete' || event.key === 'Backspace') && editorUi.state.selectedSectionId) {
+    store.removeSection(editorUi.state.selectedSectionId)
+    editorUi.clearSection()
+    event.preventDefault()
+    return
+  }
   if (dispatchModeKey(event, store, editorUi)) {
     event.preventDefault()
     return

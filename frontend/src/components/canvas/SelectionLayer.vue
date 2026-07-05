@@ -37,6 +37,14 @@ const marquee = inject('selectionMarquee', null)
 
 const selected = computed(() => store.selectedShapes)
 const single = computed(() => (selected.value.length === 1 ? selected.value[0] : null))
+// A group is selected when every selected shape shares one non-empty groupId —
+// show a single bounding box around the whole group (it already moves as a unit).
+const isGroup = computed(() => {
+  const sel = selected.value
+  if (sel.length < 2) return false
+  const gid = sel[0].groupId
+  return Boolean(gid) && sel.every((s) => s.groupId === gid)
+})
 const zoom = computed(() => editorUi.viewport.state.zoom || 1)
 const handleSize = computed(() => HANDLE / zoom.value)
 const strokeWidth = computed(() => 1.5 / zoom.value)
@@ -117,6 +125,20 @@ function startRotate(event) {
       stroke="#006EDB"
       :stroke-width="strokeWidth"
       :stroke-dasharray="`${4 / zoom} ${3 / zoom}`"
+    />
+
+    <!-- Group bounding box: a single solid box around a selected group (in
+         addition to each member's dashed outline), so the group reads as one
+         unit like in Slides. -->
+    <rect
+      v-if="isGroup && box"
+      :x="box.x - 6 / zoom"
+      :y="box.y - 6 / zoom"
+      :width="box.w + 12 / zoom"
+      :height="box.h + 12 / zoom"
+      fill="none"
+      stroke="#006EDB"
+      :stroke-width="strokeWidth"
     />
 
     <!-- Handles + rotation handle: single selection only, rotating with it. -->
