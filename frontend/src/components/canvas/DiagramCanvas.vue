@@ -214,6 +214,12 @@ const orderedShapes = computed(() =>
   [...store.state.shapes].filter(isVisible).sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)),
 )
 
+// Block has no own-layer empty prompt (whiteboard/mind-map/flowchart do), so show
+// a faint centred hint on a blank block canvas, consistent with the others.
+const blockEmpty = computed(
+  () => activeType.value === 'block' && !orderedShapes.value.length && !store.state.connectors.length,
+)
+
 const groupTransform = computed(
   () => `translate(${viewport.state.panX} ${viewport.state.panY}) scale(${viewport.state.zoom})`,
 )
@@ -682,6 +688,16 @@ const surfaceCursor = computed(() => {
         </template>
       </g>
     </svg>
+
+    <!-- Empty-state hint on a blank block canvas (screen-centred, non-interactive)
+         — mirrors the whiteboard/mind-map/flowchart prompts. -->
+    <div
+      v-if="blockEmpty"
+      class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none text-center"
+    >
+      <div class="text-[15px] font-medium text-ink-gray-4">Nothing here yet</div>
+      <div class="mt-1 text-[13px] text-ink-gray-3">Add a shape from the toolbar below to get started</div>
+    </div>
 
     <!-- Rulers in screen space (outside the viewport <g>), shown while editing
          text at any zoom (spec §6). -->
