@@ -15,6 +15,8 @@ export function makeSection(x, y, w, h, partial = {}) {
     w: Math.max(120, w),
     h: Math.max(80, h),
     title: partial.title || 'Section',
-    color: partial.color || '#6E56CF',
+    // Neutral grey by default (across every diagram type) — a section is a quiet
+    // visual grouping, not a coloured highlight.
+    color: partial.color || '#64748B',
   }
 }

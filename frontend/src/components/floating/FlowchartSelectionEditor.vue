@@ -6,8 +6,10 @@
 import { computed } from 'vue'
 import { Popover, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
+import SwatchGrid from '@/components/floating/SwatchGrid.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
+import { SWATCH_PALETTE } from '@/diagram/palette.js'
 import {
   NODE_TYPES,
   NODE_TYPE_META,
@@ -20,7 +22,8 @@ import {
 
 const store = useDiagramStore()
 
-const FILL_SWATCHES = ['#EFF6FF', '#F4FFF6', '#FDFAED', '#FCEAF5', '#F3F3F3', '#FFFFFF']
+// Per-type icons for the picker grid (these SHOULD differ per type). The toolbar
+// trigger uses one standardized icon instead of mirroring the node.
 const TYPE_ICONS = {
   terminator: 'circle-play', process: 'square', decision: 'git-branch',
   inputOutput: 'log-in', document: 'file-text', database: 'database',
@@ -36,6 +39,7 @@ const nodes = computed(() =>
 // Type-swap + branch controls only make sense for a lone selection.
 const node = computed(() => (nodes.value.length === 1 ? nodes.value[0] : null))
 const fillPreview = computed(() => nodes.value[0]?.fill || '#FFFFFF')
+const borderPreview = computed(() => nodes.value[0]?.border || '#7C7C7C')
 
 function nodeBox(n) {
   const size = nodeSize(n)
@@ -66,6 +70,17 @@ function setFill(color) {
     for (const id of ids) {
       const target = flowchartNodeById(m, id)
       if (target) target.fill = color
+    }
+  })
+}
+function setBorder(color) {
+  const ids = nodes.value.map((n) => n.id)
+  if (!ids.length) return
+  // Border is its own field (null clears back to the theme default outline).
+  store.updateFlowchartModel('Border', (m) => {
+    for (const id of ids) {
+      const target = flowchartNodeById(m, id)
+      if (target) target.border = color
     }
   })
 }
@@ -106,7 +121,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
         <template #target="{ togglePopover }">
           <Tooltip text="Node type">
             <button :class="btn" @mousedown.prevent @click="togglePopover()">
-              <LucideIcon :name="TYPE_ICONS[node.nodeType]" class="h-4 w-4" />
+              <LucideIcon name="shapes" class="h-4 w-4" />
             </button>
           </Tooltip>
         </template>
@@ -139,11 +154,32 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
           </Tooltip>
         </template>
         <template #body-main>
-          <div class="w-[176px] p-2">
-            <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Fill</div>
-            <div class="flex flex-wrap gap-2">
-              <button v-for="c in FILL_SWATCHES" :key="c" class="h-7 w-7 rounded-md border border-outline-gray-2" :style="{ background: c }" @click="setFill(c)" />
-            </div>
+          <div class="w-[204px] p-2">
+            <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Fill</div>
+            <SwatchGrid :colors="SWATCH_PALETTE" shape="square" class="mb-2" @select="setFill" />
+            <button class="flex w-full items-center justify-center gap-1 rounded-md border border-outline-gray-2 py-1 text-[12px] text-ink-gray-6 hover:bg-surface-gray-2" @click="setFill(null)">
+              No fill
+            </button>
+          </div>
+        </template>
+      </Popover>
+
+      <!-- Border — its own menu, rendered as rings so it reads as a border. -->
+      <Popover side="top">
+        <template #target="{ togglePopover }">
+          <Tooltip text="Border">
+            <button :class="btn" @mousedown.prevent @click="togglePopover()">
+              <span class="h-4 w-4 rounded-full border-[3px]" :style="{ borderColor: borderPreview }" />
+            </button>
+          </Tooltip>
+        </template>
+        <template #body-main>
+          <div class="w-[204px] p-2">
+            <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Border</div>
+            <SwatchGrid :colors="SWATCH_PALETTE" shape="ring" class="mb-2" @select="setBorder" />
+            <button class="flex w-full items-center justify-center gap-1 rounded-md border border-outline-gray-2 py-1 text-[12px] text-ink-gray-6 hover:bg-surface-gray-2" @click="setBorder(null)">
+              Default border
+            </button>
           </div>
         </template>
       </Popover>
