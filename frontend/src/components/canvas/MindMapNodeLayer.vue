@@ -109,6 +109,9 @@ function colorOf(node) {
 }
 
 function fillOf(node) {
+  // An explicit fill wins; otherwise the fill is a light tint of the branch
+  // colour (the root has its own neutral tint).
+  if (node.fill) return node.fill
   return node.color ? nodeFill(node.color) : isRoot(props.mindmap, node.id) ? '#F3F3F3' : nodeFill(colorOf(node))
 }
 
@@ -546,12 +549,6 @@ function nodePoly(node, b) {
           :d="`M${add.cx - 4.5} ${add.cy} H${add.cx + 4.5} M${add.cx} ${add.cy - 4.5} V${add.cy + 4.5}`"
           stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"
         />
-      </g>
-
-      <!-- Note indicator (hover shows the note text, M5). -->
-      <g v-if="node.note" :transform="`translate(${box.w - 12} 10)`">
-        <title>{{ node.note }}</title>
-        <circle r="4" fill="#FBCC55" />
       </g>
     </g>
 

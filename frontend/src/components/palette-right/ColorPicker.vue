@@ -6,6 +6,7 @@ import { reactive, computed, watch } from 'vue'
 import { Popover } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { recentColors, pushRecentColor } from '@/composables/useRecentColors.js'
+import { SWATCH_PALETTE } from '@/diagram/palette.js'
 
 const props = defineProps({
   modelValue: { type: String, default: '#FFFFFF' },
@@ -13,10 +14,8 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue'])
 
-const quickColors = [
-  '#FFFFFF', '#F3F3F3', '#C7C7C7', '#999999', '#525252', '#171717',
-  '#4F94FF', '#006EDB', '#88D5A5', '#30A66D', '#FBCC55', '#E68AC4',
-]
+// Shared Espresso/Frappe swatch family (same set every picker offers).
+const quickColors = SWATCH_PALETTE
 
 const hsv = reactive({ h: 0, s: 0, v: 1, a: 1 })
 

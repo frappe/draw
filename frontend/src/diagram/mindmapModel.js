@@ -19,7 +19,6 @@ function makeNode(parentId, text, order, depth) {
     collapsed: false,
     color: null,
     marker: { icon: null, colorDot: null },
-    note: '',
   }
 }
 

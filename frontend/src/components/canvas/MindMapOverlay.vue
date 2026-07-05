@@ -16,18 +16,23 @@ import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
 import { layoutMindMap } from '@/diagram/mindmapLayout.js'
 import { isRoot } from '@/diagram/mindmapModel.js'
-import { branchPalette, resolveNodeColor, nodeFill } from '@/diagram/mindmapColors.js'
+import { resolveNodeColor, nodeFill } from '@/diagram/mindmapColors.js'
+import { SWATCH_PALETTE } from '@/diagram/palette.js'
 import { deleteNodes } from '@/diagram/mindmapOperations.js'
 import { mindmapUi, selectedNodeId, selectNode, beginEdit } from '@/stores/mindmapUi.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
 
-const FILL_SWATCHES = ['#EFEAFE', '#EFF6FF', '#F4FFF6', '#FDFAED', '#FCEAF5', '#F3F3F3', '#FFFFFF']
-// Border/outline hues — neutral greys first, then the branch accents. Separate
-// from the fill so a node can be, say, white-filled with a bold border (U5/O2).
-const BORDER_SWATCHES = ['#171717', '#525252', '#7C7C7C', '#C7C7C7', '#4F94FF', '#30A66D', '#E68AC4', '#F08A8A']
-const MARKER_ICONS = ['star', 'flag', 'circle-check', 'circle-alert', 'heart', 'zap']
+// Fill, branch and border all draw from the same rich Espresso/Frappe swatch
+// family (spec: many more options), each in its own menu so the three knobs are
+// independent — a node can be, say, white-filled with a green branch and a bold
+// dark border.
+const MARKER_ICONS = [
+  'star', 'flag', 'circle-check', 'circle-alert', 'heart', 'zap',
+  'bookmark', 'bell', 'target', 'lightbulb', 'sparkles', 'clock',
+  'rocket', 'trophy', 'flame', 'thumbs-up', 'gift', 'eye',
+]
 const MIN_FONT = 10
 const MAX_FONT = 48
 const SHAPES = ['pill', 'rounded', 'ellipse', 'diamond', 'hexagon']
@@ -47,17 +52,22 @@ const multi = computed(() => selectedNodes.value.length > 1)
 // Single-node controls (bold/italic, shape, text size, marker, cross-link, note)
 // only make sense for a lone selection; `node` is null while multi-selecting.
 const node = computed(() => (selectedNodes.value.length === 1 ? selectedNodes.value[0] : null))
-const branchSwatches = computed(() => branchPalette(store.state.themePreset))
 const selectedIsRoot = computed(() => node.value && isRoot(model.value, node.value.id))
-// Swatch previews mirror what the node layer actually renders (fillOf / strokeColor
-// in MindMapNodeLayer): an uncoloured node shows its resolved branch tint, not a
-// fixed constant, so the toolbar dots match the node on canvas. Delete is enabled
-// only when the selection holds a non-root node.
-const colorPreview = computed(() => {
+// Swatch previews mirror what the node layer actually renders (fillOf / branch /
+// strokeColor in MindMapNodeLayer): an uncoloured node shows its resolved branch
+// tint, not a fixed constant, so the toolbar dots match the node on canvas.
+// Delete is enabled only when the selection holds a non-root node.
+const fillPreview = computed(() => {
   const n = selectedNodes.value[0]
-  if (!n) return '#EFEAFE'
+  if (!n) return '#FFFFFF'
+  if (n.fill) return n.fill // explicit fill wins
   if (n.color) return nodeFill(n.color)
   return isRoot(model.value, n.id) ? '#F3F3F3' : nodeFill(resolveNodeColor(model.value, n, store.state.themePreset))
+})
+const branchPreview = computed(() => {
+  const n = selectedNodes.value[0]
+  if (!n) return '#4F94FF'
+  return resolveNodeColor(model.value, n, store.state.themePreset)
 })
 const borderPreview = computed(() => {
   const n = selectedNodes.value[0]
@@ -92,13 +102,17 @@ function toggleBold() {
 function toggleItalic() {
   if (node.value) patch({ italic: !node.value.italic })
 }
+function setFill(fill) {
+  // Explicit node fill, its own field (null clears back to the branch tint).
+  for (const n of selectedNodes.value) store.updateNode(n.id, { fill })
+}
 function setColor(color) {
-  // Recolour every selected node (each an undoable updateNode); single falls
-  // through to the same path.
+  // Branch colour — drives the connector curve, the default border and (absent
+  // an explicit fill) the fill tint. Recolours every selected node.
   for (const n of selectedNodes.value) store.updateNode(n.id, { color })
 }
 function setBorder(border) {
-  // Border colour is its own field (null clears the override back to the fill).
+  // Border colour is its own field (null clears the override back to the branch).
   for (const n of selectedNodes.value) store.updateNode(n.id, { border })
 }
 function setFontSize(size) {
@@ -114,9 +128,6 @@ function setMarker(icon) {
 }
 function setShape(shape) {
   patch({ shape })
-}
-function setNote(text) {
-  patch({ note: text })
 }
 function startCrosslink() {
   mindmapUi.pendingLinkSource = selId.value
@@ -168,40 +179,58 @@ function activeBtn(on) {
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
       </template>
 
-      <!-- Fill — surfaced directly; applies to every selected node. -->
+      <!-- Fill — its own menu; applies to every selected node. -->
       <Popover side="top">
         <template #target="{ togglePopover }">
           <Tooltip text="Fill">
             <button :class="btn" @mousedown.prevent @click="togglePopover()">
-              <span class="h-4 w-4 rounded-full border border-black/10" :style="{ background: colorPreview }" />
+              <span class="h-4 w-4 rounded-full border border-black/10" :style="{ background: fillPreview }" />
             </button>
           </Tooltip>
         </template>
         <template #body-main>
-          <div class="w-[180px] p-2">
-            <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Fill</div>
-            <SwatchGrid :colors="FILL_SWATCHES" shape="square" class="mb-2" @select="setColor" />
-            <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Branch</div>
-            <SwatchGrid :colors="branchSwatches" @select="setColor" />
+          <div class="w-[204px] p-2">
+            <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Fill</div>
+            <SwatchGrid :colors="SWATCH_PALETTE" shape="square" class="mb-2" @select="setFill" />
+            <button class="flex w-full items-center justify-center gap-1 rounded-md border border-outline-gray-2 py-1 text-[12px] text-ink-gray-6 hover:bg-surface-gray-2" @click="setFill(null)">
+              Match branch
+            </button>
           </div>
         </template>
       </Popover>
 
-      <!-- Border — its own control, separate from fill (U5/O2). -->
+      <!-- Branch — the node's accent colour (curve + default border/tint). -->
       <Popover side="top">
         <template #target="{ togglePopover }">
-          <Tooltip text="Border">
+          <Tooltip text="Branch colour">
             <button :class="btn" @mousedown.prevent @click="togglePopover()">
-              <span class="h-4 w-4 rounded-full border-2" :style="{ borderColor: borderPreview }" />
+              <span class="h-4 w-4 rounded-full border border-black/10" :style="{ background: branchPreview }" />
             </button>
           </Tooltip>
         </template>
         <template #body-main>
-          <div class="w-[180px] p-2">
-            <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Border</div>
-            <SwatchGrid :colors="BORDER_SWATCHES" class="mb-2" @select="setBorder" />
+          <div class="w-[204px] p-2">
+            <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Branch</div>
+            <SwatchGrid :colors="SWATCH_PALETTE" @select="setColor" />
+          </div>
+        </template>
+      </Popover>
+
+      <!-- Border — its own control, rendered as rings so it reads as a border. -->
+      <Popover side="top">
+        <template #target="{ togglePopover }">
+          <Tooltip text="Border">
+            <button :class="btn" @mousedown.prevent @click="togglePopover()">
+              <span class="h-4 w-4 rounded-full border-[3px]" :style="{ borderColor: borderPreview }" />
+            </button>
+          </Tooltip>
+        </template>
+        <template #body-main>
+          <div class="w-[204px] p-2">
+            <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Border</div>
+            <SwatchGrid :colors="SWATCH_PALETTE" shape="ring" class="mb-2" @select="setBorder" />
             <button class="flex w-full items-center justify-center gap-1 rounded-md border border-outline-gray-2 py-1 text-[12px] text-ink-gray-6 hover:bg-surface-gray-2" @click="setBorder(null)">
-              Match fill
+              Match branch
             </button>
           </div>
         </template>
@@ -305,28 +334,6 @@ function activeBtn(on) {
           <LucideIcon name="link-2" class="h-4 w-4" />
         </button>
       </Tooltip>
-
-      <!-- Note -->
-      <Popover side="top">
-        <template #target="{ togglePopover }">
-          <Tooltip text="Note">
-            <button :class="[btn, activeBtn(!!node.note)]" @mousedown.prevent @click="togglePopover()">
-              <LucideIcon name="file-text" class="h-4 w-4" />
-            </button>
-          </Tooltip>
-        </template>
-        <template #body-main>
-          <div class="w-[220px] p-2">
-            <textarea
-              :value="node.note || ''"
-              rows="3"
-              placeholder="Add a note…"
-              class="w-full resize-none rounded-md border border-outline-gray-2 px-2 py-1 text-[13px] text-ink-gray-8 outline-none focus:border-outline-gray-3"
-              @change="setNote($event.target.value)"
-            />
-          </div>
-        </template>
-      </Popover>
       </template>
 
       <!-- Delete — every selected non-root node (root is never deletable). -->
