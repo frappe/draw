@@ -1,13 +1,13 @@
 <script setup>
-// Canvas interaction layer for hover-arrows AND connector drawing (spec §5.3).
-// It is the single layer mounted inside the SVG <g>, so it attaches the pointer
-// listeners both features need, converts events to logical units via the <g>
-// CTM, and renders: the four blue hover arrows, the live draw preview, and the
-// circular anchor hints shown while drawing.
+// Canvas interaction layer for connector drawing (spec §5.3). Mounted inside the
+// SVG <g>, it attaches the pointer listeners connector drawing needs, converts
+// events to logical units via the <g> CTM, and renders the 8 connection anchors
+// (4 corners + 4 edge centres) revealed on shapes ONLY while a connector tool is
+// armed, plus the live draw preview. (Select-mode hover arrows were removed —
+// connection points appear only when you're actually drawing a connector.)
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
-import { useHoverArrows } from '@/composables/useHoverArrows.js'
 import { useConnectorDrawing } from '@/composables/useConnectorDrawing.js'
 import { axisAlignedBBox } from '@/diagram/geometry.js'
 
@@ -15,7 +15,6 @@ defineProps({ hoverShapeId: { type: String, default: null } })
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
-const hover = useHoverArrows(store, editorUi)
 const drawing = useConnectorDrawing(store, editorUi)
 
 // Last logical pointer position while the connector tool is armed, so anchors
@@ -53,8 +52,6 @@ function onPointerMove(event) {
     pointer.value = point
   } else if (drawing.isDrawingConnector.value) {
     pointer.value = point
-  } else if (editorUi.state.tool === 'select') {
-    hover.setHover(point)
   }
 }
 
@@ -63,7 +60,6 @@ function onPointerUp() {
 }
 
 function onPointerLeave() {
-  hover.clearHover()
   pointer.value = null
 }
 
@@ -138,19 +134,6 @@ const draftPath = computed(() => {
   return `M ${a.x} ${a.y} L ${b.x} ${b.y}`
 })
 
-// A chevron pointing outward (along the arrow's dx/dy) centred on its circle.
-function chevron(arrow) {
-  const cx = arrow.x
-  const cy = arrow.y
-  const tipX = cx + arrow.dx * 3
-  const tipY = cy + arrow.dy * 3
-  // Two wings are perpendicular to the outward direction, pulled inward.
-  const wingX = -arrow.dx * 3
-  const wingY = -arrow.dy * 3
-  const a = { x: cx + arrow.dy * 3 + wingX, y: cy + arrow.dx * 3 + wingY }
-  const c = { x: cx - arrow.dy * 3 + wingX, y: cy - arrow.dx * 3 + wingY }
-  return `M ${a.x} ${a.y} L ${tipX} ${tipY} L ${c.x} ${c.y}`
-}
 </script>
 
 <template>
@@ -179,23 +162,5 @@ function chevron(arrow) {
       stroke-linecap="round"
     />
 
-    <!-- Four blue directional arrows around an unselected hovered shape. -->
-    <g
-      v-for="arrow in hover.arrows.value"
-      :key="`hover-${arrow.key}`"
-      class="cursor-pointer"
-      @pointerdown.stop.prevent
-      @click.stop="hover.spawnInDirection(arrow.key)"
-    >
-      <circle :cx="arrow.x" :cy="arrow.y" r="9" fill="#FFFFFF" stroke="#006EDB" stroke-width="1.5" />
-      <path
-        :d="chevron(arrow)"
-        fill="none"
-        stroke="#006EDB"
-        stroke-width="1.5"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
-    </g>
   </g>
 </template>
