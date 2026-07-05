@@ -85,11 +85,3 @@ export function reassignBranchColors(store) {
     for (const node of model.nodes) node.color = null
   })
 }
-
-// "Clear map": delete every child of the root, keeping the root (A12 — the root
-// itself is never deletable). One undoable unit.
-export function clearMap(store) {
-  return commitMindmap(store, 'Clear map', (model) => {
-    for (const child of childrenOf(model, model.rootId)) deleteSubtree(model, child.id)
-  })
-}

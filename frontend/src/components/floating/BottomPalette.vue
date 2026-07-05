@@ -10,7 +10,7 @@ import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
 import { recentShapes, pushRecentShape } from '@/composables/useRecentShapes.js'
-import { collapseAll, clearMap } from '@/diagram/mindmapOperations.js'
+import { collapseAll } from '@/diagram/mindmapOperations.js'
 import { autoNumberFlow, isFlowNumbered } from '@/diagram/flowchartModel.js'
 import { tidyLayout, toggleDirection } from '@/diagram/flowchartLayout.js'
 import WhiteboardTools from './WhiteboardTools.vue'
@@ -245,16 +245,13 @@ function setGuides(state) {
     <!-- Mind map: map-wide actions (per-node editing is in the floating toolbar). -->
     <template v-if="isMindmap">
       <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-      <!-- Fold/unfold chevrons read as collapse/expand; the old minimize/maximize
-           icons looked like fit-to-view (N14). -->
+      <!-- Chevrons meeting in the middle = collapse; chevrons splitting apart =
+           expand — the clearest read of "fold everything in / open it all up". -->
       <Tooltip text="Collapse all">
-        <button :class="buttonBase" @click="collapseAll(store, true)"><LucideIcon name="chevrons-up" class="h-4 w-4" /></button>
+        <button :class="buttonBase" @click="collapseAll(store, true)"><LucideIcon name="chevrons-down-up" class="h-4 w-4" /></button>
       </Tooltip>
       <Tooltip text="Expand all">
-        <button :class="buttonBase" @click="collapseAll(store, false)"><LucideIcon name="chevrons-down" class="h-4 w-4" /></button>
-      </Tooltip>
-      <Tooltip text="Clear map">
-        <button :class="[buttonBase, 'hover:text-red-600']" @click="clearMap(store)"><LucideIcon name="trash-2" class="h-4 w-4" /></button>
+        <button :class="buttonBase" @click="collapseAll(store, false)"><LucideIcon name="chevrons-up-down" class="h-4 w-4" /></button>
       </Tooltip>
     </template>
 
