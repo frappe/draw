@@ -16,7 +16,8 @@ export function createEditorUi() {
     gridVisible: false,
     gridDensity: 'dense',
     snapToGrid: false,
-    infiniteCanvas: false,
+    // The canvas is an infinite surface by default (no fixed paper bounds).
+    infiniteCanvas: true,
     // The selected section id (chrome — sections aren't part of shape selection).
     selectedSectionId: null,
     // True for a short window after a layout op (tidy / flip) so node positions

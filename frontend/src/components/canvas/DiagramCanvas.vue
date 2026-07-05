@@ -366,10 +366,19 @@ function fitToView() {
   viewport.fit()
 }
 
+// Open a diagram at 100% (true size), centred on the content fitToView just
+// measured — not zoomed-to-fit. A freshly opened canvas should read at true
+// size, and the infinite canvas has no fixed paper to shrink into. The Fit
+// control still fits-to-content (fitToView).
+function openAtActualSize() {
+  fitToView()
+  viewport.reset()
+}
+
 let resizeObserver = null
 
 onMounted(() => {
-  fitToView()
+  openAtActualSize()
   // Route editorUi.fit() (bottom-left control + ⇧1 shortcut) through fitToView so
   // it refreshes the per-type content bounds before framing (O9).
   editorUi.registerFit(fitToView)
@@ -443,10 +452,11 @@ watch(
   () => nextTick(syncScrollFromPan),
 )
 
-// Re-fit when the canvas preset changes so the new paper opens centered.
+// The document's canvas dimensions settle after the async load; re-open at 100%
+// (true size) when they do, rather than zooming to fit.
 watch(
   () => [canvas.value.width, canvas.value.height],
-  () => nextTick(fitToView),
+  () => nextTick(openAtActualSize),
 )
 
 // As an own-layer type's content grows (tree nodes, flowchart nodes, strokes),
