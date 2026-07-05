@@ -169,11 +169,19 @@ function addButtonsFor(node, b) {
   })
 }
 
-// Show the add buttons only where they're relevant: on the hovered node, or on a
-// lone selected node — a multi-selection hides them (add-child is a per-node act).
+// The add button stays visible around every (expanded) node's branch end so
+// it's always discoverable — not just on hover. It rests faint and lifts to
+// full strength when the node is hovered or the lone selection. Hidden only
+// while collapsed or mid-drag (where it would be noise).
 function showAdd(node) {
+  return !node.collapsed && !interaction.drag.active
+}
+
+// Full strength on the hovered / lone-selected node; a quiet resting hint on
+// the rest, so the persistent buttons don't shout across the whole map.
+function addProminent(node) {
   const singleSelected = store.state.selection.length === 1 && isSelected(node.id)
-  return !node.collapsed && (singleSelected || hoveredId.value === node.id)
+  return singleSelected || hoveredId.value === node.id
 }
 
 function addChild(event, parentId) {
@@ -469,10 +477,12 @@ function nodePoly(node, b) {
            identically whether displayed or edited. -->
       <template v-if="!isEditing(node.id)">
         <foreignObject :x="TEXT_INSET" :y="0" :width="box.w - PAD_X" :height="box.h">
-          <div
-            class="fd-mm-label"
-            :style="[textStyle(node), node.text ? {} : { color: '#9AA5B1' }]"
-          >{{ (node.emoji ? node.emoji + '  ' : '') + (node.text || 'New idea') }}</div>
+          <div class="fd-mm-textwrap">
+            <div
+              class="fd-mm-label"
+              :style="[textStyle(node), node.text ? {} : { color: '#9AA5B1' }]"
+            >{{ (node.emoji ? node.emoji + '  ' : '') + (node.text || 'New idea') }}</div>
+          </div>
         </foreignObject>
         <!-- Transparent hit-rect for double-click-to-edit over the whole pill. -->
         <rect
@@ -482,17 +492,19 @@ function nodePoly(node, b) {
         />
       </template>
       <foreignObject v-else :x="TEXT_INSET" :y="0" :width="box.w - PAD_X" :height="box.h">
-        <div
-          :ref="(el) => (editFields[node.id] = el)"
-          contenteditable="true"
-          class="fd-mm-edit"
-          :style="textStyle(node)"
-          @input="onEditInput(node.id)"
-          @keydown="onEditKeydown($event, node.id)"
-          @paste="onPaste($event, node.id)"
-          @blur="commitText(node.id)"
-          @pointerdown.stop
-        >{{ node.text }}</div>
+        <div class="fd-mm-textwrap">
+          <div
+            :ref="(el) => (editFields[node.id] = el)"
+            contenteditable="true"
+            class="fd-mm-edit"
+            :style="textStyle(node)"
+            @input="onEditInput(node.id)"
+            @keydown="onEditKeydown($event, node.id)"
+            @paste="onPaste($event, node.id)"
+            @blur="commitText(node.id)"
+            @pointerdown.stop
+          >{{ node.text }}</div>
+        </div>
       </foreignObject>
 
       <!-- Collapse/expand toggle + hidden-descendant count badge (M4). -->
@@ -514,12 +526,14 @@ function nodePoly(node, b) {
         >{{ childCount(node.id) }}</text>
       </g>
 
-      <!-- Clear circular "+" add buttons on the branch side(s), shown while the
-           node is hovered or selected — click to add a child and start typing. -->
+      <!-- Clear circular "+" add buttons on the branch side(s): always present
+           around the node's branch end (faint at rest, full on hover/select) —
+           click to add a child and start typing. -->
       <g
         v-for="add in showAdd(node) ? addButtonsFor(node, box) : []"
         :key="`add-${add.side}`"
-        style="cursor: pointer"
+        style="cursor: pointer; transition: opacity 120ms ease"
+        :style="{ opacity: addProminent(node) ? 1 : 0.4 }"
         @click.stop="addChild($event, node.id)"
         @pointerdown.stop
       >
@@ -561,15 +575,21 @@ function nodePoly(node, b) {
 .fd-mm-node:hover .fd-mm-add {
   opacity: 1;
 }
-/* Static label and inline editor share wrapping + vertical-centre behaviour so
-   text always sits inside the pill and grows the box downward, never sideways
-   past the layout's width cap. */
-.fd-mm-label,
-.fd-mm-edit {
+/* A flex wrapper does the vertical centring; the text element itself keeps a
+   normal line box so an *empty* editable still shows its caret at line-height
+   (centred), instead of collapsing to the top. */
+.fd-mm-textwrap {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 100%;
+  width: 100%;
+}
+/* Static label and inline editor share wrapping so text always sits inside the
+   pill and grows the box downward, never sideways past the layout's width cap. */
+.fd-mm-label,
+.fd-mm-edit {
+  width: 100%;
   text-align: center;
   white-space: normal;
   overflow-wrap: anywhere;
