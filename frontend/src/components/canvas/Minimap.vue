@@ -45,37 +45,45 @@ onMounted(() => {
 })
 onBeforeUnmount(() => window.removeEventListener('resize', onResize))
 
-// Simplified content rects in canvas units, per diagram type.
+// Which simplified glyph the minimap draws for a block shape type, so the
+// overview reflects the actual shape (an oval reads as an oval, not a box).
+function miniKind(shapeType) {
+  if (shapeType === 'ellipse') return 'ellipse'
+  if (shapeType === 'triangle') return 'triangle'
+  if (shapeType === 'diamond') return 'diamond'
+  return 'rect'
+}
+
+// Simplified content shapes in canvas units, per diagram type. Each carries a
+// `kind` the template renders (rect / ellipse / triangle / diamond).
 const items = computed(() => {
   if (type.value === 'flowchart' && store.state.flowchart) {
     return store.state.flowchart.nodes.map((n) => {
       const s = flowchartNodeSize(n)
-      return { id: n.id, x: n.x, y: n.y, w: s.w, h: s.h, fill: n.fill || '#D4D4D8' }
+      return { id: n.id, x: n.x, y: n.y, w: s.w, h: s.h, fill: n.fill || '#D4D4D8', kind: n.nodeType === 'decision' ? 'diamond' : 'rect' }
     })
   }
   if (type.value === 'mindmap' && store.state.mindmap) {
     const { positions } = layoutMindMap(store.state.mindmap)
-    return Object.entries(positions).map(([id, b]) => ({ id, x: b.x, y: b.y, w: b.w, h: b.h, fill: '#D4D4D8' }))
+    return Object.entries(positions).map(([id, b]) => ({ id, x: b.x, y: b.y, w: b.w, h: b.h, fill: '#D4D4D8', kind: 'rect' }))
   }
   return store.state.shapes
     .filter(isVisible)
     .map((s) => {
       const b = axisAlignedBBox(s)
-      return { id: s.id, x: b.x, y: b.y, w: b.w, h: b.h, fill: s.fill && s.fill !== 'none' ? s.fill : '#CBD5E1' }
+      return { id: s.id, x: b.x, y: b.y, w: b.w, h: b.h, fill: s.fill && s.fill !== 'none' ? s.fill : '#CBD5E1', kind: miniKind(s.type) }
     })
 })
 
-// Bounding frame over the content (+ the canvas rect for block) with padding.
+// Bounding frame over the content, with padding. The block canvas is infinite
+// (spec 1.5) — the minimap frames the actual shapes, not a fixed paper rect, so
+// no canvas boundary is implied.
 const frame = computed(() => {
   const xs = []
   const ys = []
   for (const it of items.value) {
     xs.push(it.x, it.x + it.w)
     ys.push(it.y, it.y + it.h)
-  }
-  if (type.value === 'block') {
-    xs.push(0, store.state.canvas.width)
-    ys.push(0, store.state.canvas.height)
   }
   if (!xs.length) return { x: 0, y: 0, w: 1, h: 1 }
   const minX = Math.min(...xs)
@@ -92,15 +100,24 @@ function toMini(x, y) {
 const miniItems = computed(() =>
   items.value.map((it) => {
     const p = toMini(it.x, it.y)
-    return { id: it.id, x: p.x, y: p.y, w: Math.max(1.5, it.w * scale.value), h: Math.max(1.5, it.h * scale.value), fill: it.fill }
+    return { id: it.id, x: p.x, y: p.y, w: Math.max(1.5, it.w * scale.value), h: Math.max(1.5, it.h * scale.value), fill: it.fill, kind: it.kind }
   }),
 )
 
-// Current viewport mapped into the minimap.
+// Current viewport mapped into the minimap, clamped to the minimap box. Returns
+// null when the viewport already contains the whole content (you can see
+// everything) — drawing a box that fills the minimap just reads as a stray
+// boundary, so we show nothing in that case.
 const viewRect = computed(() => {
   const zoom = viewport.state.zoom || 1
   const a = toMini(-viewport.state.panX / zoom, -viewport.state.panY / zoom)
-  return { x: a.x, y: a.y, w: (surfaceSize.value.w / zoom) * scale.value, h: (surfaceSize.value.h / zoom) * scale.value }
+  const right = a.x + (surfaceSize.value.w / zoom) * scale.value
+  const bottom = a.y + (surfaceSize.value.h / zoom) * scale.value
+  // The view spans the entire minimap → nothing meaningful to indicate.
+  if (a.x <= 0.5 && a.y <= 0.5 && right >= WIDTH - 0.5 && bottom >= HEIGHT - 0.5) return null
+  const x1 = Math.max(0, a.x)
+  const y1 = Math.max(0, a.y)
+  return { x: x1, y: y1, w: Math.max(0, Math.min(WIDTH, right) - x1), h: Math.max(0, Math.min(HEIGHT, bottom) - y1) }
 })
 
 // Click/drag pans so the picked content point centres in the viewport.
@@ -142,17 +159,33 @@ function onUp() {
       @pointerup="onUp"
       @pointerleave="onUp"
     >
+      <!-- Simplified glyph per shape, so the overview reflects the real shape. -->
+      <template v-for="it in miniItems" :key="it.id">
+        <ellipse
+          v-if="it.kind === 'ellipse'"
+          :cx="it.x + it.w / 2"
+          :cy="it.y + it.h / 2"
+          :rx="it.w / 2"
+          :ry="it.h / 2"
+          :fill="it.fill"
+        />
+        <polygon
+          v-else-if="it.kind === 'triangle'"
+          :points="`${it.x + it.w / 2},${it.y} ${it.x + it.w},${it.y + it.h} ${it.x},${it.y + it.h}`"
+          :fill="it.fill"
+        />
+        <polygon
+          v-else-if="it.kind === 'diamond'"
+          :points="`${it.x + it.w / 2},${it.y} ${it.x + it.w},${it.y + it.h / 2} ${it.x + it.w / 2},${it.y + it.h} ${it.x},${it.y + it.h / 2}`"
+          :fill="it.fill"
+        />
+        <rect v-else :x="it.x" :y="it.y" :width="it.w" :height="it.h" :fill="it.fill" rx="1" />
+      </template>
+
+      <!-- Viewport indicator — only when zoomed into a subset of the content
+           (null when everything's already in view, so no boundary is drawn). -->
       <rect
-        v-for="it in miniItems"
-        :key="it.id"
-        :x="it.x"
-        :y="it.y"
-        :width="it.w"
-        :height="it.h"
-        :fill="it.fill"
-        rx="1"
-      />
-      <rect
+        v-if="miniItems.length && viewRect"
         :x="viewRect.x"
         :y="viewRect.y"
         :width="Math.max(4, viewRect.w)"
@@ -161,6 +194,16 @@ function onUp() {
         stroke="#006EDB"
         stroke-width="1.5"
       />
+
+      <!-- Empty state: a faint prompt toward the bottom toolbar. -->
+      <template v-if="!miniItems.length">
+        <text :x="WIDTH / 2" :y="HEIGHT / 2 - 5" text-anchor="middle" font-size="9" fill="#B0B7C0" style="font-family: Inter, sans-serif">
+          Nothing to preview yet
+        </text>
+        <text :x="WIDTH / 2" :y="HEIGHT / 2 + 9" text-anchor="middle" font-size="9" fill="#B0B7C0" style="font-family: Inter, sans-serif">
+          Add a shape from the toolbar below
+        </text>
+      </template>
     </svg>
   </div>
 </template>
