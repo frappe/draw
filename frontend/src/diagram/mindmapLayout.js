@@ -12,27 +12,60 @@ const V_GAP = 18 // vertical gap between sibling subtrees
 const PAD = 60 // margin around the whole tree after normalising
 
 const CHAR_W = 8.5
-const PAD_X = 28
+// Exported so the renderer insets its text box (and thus wraps) at exactly the
+// width the layout measured against — keeps rendered lines and measured height
+// in lockstep, so text never overflows the pill (spec A9, no-overflow rule).
+export const PAD_X = 28
 const PAD_Y = 18
-const LINE_H = 22
-const MIN_W = 70
-const MAX_W = 260
-const ROOT_SCALE = 1.25
+export const LINE_H = 22
+const MIN_W = 140 // default node width (2× the old 70 — wider resting pill)
+const MAX_W = 200 // horizontal cap: text wraps to a new line past this, then grows down
 
 // Deterministic node box from its text (no DOM measurement, so it is unit
-// testable). Long text wraps to more lines, growing height not width.
+// testable). Width grows with text up to MAX_W; beyond that the text wraps and
+// the box grows downward (more lines) with no vertical limit — the renderer
+// wraps at the same width so what's drawn always fits (no overflow).
 export function measureNodeSize(node, isRoot = false) {
   // Scale the character/line metrics by the node's chosen font size (default 14)
   // so a larger pill grows to fit bigger text (spec A9 font-size control).
   const fontScale = (node.fontSize || (isRoot ? 17 : 14)) / 14
   const charWidth = CHAR_W * fontScale
   const lineHeight = LINE_H * fontScale
-  const contentWidth = node.text.length * charWidth + PAD_X
-  const width = clamp(contentWidth, MIN_W, MAX_W * fontScale)
-  const lines = Math.max(1, Math.ceil((node.text.length * charWidth) / (MAX_W * fontScale - PAD_X)))
+  const text = node.text || ''
+  const singleLineWidth = text.length * charWidth + PAD_X
+  const width = clamp(singleLineWidth, MIN_W * fontScale, MAX_W * fontScale)
+  // How many lines the text wraps to inside the padded box, packing whole words
+  // (mirroring CSS normal wrapping) so the height fits the rendered text.
+  const lines = wrapLineCount(text, charWidth, width - PAD_X)
   const height = lines * lineHeight + PAD_Y
-  const scale = isRoot ? ROOT_SCALE : 1
-  return { w: Math.round(width * scale), h: Math.round(height * scale) }
+  return { w: Math.round(width), h: Math.round(height) }
+}
+
+// Greedy word-wrap line count at `textWidth` px: packs whole words per line, and
+// breaks a single word too long to fit across lines. Approximates how the
+// rendered wrapping <div> lays the same text out, so the measured box height
+// leaves room for every line (no clipped text).
+function wrapLineCount(text, charWidth, textWidth) {
+  const words = text.split(/\s+/).filter(Boolean)
+  if (!words.length) return 1
+  const perLine = Math.max(1, Math.floor(textWidth / charWidth))
+  let lines = 1
+  let col = 0
+  for (const word of words) {
+    if (word.length > perLine) {
+      if (col > 0) lines++ // finish the current line before the long word
+      lines += Math.ceil(word.length / perLine) - 1
+      col = word.length % perLine || perLine
+      continue
+    }
+    const need = col === 0 ? word.length : col + 1 + word.length
+    if (need <= perLine) col = need
+    else {
+      lines++
+      col = word.length
+    }
+  }
+  return lines
 }
 
 function clamp(value, min, max) {

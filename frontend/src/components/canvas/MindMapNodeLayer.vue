@@ -14,6 +14,8 @@ import {
   branchPath,
   isNodeHidden,
   hiddenDescendantCount,
+  PAD_X,
+  LINE_H,
 } from '@/diagram/mindmapLayout.js'
 import { resolveNodeColor, nodeFill, readableInk } from '@/diagram/mindmapColors.js'
 import { isRoot, subtreeIds } from '@/diagram/mindmapModel.js'
@@ -37,6 +39,9 @@ const editorUi = useEditorUi()
 const positionsRef = computed(() => props.positions)
 const interaction = useMindmapInteraction(store, editorUi.viewport, positionsRef)
 const editFields = ref({})
+// The node's text as editing began, so a commit records one undoable unit even
+// though we mutate node.text live (for the grow-as-you-type box).
+const editStartText = ref({})
 // Keep the marquee's stroke crisp regardless of zoom (it lives in canvas units).
 const zoom = computed(() => editorUi.viewport.state.zoom || 1)
 
@@ -49,7 +54,11 @@ function box(id) {
 watch(
   () => mindmapUi.editingId,
   (id) => {
-    if (id) nextTick(() => focusField(id))
+    if (id) {
+      const node = props.mindmap.nodes.find((candidate) => candidate.id === id)
+      editStartText.value[id] = node ? node.text : ''
+      nextTick(() => focusField(id))
+    }
   },
 )
 
@@ -171,22 +180,28 @@ function addChild(event, parentId) {
   startEdit(event, store.addChildNode(parentId))
 }
 
-// Edit-field style matches the node's static text and centres a single line via
-// line-height = node height (so the caret sits in the vertical middle, not top).
 function nodeFontSize(node) {
   return node.fontSize || (isRoot(props.mindmap, node.id) ? 17 : 14)
 }
 
-function editStyle(node, b) {
+// Shared text style for the static label and the inline editor: the same font,
+// weight and wrapped line-height, so what you read is exactly what you edit and
+// both wrap identically to how the layout measured the box. Line-height tracks
+// LINE_H (the layout's per-line height), scaled to the node's font size.
+function textStyle(node) {
+  const fontSize = nodeFontSize(node)
   return {
-    height: b.h + 'px',
-    lineHeight: b.h + 'px',
-    fontSize: nodeFontSize(node) + 'px',
+    fontSize: fontSize + 'px',
+    lineHeight: (LINE_H * fontSize) / 14 + 'px',
     fontWeight: node.bold ? 700 : isRoot(props.mindmap, node.id) ? 600 : 500,
     fontStyle: node.italic ? 'italic' : 'normal',
     color: inkOf(node),
   }
 }
+
+// The text box insets by half the layout's horizontal padding on each side, so
+// the wrap width equals the width the layout measured against (PAD_X total).
+const TEXT_INSET = PAD_X / 2
 
 function surfaceRect(event) {
   const surface = event.target.closest('[data-fdpreset]')
@@ -249,14 +264,34 @@ function focusField(id) {
   sel.addRange(range)
 }
 
-// Commit edited text back to the model on blur (one undoable update). Only clear
-// the editing flag if THIS node is still the one being edited — a Tab/Enter
+// Grow the pill live as the user types: mutate node.text directly (no history)
+// so the reactive layout re-measures and the box expands/wraps in real time.
+// The real, undoable commit happens on blur/Tab/Enter (commitText / create).
+function onEditInput(id) {
+  const field = editFields.value[id]
+  const node = props.mindmap.nodes.find((candidate) => candidate.id === id)
+  if (field && node) node.text = field.innerText
+}
+
+// Commit edited text back to the model on blur (one undoable update). Because we
+// mutate node.text live while typing, we first rewind it to the pre-edit value
+// so the history snapshot captures the change as a single undoable unit. Only
+// clear the editing flag if THIS node is still the one being edited — a Tab/Enter
 // create has already moved editing to the new node, and we must not clobber it.
 function commitText(id) {
   const field = editFields.value[id]
   const node = props.mindmap.nodes.find((candidate) => candidate.id === id)
   const text = field ? field.innerText.trim() : node?.text
-  if (node && text !== node.text) store.updateNode(id, { text })
+  const original = editStartText.value[id] ?? node?.text
+  if (node) {
+    if (text !== original) {
+      node.text = original // rewind so updateNode's snapshot has the old text
+      store.updateNode(id, { text })
+    } else {
+      node.text = original // no real change — keep model tidy after live edits
+    }
+  }
+  delete editStartText.value[id]
   if (mindmapUi.editingId === id) endEdit()
 }
 
@@ -311,7 +346,10 @@ function isDropTarget(id) {
 
 // --- node shape (curated set; default pill) ---------------------------------
 function nodeStroke(node) {
-  return isSelected(node.id) || isDropTarget(node.id) ? 3 : isRoot(props.mindmap, node.id) ? 2.5 : 1.8
+  // Thin resting borders (halved from the old 2.5/1.8); selection stays a touch
+  // heavier as an affordance.
+  if (isSelected(node.id) || isDropTarget(node.id)) return 2
+  return isRoot(props.mindmap, node.id) ? 1.25 : 0.9
 }
 function strokeColor(node) {
   // Border is its own knob (U5/O2): an explicit node.border wins; otherwise the
@@ -425,22 +463,17 @@ function nodePoly(node, b) {
         </div>
       </foreignObject>
 
-      <!-- Node text: static label or an inline contentEditable while editing. -->
+      <!-- Node text: static label or an inline contentEditable while editing.
+           Both are wrapping, vertically-centred divs inset to the layout's text
+           width, so text wraps inside the pill (never overflows) and reads
+           identically whether displayed or edited. -->
       <template v-if="!isEditing(node.id)">
-        <text
-          :x="box.w / 2"
-          :y="box.h / 2"
-          text-anchor="middle"
-          dominant-baseline="central"
-          :font-size="node.fontSize || (isRoot(props.mindmap, node.id) ? 17 : 14)"
-          :font-weight="node.bold ? 700 : isRoot(props.mindmap, node.id) ? 600 : 500"
-          :font-style="node.italic ? 'italic' : 'normal'"
-          :fill="node.text ? inkOf(node) : '#9AA5B1'"
-          style="font-family: Inter, sans-serif; pointer-events: none"
-          @dblclick="startEdit($event, node.id)"
-        >
-          {{ (node.emoji ? node.emoji + '  ' : '') + (node.text || 'New idea') }}
-        </text>
+        <foreignObject :x="TEXT_INSET" :y="0" :width="box.w - PAD_X" :height="box.h">
+          <div
+            class="fd-mm-label"
+            :style="[textStyle(node), node.text ? {} : { color: '#9AA5B1' }]"
+          >{{ (node.emoji ? node.emoji + '  ' : '') + (node.text || 'New idea') }}</div>
+        </foreignObject>
         <!-- Transparent hit-rect for double-click-to-edit over the whole pill. -->
         <rect
           :width="box.w" :height="box.h" :rx="box.h / 2" fill="transparent"
@@ -448,12 +481,13 @@ function nodePoly(node, b) {
           @dblclick="startEdit($event, node.id)"
         />
       </template>
-      <foreignObject v-else :x="6" :y="0" :width="box.w - 12" :height="box.h">
+      <foreignObject v-else :x="TEXT_INSET" :y="0" :width="box.w - PAD_X" :height="box.h">
         <div
           :ref="(el) => (editFields[node.id] = el)"
           contenteditable="true"
           class="fd-mm-edit"
-          :style="editStyle(node, box)"
+          :style="textStyle(node)"
+          @input="onEditInput(node.id)"
           @keydown="onEditKeydown($event, node.id)"
           @paste="onPaste($event, node.id)"
           @blur="commitText(node.id)"
@@ -527,12 +561,25 @@ function nodePoly(node, b) {
 .fd-mm-node:hover .fd-mm-add {
   opacity: 1;
 }
+/* Static label and inline editor share wrapping + vertical-centre behaviour so
+   text always sits inside the pill and grows the box downward, never sideways
+   past the layout's width cap. */
+.fd-mm-label,
 .fd-mm-edit {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
   text-align: center;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   font-family: Inter, sans-serif;
+}
+.fd-mm-label {
+  pointer-events: none;
+}
+.fd-mm-edit {
   outline: none;
-  overflow: hidden;
 }
 </style>
