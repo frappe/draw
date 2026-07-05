@@ -3,25 +3,31 @@
 // first step" prompt so starting a flowchart is discoverable — mirroring the
 // mind map's "Add your first idea". (Double-click no longer creates nodes; P4.)
 // Once there's a node, growing the chart uses the node's hover "+" handles.
-import { computed } from 'vue'
+import { computed, nextTick } from 'vue'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
+import { nodeSize } from '@/diagram/flowchartModel.js'
+import { requestFlowchartEdit } from '@/stores/flowchartUi.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
 
 const isBlank = computed(() => (store.state.flowchart?.nodes.length ?? 0) === 0)
 
-// Drop the first process node at the canvas origin and frame it. The user then
-// types into it (double-click) and grows the chart from its + handles.
+// Drop the first process node at the canvas origin, frame it high on screen, and
+// open its editor so the user can type straight away. Framing it near the top
+// (rather than dead-centre) keeps the "add next node" picker — which opens below
+// the node — clear of the bottom palette.
 function addFirstStep() {
   const id = store.addFlowchartNode('process', '', 0, 0)
   if (!id) return
-  // Select it so its "+" extend handles show right away (the next node is added
-  // from a handle), and frame it.
-  store.select([id])
-  setTimeout(() => editorUi.fit?.(), 0)
+  store.select([id]) // show its "+" extend handles right away
+  nextTick(() => {
+    const size = nodeSize({ nodeType: 'process' })
+    editorUi.viewport.placeTopCenter({ x: 0, y: 0, w: size.w, h: size.h }, 120)
+    requestFlowchartEdit(id)
+  })
 }
 </script>
 

@@ -129,6 +129,17 @@ export function useViewport() {
     centerAt(scale)
   }
 
+  // Frame a logical box centred horizontally with its top a fixed margin below
+  // the viewport's top edge, at the current zoom. Used when adding the first
+  // flowchart node so it sits high on screen and the node-type picker that opens
+  // *below* it stays clear of the bottom palette.
+  function placeTopCenter(box, topMargin = 96) {
+    if (!measure.containerW || !measure.containerH) return
+    const scale = state.zoom
+    state.panX = measure.containerW / 2 - (box.x + box.w / 2) * scale
+    state.panY = topMargin - box.y * scale
+  }
+
   // "100%" reset: snap to 1:1 and re-centre the canvas in the viewport.
   function reset() {
     if (measure.containerW && measure.containerH) return centerAt(1)
@@ -149,5 +160,6 @@ export function useViewport() {
     fit,
     setPan,
     setMeasure,
+    placeTopCenter,
   }
 }

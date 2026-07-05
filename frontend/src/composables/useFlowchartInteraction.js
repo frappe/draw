@@ -22,6 +22,7 @@ import {
 import { placeChild, routeEdge, reflowAuto } from '@/diagram/flowchartLayout.js'
 import { rectsIntersect } from '@/diagram/geometry.js'
 import { isAdditiveEvent, runMarqueeDrag } from '@/composables/pointer.js'
+import { requestFlowchartEdit } from '@/stores/flowchartUi.js'
 
 export function useFlowchartInteraction(store, editorUi, interactionRef) {
   // Transient UI state the layer renders against (not part of the document).
@@ -355,12 +356,17 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
   // Shared creation path for both + handles and drag-to-empty. `source` is
   // { fromNodeId, fromPort } (connect from an existing node) or null (free node).
   function createConnectedNode(nodeType, source, fallbackX, fallbackY) {
+    let newId = null
     store.updateFlowchartModel('Add node', (model) => {
       const position = positionFor(model, nodeType, source, fallbackX, fallbackY)
       const id = pushNode(model, nodeType, position)
       if (source?.fromNodeId) connectFromSource(model, source, id)
       store.select([id])
+      newId = id
     })
+    // Drop the text cursor straight into the new node so the user can type
+    // without a separate click (its default text is pre-selected).
+    if (newId) requestFlowchartEdit(newId)
   }
 
   // A new node either auto-places under its parent (column/lane snap) or, for a

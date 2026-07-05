@@ -9,10 +9,11 @@
 // (Part G4). This component instantiates the flowchart interaction composable so
 // its pointer handlers are registered into the shared modeInteraction seam — the
 // canvas only mounts this layer for flowchart diagrams (Part G1).
-import { computed, inject, ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed, inject, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useFlowchartInteraction } from '@/composables/useFlowchartInteraction.js'
+import { flowchartUi, endFlowchartEdit } from '@/stores/flowchartUi.js'
 import { primaryTriad } from '@/diagram/theme.js'
 import { nodeSize } from '@/diagram/flowchartModel.js'
 import { nodeShape } from '@/diagram/flowchartShapes.js'
@@ -51,8 +52,31 @@ const triad = computed(() => primaryTriad(store.state.themePreset))
 
 // Selection holds node ids in flowchart mode (may be many with multi-select).
 const selectedIds = computed(() => store.state.selection)
-const editingId = ref(null) // node whose text is being edited inline
+// Inline editing lives in a shared store so any creation path (a "+" handle, a
+// drag-to-empty drop, or the "add first step" prompt) can open the editor.
+const editingId = computed(() => flowchartUi.editingId)
+const editFields = ref({}) // node id -> the contenteditable element
 const zoom = computed(() => editorUi.viewport.state.zoom || 1)
+
+// When a node enters edit mode, move focus into its field and select the text
+// (so the auto-populated default like "Process" is replaced as the user types).
+watch(
+  () => flowchartUi.editingId,
+  (id) => {
+    if (id) nextTick(() => focusField(id))
+  },
+)
+
+function focusField(id) {
+  const field = editFields.value[id]
+  if (!field) return
+  field.focus()
+  const range = document.createRange()
+  range.selectNodeContents(field)
+  const sel = window.getSelection()
+  sel.removeAllRanges()
+  sel.addRange(range)
+}
 // Height of the junction's node-centred label box. Tall enough that wrapped text
 // spills up/down past the small circle (P11); text beyond ±half of this clips.
 const JUNCTION_LABEL_H = 220
@@ -115,13 +139,25 @@ function handlesFor(node) {
 // ----- inline text editing ---------------------------------------------------
 
 function beginEdit(id) {
-  editingId.value = id
+  flowchartUi.editingId = id
 }
 
 function commitEdit(id, value) {
-  editingId.value = null
+  endFlowchartEdit(id)
   const node = props.flowchart.nodes.find((n) => n.id === id)
-  if (node && node.text !== value) store.updateFlowchartNode(id, { text: value })
+  const text = (value ?? '').trim()
+  if (node && node.text !== text) store.updateFlowchartNode(id, { text })
+}
+
+// Enter commits (Shift+Enter inserts a newline); Escape cancels without saving.
+function onEditKeydown(event, id) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    commitEdit(id, editFields.value[id]?.innerText)
+  } else if (event.key === 'Escape') {
+    event.preventDefault()
+    endFlowchartEdit(id)
+  }
 }
 
 // ----- hover bookkeeping ------------------------------------------------------
@@ -242,17 +278,20 @@ function onLeave(id) {
         :stroke-width="isSelected(node.id) ? 2.5 : 1.5"
       />
 
-      <!-- Inline text editor (wraps; Enter commits, Shift+Enter adds a line). -->
+      <!-- Inline text editor (wraps; Enter commits, Shift+Enter adds a line). A
+           flex wrapper centres the text vertically so it doesn't jump to the top
+           when editing begins. -->
       <foreignObject v-if="editingId === node.id" x="6" y="6" :width="size.w - 12" :height="size.h - 12">
-        <textarea
-          :value="node.text"
-          class="h-full w-full resize-none bg-transparent text-center text-[14px] outline-none"
-          style="font-family: Inter, sans-serif; color: #1f2933; line-height: 1.2; overflow: hidden"
-          autofocus
-          @keydown.enter.exact.prevent="commitEdit(node.id, $event.target.value)"
-          @blur="commitEdit(node.id, $event.target.value)"
-          @pointerdown.stop
-        />
+        <div class="fc-edit-wrap">
+          <div
+            :ref="(el) => (editFields[node.id] = el)"
+            contenteditable="true"
+            class="fc-edit"
+            @keydown="onEditKeydown($event, node.id)"
+            @blur="commitEdit(node.id, $event.target.innerText)"
+            @pointerdown.stop
+          >{{ node.text }}</div>
+        </div>
       </foreignObject>
       <!-- Junction text wraps horizontally and overflows vertically past the small
            circle (P11): a tall, node-centred box that spills up/down as text grows. -->
@@ -335,3 +374,26 @@ function onLeave(id) {
     </foreignObject>
   </g>
 </template>
+
+<style scoped>
+/* Inline node editor: a flex wrapper centres the (wrapping) text vertically so
+   it stays put when editing begins instead of jumping to the top. */
+.fc-edit-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+}
+.fc-edit {
+  width: 100%;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  outline: none;
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  line-height: 1.2;
+  color: #1f2933;
+}
+</style>
