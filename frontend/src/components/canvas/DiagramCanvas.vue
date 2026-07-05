@@ -571,13 +571,25 @@ function distanceToSegment(point, a, b) {
 const DRAW_CURSOR =
   "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><line x1='12' y1='3' x2='12' y2='21' stroke='black' stroke-width='1.5' stroke-dasharray='2 2'/><line x1='3' y1='12' x2='21' y2='12' stroke='black' stroke-width='1.5' stroke-dasharray='2 2'/></svg>\") 12 12, crosshair"
 
+// Pen tool: a pen glyph whose nib tip is the hotspot (bottom-left), so it draws
+// exactly where the tip points — reads as "you're drawing" (spec §7.1).
+const PEN_CURSOR =
+  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path d='M3 21 L4.5 16 L16 4.5 L19.5 8 L8 19.5 Z' fill='white' stroke='black' stroke-width='1.4' stroke-linejoin='round'/><line x1='14.5' y1='6' x2='18' y2='9.5' stroke='black' stroke-width='1.4'/><path d='M3 21 L4.5 16 L8 19.5 Z' fill='black'/></svg>\") 3 21, crosshair"
+
+// Eraser tool: a block eraser; hotspot at its erasing corner (bottom-left).
+const ERASER_CURSOR =
+  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'><g transform='rotate(-40 11 15)'><rect x='4' y='10' width='16' height='10' rx='2' fill='white' stroke='black' stroke-width='1.5'/><line x1='12' y1='10' x2='12' y2='20' stroke='black' stroke-width='1.2'/></g></svg>\") 4 22, auto"
+
 // Whiteboard placement/drawing tools show a crosshair so it's clear a click will
-// place/draw (S12: arming Text → crosshair, click starts the text box).
-const CROSSHAIR_TOOLS = ['text', 'sticky', 'line', 'table', 'pen', 'highlighter', 'eraser', 'section']
+// place/draw (S12: arming Text → crosshair, click starts the text box). Pen and
+// eraser get glyph cursors that look like the tool.
+const CROSSHAIR_TOOLS = ['text', 'sticky', 'line', 'table', 'highlighter', 'section']
 const surfaceCursor = computed(() => {
   const tool = editorUi.state.tool
   if (tool === 'hand') return 'grab'
   if (tool === 'draw') return DRAW_CURSOR
+  if (tool === 'pen') return PEN_CURSOR
+  if (tool === 'eraser') return ERASER_CURSOR
   if (CROSSHAIR_TOOLS.includes(tool)) return 'crosshair'
   return 'default'
 })

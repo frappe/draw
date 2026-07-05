@@ -40,7 +40,7 @@ export const NODE_TYPE_META = {
   manualInput: { label: 'Manual input', text: 'Input', w: 160, h: 76 },
   preparation: { label: 'Preparation', text: 'Prepare', w: 156, h: 80 },
   offPageRef: { label: 'Off-page reference', text: 'Off-page', w: 120, h: 88 },
-  connector: { label: 'Junction', text: '', w: 72, h: 72 },
+  connector: { label: 'Junction', text: 'Junction', w: 72, h: 72 },
 }
 
 export function defaultNodeText(nodeType) {
