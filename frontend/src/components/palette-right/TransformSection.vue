@@ -1,18 +1,17 @@
 <script setup>
-// Transform: swap + flip (spec §4.3). Swap needs exactly two shapes; flip needs
-// 1+. Rotation is on-canvas via the selection rotation handle. Each multi-step
-// move is wrapped in store.commit so it is a single undo step.
+// Transform: flip H/V (spec §4.3). Rotation is on-canvas via the selection
+// rotation handle; Swap lives in Distribute & size. Each multi-step move is
+// wrapped in store.commit so it is a single undo step.
 import { computed } from 'vue'
 import PaletteSection from './PaletteSection.vue'
 import ActionTile from './ActionTile.vue'
-import { axisAlignedBBox, shapeCenter } from '@/diagram/geometry.js'
+import { axisAlignedBBox } from '@/diagram/geometry.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 
 const store = useDiagramStore()
 
 const shapes = computed(() => store.selectedShapes)
 const hasShapes = computed(() => shapes.value.length > 0)
-const canSwap = computed(() => shapes.value.length === 2)
 
 // Mirror the selection across the axis at its combined bounding-box center.
 function flip(axis) {
@@ -37,27 +36,14 @@ function selectionCenter() {
   const maxY = Math.max(...boxes.map((b) => b.y + b.h))
   return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }
 }
-
-// Swap the two selected shapes so each takes the other's center.
-function swap() {
-  const [a, b] = shapes.value
-  const centerA = shapeCenter(a)
-  const centerB = shapeCenter(b)
-  store.commit('Swap', () => {
-    a.x = centerB.x - a.w / 2
-    a.y = centerB.y - a.h / 2
-    b.x = centerA.x - b.w / 2
-    b.y = centerA.y - b.h / 2
-  })
-}
 </script>
 
 <template>
   <PaletteSection v-if="hasShapes" label="Transform">
     <!-- Rotation is done with the on-canvas rotation handle now (D10), so the
-         rotate-left/right buttons are gone; Swap + Flip remain. -->
+         rotate-left/right buttons are gone. Swap lives in Distribute & size (a
+         positional op) to avoid duplicating it here; Transform is just flips. -->
     <div class="grid grid-cols-6 gap-1.5">
-      <ActionTile v-if="canSwap" icon="repeat" label="Swap" @click="swap()" />
       <ActionTile icon="flip-horizontal" label="Flip H" @click="flip('x')" />
       <ActionTile icon="flip-vertical" label="Flip V" @click="flip('y')" />
     </div>

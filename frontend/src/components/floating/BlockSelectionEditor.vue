@@ -61,7 +61,7 @@ function remove() {
 }
 
 const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2'
-const panel = 'max-h-[70vh] w-[264px] overflow-y-auto'
+const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
 </script>
 
 <template>
@@ -106,20 +106,42 @@ const panel = 'max-h-[70vh] w-[264px] overflow-y-auto'
           <template #body-main><div :class="panel"><TextSection /></div></template>
         </Popover>
 
+        <!-- Arrange / Align / Distribute / Transform are separate menu items, not
+             one crammed leaf; each opens just its own section. -->
         <Popover side="top">
           <template #target="{ togglePopover }">
-            <Tooltip text="Arrange & align">
+            <Tooltip text="Arrange">
               <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="layers" class="h-4 w-4" /></button>
             </Tooltip>
           </template>
-          <template #body-main>
-            <div :class="panel">
-              <ArrangeSection />
-              <AlignSection />
-              <DistributeSizeSection />
-              <TransformSection />
-            </div>
+          <template #body-main><div :class="panel"><ArrangeSection /></div></template>
+        </Popover>
+
+        <Popover side="top">
+          <template #target="{ togglePopover }">
+            <Tooltip text="Align">
+              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="text-align-center" class="h-4 w-4" /></button>
+            </Tooltip>
           </template>
+          <template #body-main><div :class="panel"><AlignSection /></div></template>
+        </Popover>
+
+        <Popover side="top">
+          <template #target="{ togglePopover }">
+            <Tooltip text="Distribute & size">
+              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="columns-2" class="h-4 w-4" /></button>
+            </Tooltip>
+          </template>
+          <template #body-main><div :class="panel"><DistributeSizeSection /></div></template>
+        </Popover>
+
+        <Popover side="top">
+          <template #target="{ togglePopover }">
+            <Tooltip text="Transform">
+              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="flip-horizontal-2" class="h-4 w-4" /></button>
+            </Tooltip>
+          </template>
+          <template #body-main><div :class="panel"><TransformSection /></div></template>
         </Popover>
 
         <Popover side="top">
