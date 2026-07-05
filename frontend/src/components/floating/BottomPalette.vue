@@ -161,7 +161,7 @@ function setGuides(state) {
       <Popover>
         <template #target="{ togglePopover }">
           <Tooltip text="Shapes">
-            <button :class="buttonBase" @click="togglePopover()"><LucideIcon name="square" class="h-4 w-4" /></button>
+            <button :class="buttonBase" @click="togglePopover()"><LucideIcon name="shapes" class="h-4 w-4" /></button>
           </Tooltip>
         </template>
         <template #body-main="{ togglePopover }">

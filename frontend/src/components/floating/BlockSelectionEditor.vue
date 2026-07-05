@@ -109,7 +109,7 @@ const panel = 'max-h-[70vh] w-[264px] overflow-y-auto'
         <Popover side="top">
           <template #target="{ togglePopover }">
             <Tooltip text="Arrange & align">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="layout" class="h-4 w-4" /></button>
+              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="layers" class="h-4 w-4" /></button>
             </Tooltip>
           </template>
           <template #body-main>
