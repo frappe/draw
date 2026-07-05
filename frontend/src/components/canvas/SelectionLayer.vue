@@ -12,7 +12,6 @@ import { shapeCenter } from '@/diagram/geometry.js'
 
 const HANDLE = 12
 const ROTATION_ARM = 28
-const ROTATION_RADIUS = 6
 const HANDLES = [
   'top-left', 'top', 'top-right', 'right',
   'bottom-right', 'bottom', 'bottom-left', 'left',
@@ -20,6 +19,13 @@ const HANDLES = [
 const HANDLE_FACTORS = {
   'top-left': [0, 0], top: [0.5, 0], 'top-right': [1, 0], right: [1, 0.5],
   'bottom-right': [1, 1], bottom: [0.5, 1], 'bottom-left': [0, 1], left: [0, 0.5],
+}
+// Standard two-sided resize cursor per handle, so hovering a handle reads as
+// "drag to resize" (the diagonal pair share nwse/nesw).
+const RESIZE_CURSORS = {
+  'top-left': 'nwse-resize', 'bottom-right': 'nwse-resize',
+  'top-right': 'nesw-resize', 'bottom-left': 'nesw-resize',
+  top: 'ns-resize', bottom: 'ns-resize', left: 'ew-resize', right: 'ew-resize',
 }
 
 const store = useDiagramStore()
@@ -123,16 +129,25 @@ function startRotate(event) {
         stroke="#006EDB"
         :stroke-width="strokeWidth"
       />
-      <circle
-        :cx="rotationKnob.x"
-        :cy="rotationKnob.y"
-        :r="ROTATION_RADIUS / zoom"
-        fill="#FFFFFF"
-        stroke="#006EDB"
-        :stroke-width="strokeWidth"
+      <!-- Rotation knob: a rotate glyph (circular arrow) rather than a bare dot. -->
+      <g
+        :transform="`translate(${rotationKnob.x} ${rotationKnob.y})`"
         style="cursor: grab"
         @pointerdown="startRotate"
-      />
+      >
+        <circle :r="9 / zoom" fill="#FFFFFF" stroke="#006EDB" :stroke-width="strokeWidth" />
+        <g :transform="`scale(${0.5 / zoom}) translate(-12 -12)`" style="pointer-events: none">
+          <path
+            d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"
+            fill="none"
+            stroke="#006EDB"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path d="M21 3v5h-5" fill="none" stroke="#006EDB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+        </g>
+      </g>
       <rect
         v-for="name in HANDLES"
         :key="name"
@@ -144,6 +159,7 @@ function startRotate(event) {
         fill="#FFFFFF"
         stroke="#006EDB"
         :stroke-width="strokeWidth"
+        :style="{ cursor: RESIZE_CURSORS[name] }"
         @pointerdown="startResize(name, $event)"
       />
     </g>

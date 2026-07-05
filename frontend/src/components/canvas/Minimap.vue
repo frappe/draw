@@ -51,6 +51,7 @@ function miniKind(shapeType) {
   if (shapeType === 'ellipse') return 'ellipse'
   if (shapeType === 'triangle') return 'triangle'
   if (shapeType === 'diamond') return 'diamond'
+  if (shapeType === 'text') return 'text'
   return 'rect'
 }
 
@@ -179,6 +180,12 @@ function onUp() {
           :points="`${it.x + it.w / 2},${it.y} ${it.x + it.w},${it.y + it.h / 2} ${it.x + it.w / 2},${it.y + it.h} ${it.x},${it.y + it.h / 2}`"
           :fill="it.fill"
         />
+        <!-- Text box: two faint 'text lines' instead of a solid block, so it doesn't
+             read as a filled rectangle in the overview. -->
+        <g v-else-if="it.kind === 'text'">
+          <line :x1="it.x" :y1="it.y + it.h * 0.38" :x2="it.x + it.w" :y2="it.y + it.h * 0.38" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round" />
+          <line :x1="it.x" :y1="it.y + it.h * 0.68" :x2="it.x + it.w * 0.6" :y2="it.y + it.h * 0.68" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round" />
+        </g>
         <rect v-else :x="it.x" :y="it.y" :width="it.w" :height="it.h" :fill="it.fill" rx="1" />
       </template>
 
