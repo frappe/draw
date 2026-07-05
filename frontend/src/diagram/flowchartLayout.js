@@ -36,14 +36,38 @@ export function portPoint(node, port, direction, branchInfo) {
   const size = nodeSize(node)
   const c = nodeCenter(node)
   const incoming = port === 'in'
+  // A decision node is a diamond, so ports must sit on its slanted edge — not on
+  // the bounding box — otherwise branch connectors and their labels float off the
+  // shape in the empty corners (P10).
+  const diamond = node.nodeType === 'decision'
   if (direction === 'LR') {
-    const x = incoming ? node.x : node.x + size.w
-    if (branchInfo) return { x, y: spread(node.y, size.h, branchInfo) }
-    return { x, y: c.y }
+    const y = branchInfo ? spread(node.y, size.h, branchInfo) : c.y
+    let x = incoming ? node.x : node.x + size.w
+    if (diamond) x = diamondEdgeX(c, size, y, incoming)
+    return { x, y }
   }
-  const y = incoming ? node.y : node.y + size.h
-  if (branchInfo) return { x: spread(node.x, size.w, branchInfo), y }
-  return { x: c.x, y }
+  const x = branchInfo ? spread(node.x, size.w, branchInfo) : c.x
+  let y = incoming ? node.y : node.y + size.h
+  if (diamond) y = diamondEdgeY(c, size, x, incoming)
+  return { x, y }
+}
+
+// Vertical coordinate where a vertical line at `x` meets the diamond's top
+// (incoming) or bottom (outgoing) edge — |x-cx|/hw + |y-cy|/hh = 1.
+function diamondEdgeY(c, size, x, top) {
+  const hw = size.w / 2
+  const hh = size.h / 2
+  const inset = hh * (1 - Math.min(1, Math.abs(x - c.x) / hw))
+  return top ? c.y - inset : c.y + inset
+}
+
+// Horizontal coordinate where a horizontal line at `y` meets the diamond's left
+// (incoming) or right (outgoing) edge.
+function diamondEdgeX(c, size, y, left) {
+  const hw = size.w / 2
+  const hh = size.h / 2
+  const inset = hw * (1 - Math.min(1, Math.abs(y - c.y) / hh))
+  return left ? c.x - inset : c.x + inset
 }
 
 // Even spread of N branch ports across a node's outgoing edge.
