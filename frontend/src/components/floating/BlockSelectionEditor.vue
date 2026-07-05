@@ -30,6 +30,8 @@ const connector = computed(() =>
   count.value === 1 ? store.connectorById(selection.value[0]) || null : null,
 )
 const hasShapes = computed(() => shapes.value.length > 0)
+// Align + distribute act between shapes, so they only apply to a multi-selection.
+const multi = computed(() => shapes.value.length >= 2)
 const primaryFill = computed(() => shapes.value[0]?.fill || '#ffffff')
 const primaryBorder = computed(() => shapes.value[0]?.border?.color || '#171717')
 
@@ -93,7 +95,7 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
           <template #target="{ togglePopover }">
             <Tooltip text="Fill">
               <button :class="btn" @mousedown.prevent @click="togglePopover()">
-                <span class="h-4 w-4 rounded-full border border-black/10" :style="{ background: primaryFill }" />
+                <span class="h-4 w-4 rounded-full border border-ink-gray-4" :style="{ background: primaryFill }" />
               </button>
             </Tooltip>
           </template>
@@ -104,7 +106,7 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
           <template #target="{ togglePopover }">
             <Tooltip text="Border">
               <button :class="btn" @mousedown.prevent @click="togglePopover()">
-                <span class="h-4 w-4 rounded-full border-2" :style="{ borderColor: primaryBorder }" />
+                <span class="h-4 w-4 rounded-full border-[3px] bg-surface-base" :style="{ borderColor: primaryBorder }" />
               </button>
             </Tooltip>
           </template>
@@ -131,16 +133,18 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
           <template #body-main><div :class="panel"><ArrangeSection /></div></template>
         </Popover>
 
-        <Popover side="top">
+        <!-- Align & distribute act between shapes — only for a multi-selection,
+             so a lone shape doesn't open an empty menu. -->
+        <Popover v-if="multi" side="top">
           <template #target="{ togglePopover }">
             <Tooltip text="Align">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="text-align-center" class="h-4 w-4" /></button>
+              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="align-center-horizontal" class="h-4 w-4" /></button>
             </Tooltip>
           </template>
           <template #body-main><div :class="panel"><AlignSection /></div></template>
         </Popover>
 
-        <Popover side="top">
+        <Popover v-if="multi" side="top">
           <template #target="{ togglePopover }">
             <Tooltip text="Distribute & size">
               <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="columns-2" class="h-4 w-4" /></button>

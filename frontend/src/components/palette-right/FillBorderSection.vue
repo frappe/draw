@@ -87,8 +87,8 @@ function applyQuickStyle(preset) {
       />
     </div>
     <div class="space-y-2">
-      <ColorPicker v-if="showFill" label="Fill" :model-value="fill" @update:model-value="setFill" />
-      <ColorPicker v-if="showBorder" label="Border" :model-value="borderColor" @update:model-value="setBorderColor" />
+      <ColorPicker v-if="showFill" inline label="Fill" :model-value="fill" @update:model-value="setFill" />
+      <ColorPicker v-if="showBorder" inline label="Border" :model-value="borderColor" @update:model-value="setBorderColor" />
     </div>
 
     <div v-if="showBorder" class="mt-2.5 flex gap-1.5">
