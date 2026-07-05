@@ -16,6 +16,7 @@
 
 import { ref } from 'vue'
 import { useTextEditing } from '@/composables/useTextEditing.js'
+import { useEdgeAutoPan } from '@/composables/useEdgeAutoPan.js'
 
 const DATA_TRANSFER_KEY = 'application/x-frappe-draw-tool'
 
@@ -36,23 +37,39 @@ const MIN_SIZE = 24
 export function useShapeCreation(store, editorUi) {
   const preview = ref(null)
   const drag = { active: false, start: { x: 0, y: 0 } }
+  const edgePan = useEdgeAutoPan(editorUi.viewport)
 
   function logicalPoint(event) {
     return toLogicalPoint(event, editorUi.viewport.state)
+  }
+  // Client coords → logical, for the auto-pan step (which only has x/y, not an
+  // event); folds in scroll like toLogicalPoint (scroll is 0 with the infinite
+  // canvas, but this stays correct if that ever changes).
+  function logicalXY(el, x, y) {
+    const b = el.getBoundingClientRect()
+    const { panX, panY, zoom } = editorUi.viewport.state
+    return { x: (x - b.left + el.scrollLeft - panX) / zoom, y: (y - b.top + el.scrollTop - panY) / zoom }
   }
 
   function onCanvasPointerDown(event) {
     if (editorUi.state.tool !== 'draw' || event.button !== 0) return
     beginDraft(drag, preview, logicalPoint(event))
     event.currentTarget.setPointerCapture?.(event.pointerId)
+    // As the drag reaches an edge, auto-pan and re-size the draft to the pointer.
+    const surface = event.currentTarget
+    edgePan.begin(surface, (x, y) =>
+      updateDraft(drag, preview, editorUi.state.drawShapeType, logicalXY(surface, x, y)),
+    )
   }
 
   function onCanvasPointerMove(event) {
     if (!drag.active) return
     updateDraft(drag, preview, editorUi.state.drawShapeType, logicalPoint(event))
+    edgePan.track(event.clientX, event.clientY)
   }
 
   function onCanvasPointerUp(event) {
+    edgePan.stop()
     if (!drag.active) return
     finishDraft(drag, preview, store, editorUi, logicalPoint(event))
   }

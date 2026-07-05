@@ -21,6 +21,7 @@ import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { useSelection } from '@/composables/useSelection.js'
 import { useShapeCreation } from '@/composables/useShapeCreation.js'
+import { useEdgeAutoPan } from '@/composables/useEdgeAutoPan.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
 import { useCanvasPaste } from '@/composables/useCanvasPaste.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
@@ -400,8 +401,17 @@ const sectionDraft = ref(null)
 let sectionStart = null
 const SECTION_MIN_DRAG = 24
 
+const sectionPan = useEdgeAutoPan(viewport)
+
 function logicalPoint(event) {
   return selection.toLogicalFor(event, surface.value, viewport)
+}
+// Client coords → logical (for the auto-pan step, which only has x/y).
+function logicalFromXY(x, y) {
+  const el = surface.value
+  const b = el.getBoundingClientRect()
+  const { panX, panY, zoom } = viewport.state
+  return { x: (x - b.left + el.scrollLeft - panX) / zoom, y: (y - b.top + el.scrollTop - panY) / zoom }
 }
 function startSectionDraft(event) {
   // Capture the pointer so the surface still gets move/up even if the drag ends
@@ -410,10 +420,11 @@ function startSectionDraft(event) {
   event.currentTarget?.setPointerCapture?.(event.pointerId)
   sectionStart = logicalPoint(event)
   sectionDraft.value = { x: sectionStart.x, y: sectionStart.y, w: 0, h: 0 }
+  // Auto-pan + grow the draft when the drag reaches an edge (draw beyond view).
+  sectionPan.begin(event.currentTarget, (x, y) => sizeSectionDraft(logicalFromXY(x, y)))
 }
-function updateSectionDraft(event) {
+function sizeSectionDraft(p) {
   if (!sectionStart) return
-  const p = logicalPoint(event)
   sectionDraft.value = {
     x: Math.min(sectionStart.x, p.x),
     y: Math.min(sectionStart.y, p.y),
@@ -421,13 +432,19 @@ function updateSectionDraft(event) {
     h: Math.abs(p.y - sectionStart.y),
   }
 }
+function updateSectionDraft(event) {
+  sizeSectionDraft(logicalPoint(event))
+  sectionPan.track(event.clientX, event.clientY)
+}
 // Abandon an in-progress section draft (pointer cancelled) without committing.
 function cancelSectionDraft() {
+  sectionPan.stop()
   sectionDraft.value = null
   sectionStart = null
 }
 
 function commitSectionDraft() {
+  sectionPan.stop()
   const d = sectionDraft.value
   sectionDraft.value = null
   sectionStart = null
