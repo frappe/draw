@@ -18,7 +18,6 @@ import { isVisible, isInteractable } from '@/diagram/shapeFlags.js'
 import { layoutMindMap } from '@/diagram/mindmapLayout.js'
 import { flowchartContentBounds } from '@/diagram/flowchartLayout.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
-import { isWhiteboardEmpty } from '@/diagram/whiteboardModel.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { useSelection } from '@/composables/useSelection.js'
 import { useShapeCreation } from '@/composables/useShapeCreation.js'
@@ -205,9 +204,6 @@ provide('selectionMarquee', selection.marquee)
 const surface = ref(null)
 const viewWidth = ref(0)
 const viewHeight = ref(0)
-let syncingScroll = false // guards the pan<->scroll feedback loop
-const PAN_MARGIN = 80 // logical units of breathing room around the content
-const INFINITE_MARGIN = 1500 // generous room so the block canvas feels unbounded (1.5)
 
 const canvas = computed(() => store.state.canvas)
 const themeStyle = computed(() => themeVarStyle(store.state.themePreset))
@@ -222,152 +218,55 @@ const groupTransform = computed(
   () => `translate(${viewport.state.panX} ${viewport.state.panY}) scale(${viewport.state.zoom})`,
 )
 
-// Logical extent that should be reachable: canvas rect unioned with every
-// shape's axis-aligned box, padded by a small margin. Shrinks back to the
-// canvas + margin when shapes return inside (spec §4.1 net rule).
-const contentExtent = computed(() => {
-  // Own-layer types (mindmap/flowchart/whiteboard) have no bounded paper: their
-  // derived content bbox is the whole reachable content. Mind-map bbox starts at
-  // 0,0; flowchart/whiteboard bboxes carry their own x/y. PAN_MARGIN pads each.
-  const bounds = ownLayerBounds.value
-  // Mind map / flowchart frame their own derived bbox. Whiteboard now uses the
-  // bounded-paper path below (its content bbox is unioned in so strokes drawn
-  // past the paper edge stay reachable).
-  if (rendersOwnLayer.value && bounds && !isWhiteboard.value) {
-    return {
-      x: (bounds.x ?? 0) - PAN_MARGIN,
-      y: (bounds.y ?? 0) - PAN_MARGIN,
-      w: bounds.w + PAN_MARGIN * 2,
-      h: bounds.h + PAN_MARGIN * 2,
-    }
-  }
-  // Infinite block canvas (spec 1.5): don't let the (small) paper rect constrain
-  // the pannable region — frame the shapes alone with a generous margin so you
-  // can always scroll further out in any direction. Off → paper-bounded as before.
-  const infinite = isInfiniteBlock.value && store.state.shapes.length
-  let minX = infinite ? Infinity : 0
-  let minY = infinite ? Infinity : 0
-  let maxX = infinite ? -Infinity : canvas.value.width
-  let maxY = infinite ? -Infinity : canvas.value.height
-  for (const shape of store.state.shapes) {
-    const box = axisAlignedBBox(shape)
-    minX = Math.min(minX, box.x)
-    minY = Math.min(minY, box.y)
-    maxX = Math.max(maxX, box.x + box.w)
-    maxY = Math.max(maxY, box.y + box.h)
-  }
-  if (isWhiteboard.value && bounds) {
-    minX = Math.min(minX, bounds.x ?? 0)
-    minY = Math.min(minY, bounds.y ?? 0)
-    maxX = Math.max(maxX, (bounds.x ?? 0) + bounds.w)
-    maxY = Math.max(maxY, (bounds.y ?? 0) + bounds.h)
-  }
-  const margin = infinite ? INFINITE_MARGIN : PAN_MARGIN
-  return {
-    x: minX - margin,
-    y: minY - margin,
-    w: maxX - minX + margin * 2,
-    h: maxY - minY + margin * 2,
-  }
-})
-
-const isInfiniteBlock = computed(() => editorUi.state.infiniteCanvas && activeType.value === 'block')
-
-// The dotted background should feel infinite: it must cover the whole visible
-// viewport at any pan/zoom, not just the content rect. Convert the viewport's
-// pixel box into canvas units (the GridLayer lives inside the pan/zoom <g>, and
-// its dot pattern tiles in canvas space, so the dots stay aligned as you pan).
-// A small pad guarantees dots reach every edge.
+// The dotted background must cover the whole visible viewport at any pan/zoom.
+// The GridLayer lives inside the pan/zoom <g> and its dots tile in canvas space,
+// so we convert the viewport's pixel box into canvas units (pan is the only
+// transform now — no native scroll — so this is just the inverse of the <g>).
 const gridBounds = computed(() => {
   const { panX, panY, zoom } = viewport.state
-  // The <g> also rides the surface's native scroll, so the viewport's top-left in
-  // canvas units folds scrollLeft/Top in — without it the dots drift off one edge
-  // as you pan/scroll and appear to "end". (pan and scroll stay in sync, so this
-  // recomputes on pan.)
-  const scrollLeft = surface.value ? surface.value.scrollLeft : 0
-  const scrollTop = surface.value ? surface.value.scrollTop : 0
   const pad = 8
   return {
-    x: (scrollLeft - panX) / zoom - pad,
-    y: (scrollTop - panY) / zoom - pad,
+    x: -panX / zoom - pad,
+    y: -panY / zoom - pad,
     w: viewWidth.value / zoom + pad * 2,
     h: viewHeight.value / zoom + pad * 2,
   }
 })
 
-// The scrollable region in screen pixels: the union of the viewport and the
-// content's current screen rect. We anchor it at the viewport's top-left and
-// extend it on whichever side(s) the content overflows. `offset` records how
-// far the content's top-left sits *before* the viewport origin (i.e. how much
-// the user must be able to scroll up/left to reach it); spec §4.1.
-const scrollRegion = computed(() => {
-  const extent = contentExtent.value
-  const zoom = viewport.state.zoom
-  const contentLeft = viewport.state.panX + extent.x * zoom
-  const contentTop = viewport.state.panY + extent.y * zoom
-  const contentRight = contentLeft + extent.w * zoom
-  const contentBottom = contentTop + extent.h * zoom
-  const offsetX = Math.max(0, -contentLeft)
-  const offsetY = Math.max(0, -contentTop)
-  return {
-    offsetX,
-    offsetY,
-    width: offsetX + Math.max(viewWidth.value, contentRight),
-    height: offsetY + Math.max(viewHeight.value, contentBottom),
-  }
+// The bounding box Fit-to-view should frame: an own-layer type's content bbox
+// (mind-map tree / flowchart / whiteboard) or, for block, the union of every
+// visible shape + section. Null when there's nothing yet (fall back to paper).
+const blockFitBounds = computed(() => {
+  const boxes = [
+    ...store.state.shapes.filter(isVisible).map(axisAlignedBBox),
+    ...(store.state.sections || []).map((s) => ({ x: s.x, y: s.y, w: s.w, h: s.h })),
+  ]
+  if (!boxes.length) return null
+  const minX = Math.min(...boxes.map((b) => b.x))
+  const minY = Math.min(...boxes.map((b) => b.y))
+  const maxX = Math.max(...boxes.map((b) => b.x + b.w))
+  const maxY = Math.max(...boxes.map((b) => b.y + b.h))
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY }
 })
+const fitBounds = computed(() => (rendersOwnLayer.value ? ownLayerBounds.value : blockFitBounds.value))
 
-// Spacer sized to the scrollable region so native scrollbars appear whenever
-// the pannable region exceeds the viewport (from stretch or zoom).
-const stageStyle = computed(() => ({
-  width: `${scrollRegion.value.width}px`,
-  height: `${scrollRegion.value.height}px`,
-}))
-
-// Feed container + canvas size to the viewport, then fit-to-view centered.
-// The box fit-to-view should frame: the mind-map tree's bbox, else the paper.
-function fitContentSize() {
-  const bounds = ownLayerBounds.value
-  // Every own-layer type — mind map, flowchart AND whiteboard — frames its
-  // derived content bbox (T6). whiteboardContentBounds falls back to a centred
-  // box on an empty board, so fit still lands somewhere sensible.
-  if (rendersOwnLayer.value && bounds) return { w: bounds.w, h: bounds.h }
-  return { w: canvas.value.width, h: canvas.value.height }
-}
-
-// A brand-new whiteboard has no content to frame; opening it zoomed-to-fit the
-// empty fallback box lands at ~84%, which reads as "already zoomed" (U3). Open a
-// blank board at a clean 100% instead.
-const isBlankWhiteboard = computed(
-  () => isWhiteboard.value && isWhiteboardEmpty(store.state.whiteboard, store.state.shapes),
-)
-
+// Fit-to-view: frame ALL drawn content, centred, zoomed to fit (≤100%) — even
+// content that's currently off-screen. Falls back to the canvas rect when empty.
 function fitToView() {
   if (!surface.value) return
-  const bounds = surface.value.getBoundingClientRect()
-  viewWidth.value = bounds.width
-  viewHeight.value = bounds.height
-  if (isBlankWhiteboard.value) {
-    viewport.setMeasure({
-      containerW: bounds.width,
-      containerH: bounds.height,
-      canvasW: canvas.value.width,
-      canvasH: canvas.value.height,
-      originX: 0,
-      originY: 0,
-    })
-    return viewport.reset() // 100%, centred on the paper
-  }
-  const size = fitContentSize()
-  const framesOwnBounds = rendersOwnLayer.value && !!ownLayerBounds.value
-  const origin = (framesOwnBounds && ownLayerBounds.value) || { x: 0, y: 0 }
+  const rect = surface.value.getBoundingClientRect()
+  viewWidth.value = rect.width
+  viewHeight.value = rect.height
+  const b = fitBounds.value
+  const size = b ? { w: b.w, h: b.h } : { w: canvas.value.width, h: canvas.value.height }
+  const origin = b || { x: 0, y: 0 }
   viewport.setMeasure({
-    containerW: bounds.width,
-    containerH: bounds.height,
+    containerW: rect.width,
+    containerH: rect.height,
     canvasW: size.w,
     canvasH: size.h,
-    originX: framesOwnBounds ? origin.x ?? 0 : 0,
-    originY: framesOwnBounds ? origin.y ?? 0 : 0,
+    originX: origin.x ?? 0,
+    originY: origin.y ?? 0,
   })
   viewport.fit()
 }
@@ -399,64 +298,15 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onZoomKey)
 })
 
-// Keep the viewport's container measure current (without re-fitting), and keep
-// the cached viewport pixel size used by the scroll-region math up to date.
+// Keep the viewport's container measure current on resize (pan is the sole
+// canvas transform now — no native scroll to reconcile).
 function syncMeasure() {
   if (!surface.value) return
   const bounds = surface.value.getBoundingClientRect()
   viewWidth.value = bounds.width
   viewHeight.value = bounds.height
   viewport.setMeasure({ containerW: bounds.width, containerH: bounds.height })
-  nextTick(syncScrollFromPan)
 }
-
-// Scroll position that makes the native scrollbars agree with the current pan.
-function scrollForPan() {
-  const region = scrollRegion.value
-  const extent = contentExtent.value
-  const zoom = viewport.state.zoom
-  return {
-    left: region.offsetX - extent.x * zoom - viewport.state.panX,
-    top: region.offsetY - extent.y * zoom - viewport.state.panY,
-  }
-}
-
-// Push the current pan into the scrollbars (after wheel/drag/fit/zoom).
-function syncScrollFromPan() {
-  if (!surface.value || syncingScroll) return
-  const target = scrollForPan()
-  if (
-    Math.abs(surface.value.scrollLeft - target.left) < 0.5 &&
-    Math.abs(surface.value.scrollTop - target.top) < 0.5
-  ) {
-    return
-  }
-  syncingScroll = true
-  surface.value.scrollLeft = target.left
-  surface.value.scrollTop = target.top
-  requestAnimationFrame(() => (syncingScroll = false))
-}
-
-// Native scrollbar dragged / wheel-scrolled the container → mirror into pan.
-function onScroll() {
-  if (syncingScroll || !surface.value) return
-  const region = scrollRegion.value
-  const extent = contentExtent.value
-  const zoom = viewport.state.zoom
-  syncingScroll = true
-  viewport.setPan(
-    region.offsetX - extent.x * zoom - surface.value.scrollLeft,
-    region.offsetY - extent.y * zoom - surface.value.scrollTop,
-  )
-  requestAnimationFrame(() => (syncingScroll = false))
-}
-
-// Whenever pan/zoom changes (wheel, hand-drag, fit, zoom buttons), reconcile
-// the scrollbar positions so they reflect where the canvas now sits.
-watch(
-  () => [viewport.state.panX, viewport.state.panY, viewport.state.zoom],
-  () => nextTick(syncScrollFromPan),
-)
 
 // The document's canvas dimensions settle after the async load; re-open at 100%
 // (true size) when they do, rather than zooming to fit.
@@ -475,9 +325,9 @@ watch(
   ],
   () => {
     if (!rendersOwnLayer.value || isWhiteboard.value) return
-    const size = fitContentSize()
-    const origin = ownLayerBounds.value || { x: 0, y: 0 }
-    viewport.setMeasure({ canvasW: size.w, canvasH: size.h, originX: origin.x ?? 0, originY: origin.y ?? 0 })
+    const b = ownLayerBounds.value
+    if (!b) return
+    viewport.setMeasure({ canvasW: b.w, canvasH: b.h, originX: b.x ?? 0, originY: b.y ?? 0 })
   },
 )
 
@@ -717,9 +567,8 @@ const surfaceCursor = computed(() => {
     aria-label="Diagram canvas"
     :data-fdpreset="store.state.themePreset"
     :style="[themeStyle, { cursor: surfaceCursor, background: canvas.background || '#FFFFFF', userSelect: 'none', WebkitUserSelect: 'none' }]"
-    class="relative h-full w-full overflow-auto"
+    class="relative h-full w-full overflow-hidden"
     @wheel.prevent="onWheel"
-    @scroll="onScroll"
     @pointerdown="onSurfacePointerDown"
     @pointermove="onSurfacePointerMove"
     @pointerup="onSurfacePointerUp"
@@ -730,10 +579,8 @@ const surfaceCursor = computed(() => {
     @dragover="onCanvasDragOver"
     @drop="onCanvasDrop"
   >
-    <!-- Spacer sized to the pannable region so native scrollbars appear. -->
-    <div :style="stageStyle" class="pointer-events-none" />
-
-    <!-- The SVG is pinned to the viewport; the <g> transform handles pan/zoom. -->
+    <!-- Infinite canvas: pan via wheel / hand tool (no native scrollbars). The
+         SVG fills the viewport; the <g> transform handles pan/zoom. -->
     <svg class="pointer-events-none absolute left-0 top-0 h-full w-full">
       <g :transform="groupTransform" class="[&_*]:pointer-events-auto">
         <!-- Dotted guides (all types) on the plain white canvas — no paper/
