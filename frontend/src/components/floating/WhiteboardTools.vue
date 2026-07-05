@@ -26,7 +26,7 @@ const TOOLS = [
   { tool: 'highlighter', icon: 'highlighter', label: 'Highlighter' },
   { tool: 'eraser', icon: 'eraser', label: 'Eraser' },
   { tool: 'text', icon: 'type', label: 'Text' },
-  { tool: 'sticky', icon: 'square', label: 'Sticky note' },
+  { tool: 'sticky', icon: 'sticky-note', label: 'Sticky note' },
   { tool: 'line', icon: 'minus', label: 'Line' },
   { tool: 'table', icon: 'grid', label: 'Table' },
   { tool: 'laser', icon: 'zap', label: 'Laser pointer' },

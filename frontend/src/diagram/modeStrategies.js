@@ -73,7 +73,7 @@ const WHITEBOARD = {
     { tool: 'highlighter', icon: 'edit-3', label: 'Highlighter' },
     { tool: 'eraser', icon: 'delete', label: 'Eraser' },
     { tool: 'text', icon: 'type', label: 'Text' },
-    { tool: 'sticky', icon: 'square', label: 'Sticky note' },
+    { tool: 'sticky', icon: 'sticky-note', label: 'Sticky note' },
     { tool: 'line', icon: 'minus', label: 'Line' },
     { tool: 'table', icon: 'grid', label: 'Table' },
     { tool: 'laser', icon: 'zap', label: 'Laser pointer' },
