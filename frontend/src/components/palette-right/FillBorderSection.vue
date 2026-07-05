@@ -9,6 +9,16 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 
 const store = useDiagramStore()
 
+// Which channel(s) to render: 'fill' (quick styles + fill), 'border' (border
+// colour + width + dash), or 'both'. Lets the block context menu surface Fill
+// and Border as separate items.
+const props = defineProps({
+  mode: { type: String, default: 'both', validator: (v) => ['both', 'fill', 'border'].includes(v) },
+})
+const showFill = computed(() => props.mode !== 'border')
+const showBorder = computed(() => props.mode !== 'fill')
+const sectionLabel = computed(() => ({ fill: 'Fill', border: 'Border' })[props.mode] || 'Fill & border')
+
 // Border styles shown VISUALLY (a line preview), not as text (D4).
 const dashStyles = ['solid', 'dashed', 'dotted']
 const DASH_ARRAY = { solid: '0', dashed: '5 3', dotted: '1.5 3' }
@@ -64,8 +74,8 @@ function applyQuickStyle(preset) {
 </script>
 
 <template>
-  <PaletteSection label="Fill & border">
-    <div class="mb-2.5 flex gap-1.5">
+  <PaletteSection :label="sectionLabel">
+    <div v-if="showFill" class="mb-2.5 flex gap-1.5">
       <button
         v-for="(preset, i) in QUICK_STYLES"
         :key="i"
@@ -77,11 +87,11 @@ function applyQuickStyle(preset) {
       />
     </div>
     <div class="space-y-2">
-      <ColorPicker label="Fill" :model-value="fill" @update:model-value="setFill" />
-      <ColorPicker label="Border" :model-value="borderColor" @update:model-value="setBorderColor" />
+      <ColorPicker v-if="showFill" label="Fill" :model-value="fill" @update:model-value="setFill" />
+      <ColorPicker v-if="showBorder" label="Border" :model-value="borderColor" @update:model-value="setBorderColor" />
     </div>
 
-    <div class="mt-2.5 flex gap-1.5">
+    <div v-if="showBorder" class="mt-2.5 flex gap-1.5">
       <label class="flex h-8 flex-1 items-center gap-1 rounded-md border border-outline-gray-2 px-2">
         <input
           type="number"

@@ -31,6 +31,7 @@ const connector = computed(() =>
 )
 const hasShapes = computed(() => shapes.value.length > 0)
 const primaryFill = computed(() => shapes.value[0]?.fill || '#ffffff')
+const primaryBorder = computed(() => shapes.value[0]?.border?.color || '#171717')
 
 // Selection bounding box in canvas coords (shapes: x/y/w/h; connector: endpoints).
 const box = computed(() => {
@@ -86,15 +87,28 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
 
       <!-- Shapes selected: fill+border+opacity, text, arrange, link. -->
       <template v-else-if="hasShapes">
+        <!-- Fill and Border are separate menu items (each opens its own colour
+             picker); opacity lives with Fill. -->
         <Popover side="top">
           <template #target="{ togglePopover }">
-            <Tooltip text="Fill & border">
+            <Tooltip text="Fill">
               <button :class="btn" @mousedown.prevent @click="togglePopover()">
                 <span class="h-4 w-4 rounded-full border border-black/10" :style="{ background: primaryFill }" />
               </button>
             </Tooltip>
           </template>
-          <template #body-main><div :class="panel"><FillBorderSection /><TransparencySection /></div></template>
+          <template #body-main><div :class="panel"><FillBorderSection mode="fill" /><TransparencySection /></div></template>
+        </Popover>
+
+        <Popover side="top">
+          <template #target="{ togglePopover }">
+            <Tooltip text="Border">
+              <button :class="btn" @mousedown.prevent @click="togglePopover()">
+                <span class="h-4 w-4 rounded-full border-2" :style="{ borderColor: primaryBorder }" />
+              </button>
+            </Tooltip>
+          </template>
+          <template #body-main><div :class="panel"><FillBorderSection mode="border" /></div></template>
         </Popover>
 
         <Popover side="top">

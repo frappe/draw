@@ -18,40 +18,62 @@ const quickColors = [
   '#4F94FF', '#006EDB', '#88D5A5', '#30A66D', '#FBCC55', '#E68AC4',
 ]
 
-const hsv = reactive({ h: 0, s: 0, v: 1 })
+const hsv = reactive({ h: 0, s: 0, v: 1, a: 1 })
 
+// The opaque RGB hex (drives the SV square / hue math / previews).
 const currentHex = computed(() => {
   const { r, g, b } = hsvToRgb(hsv.h, hsv.s, hsv.v)
   return rgbToHex(r, g, b)
 })
+
+// The emitted colour: 6-digit when fully opaque, 8-digit #RRGGBBAA otherwise
+// (SVG fill/stroke accept both), so the picker carries its own transparency.
+const currentColor = computed(() =>
+  hsv.a >= 1 ? currentHex.value : currentHex.value + alphaHex(hsv.a),
+)
 
 const hueColor = computed(() => {
   const { r, g, b } = hsvToRgb(hsv.h, 1, 1)
   return rgbToHex(r, g, b)
 })
 
-// The swatch shows the bound colour (which may be 'none'); the picker itself
-// always edits a concrete colour.
-const swatch = computed(() => normalizeHex(props.modelValue) || '#FFFFFF')
+// The trigger swatch shows the bound colour (may be 'none'); the picker edits a
+// concrete colour.
+const swatch = computed(() => parseColor(props.modelValue)?.hex || '#FFFFFF')
 
 syncFromHex(props.modelValue)
 watch(
   () => props.modelValue,
-  (hex) => {
-    if (hex && hex.toLowerCase() !== currentHex.value.toLowerCase()) syncFromHex(hex)
+  (value) => {
+    if (value && value.toLowerCase() !== currentColor.value.toLowerCase()) syncFromHex(value)
   },
 )
 
 function syncFromHex(value) {
-  const rgb = hexToRgb(normalizeHex(value) || '#FFFFFF')
+  const parsed = parseColor(value) || { hex: '#FFFFFF', a: 1 }
+  const rgb = hexToRgb(parsed.hex)
   const next = rgbToHsv(rgb.r, rgb.g, rgb.b)
   hsv.h = next.h
   hsv.s = next.s
   hsv.v = next.v
+  hsv.a = parsed.a
 }
 
 function commit() {
-  emit('update:modelValue', currentHex.value)
+  emit('update:modelValue', currentColor.value)
+}
+
+function pickAlpha(event, element) {
+  const rect = element.getBoundingClientRect()
+  hsv.a = clamp01((event.clientX - rect.left) / rect.width)
+  commit()
+}
+
+function alphaHex(a) {
+  return Math.round(a * 255)
+    .toString(16)
+    .padStart(2, '0')
+    .toUpperCase()
 }
 
 function pickSquare(event, element) {
@@ -68,12 +90,10 @@ function pickHue(event, element) {
 }
 
 function onHex(value) {
-  const hex = normalizeHex(value)
-  if (hex) {
-    syncFromHex(hex)
-    commit()
-    pushRecentColor(hex)
-  }
+  if (!parseColor(value)) return
+  syncFromHex(value)
+  commit()
+  pushRecentColor(currentColor.value)
 }
 
 // Native eyedropper (Chrome/Edge): sample any pixel on screen (spec 8.3). Hidden
@@ -108,10 +128,13 @@ function clamp01(value) {
   return Math.max(0, Math.min(1, value))
 }
 
-function normalizeHex(value) {
+// Parse #RGB / #RRGGBB / #RRGGBBAA → { hex: '#RRGGBB', a: 0..1 }, or null.
+function parseColor(value) {
   let hex = (value || '').trim().replace(/^#/, '')
   if (/^[0-9a-f]{3}$/i.test(hex)) hex = hex.split('').map((c) => c + c).join('')
-  return /^[0-9a-f]{6}$/i.test(hex) ? `#${hex.toUpperCase()}` : null
+  if (/^[0-9a-f]{8}$/i.test(hex)) return { hex: `#${hex.slice(0, 6).toUpperCase()}`, a: parseInt(hex.slice(6, 8), 16) / 255 }
+  if (/^[0-9a-f]{6}$/i.test(hex)) return { hex: `#${hex.toUpperCase()}`, a: 1 }
+  return null
 }
 
 function hexToRgb(hex) {
@@ -199,12 +222,25 @@ function hsvSegment(segment, chroma, x) {
             />
           </div>
 
+          <!-- Alpha (opacity) over a checkerboard, transparent → opaque colour. -->
+          <div
+            class="relative mt-3 h-3 w-full cursor-pointer rounded-full"
+            style="background: repeating-conic-gradient(#d4d4d4 0% 25%, #ffffff 0% 50%) 50% / 8px 8px"
+            @pointerdown="startDrag($event, pickAlpha)"
+          >
+            <div class="absolute inset-0 rounded-full" :style="{ background: `linear-gradient(to right, transparent, ${currentHex})` }" />
+            <div
+              class="pointer-events-none absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow ring-1 ring-black/25"
+              :style="{ left: hsv.a * 100 + '%' }"
+            />
+          </div>
+
           <div class="mt-3 flex items-center gap-1.5">
             <div class="flex flex-1 items-center gap-1.5 rounded-md border border-outline-gray-2 px-2">
               <span class="text-[11px] text-ink-gray-5">#</span>
               <input
-                :value="swatch.replace('#', '')"
-                maxlength="6"
+                :value="currentColor.replace('#', '')"
+                maxlength="8"
                 class="h-7 w-full bg-transparent text-[11px] font-medium uppercase text-ink-gray-8 outline-none"
                 @change="onHex($event.target.value)"
               />
