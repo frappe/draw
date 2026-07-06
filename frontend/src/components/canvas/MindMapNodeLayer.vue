@@ -172,6 +172,18 @@ function addButtonsFor(node, b) {
   })
 }
 
+// A second "+" just below the child button, at the same branch end, that adds a
+// SIBLING (a parallel node at the same level) — the Whimsical add-below, but
+// kept at the node's end rather than under it. Only non-root nodes have siblings.
+const SIB_DY = ADD_R * 2 + 6
+function siblingButtonsFor(node, b) {
+  if (isRoot(props.mindmap, node.id)) return []
+  return addButtonsFor(node, b).map((btn) => ({ ...btn, cy: b.h / 2 + SIB_DY }))
+}
+function addSibling(event, nodeId) {
+  startEdit(event, store.addSiblingNode(nodeId))
+}
+
 // The add button stays visible around every (expanded) node's branch end so
 // it's always discoverable — not just on hover. It rests faint and lifts to
 // full strength when the node is hovered or the lone selection. Hidden only
@@ -540,6 +552,7 @@ function nodePoly(node, b) {
         @click.stop="addChild($event, node.id)"
         @pointerdown.stop
       >
+        <title>Add child</title>
         <line
           :x1="add.stubX1" :y1="add.cy" :x2="add.cx" :y2="add.cy"
           :stroke="colorOf(node)" stroke-width="2" stroke-linecap="round"
@@ -548,6 +561,23 @@ function nodePoly(node, b) {
         <path
           :d="`M${add.cx - 4.5} ${add.cy} H${add.cx + 4.5} M${add.cx} ${add.cy - 4.5} V${add.cy + 4.5}`"
           stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"
+        />
+      </g>
+
+      <!-- Add-sibling "+" (parallel node, same level) just below the child button
+           at the branch end — shown only on hover / lone selection. -->
+      <g
+        v-for="sib in addProminent(node) ? siblingButtonsFor(node, box) : []"
+        :key="`sib-${sib.side}`"
+        style="cursor: pointer"
+        @click.stop="addSibling($event, node.id)"
+        @pointerdown.stop
+      >
+        <title>Add sibling</title>
+        <circle :cx="sib.cx" :cy="sib.cy" :r="ADD_R - 1.5" fill="#FFFFFF" :stroke="colorOf(node)" stroke-width="1.5" />
+        <path
+          :d="`M${sib.cx - 4} ${sib.cy} H${sib.cx + 4} M${sib.cx} ${sib.cy - 4} V${sib.cy + 4}`"
+          :stroke="colorOf(node)" stroke-width="1.6" stroke-linecap="round"
         />
       </g>
     </g>
