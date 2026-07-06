@@ -10,6 +10,7 @@
 
 import { ref, computed } from 'vue'
 import { axisAlignedBBox } from '@/diagram/geometry.js'
+import { nodeSize as flowchartNodeSize } from '@/diagram/flowchartModel.js'
 
 // How close (in logical units) edges/centers must be to snap, and how long a
 // guide line over-runs past the aligned shapes so it reads as a guide.
@@ -64,7 +65,24 @@ function createSmartGuides(store) {
     measurements.value = []
   }
 
-  return { guides: visible, measurements: visibleMeasurements, snapDelta, clear, store }
+  // Snapping for a single flowchart node dragged by `rawDelta` from `box` (its
+  // pre-drag box), aligning to the other flowchart nodes' edges/centres. Returns
+  // the adjusted delta and publishes the guide lines (rendered by the same layer).
+  function snapFlowchart(draggedId, box, rawDelta) {
+    active.value = true
+    const moving = { x: box.x + rawDelta.x, y: box.y + rawDelta.y, w: box.w, h: box.h }
+    const targets = { vertical: [], horizontal: [] }
+    for (const n of store.state.flowchart?.nodes || []) {
+      if (n.id === draggedId) continue
+      const s = flowchartNodeSize(n)
+      collectBoxLines({ x: n.x, y: n.y, w: s.w, h: s.h }, targets)
+    }
+    const result = resolveSnap(moving, targets, store.state.canvas)
+    publisher.publish(result.lines)
+    return { x: rawDelta.x + result.dx, y: rawDelta.y + result.dy }
+  }
+
+  return { guides: visible, measurements: visibleMeasurements, snapDelta, snapFlowchart, clear, store }
 }
 
 // Coalesce rapid guide updates into one per animation frame so the SVG layer

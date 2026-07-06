@@ -23,8 +23,10 @@ import { placeChild, routeEdge, reflowAuto } from '@/diagram/flowchartLayout.js'
 import { rectsIntersect } from '@/diagram/geometry.js'
 import { isAdditiveEvent, runMarqueeDrag } from '@/composables/pointer.js'
 import { requestFlowchartEdit } from '@/stores/flowchartUi.js'
+import { useSmartGuides } from '@/composables/useSmartGuides.js'
 
 export function useFlowchartInteraction(store, editorUi, interactionRef) {
+  const guides = useSmartGuides(store)
   // Transient UI state the layer renders against (not part of the document).
   const ui = reactive({
     hoverNodeId: null, // node whose + handles show
@@ -150,12 +152,20 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
     }
     const node = flowchartNodeById(store.state.flowchart, drag.nodeId)
     if (!node) return
+    // Snap to alignment with other nodes (like block diagrams) + show guides.
+    const size = nodeSize(node)
+    const snapped = guides.snapFlowchart(
+      drag.nodeId,
+      { x: drag.originX, y: drag.originY, w: size.w, h: size.h },
+      { x: dx, y: dy },
+    )
     // Live-update position without committing every frame; commit on drop.
-    node.x = Math.round(drag.originX + dx)
-    node.y = Math.round(drag.originY + dy)
+    node.x = Math.round(drag.originX + snapped.x)
+    node.y = Math.round(drag.originY + snapped.y)
   }
 
   function endDrag() {
+    guides.clear()
     if (drag.multi) return endMultiDrag()
     const node = flowchartNodeById(store.state.flowchart, drag.nodeId)
     drag.active = false

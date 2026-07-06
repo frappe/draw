@@ -25,6 +25,7 @@ import {
   branchInfoFor,
 } from '@/diagram/flowchartLayout.js'
 import FlowchartNodeTypePicker from './FlowchartNodeTypePicker.vue'
+import SmartGuidesLayer from './SmartGuidesLayer.vue'
 
 const props = defineProps({
   flowchart: { type: Object, required: true },
@@ -393,6 +394,9 @@ function onLeave(id) {
     >
       <FlowchartNodeTypePicker @choose="chooseNodeType" @close="closePicker" />
     </foreignObject>
+
+    <!-- Alignment guides while dragging a node (shared with block diagrams). -->
+    <SmartGuidesLayer />
   </g>
 </template>
 
