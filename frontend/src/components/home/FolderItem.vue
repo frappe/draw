@@ -35,7 +35,7 @@ function onDrop(event) {
   >
     <button
       class="flex h-[18px] w-[18px] flex-none items-center justify-center rounded-[5px] border"
-      :class="selected ? 'border-outline-blue-3 bg-surface-blue-3 text-white' : 'border-outline-gray-3 text-transparent hover:border-ink-gray-5'"
+      :class="selected ? 'border-outline-blue-3 bg-surface-blue-3 text-white' : 'border-ink-gray-4 text-transparent hover:border-ink-gray-6'"
       @click.stop="emit('toggle-select', folder.name)"
     >
       <LucideIcon name="check" class="h-3 w-3" />
@@ -69,7 +69,7 @@ function onDrop(event) {
     <button
       class="absolute left-2.5 top-2.5 flex h-[18px] w-[18px] items-center justify-center rounded-[5px] border transition-opacity"
       :class="[
-        selected ? 'border-outline-blue-3 bg-surface-blue-3 text-white' : 'border-outline-gray-3 bg-surface-base text-transparent hover:border-ink-gray-5',
+        selected ? 'border-outline-blue-3 bg-surface-blue-3 text-white' : 'border-ink-gray-4 bg-surface-base text-transparent hover:border-ink-gray-6',
         selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
       ]"
       @click.stop="emit('toggle-select', folder.name)"

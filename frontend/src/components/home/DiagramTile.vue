@@ -107,7 +107,7 @@ function onDragStart(event) {
     <!-- List-view select checkbox is always visible (Drive-style, I2). -->
     <button
       class="flex h-[18px] w-[18px] flex-none items-center justify-center rounded-[5px] border"
-      :class="selected ? 'border-outline-blue-3 bg-surface-blue-3 text-white' : 'border-outline-gray-3 text-transparent hover:border-ink-gray-5'"
+      :class="selected ? 'border-outline-blue-3 bg-surface-blue-3 text-white' : 'border-ink-gray-4 text-transparent hover:border-ink-gray-6'"
       @click.stop="emit('toggle-select', diagram.name)"
     >
       <LucideIcon name="check" class="h-3 w-3" />
@@ -158,7 +158,7 @@ function onDragStart(event) {
     <button
       class="absolute left-2 top-2 z-10 flex h-[20px] w-[20px] items-center justify-center rounded-[6px] border shadow-sm transition-opacity"
       :class="[
-        selected ? 'border-outline-blue-3 bg-surface-blue-3 text-white' : 'border-outline-gray-3 bg-surface-base text-transparent',
+        selected ? 'border-outline-blue-3 bg-surface-blue-3 text-white' : 'border-ink-gray-4 bg-surface-base text-transparent',
         selected || selectionActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
       ]"
       @click.stop="emit('toggle-select', diagram.name)"
