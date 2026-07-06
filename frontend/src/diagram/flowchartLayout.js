@@ -17,8 +17,8 @@ import {
 } from './flowchartModel.js'
 
 const PAD = 60 // content-bounds margin
-const LEVEL_GAP = 90 // gap between successive levels (down in TB, right in LR)
-const SIBLING_GAP = 48 // gap between siblings within a level
+const LEVEL_GAP = 96 // gap between successive levels (down in TB, right in LR)
+const SIBLING_GAP = 72 // gap between siblings within a level (roomy so decision branch labels don't collide)
 const ROUTE_OFFSET = 14 // lateral offset to separate overlapping parallel runs
 
 // ----- node ports ----------------------------------------------------------
@@ -129,7 +129,7 @@ export function pointsToPath(points) {
 // from the source port, so it hugs the edge just OUTSIDE the node it leaves
 // rather than overlapping the shape (P10). On a very short edge it falls back to
 // the true midpoint so the pill still lands on the line.
-const LABEL_OFFSET = 30
+const LABEL_OFFSET = 42
 function labelAnchor(points) {
   const total = totalLength(points)
   return pointAtDistance(points, Math.min(LABEL_OFFSET, total / 2))

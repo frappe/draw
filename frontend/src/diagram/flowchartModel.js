@@ -47,9 +47,45 @@ export function defaultNodeText(nodeType) {
   return NODE_TYPE_META[nodeType]?.text ?? ''
 }
 
+// Node box. Height grows to fit wrapped text (like block/mind-map nodes) so a
+// long label wraps inside the shape instead of overflowing it.
+const FC_CHAR_W = 7.6
+const FC_LINE_H = 18
+const FC_PAD_Y = 22
 export function nodeSize(node) {
   const meta = NODE_TYPE_META[node.nodeType] || NODE_TYPE_META.process
-  return { w: node.w || meta.w, h: node.h || meta.h }
+  const w = node.w || meta.w
+  const baseH = node.h || meta.h
+  const text = node.text || ''
+  if (!text || node.nodeType === 'connector') return { w, h: baseH }
+  const inset = node.nodeType === 'decision' ? Math.round(w * 0.16) : 10
+  const textW = Math.max(24, w - 2 * inset)
+  const perLine = Math.max(1, Math.floor(textW / FC_CHAR_W))
+  const lines = wrapLineCount(text, perLine)
+  return { w, h: Math.max(baseH, lines * FC_LINE_H + FC_PAD_Y) }
+}
+
+// Greedy word-wrap line count at `perLine` chars (breaks over-long words).
+function wrapLineCount(text, perLine) {
+  const words = String(text).split(/\s+/).filter(Boolean)
+  if (!words.length) return 1
+  let lines = 1
+  let col = 0
+  for (const word of words) {
+    if (word.length > perLine) {
+      if (col > 0) lines++
+      lines += Math.ceil(word.length / perLine) - 1
+      col = word.length % perLine || perLine
+      continue
+    }
+    const need = col === 0 ? word.length : col + 1 + word.length
+    if (need <= perLine) col = need
+    else {
+      lines++
+      col = word.length
+    }
+  }
+  return lines
 }
 
 export function makeFlowchartNode(nodeType, text, x, y) {

@@ -77,6 +77,12 @@ function focusField(id) {
   sel.removeAllRanges()
   sel.addRange(range)
 }
+
+// Horizontal inset for the label: a diamond narrows toward top/bottom, so its
+// text needs a wider margin than a rectangle to stay inside the shape.
+function textInset(node) {
+  return node.nodeType === 'decision' ? Math.round(nodeSize(node).w * 0.16) : 10
+}
 // Height of the junction's node-centred label box. Tall enough that wrapped text
 // spills up/down past the small circle (P11); text beyond ±half of this clips.
 const JUNCTION_LABEL_H = 220
@@ -307,18 +313,18 @@ function onLeave(id) {
           <span :style="{ color: ink, fontFamily: 'Inter, sans-serif', fontSize: '13px', lineHeight: '1.2', wordBreak: 'break-word' }">{{ node.text }}</span>
         </div>
       </foreignObject>
-      <text
+      <!-- Static label: a wrapping, vertically-centred div (like block/mind-map)
+           so long text wraps inside the node instead of overflowing it. -->
+      <foreignObject
         v-else-if="node.nodeType !== 'connector'"
-        :x="size.w / 2"
-        :y="size.h / 2"
-        text-anchor="middle"
-        dominant-baseline="central"
-        font-size="14"
-        :fill="ink"
-        style="font-family: Inter, sans-serif; pointer-events: none"
+        :x="textInset(node)"
+        y="4"
+        :width="size.w - 2 * textInset(node)"
+        :height="size.h - 8"
+        style="pointer-events: none"
       >
-        {{ node.text }}
-      </text>
+        <div class="fc-label" :style="{ color: ink }">{{ node.text }}</div>
+      </foreignObject>
 
       <!-- "+" extend handles on the active node (hover/selected), per spec B4/F3. -->
       <g v-if="isActive(node.id)">
@@ -395,5 +401,19 @@ function onLeave(id) {
   font-size: 14px;
   line-height: 1.2;
   color: #1f2933;
+}
+/* Static label: wrap + vertically centre inside the node, matching the editor. */
+.fc-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  line-height: 1.2;
 }
 </style>

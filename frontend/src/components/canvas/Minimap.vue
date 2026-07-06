@@ -172,17 +172,14 @@ const miniLinks = computed(() =>
   }),
 )
 
-// Current viewport mapped into the minimap, clamped to the minimap box. Returns
-// null when the viewport already contains the whole content (you can see
-// everything) — drawing a box that fills the minimap just reads as a stray
-// boundary, so we show nothing in that case.
+// Current viewport mapped into the minimap, clamped to the minimap box. Always
+// shown (the blue "what you can see now" boundary) — a consistent navigator cue
+// across every diagram type, matching the whiteboard minimap.
 const viewRect = computed(() => {
   const zoom = viewport.state.zoom || 1
   const a = toMini(-viewport.state.panX / zoom, -viewport.state.panY / zoom)
   const right = a.x + (surfaceSize.value.w / zoom) * scale.value
   const bottom = a.y + (surfaceSize.value.h / zoom) * scale.value
-  // The view spans the entire minimap → nothing meaningful to indicate.
-  if (a.x <= 0.5 && a.y <= 0.5 && right >= WIDTH - 0.5 && bottom >= HEIGHT - 0.5) return null
   const x1 = Math.max(0, a.x)
   const y1 = Math.max(0, a.y)
   return { x: x1, y: y1, w: Math.max(0, Math.min(WIDTH, right) - x1), h: Math.max(0, Math.min(HEIGHT, bottom) - y1) }
