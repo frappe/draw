@@ -57,6 +57,10 @@ const selectedIds = computed(() => store.state.selection)
 // drag-to-empty drop, or the "add first step" prompt) can open the editor.
 const editingId = computed(() => flowchartUi.editingId)
 const editFields = ref({}) // node id -> the contenteditable element
+// The live text of the node being edited, so its box grows to fit as you type
+// (before commit). Null when not editing; never written to the model, so Escape
+// still discards cleanly.
+const liveEditText = ref(null)
 const zoom = computed(() => editorUi.viewport.state.zoom || 1)
 
 // When a node enters edit mode, move focus into its field and select the text
@@ -64,6 +68,8 @@ const zoom = computed(() => editorUi.viewport.state.zoom || 1)
 watch(
   () => flowchartUi.editingId,
   (id) => {
+    const node = id ? props.flowchart.nodes.find((n) => n.id === id) : null
+    liveEditText.value = node ? node.text || '' : null
     if (id) nextTick(() => focusField(id))
   },
 )
@@ -112,7 +118,11 @@ function isSelected(id) {
 
 const nodes = computed(() =>
   props.flowchart.nodes.map((node) => {
-    const size = nodeSize(node)
+    const measured =
+      node.id === editingId.value && liveEditText.value != null
+        ? { ...node, text: liveEditText.value }
+        : node
+    const size = nodeSize(measured)
     return {
       node,
       size,
@@ -320,6 +330,7 @@ function onLeave(id) {
             contenteditable="true"
             class="fc-edit"
             @keydown="onEditKeydown($event, node.id)"
+            @input="liveEditText = $event.target.innerText"
             @blur="commitEdit(node.id, $event.target.innerText)"
             @pointerdown.stop
           >{{ node.text }}</div>

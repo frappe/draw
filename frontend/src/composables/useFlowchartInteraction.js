@@ -321,7 +321,11 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
     // there to create + connect a new node (spec F4 drag-to-empty).
     const target = nodeAtPoint(point)
     if (target && target.id !== from.nodeId) {
-      store.addFlowchartEdge(from.nodeId, target.id, { fromPort: from.port })
+      // Carry the decision branch's label ("Yes"/"No"/…) onto the new edge, the
+      // same as the picker path (connectFromSource) — dragging from a branch port
+      // onto an existing node used to drop the label.
+      const label = branchLabel(store.state.flowchart, { fromNodeId: from.nodeId, fromPort: from.port })
+      store.addFlowchartEdge(from.nodeId, target.id, { fromPort: from.port, label })
       return
     }
     openPicker(point.x, point.y, { fromNodeId: from.nodeId, fromPort: from.port })
