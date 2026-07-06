@@ -226,6 +226,7 @@ function openLink(event) {
           lineHeight: '1.35',
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
+          textDecoration: note.strike ? 'line-through' : 'none',
           cursor: editing ? 'text' : 'move',
         }"
         @dblclick="beginEdit"
@@ -264,6 +265,15 @@ function openLink(event) {
           @pointerdown.stop
           @click="setColor(c)"
         />
+        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+        <button
+          class="flex h-7 w-7 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2"
+          :class="note.strike ? 'bg-surface-gray-3 text-ink-gray-9' : ''"
+          title="Strikethrough" aria-label="Strikethrough"
+          @pointerdown.stop @click="store.updateStickyNote(note.id, { strike: !note.strike })"
+        >
+          <LucideIcon name="strikethrough" class="h-4 w-4" />
+        </button>
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
         <VoteButtons :votes="votes" @vote="vote" />
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
