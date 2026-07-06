@@ -78,7 +78,12 @@ function requestDelete(store) {
   const label = ids.length > 1
     ? `Delete ${ids.length} nodes and their sub-branches?`
     : `Delete "${model.nodes.find((n) => n.id === ids[0])?.text || 'this node'}" and its sub-branches?`
-  if (hasChildren && !window.confirm(label)) return true
+  // Nodes with children are confirmed via an in-product dialog (MindMapOverlay
+  // renders it and performs the delete on confirm); leaves delete immediately.
+  if (hasChildren) {
+    mindmapUi.confirmDelete = { ids: [...ids], label }
+    return true
+  }
   // Land selection on the first node's parent (or clear) for a sensible next focus.
   const first = model.nodes.find((n) => n.id === ids[0])
   selectNode(store, first?.parentId || null)

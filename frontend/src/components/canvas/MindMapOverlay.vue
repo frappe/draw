@@ -8,7 +8,7 @@
 // Positions are derived from the node's live layout box + the shared viewport, so
 // the toolbar tracks the node at any pan/zoom. Mounted once per editor (EditorShell).
 import { computed } from 'vue'
-import { Popover, Tooltip } from 'frappe-ui'
+import { Popover, Tooltip, Dialog, Button } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import SwatchGrid from '@/components/floating/SwatchGrid.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
@@ -137,6 +137,17 @@ function removeNode() {
   // undoable unit.
   const ids = selectedNodes.value.filter((n) => !isRoot(model.value, n.id)).map((n) => n.id)
   deleteNodes(store, ids)
+}
+
+// Confirm (in-product dialog) the delete requested by the keyboard handler for
+// nodes that have sub-branches.
+function confirmDeleteNodes() {
+  const pending = mindmapUi.confirmDelete
+  if (!pending) return
+  const first = model.value?.nodes.find((n) => n.id === pending.ids[0])
+  selectNode(store, first?.parentId || null)
+  deleteNodes(store, pending.ids)
+  mindmapUi.confirmDelete = null
 }
 
 // --- blank map --------------------------------------------------------------
@@ -358,4 +369,20 @@ function activeBtn(on) {
       <LucideIcon name="plus" class="h-4 w-4" /> Add your first idea
     </button>
   </Teleport>
+
+  <!-- In-product confirm for deleting nodes that have sub-branches (replaces the
+       native browser confirm). -->
+  <Dialog
+    :model-value="!!mindmapUi.confirmDelete"
+    :options="{ title: 'Delete nodes' }"
+    @update:model-value="(v) => { if (!v) mindmapUi.confirmDelete = null }"
+  >
+    <template #body-content>
+      <p class="text-base text-ink-gray-7">{{ mindmapUi.confirmDelete?.label }}</p>
+    </template>
+    <template #actions>
+      <Button variant="solid" theme="red" @click="confirmDeleteNodes">Delete</Button>
+      <Button @click="mindmapUi.confirmDelete = null">Cancel</Button>
+    </template>
+  </Dialog>
 </template>

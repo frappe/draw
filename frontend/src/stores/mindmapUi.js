@@ -12,6 +12,7 @@ export const mindmapUi = reactive({
   outlineVisible: false, // outline side panel open
   notesNodeId: null, // node whose note is shown in the side panel (or null)
   pendingLinkSource: null, // first endpoint while creating a cross-link (or null)
+  confirmDelete: null, // { ids: string[], label } awaiting an in-product confirm, or null
 })
 
 // The single selected node id (mind map selects one node at a time for keyboard
