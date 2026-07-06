@@ -366,8 +366,8 @@ function onLeave(id) {
       v-if="ui.picker"
       :x="ui.picker.x"
       :y="ui.picker.y"
-      width="176"
-      height="300"
+      width="260"
+      height="240"
       style="overflow: visible"
     >
       <FlowchartNodeTypePicker @choose="chooseNodeType" @close="closePicker" />

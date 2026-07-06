@@ -32,22 +32,24 @@ const options = NODE_TYPES.map((type) => ({
 
 <template>
   <div
-    class="max-h-[288px] w-44 overflow-y-auto rounded-lg border border-outline-gray-2 bg-surface-base py-1 shadow-2xl"
+    class="w-[256px] rounded-lg border border-outline-gray-2 bg-surface-base py-1 shadow-2xl"
     @pointerdown.stop
     @pointerup.stop
-    @wheel.stop
   >
     <div class="px-2.5 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">
       Add node
     </div>
-    <button
-      v-for="option in options"
-      :key="option.type"
-      class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-ink-gray-8 hover:bg-surface-gray-2"
-      @click="$emit('choose', option.type)"
-    >
-      <LucideIcon :name="option.icon" class="h-4 w-4 text-ink-gray-6" />
-      {{ option.label }}
-    </button>
+    <!-- Two columns, no scroll — every type is visible at once. -->
+    <div class="grid grid-cols-2 gap-0.5 px-1 pb-0.5">
+      <button
+        v-for="option in options"
+        :key="option.type"
+        class="flex items-center gap-2 truncate rounded-md px-2 py-1.5 text-left text-[13px] text-ink-gray-8 hover:bg-surface-gray-2"
+        @click="$emit('choose', option.type)"
+      >
+        <LucideIcon :name="option.icon" class="h-4 w-4 flex-none text-ink-gray-6" />
+        <span class="truncate">{{ option.label }}</span>
+      </button>
+    </div>
   </div>
 </template>

@@ -154,6 +154,14 @@ const currentDiagrams = computed(() => {
   if (props.mode === 'all') return allFlat.value
   return [...pinned.value, ...files.value]
 })
+// The folders on screen in the current view (only the home/folder view renders
+// folders), so Select all grabs folders + pinned items too, not just files.
+const currentFolders = computed(() => {
+  if (props.mode !== 'home') return []
+  const names = folderTiles.value.map((g) => g.folder.name)
+  if (!props.folder) names.push(...pinnedFolderTiles.value.map((g) => g.folder.name))
+  return names
+})
 // Current view shows nothing (a search/type filter excluded everything — the
 // truly-empty home renders HomeShell's EmptyState instead of this grid).
 const nothingHere = computed(() => {
@@ -161,13 +169,17 @@ const nothingHere = computed(() => {
   return !currentDiagrams.value.length
 })
 const hasActiveFilter = computed(() => Boolean(query.value.trim()) || typeFilter.value !== 'all')
-const allSelected = computed(
-  () => currentDiagrams.value.length > 0 && currentDiagrams.value.every((d) => selected.has(d.name)),
-)
+const allSelected = computed(() => {
+  const diagrams = currentDiagrams.value
+  const folderNames = currentFolders.value
+  if (!diagrams.length && !folderNames.length) return false
+  return diagrams.every((d) => selected.has(d.name)) && folderNames.every((n) => selectedFolders.has(n))
+})
 // Some-but-not-all selected → the master checkbox shows Gmail's indeterminate dash.
 const someSelected = computed(() => selectedCount.value > 0 && !allSelected.value)
 function selectAll() {
   currentDiagrams.value.forEach((d) => selected.add(d.name))
+  currentFolders.value.forEach((name) => selectedFolders.add(name))
 }
 // Gmail behaviour: any selection → click clears; nothing selected → select all.
 function toggleSelectAll() {
@@ -197,17 +209,22 @@ const confirmMessage = computed(() => {
   return `${parts.join(' and ').replace(/^./, (c) => c.toUpperCase())}?${tail}`
 })
 async function performDelete() {
-  for (const name of confirmDelete.names) {
-    await enriched.setValue.submit({ name, is_trashed: 1, trashed_on: frappeNow() })
+  try {
+    for (const name of confirmDelete.names) {
+      await enriched.setValue.submit({ name, is_trashed: 1, trashed_on: frappeNow() })
+    }
+    for (const folderName of confirmDelete.folders) {
+      await deleteFolder(folderName)
+    }
+  } finally {
+    // Always dismiss the dialog and reset — even if a delete errors — so the
+    // popup can never get "stuck" open.
+    confirmDelete.open = false
+    confirmDelete.names = []
+    confirmDelete.folders = []
+    clearSelection()
+    refresh()
   }
-  for (const folderName of confirmDelete.folders) {
-    await deleteFolder(folderName)
-  }
-  confirmDelete.open = false
-  confirmDelete.names = []
-  confirmDelete.folders = []
-  clearSelection()
-  refresh()
 }
 function deleteSelected() {
   askDelete([...selected], [...selectedFolders])
