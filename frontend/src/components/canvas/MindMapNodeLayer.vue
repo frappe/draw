@@ -181,15 +181,17 @@ function addButtonsFor(node, b) {
 }
 
 // A second "+" just below the child button, at the same branch end, that adds a
-// SIBLING (a parallel node at the same level) — the Whimsical add-below, but
-// kept at the node's end rather than under it. Only non-root nodes have siblings.
+// parallel node at the same level (a sibling). The root has no siblings, so its
+// parallel "+" adds another top-level branch instead. One button (the node's
+// branch side; the root uses its right side).
 const SIB_DY = ADD_R * 2 + 6
 function siblingButtonsFor(node, b) {
-  if (isRoot(props.mindmap, node.id)) return []
-  return addButtonsFor(node, b).map((btn) => ({ ...btn, cy: b.h / 2 + SIB_DY }))
+  const btns = addButtonsFor(node, b)
+  return btns.length ? [{ ...btns[0], cy: b.h / 2 + SIB_DY }] : []
 }
 function addSibling(event, nodeId) {
-  startEdit(event, store.addSiblingNode(nodeId))
+  const id = isRoot(props.mindmap, nodeId) ? store.addChildNode(nodeId) : store.addSiblingNode(nodeId)
+  startEdit(event, id)
 }
 
 // The add button stays visible around every (expanded) node's branch end so
@@ -550,6 +552,7 @@ function nodePoly(node, b) {
         :style="{ opacity: addProminent(node) ? 1 : 0.4 }"
         @click.stop="addChild($event, node.id)"
         @pointerdown.stop
+        @pointerenter="hoveredId = node.id"
       >
         <title>Add child</title>
         <line
@@ -564,11 +567,13 @@ function nodePoly(node, b) {
       </g>
 
       <g
-        v-for="sib in addProminent(node) ? siblingButtonsFor(node, box) : []"
+        v-for="sib in showAdd(node) ? siblingButtonsFor(node, box) : []"
         :key="`sib-${sib.side}`"
-        style="cursor: pointer"
+        style="cursor: pointer; transition: opacity 120ms ease"
+        :style="{ opacity: addProminent(node) ? 1 : 0.4 }"
         @click.stop="addSibling($event, node.id)"
         @pointerdown.stop
+        @pointerenter="hoveredId = node.id"
       >
         <title>Add parallel node (same level)</title>
         <line
