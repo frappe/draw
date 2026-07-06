@@ -2,7 +2,7 @@
 // Top + left rulers in screen space, shown while editing text (spec §6). They
 // read the viewport transform so tick positions and labels stay correct at any
 // zoom. Tick spacing in logical units adapts to keep screen gaps readable.
-import { computed } from 'vue'
+import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
 import { mindmapUi } from '@/stores/mindmapUi.js'
@@ -62,6 +62,39 @@ const horizontalTicks = computed(() =>
 const verticalTicks = computed(() =>
   buildTicks(editorUi.viewport.state.panY, window.innerHeight),
 )
+
+// Google-Docs-style para markers: while a text field is focused, track its
+// on-screen left/right edges so the top ruler can mark where the text box begins
+// and ends (updated each frame so they stay glued through pan/zoom/typing).
+const editBounds = ref(null)
+let raf = null
+function trackEditor() {
+  if (!shown.value) {
+    raf = null
+    editBounds.value = null
+    return
+  }
+  const el = document.activeElement
+  const editable = el && (el.isContentEditable || el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type === 'text'))
+  if (editable) {
+    const r = el.getBoundingClientRect()
+    // Positions within the top ruler band (which starts THICKNESS px from the left).
+    editBounds.value = { left: r.left - THICKNESS, right: r.right - THICKNESS }
+  } else {
+    editBounds.value = null
+  }
+  raf = requestAnimationFrame(trackEditor)
+}
+watch(
+  shown,
+  (on) => {
+    if (on && raf == null) raf = requestAnimationFrame(trackEditor)
+  },
+  { immediate: true },
+)
+onBeforeUnmount(() => {
+  if (raf) cancelAnimationFrame(raf)
+})
 </script>
 
 <template>
@@ -86,6 +119,19 @@ const verticalTicks = computed(() =>
         class="absolute top-[2px] text-[10px] font-medium leading-none text-ink-gray-7"
         :style="{ left: tick.screen - THICKNESS + 'px', transform: 'translateX(-50%)' }"
       >{{ Math.round(tick.value) }}</span>
+
+      <!-- Para start/end markers (Google-Docs style): blue triangles at the edited
+           text box's left and right edges. -->
+      <template v-if="editBounds">
+        <div
+          class="absolute bottom-0"
+          :style="{ left: editBounds.left + 'px', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '7px solid #2563EB' }"
+        />
+        <div
+          class="absolute bottom-0"
+          :style="{ left: editBounds.right + 'px', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '7px solid #2563EB' }"
+        />
+      </template>
     </div>
 
     <!-- Left ruler -->
