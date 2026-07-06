@@ -84,6 +84,29 @@ function setBorder(color) {
     }
   })
 }
+// Per-node text formatting (consistent with block/mind-map): size, bold,
+// italic, alignment — applied to every selected node as one undoable unit.
+const tstyle = computed(() => node.value?.textStyle || {})
+function setTextStyle(patch) {
+  const ids = nodes.value.map((n) => n.id)
+  if (!ids.length) return
+  store.updateFlowchartModel('Text style', (m) => {
+    for (const id of ids) {
+      const target = flowchartNodeById(m, id)
+      if (target) target.textStyle = { ...(target.textStyle || {}), ...patch }
+    }
+  })
+}
+const fontSize = computed(() => tstyle.value.size || 14)
+function stepFontSize(d) {
+  setTextStyle({ size: Math.max(8, Math.min(72, fontSize.value + d)) })
+}
+function toggleMark(name) {
+  setTextStyle({ [name]: !tstyle.value[name] })
+}
+function setTextAlign(a) {
+  setTextStyle({ align: a })
+}
 function setBranchLabel(port, label) {
   if (!node.value) return
   const id = node.value.id
@@ -183,6 +206,21 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
           </div>
         </template>
       </Popover>
+
+      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+
+      <!-- Text formatting inline (consistent with block diagrams): size, bold,
+           italic, alignment. -->
+      <div class="flex items-center rounded-md border border-outline-gray-2">
+        <button class="flex h-8 w-6 items-center justify-center text-ink-gray-6 hover:bg-surface-gray-2" @click="stepFontSize(-1)"><LucideIcon name="minus" class="h-3.5 w-3.5" /></button>
+        <span class="w-6 text-center text-[12px] tabular-nums text-ink-gray-8">{{ fontSize }}</span>
+        <button class="flex h-8 w-6 items-center justify-center text-ink-gray-6 hover:bg-surface-gray-2" @click="stepFontSize(1)"><LucideIcon name="plus" class="h-3.5 w-3.5" /></button>
+      </div>
+      <Tooltip text="Bold"><button :class="[btn, tstyle.bold && 'bg-surface-gray-3 text-ink-gray-9']" @click="toggleMark('bold')"><LucideIcon name="bold" class="h-4 w-4" /></button></Tooltip>
+      <Tooltip text="Italic"><button :class="[btn, tstyle.italic && 'bg-surface-gray-3 text-ink-gray-9']" @click="toggleMark('italic')"><LucideIcon name="italic" class="h-4 w-4" /></button></Tooltip>
+      <Tooltip text="Align left"><button :class="[btn, (tstyle.align||'center')==='left' && 'bg-surface-gray-3 text-ink-gray-9']" @click="setTextAlign('left')"><LucideIcon name="text-align-start" class="h-4 w-4" /></button></Tooltip>
+      <Tooltip text="Align center"><button :class="[btn, (tstyle.align||'center')==='center' && 'bg-surface-gray-3 text-ink-gray-9']" @click="setTextAlign('center')"><LucideIcon name="text-align-center" class="h-4 w-4" /></button></Tooltip>
+      <Tooltip text="Align right"><button :class="[btn, (tstyle.align||'center')==='right' && 'bg-surface-gray-3 text-ink-gray-9']" @click="setTextAlign('right')"><LucideIcon name="text-align-end" class="h-4 w-4" /></button></Tooltip>
 
       <!-- Decision branches — single selection only. -->
       <Popover v-if="node && node.nodeType === 'decision'" side="top">

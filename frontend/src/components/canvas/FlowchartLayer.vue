@@ -83,6 +83,21 @@ function focusField(id) {
 function textInset(node) {
   return node.nodeType === 'decision' ? Math.round(nodeSize(node).w * 0.16) : 10
 }
+
+// Per-node text style (consistent with block/mind-map: size, bold, italic,
+// alignment), applied to the wrapping label.
+function labelStyle(node, ink) {
+  const ts = node.textStyle || {}
+  const align = ts.align || 'center'
+  return {
+    color: ink,
+    fontSize: (ts.size || 14) + 'px',
+    fontWeight: ts.bold ? 700 : 400,
+    fontStyle: ts.italic ? 'italic' : 'normal',
+    textAlign: align,
+    justifyContent: align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center',
+  }
+}
 // Height of the junction's node-centred label box. Tall enough that wrapped text
 // spills up/down past the small circle (P11); text beyond ±half of this clips.
 const JUNCTION_LABEL_H = 220
@@ -323,7 +338,7 @@ function onLeave(id) {
         :height="size.h - 8"
         style="pointer-events: none"
       >
-        <div class="fc-label" :style="{ color: ink }">{{ node.text }}</div>
+        <div class="fc-label" :style="labelStyle(node, ink)">{{ node.text }}</div>
       </foreignObject>
 
       <!-- "+" extend handles on the active node (hover/selected), per spec B4/F3. -->
