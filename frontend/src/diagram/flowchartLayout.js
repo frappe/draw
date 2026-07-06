@@ -291,7 +291,10 @@ function positionByLevels(model, levels) {
   const byLevel = groupByLevel(model, levels)
   let main = PAD
   for (const level of Object.keys(byLevel).map(Number).sort((a, b) => a - b)) {
-    const nodes = byLevel[level]
+    // Keep each level in its existing top→bottom (LR) / left→right (TB) order so
+    // tidy tidies positions without scrambling the arrangement (was ordered by
+    // the nodes-array index, which swapped siblings on deeper levels).
+    const nodes = byLevel[level].slice().sort((a, b) => crossOf(a, direction) - crossOf(b, direction))
     const sizes = nodes.map((node) => nodeSize(node))
     const crossTotal = crossSpan(sizes, direction)
     const deepest = Math.max(...sizes.map((s) => (direction === 'LR' ? s.w : s.h)))
@@ -311,6 +314,13 @@ function groupByLevel(model, levels) {
     ;(groups[level] = groups[level] || []).push(node)
   }
   return groups
+}
+
+// A node's position along the cross axis (x in TB, y in LR) — used to keep a
+// level's siblings in their current visual order during re-flow.
+function crossOf(node, direction) {
+  const c = nodeCenter(node)
+  return direction === 'LR' ? c.y : c.x
 }
 
 function crossSpan(sizes, direction) {
