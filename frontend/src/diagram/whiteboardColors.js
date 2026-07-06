@@ -16,17 +16,14 @@ export const PEN_COLORS = [
   '#7C7C7C', // gray-600
 ]
 
-// Sticky-note fills (soft Espresso tints so dark text stays legible).
+// Exactly six sticky-note fills (spec): Yellow, Green, Blue, Pink, White, Purple.
 export const STICKY_COLORS = [
-  '#FFF7D3', // amber-100 (default)
-  '#DFFCE8', // green-100
-  '#DAEAFF', // blue-100
-  '#FFE7E7', // red-100
-  '#EFEAFE', // violet tint
-  '#FCEAF5', // pink tint
-  '#E7F8FB', // cyan tint
-  '#F3F3F3', // gray-100
-  '#FEEDA9', // amber-200
+  '#FFF7D3', // Yellow (default)
+  '#DFFCE8', // Green
+  '#DAEAFF', // Blue
+  '#FCEAF5', // Pink
+  '#FFFFFF', // White
+  '#EFEAFE', // Purple
 ]
 
 // Chalk palette for the whiteboard — soft ink colors on the white board.
