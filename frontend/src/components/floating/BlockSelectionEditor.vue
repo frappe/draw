@@ -5,12 +5,12 @@
 // each reusing the existing modification sections so all logic (incl. multi-
 // select intersection) is shared. Mounted once per editor (EditorShell).
 import { computed } from 'vue'
-import { Popover, Tooltip } from 'frappe-ui'
+import { Popover, Tooltip, Select } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
+import { activeEditor, richCommands, isMarkActive } from '@/composables/useRichText.js'
 import FillBorderSection from '@/components/palette-right/FillBorderSection.vue'
-import TextSection from '@/components/palette-right/TextSection.vue'
 import ArrangeSection from '@/components/palette-right/ArrangeSection.vue'
 import AlignSection from '@/components/palette-right/AlignSection.vue'
 import DistributeSizeSection from '@/components/palette-right/DistributeSizeSection.vue'
@@ -63,6 +63,55 @@ function remove() {
   store.removeSelectionOrIds(selection.value)
 }
 
+// ---- inline text formatting (surfaced directly on the bar for one-click edits).
+// Drives the live rich-text editor when a text box is being edited, else the
+// shape-level base style across the whole selection. Mirrors TextSection.
+const FONTS = [
+  { label: 'Inter', value: '' },
+  { label: 'Serif', value: 'Georgia, "Times New Roman", serif' },
+  { label: 'Mono', value: 'ui-monospace, "SF Mono", Menlo, monospace' },
+  { label: 'Rounded', value: '"Nunito", "Segoe UI", system-ui, sans-serif' },
+  { label: 'Handwritten', value: "'Bradley Hand', 'Chalkboard SE', 'Comic Sans MS', 'Segoe Print', cursive" },
+]
+const editing = computed(() => Boolean(activeEditor.value))
+const shapeIds = computed(() => shapes.value.map((s) => s.id))
+const textRef = computed(() => shapes.value[0])
+const textStyle = computed(() => textRef.value?.text?.style || {})
+const textAlign = computed(() => textRef.value?.text?.align || 'center')
+const font = computed(() => textStyle.value.font || '')
+const fontSize = computed(() => textStyle.value.size ?? 16)
+const autoFit = computed(() => Boolean(textRef.value?.text?.autoFit))
+function updateTextStyle(patch) {
+  if (shapeIds.value.length) store.updateShapes(shapeIds.value, { text: { style: patch } })
+}
+function markText(name) {
+  if (editing.value) {
+    if (name === 'bold') richCommands.toggleBold()
+    else if (name === 'italic') richCommands.toggleItalic()
+    else richCommands.toggleUnderline()
+  } else updateTextStyle({ [name]: !textStyle.value[name] })
+}
+function markActive(name) {
+  return editing.value ? isMarkActive(name) : Boolean(textStyle.value[name])
+}
+function setTextAlign(value) {
+  if (editing.value) richCommands.setAlign(value)
+  else if (shapeIds.value.length) store.updateShapes(shapeIds.value, { text: { align: value } })
+}
+function alignActive(value) {
+  return editing.value ? isMarkActive(null, { textAlign: value }) : textAlign.value === value
+}
+function stepFontSize(delta) {
+  const next = Math.max(6, Math.min(200, Number(fontSize.value) + delta))
+  updateTextStyle({ size: next })
+}
+function setFont(value) {
+  updateTextStyle({ font: value })
+}
+function toggleAutoFit() {
+  if (shapeIds.value.length) store.updateShapes(shapeIds.value, { text: { autoFit: !autoFit.value } })
+}
+
 const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2'
 const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
 </script>
@@ -113,14 +162,25 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
           <template #body-main><div :class="panel"><FillBorderSection mode="border" /></div></template>
         </Popover>
 
-        <Popover side="top">
-          <template #target="{ togglePopover }">
-            <Tooltip text="Text">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="type" class="h-4 w-4" /></button>
-            </Tooltip>
-          </template>
-          <template #body-main><div :class="panel"><TextSection /></div></template>
-        </Popover>
+        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+
+        <!-- Text formatting surfaced directly on the bar (one-click, real-time):
+             font, size, bold/italic/underline, align. -->
+        <Select :model-value="font" :options="FONTS" class="h-8 w-[92px]" @update:model-value="setFont" @mousedown.stop />
+        <div class="flex items-center rounded-md border border-outline-gray-2">
+          <button class="flex h-8 w-6 items-center justify-center text-ink-gray-6 hover:bg-surface-gray-2" @mousedown.prevent @click="stepFontSize(-1)"><LucideIcon name="minus" class="h-3.5 w-3.5" /></button>
+          <span class="w-6 text-center text-[12px] tabular-nums text-ink-gray-8">{{ fontSize }}</span>
+          <button class="flex h-8 w-6 items-center justify-center text-ink-gray-6 hover:bg-surface-gray-2" @mousedown.prevent @click="stepFontSize(1)"><LucideIcon name="plus" class="h-3.5 w-3.5" /></button>
+        </div>
+        <Tooltip text="Bold"><button :class="[btn, markActive('bold') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="markText('bold')"><LucideIcon name="bold" class="h-4 w-4" /></button></Tooltip>
+        <Tooltip text="Italic"><button :class="[btn, markActive('italic') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="markText('italic')"><LucideIcon name="italic" class="h-4 w-4" /></button></Tooltip>
+        <Tooltip text="Underline"><button :class="[btn, markActive('underline') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="markText('underline')"><LucideIcon name="underline" class="h-4 w-4" /></button></Tooltip>
+        <Tooltip text="Align left"><button :class="[btn, alignActive('left') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="setTextAlign('left')"><LucideIcon name="text-align-start" class="h-4 w-4" /></button></Tooltip>
+        <Tooltip text="Align center"><button :class="[btn, alignActive('center') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="setTextAlign('center')"><LucideIcon name="text-align-center" class="h-4 w-4" /></button></Tooltip>
+        <Tooltip text="Align right"><button :class="[btn, alignActive('right') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="setTextAlign('right')"><LucideIcon name="text-align-end" class="h-4 w-4" /></button></Tooltip>
+        <Tooltip text="Auto-fit text to shape"><button :class="[btn, autoFit && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="toggleAutoFit"><LucideIcon name="scaling" class="h-4 w-4" /></button></Tooltip>
+
+        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
 
         <!-- Arrange / Align / Distribute / Transform are separate menu items, not
              one crammed leaf; each opens just its own section. -->
