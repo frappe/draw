@@ -56,12 +56,37 @@ function restore(state, snap) {
   state.selection = (snap.selection || []).filter((id) => live.has(id))
 }
 
+// Property drags (opacity/colour sliders, ruler text-insets, connector endpoint
+// drags) fire an `Update …` commit per input event. Coalesce a rapid run of the
+// SAME `Update …` label into one undo step — matching how editors merge typing —
+// so one slider drag isn't ~50 undo steps. Movement (Move/Resize/Rotate/Nudge)
+// already batches to a single commit on gesture-end, and Add/Delete/Connect
+// labels never coalesce, so distinct actions each stay their own step.
+const COALESCE_MS = 450
+
 export function createHistory(state) {
   const past = []
   const future = []
+  let lastLabel = null
+  let lastTime = 0
 
   // Run a mutation, recording the prior snapshot so it can be undone.
   function commit(label, mutatorFn) {
+    const now = Date.now()
+    const coalesce =
+      past.length > 0 &&
+      label === lastLabel &&
+      label.startsWith('Update ') &&
+      now - lastTime < COALESCE_MS
+    lastLabel = label
+    lastTime = now
+    if (coalesce) {
+      // The prior entry already holds the pre-gesture snapshot; just apply and
+      // keep it as the single undo step for the whole run.
+      mutatorFn()
+      future.length = 0
+      return
+    }
     const before = snapshot(state)
     mutatorFn()
     past.push({ label, snap: before })
@@ -71,6 +96,7 @@ export function createHistory(state) {
 
   function undo() {
     if (!past.length) return
+    lastLabel = null // a subsequent commit must not merge into a pre-undo entry
     const entry = past.pop()
     future.push({ label: entry.label, snap: snapshot(state) })
     restore(state, entry.snap)
@@ -78,6 +104,7 @@ export function createHistory(state) {
 
   function redo() {
     if (!future.length) return
+    lastLabel = null
     const entry = future.pop()
     past.push({ label: entry.label, snap: snapshot(state) })
     restore(state, entry.snap)
@@ -86,6 +113,7 @@ export function createHistory(state) {
   function clear() {
     past.length = 0
     future.length = 0
+    lastLabel = null
   }
 
   return {
