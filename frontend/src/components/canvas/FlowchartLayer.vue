@@ -215,7 +215,7 @@ function onLeave(id) {
         fill="none"
         stroke="#7C7C7C"
         stroke-width="2"
-        :marker-end="edge.arrowheads.end ? 'url(#fc-arrow)' : null"
+        :marker-end="edge.arrowheads?.end === false ? null : 'url(#fc-arrow)'"
       />
       <g v-if="edge.label" :transform="`translate(${route.labelPoint.x} ${route.labelPoint.y})`">
         <rect

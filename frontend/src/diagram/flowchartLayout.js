@@ -296,15 +296,28 @@ function positionByLevels(model, levels) {
     // the nodes-array index, which swapped siblings on deeper levels).
     const nodes = byLevel[level].slice().sort((a, b) => crossOf(a, direction) - crossOf(b, direction))
     const sizes = nodes.map((node) => nodeSize(node))
-    const crossTotal = crossSpan(sizes, direction)
+    // Each node's cross-axis "slot" is at least as wide as its incoming branch
+    // label (e.g. a decision's "Personal Referral"), so long labels get room and
+    // don't overlap the neighbouring branch.
+    const dim = (s) => (direction === 'LR' ? s.h : s.w)
+    const extents = nodes.map((node, i) => Math.max(dim(sizes[i]), incomingLabelWidth(model, node.id)))
+    const crossTotal = extents.reduce((sum, e) => sum + e, 0) + (nodes.length - 1) * SIBLING_GAP
     const deepest = Math.max(...sizes.map((s) => (direction === 'LR' ? s.w : s.h)))
     let cross = PAD - crossTotal / 2 + crossCenter(model, direction)
     nodes.forEach((node, index) => {
-      placeAtLevel(node, sizes[index], main, cross, direction)
-      cross += (direction === 'LR' ? sizes[index].h : sizes[index].w) + SIBLING_GAP
+      // Centre the node within its (possibly wider) label slot.
+      placeAtLevel(node, sizes[index], main, cross + (extents[index] - dim(sizes[index])) / 2, direction)
+      cross += extents[index] + SIBLING_GAP
     })
     main += deepest + LEVEL_GAP
   }
+}
+
+// Width a node needs for the label on its incoming (branch) edge, so siblings
+// spread enough that their Yes/No/… labels don't collide. 0 when unlabelled.
+function incomingLabelWidth(model, nodeId) {
+  const edge = model.edges.find((e) => e.to.nodeId === nodeId && e.label)
+  return edge ? edge.label.length * 7 + 28 : 0
 }
 
 function groupByLevel(model, levels) {
