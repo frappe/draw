@@ -18,7 +18,7 @@ import { layoutMindMap } from '@/diagram/mindmapLayout.js'
 import { isRoot } from '@/diagram/mindmapModel.js'
 import { resolveNodeColor, nodeFill } from '@/diagram/mindmapColors.js'
 import { SWATCH_PALETTE } from '@/diagram/palette.js'
-import { deleteNodes } from '@/diagram/mindmapOperations.js'
+import { deleteNodes, clearMindmap } from '@/diagram/mindmapOperations.js'
 import { mindmapUi, selectedNodeId, selectNode, beginEdit } from '@/stores/mindmapUi.js'
 
 const store = useDiagramStore()
@@ -144,9 +144,14 @@ function removeNode() {
 function confirmDeleteNodes() {
   const pending = mindmapUi.confirmDelete
   if (!pending) return
-  const first = model.value?.nodes.find((n) => n.id === pending.ids[0])
-  selectNode(store, first?.parentId || null)
-  deleteNodes(store, pending.ids)
+  if (pending.clearAll) {
+    clearMindmap(store)
+    selectNode(store, null)
+  } else {
+    const first = model.value?.nodes.find((n) => n.id === pending.ids[0])
+    selectNode(store, first?.parentId || null)
+    deleteNodes(store, pending.ids)
+  }
   mindmapUi.confirmDelete = null
 }
 

@@ -42,6 +42,16 @@ export function deleteNodes(store, ids) {
   })
 }
 
+// Clear the whole map (used when the root itself is deleted) — resets to the
+// empty state so the "Add your first idea" prompt returns. One undoable unit.
+export function clearMindmap(store) {
+  commitMindmap(store, 'Delete mind map', (model) => {
+    model.nodes = []
+    model.rootId = null
+    model.crosslinks = []
+  })
+}
+
 export function promoteNode(store, id) {
   return commitMindmap(store, 'Promote node', (model) => promote(model, id))
 }

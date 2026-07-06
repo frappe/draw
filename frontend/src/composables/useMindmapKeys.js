@@ -72,8 +72,13 @@ function requestDelete(store) {
   const model = store.state.mindmap
   const selection = store.state.selection || []
   if (!selection.length) return false
+  // Deleting the root clears the entire map (confirmed), returning to blank.
+  if (selection.some((nid) => isRoot(model, nid))) {
+    mindmapUi.confirmDelete = { clearAll: true, label: 'Delete the entire mind map? This removes every node.' }
+    return true
+  }
   const ids = selection.filter((nid) => !isRoot(model, nid))
-  if (!ids.length) return true // only the root was selected — consume, delete nothing
+  if (!ids.length) return true
   const hasChildren = ids.some((nid) => model.nodes.some((n) => n.parentId === nid))
   const label = ids.length > 1
     ? `Delete ${ids.length} nodes and their sub-branches?`
