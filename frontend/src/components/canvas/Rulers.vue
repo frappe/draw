@@ -77,9 +77,15 @@ const verticalTicks = computed(() =>
         class="absolute bottom-0"
         :class="tick.major ? 'h-2.5' : 'h-1.5'"
         :style="{ left: tick.screen - THICKNESS + 'px', borderLeft: tick.major ? TICK_LINE : TICK_LINE_MINOR }"
-      >
-        <span v-if="tick.major" class="absolute left-1 -top-[15px] text-[10px] font-medium leading-none text-ink-gray-7">{{ Math.round(tick.value) }}</span>
-      </div>
+      />
+      <!-- Labels sit inside the band (never clipped above it) and centre exactly
+           on their major tick line — no horizontal offset. -->
+      <span
+        v-for="tick in horizontalTicks.filter((t) => t.major)"
+        :key="'hl' + tick.value"
+        class="absolute top-[2px] text-[10px] font-medium leading-none text-ink-gray-7"
+        :style="{ left: tick.screen - THICKNESS + 'px', transform: 'translateX(-50%)' }"
+      >{{ Math.round(tick.value) }}</span>
     </div>
 
     <!-- Left ruler -->
@@ -93,9 +99,15 @@ const verticalTicks = computed(() =>
         class="absolute right-0"
         :class="tick.major ? 'w-2.5' : 'w-1.5'"
         :style="{ top: tick.screen - THICKNESS + 'px', borderTop: tick.major ? TICK_LINE : TICK_LINE_MINOR }"
-      >
-        <span v-if="tick.major" class="absolute left-0.5 top-0.5 text-[10px] font-medium leading-none text-ink-gray-7">{{ Math.round(tick.value) }}</span>
-      </div>
+      />
+      <!-- Labels centre vertically on their major tick line — same level as the
+           dash, no vertical offset. -->
+      <span
+        v-for="tick in verticalTicks.filter((t) => t.major)"
+        :key="'vl' + tick.value"
+        class="absolute left-[2px] text-[10px] font-medium leading-none text-ink-gray-7"
+        :style="{ top: tick.screen - THICKNESS + 'px', transform: 'translateY(-50%)' }"
+      >{{ Math.round(tick.value) }}</span>
     </div>
 
     <!-- Corner square -->
