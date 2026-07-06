@@ -41,14 +41,28 @@ function parentTarget(model, node) {
 }
 
 // Which side of the balanced layout a node sits on: walk to its first-level
-// branch; even branch index = right side, odd = left (matches mindmapLayout's
-// alternating split). The root and its absence default to the right.
+// branch, then read the side the layout actually assigns it. This must match
+// mindmapLayout's placeRoot exactly — an explicit branch.side wins, and only the
+// remaining (auto) branches alternate right/left — otherwise arrow keys disagree
+// with the on-screen position. The root (and its absence) defaults to the right.
 function isOnLeftSide(model, node) {
   let current = node
   while (current && current.parentId && current.parentId !== model.rootId) {
     current = parentOf(model, current.id)
   }
   if (!current || isRoot(model, current.id)) return false
-  const index = childrenOf(model, model.rootId).findIndex((c) => c.id === current.id)
-  return index % 2 === 1
+  return branchSide(model, current.id) === 'left'
+}
+
+// The side placeRoot assigns a first-level branch: explicit side honoured, the
+// rest alternate right/left by their order among the auto branches only.
+function branchSide(model, branchId) {
+  let autoIndex = 0
+  for (const branch of childrenOf(model, model.rootId)) {
+    let side
+    if (branch.side === 'right' || branch.side === 'left') side = branch.side
+    else side = autoIndex++ % 2 === 0 ? 'right' : 'left'
+    if (branch.id === branchId) return side
+  }
+  return 'right'
 }

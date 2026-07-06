@@ -10,6 +10,7 @@ import { getModeStrategy } from '@/stores/useModeStrategy.js'
 import { flowchartKeydown } from '@/composables/useFlowchartKeys.js'
 import { whiteboardKeydown } from '@/composables/useWhiteboardKeys.js'
 import { toggleShortcutsHelp } from '@/composables/useShortcutsHelp.js'
+import { mindmapUi } from '@/stores/mindmapUi.js'
 
 const ARROW_DELTAS = {
   ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
@@ -170,6 +171,12 @@ function handleArrow(event, transform) {
 function escape(store, editorUi) {
   const text = useTextEditing()
   if (text?.isEditing?.value) return cancelTextEdit(text)
+  // Cancel an in-progress mind-map cross-link ("click a target node" mode) before
+  // deselecting, so it can't get stuck with no way out.
+  if (mindmapUi.pendingLinkSource) {
+    mindmapUi.pendingLinkSource = null
+    return
+  }
   if (editorUi.state.tool !== 'select') return editorUi.setTool('select')
   store.clearSelection()
 }

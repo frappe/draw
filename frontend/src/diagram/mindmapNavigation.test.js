@@ -29,6 +29,17 @@ describe('mindmapNavigation', () => {
     expect(navigate(model, child, 'right')).toBe(leftBranch) // parent is rightward
   })
 
+  it('uses explicit branch.side (not index parity) for left/right', () => {
+    const model = createMindMap()
+    addChild(model, model.rootId) // auto -> right
+    const forcedRight = addChild(model, model.rootId, '', 'right') // index 1, but forced right
+    const child = addChild(model, forcedRight)
+    // With index parity this branch would be treated as left (index 1) and the
+    // arrows would invert; honouring node.side keeps them spatial.
+    expect(navigate(model, forcedRight, 'right')).toBe(child) // toward children (right side)
+    expect(navigate(model, child, 'left')).toBe(forcedRight) // toward parent
+  })
+
   it('does not descend into a collapsed node', () => {
     const model = createMindMap()
     const branch = addChild(model, model.rootId)

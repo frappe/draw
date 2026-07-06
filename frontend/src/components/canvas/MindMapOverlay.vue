@@ -141,7 +141,9 @@ function setShape(shape) {
   patch({ shape })
 }
 function startCrosslink() {
-  mindmapUi.pendingLinkSource = selId.value
+  // Toggle: pressing the button again (or when already arming) cancels, so the
+  // "click a target node" mode is never a one-way trap.
+  mindmapUi.pendingLinkSource = mindmapUi.pendingLinkSource ? null : selId.value
 }
 function removeNode() {
   // Route through the same path as the keyboard Delete: nodes with sub-branches
