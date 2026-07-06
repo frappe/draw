@@ -66,11 +66,30 @@ const stickies = computed(() =>
   }),
 )
 
-const strokeDots = computed(() =>
-  store.state.whiteboard.strokes.map((stroke) => {
-    const mid = stroke.points[Math.floor(stroke.points.length / 2)] || stroke.points[0]
-    const p = mid ? toMini(mid.x, mid.y) : { x: 0, y: 0 }
-    return { id: stroke.id, x: p.x, y: p.y, color: stroke.color }
+// Draw each stroke as an actual (scaled) polyline, so handwriting/sketches read
+// as themselves in the overview — not a scatter of dots.
+const strokePolys = computed(() =>
+  store.state.whiteboard.strokes.map((stroke) => ({
+    id: stroke.id,
+    points: stroke.points.map((pt) => { const p = toMini(pt.x, pt.y); return `${p.x},${p.y}` }).join(' '),
+    color: stroke.color,
+    width: Math.max(0.5, (stroke.width || 2) * scale.value),
+    opacity: stroke.kind === 'highlighter' ? 0.4 : 1,
+  })),
+)
+
+// Straight lines and tables, mapped into minimap space.
+const miniLines = computed(() =>
+  (store.state.whiteboard.lines || []).map((l) => {
+    const a = toMini(l.x1, l.y1)
+    const b = toMini(l.x2, l.y2)
+    return { id: l.id, x1: a.x, y1: a.y, x2: b.x, y2: b.y, color: l.color, width: Math.max(0.5, (l.width || 2) * scale.value) }
+  }),
+)
+const miniTables = computed(() =>
+  (store.state.whiteboard.tables || []).map((t) => {
+    const p = toMini(t.x, t.y)
+    return { id: t.id, x: p.x, y: p.y, w: (t.w || 0) * scale.value, h: (t.h || 0) * scale.value }
   }),
 )
 
@@ -115,6 +134,13 @@ function onUp() {
       @pointerleave="onUp"
     >
       <rect
+        v-for="table in miniTables"
+        :key="table.id"
+        :x="table.x" :y="table.y"
+        :width="Math.max(2, table.w)" :height="Math.max(2, table.h)"
+        fill="none" stroke="#94A3B8" stroke-width="0.75"
+      />
+      <rect
         v-for="sticky in stickies"
         :key="sticky.id"
         :x="sticky.x"
@@ -123,7 +149,23 @@ function onUp() {
         :height="Math.max(2, sticky.h)"
         :fill="sticky.color"
       />
-      <circle v-for="dot in strokeDots" :key="dot.id" :cx="dot.x" :cy="dot.y" r="1.6" :fill="dot.color" />
+      <polyline
+        v-for="s in strokePolys"
+        :key="s.id"
+        :points="s.points"
+        fill="none"
+        :stroke="s.color"
+        :stroke-width="s.width"
+        :opacity="s.opacity"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <line
+        v-for="l in miniLines"
+        :key="l.id"
+        :x1="l.x1" :y1="l.y1" :x2="l.x2" :y2="l.y2"
+        :stroke="l.color" :stroke-width="l.width" stroke-linecap="round"
+      />
       <rect
         :x="viewRect.x"
         :y="viewRect.y"

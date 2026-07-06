@@ -11,7 +11,8 @@ import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import { axisAlignedBBox } from '@/diagram/geometry.js'
 import { isVisible } from '@/diagram/shapeFlags.js'
 import { layoutMindMap } from '@/diagram/mindmapLayout.js'
-import { flowchartContentBounds } from '@/diagram/flowchartLayout.js'
+import { resolveNodeColor, nodeFill } from '@/diagram/mindmapColors.js'
+import { isRoot as isMindRoot } from '@/diagram/mindmapModel.js'
 import { nodeSize as flowchartNodeSize } from '@/diagram/flowchartModel.js'
 
 const store = useDiagramStore()
@@ -55,25 +56,83 @@ function miniKind(shapeType) {
   return 'rect'
 }
 
-// Simplified content shapes in canvas units, per diagram type. Each carries a
-// `kind` the template renders (rect / ellipse / triangle / diamond).
+// Map a mind-map node's chosen shape to a minimap glyph kind.
+function miniMindShape(shape) {
+  if (shape === 'ellipse') return 'ellipse'
+  if (shape === 'diamond' || shape === 'hexagon') return 'diamond'
+  return 'rect' // pill / rounded / rectangle all read as a rounded rect here
+}
+
+// Simplified content shapes in canvas units, per diagram type. Each carries its
+// real `fill`, an optional `stroke`, and a `kind` the template renders — so the
+// overview looks like the diagram (colours + shapes), not flat grey boxes.
 const items = computed(() => {
   if (type.value === 'flowchart' && store.state.flowchart) {
     return store.state.flowchart.nodes.map((n) => {
       const s = flowchartNodeSize(n)
-      return { id: n.id, x: n.x, y: n.y, w: s.w, h: s.h, fill: n.fill || '#D4D4D8', kind: n.nodeType === 'decision' ? 'diamond' : 'rect' }
+      return {
+        id: n.id, x: n.x, y: n.y, w: s.w, h: s.h,
+        fill: n.fill || '#EEF2F7', stroke: n.border || '#94A3B8',
+        kind: n.nodeType === 'decision' ? 'diamond' : n.nodeType === 'connector' ? 'ellipse' : 'rect',
+      }
     })
   }
   if (type.value === 'mindmap' && store.state.mindmap) {
-    const { positions } = layoutMindMap(store.state.mindmap)
-    return Object.entries(positions).map(([id, b]) => ({ id, x: b.x, y: b.y, w: b.w, h: b.h, fill: '#D4D4D8', kind: 'rect' }))
+    const model = store.state.mindmap
+    const preset = store.state.themePreset
+    const { positions } = layoutMindMap(model)
+    return model.nodes
+      .filter((n) => positions[n.id])
+      .map((n) => {
+        const b = positions[n.id]
+        const color = resolveNodeColor(model, n, preset)
+        const fill = n.fill || (n.color ? nodeFill(n.color) : isMindRoot(model, n.id) ? '#F3F3F3' : nodeFill(color))
+        return { id: n.id, x: b.x, y: b.y, w: b.w, h: b.h, fill, stroke: n.border || color, kind: miniMindShape(n.shape) }
+      })
   }
   return store.state.shapes
     .filter(isVisible)
     .map((s) => {
       const b = axisAlignedBBox(s)
-      return { id: s.id, x: b.x, y: b.y, w: b.w, h: b.h, fill: s.fill && s.fill !== 'none' ? s.fill : '#CBD5E1', kind: miniKind(s.type) }
+      return {
+        id: s.id, x: b.x, y: b.y, w: b.w, h: b.h,
+        fill: s.fill && s.fill !== 'none' ? s.fill : '#CBD5E1',
+        stroke: s.border?.color || null,
+        kind: miniKind(s.type),
+      }
     })
+})
+
+// Connector/branch lines in canvas units so the overview shows structure, not
+// just scattered nodes: mind-map branches (in their branch colour), flowchart
+// edges and block connectors (neutral). Center-to-center is enough at this size.
+const links = computed(() => {
+  if (type.value === 'mindmap' && store.state.mindmap) {
+    const model = store.state.mindmap
+    const preset = store.state.themePreset
+    const { positions } = layoutMindMap(model)
+    return model.nodes
+      .filter((n) => n.parentId && positions[n.parentId] && positions[n.id])
+      .map((n) => {
+        const a = positions[n.parentId]
+        const b = positions[n.id]
+        return { id: n.id, x1: a.x + a.w / 2, y1: a.y + a.h / 2, x2: b.x + b.w / 2, y2: b.y + b.h / 2, color: resolveNodeColor(model, n, preset) }
+      })
+  }
+  if (type.value === 'flowchart' && store.state.flowchart) {
+    const byId = Object.fromEntries(store.state.flowchart.nodes.map((n) => [n.id, n]))
+    return store.state.flowchart.edges
+      .map((e) => {
+        const a = byId[e.from.nodeId]
+        const b = byId[e.to.nodeId]
+        if (!a || !b) return null
+        const sa = flowchartNodeSize(a)
+        const sb = flowchartNodeSize(b)
+        return { id: e.id, x1: a.x + sa.w / 2, y1: a.y + sa.h / 2, x2: b.x + sb.w / 2, y2: b.y + sb.h / 2, color: '#94A3B8' }
+      })
+      .filter(Boolean)
+  }
+  return []
 })
 
 // Bounding frame over the content, with padding. The block canvas is infinite
@@ -101,7 +160,15 @@ function toMini(x, y) {
 const miniItems = computed(() =>
   items.value.map((it) => {
     const p = toMini(it.x, it.y)
-    return { id: it.id, x: p.x, y: p.y, w: Math.max(1.5, it.w * scale.value), h: Math.max(1.5, it.h * scale.value), fill: it.fill, kind: it.kind }
+    return { id: it.id, x: p.x, y: p.y, w: Math.max(1.5, it.w * scale.value), h: Math.max(1.5, it.h * scale.value), fill: it.fill, stroke: it.stroke, kind: it.kind }
+  }),
+)
+
+const miniLinks = computed(() =>
+  links.value.map((l) => {
+    const a = toMini(l.x1, l.y1)
+    const b = toMini(l.x2, l.y2)
+    return { id: l.id, x1: a.x, y1: a.y, x2: b.x, y2: b.y, color: l.color }
   }),
 )
 
@@ -160,6 +227,15 @@ function onUp() {
       @pointerup="onUp"
       @pointerleave="onUp"
     >
+      <!-- Connector / branch lines behind the nodes, so the overview reads as a
+           connected diagram (mind-map branches keep their branch colour). -->
+      <line
+        v-for="l in miniLinks"
+        :key="`l-${l.id}`"
+        :x1="l.x1" :y1="l.y1" :x2="l.x2" :y2="l.y2"
+        :stroke="l.color" stroke-width="1" stroke-linecap="round" opacity="0.7"
+      />
+
       <!-- Simplified glyph per shape, so the overview reflects the real shape. -->
       <template v-for="it in miniItems" :key="it.id">
         <ellipse
@@ -169,16 +245,22 @@ function onUp() {
           :rx="it.w / 2"
           :ry="it.h / 2"
           :fill="it.fill"
+          :stroke="it.stroke || 'none'"
+          stroke-width="0.75"
         />
         <polygon
           v-else-if="it.kind === 'triangle'"
           :points="`${it.x + it.w / 2},${it.y} ${it.x + it.w},${it.y + it.h} ${it.x},${it.y + it.h}`"
           :fill="it.fill"
+          :stroke="it.stroke || 'none'"
+          stroke-width="0.75"
         />
         <polygon
           v-else-if="it.kind === 'diamond'"
           :points="`${it.x + it.w / 2},${it.y} ${it.x + it.w},${it.y + it.h / 2} ${it.x + it.w / 2},${it.y + it.h} ${it.x},${it.y + it.h / 2}`"
           :fill="it.fill"
+          :stroke="it.stroke || 'none'"
+          stroke-width="0.75"
         />
         <!-- Text box: two faint 'text lines' instead of a solid block, so it doesn't
              read as a filled rectangle in the overview. -->
@@ -186,7 +268,14 @@ function onUp() {
           <line :x1="it.x" :y1="it.y + it.h * 0.38" :x2="it.x + it.w" :y2="it.y + it.h * 0.38" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round" />
           <line :x1="it.x" :y1="it.y + it.h * 0.68" :x2="it.x + it.w * 0.6" :y2="it.y + it.h * 0.68" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round" />
         </g>
-        <rect v-else :x="it.x" :y="it.y" :width="it.w" :height="it.h" :fill="it.fill" rx="1" />
+        <rect
+          v-else
+          :x="it.x" :y="it.y" :width="it.w" :height="it.h"
+          :fill="it.fill"
+          :stroke="it.stroke || 'none'"
+          stroke-width="0.75"
+          :rx="Math.min(it.h / 2, 2)"
+        />
       </template>
 
       <!-- Viewport indicator — only when zoomed into a subset of the content
