@@ -331,9 +331,9 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
     <!-- Toolbar: a Find bar + filter/sort/new-folder, or a bulk-action bar when
          diagrams are selected; the view toggle sits at the far right. -->
     <div class="mb-5 flex h-9 items-center gap-2">
-      <!-- Gmail-style master checkbox: select all / clear, with an indeterminate
-           dash when only some are selected. Always at the top-left of the list. -->
-      <Tooltip :text="allSelected || someSelected ? 'Clear selection' : 'Select all'">
+      <!-- In list view the master checkbox lives in the table header (left of
+           Name); in tile view there's no header row, so it sits here. -->
+      <Tooltip v-if="view === 'tile'" :text="allSelected || someSelected ? 'Clear selection' : 'Select all'">
         <input
           v-if="currentDiagrams.length"
           ref="masterCheckbox"
@@ -386,12 +386,25 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       </div>
     </div>
 
-    <!-- List-view column header (mirrors the row columns). -->
+    <!-- List-view column header (mirrors the row columns). The Select-all master
+         checkbox sits here, left of Name, aligned above each row's checkbox. -->
     <div
       v-if="view === 'list'"
       class="mb-2 flex items-center gap-3 px-3 text-[11px] font-medium uppercase tracking-wide text-ink-gray-5"
     >
-      <span class="w-[18px] flex-none" />
+      <span class="flex w-[18px] flex-none items-center justify-center">
+        <Tooltip :text="allSelected || someSelected ? 'Clear selection' : 'Select all'">
+          <input
+            v-if="currentDiagrams.length"
+            ref="masterCheckbox"
+            type="checkbox"
+            :checked="allSelected"
+            class="h-4 w-4 cursor-pointer accent-[#171717]"
+            :aria-label="allSelected || someSelected ? 'Clear selection' : 'Select all'"
+            @change="toggleSelectAll"
+          />
+        </Tooltip>
+      </span>
       <span class="h-8 w-8 flex-none" />
       <span class="min-w-0 flex-1">Name</span>
       <span class="hidden w-28 flex-none lg:inline">Owner</span>
