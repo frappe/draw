@@ -142,9 +142,7 @@ function startResize(event) {
   )
 }
 
-async function beginEdit(event) {
-  event.stopPropagation()
-  if (editorUi.state.tool !== 'select') return
+async function startEditing() {
   editing.value = true
   ui.selectSticky(props.note.id)
   await nextTick()
@@ -158,6 +156,24 @@ async function beginEdit(event) {
   selection.removeAllRanges()
   selection.addRange(range)
 }
+
+async function beginEdit(event) {
+  event.stopPropagation()
+  if (editorUi.state.tool !== 'select') return
+  startEditing()
+}
+
+// A freshly-created sticky asks to open its editor immediately (so the cursor
+// lands in it instead of the tool staying armed).
+watch(
+  () => ui.state.stickyEditRequest,
+  (id) => {
+    if (id === props.note.id) {
+      ui.state.stickyEditRequest = null
+      startEditing()
+    }
+  },
+)
 
 function commit() {
   if (!editing.value) return

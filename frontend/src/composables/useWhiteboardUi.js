@@ -38,6 +38,9 @@ function createWhiteboardUi() {
     marquee: null,
     // The table cell being edited inline: { tableId, row, col } or null.
     editingCell: null,
+    // A sticky id that should open its inline editor (e.g. right after it's
+    // created); the sticky component consumes and clears it.
+    stickyEditRequest: null,
   })
   // Transient laser trail: timestamped points that fade out (never persisted).
   const laserTrail = ref([])
@@ -47,6 +50,10 @@ function createWhiteboardUi() {
   // The line being dragged right now (preview), or null.
   const liveLine = ref(null)
   const api = { state, laserTrail: readonly(laserTrail), liveStroke, liveLine }
+  // Ask a sticky to open its inline editor (consumed + cleared by the component).
+  api.requestStickyEdit = (id) => {
+    state.stickyEditRequest = id
+  }
   attachSelection(api, state)
   attachLaser(api, laserTrail)
   return api

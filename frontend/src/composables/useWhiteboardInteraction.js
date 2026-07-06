@@ -283,7 +283,9 @@ function circleSegmentTs(a, b, center, radius) {
   return ts.sort((m, n) => m - n)
 }
 
-// Drop a sticky note centered on the click (spec W4); enter edit by selecting it.
+// Drop a sticky note centered on the click (spec W4), then switch to the select
+// tool and open its editor so the cursor lands in the sticky right away — rather
+// than staying armed and dropping another sticky on the next click.
 function placeSticky(context, store, ui) {
   const half = 90
   const id = store.addStickyNote(context.point.x - half, context.point.y - half, {
@@ -291,6 +293,8 @@ function placeSticky(context, store, ui) {
     author: currentAuthor(),
   })
   ui.selectSticky(id)
+  context.editorUi.setTool('select')
+  ui.requestStickyEdit(id)
 }
 
 // The signed-in user's display name (from the page boot), for the sticky's chip.
