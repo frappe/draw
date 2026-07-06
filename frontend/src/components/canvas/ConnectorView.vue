@@ -5,7 +5,7 @@
 // the shape on move/rotate because resolve() reads anchorPoint reactively.
 // When selected, draggable endpoint handles allow re-attach/detach, and curved
 // connectors expose a draggable midpoint control handle.
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { anchorPoint } from '@/diagram/geometry.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
@@ -135,6 +135,27 @@ function onConnectorClick(event) {
   if (event.shiftKey) store.addToSelection(props.connector.id)
   else store.select(props.connector.id)
 }
+
+// Double-click a connector to type its centred label inline.
+const editingLabel = ref(false)
+const labelField = ref(null)
+function onConnectorDblClick(event) {
+  event.stopPropagation()
+  store.select(props.connector.id)
+  editingLabel.value = true
+  nextTick(() => {
+    const el = labelField.value
+    if (el) {
+      el.focus()
+      el.select?.()
+    }
+  })
+}
+function commitLabel(value) {
+  editingLabel.value = false
+  if (value !== props.connector.label) store.updateConnector(props.connector.id, { label: value })
+}
+const editorWidth = computed(() => Math.max(72, labelWidth.value))
 </script>
 
 <template>
@@ -144,8 +165,9 @@ function onConnectorClick(event) {
       <ConnectorMarker :id="endMarkerId" :type="endType" :color="style.color" orient="auto" />
     </defs>
 
-    <!-- Wide invisible hit path makes the thin connector easy to click. -->
-    <path :d="pathData" fill="none" stroke="transparent" stroke-width="14" class="cursor-pointer" @click="onConnectorClick" />
+    <!-- Wide invisible hit path makes the thin connector easy to click; double-
+         click types a label. -->
+    <path :d="pathData" fill="none" stroke="transparent" stroke-width="14" class="cursor-pointer" @click="onConnectorClick" @dblclick="onConnectorDblClick" />
 
     <path
       :d="pathData"
@@ -159,7 +181,7 @@ function onConnectorClick(event) {
       :marker-end="endType !== 'none' ? `url(#${endMarkerId})` : null"
     />
 
-    <g v-if="connector.label">
+    <g v-if="connector.label && !editingLabel">
       <rect
         :x="labelAnchor.x - labelWidth / 2"
         :y="labelAnchor.y - 11"
@@ -182,6 +204,28 @@ function onConnectorClick(event) {
         {{ connector.label }}
       </text>
     </g>
+
+    <!-- Inline label editor (centred on the connector, opaque over the line). -->
+    <foreignObject
+      v-if="editingLabel"
+      :x="labelAnchor.x - editorWidth / 2"
+      :y="labelAnchor.y - 12"
+      :width="editorWidth"
+      height="24"
+    >
+      <input
+        ref="labelField"
+        :value="connector.label"
+        type="text"
+        placeholder="Label"
+        style="width: 100%; height: 24px; box-sizing: border-box; text-align: center; font-size: 12px; font-family: Inter, sans-serif; color: #525252; background: #FFFFFF; border: 1px solid #006EDB; border-radius: 6px; outline: none"
+        @keydown.enter.prevent="commitLabel($event.target.value)"
+        @keydown.escape.prevent="editingLabel = false"
+        @blur="commitLabel($event.target.value)"
+        @click.stop
+        @pointerdown.stop
+      />
+    </foreignObject>
 
     <!-- Selection: draggable endpoints (re-attach/detach) + curved midpoint handle. -->
     <g v-if="selected">

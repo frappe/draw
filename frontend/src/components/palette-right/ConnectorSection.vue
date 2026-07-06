@@ -39,12 +39,26 @@ function setEnd(which, value) {
 function setStyle(patch) {
   store.updateConnector(props.connector.id, { style: patch })
 }
+function setLabel(value) {
+  store.updateConnector(props.connector.id, { label: value })
+}
 
 const cellActive = 'bg-surface-gray-3 text-ink-gray-9'
 const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
 </script>
 
 <template>
+  <!-- Label: text shown centred on the connector (opaque pill, over the line). -->
+  <PaletteSection label="Label">
+    <input
+      :value="connector.label"
+      type="text"
+      placeholder="Add label…"
+      class="h-8 w-full rounded-md border border-outline-gray-2 px-2 text-[13px] text-ink-gray-8 outline-none focus:border-outline-gray-4"
+      @input="setLabel($event.target.value)"
+    />
+  </PaletteSection>
+
   <PaletteSection label="Start">
     <div class="flex gap-1">
       <button
