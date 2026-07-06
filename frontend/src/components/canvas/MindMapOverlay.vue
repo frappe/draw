@@ -115,6 +115,13 @@ function setBorder(border) {
   // Border colour is its own field (null clears the override back to the branch).
   for (const n of selectedNodes.value) store.updateNode(n.id, { border })
 }
+// Connector line style (solid/dashed/dotted) for the branch coming INTO each
+// selected node (the root has none, so it's skipped).
+function setLinkDash(dash) {
+  for (const n of selectedNodes.value) if (!isRoot(model.value, n.id)) store.updateNode(n.id, { linkDash: dash })
+}
+const linkDashValue = computed(() => selectedNodes.value[0]?.linkDash || 'solid')
+const hasNonRootSelected = computed(() => selectedNodes.value.some((n) => !isRoot(model.value, n.id)))
 function setFontSize(size) {
   patch({ fontSize: size })
 }
@@ -248,6 +255,35 @@ function activeBtn(on) {
             <button class="flex w-full items-center justify-center gap-1 rounded-md border border-outline-gray-2 py-1 text-[12px] text-ink-gray-6 hover:bg-surface-gray-2" @click="setBorder(null)">
               Match branch
             </button>
+          </div>
+        </template>
+      </Popover>
+
+      <!-- Connector line style (solid/dashed/dotted) for the branch into the
+           selected node(s) — hidden when only the root is selected. -->
+      <Popover v-if="hasNonRootSelected" side="top">
+        <template #target="{ togglePopover }">
+          <Tooltip text="Connector style">
+            <button :class="btn" @mousedown.prevent @click="togglePopover()">
+              <svg width="18" height="12" viewBox="0 0 18 12"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round" :stroke-dasharray="{ solid: '0', dashed: '5 3', dotted: '1.5 3' }[linkDashValue]" /></svg>
+            </button>
+          </Tooltip>
+        </template>
+        <template #body-main>
+          <div class="w-[168px] p-2">
+            <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Connector</div>
+            <div class="flex gap-1">
+              <button
+                v-for="d in ['solid', 'dashed', 'dotted']"
+                :key="d"
+                class="flex h-8 flex-1 items-center justify-center rounded-md border"
+                :class="linkDashValue === d ? 'border-ink-gray-9 bg-surface-gray-2' : 'border-outline-gray-2 hover:bg-surface-gray-1'"
+                :title="d"
+                @click="setLinkDash(d)"
+              >
+                <svg width="26" height="10" viewBox="0 0 26 10"><line x1="2" y1="5" x2="24" y2="5" stroke="currentColor" class="text-ink-gray-8" stroke-width="2" stroke-linecap="round" :stroke-dasharray="{ solid: '0', dashed: '5 3', dotted: '1.5 3' }[d]" /></svg>
+              </button>
+            </div>
           </div>
         </template>
       </Popover>

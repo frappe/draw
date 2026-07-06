@@ -78,8 +78,11 @@ const links = computed(() =>
       id: node.id,
       d: branchPath(box(node.parentId), box(node.id)),
       color: colorOf(node),
+      dash: LINK_DASH[node.linkDash] || null,
     })),
 )
+// Connector line style per node (applies to the branch coming INTO it).
+const LINK_DASH = { solid: null, dashed: '7 5', dotted: '1.5 5' }
 
 // Dotted cross-links between any two visible nodes (rendered distinctly, M5).
 const crosslinks = computed(() =>
@@ -190,10 +193,9 @@ function siblingButtonsFor(node, b) {
   return btns.length ? [{ ...btns[0], cy: b.h / 2 + SIB_DY }] : []
 }
 function addSibling(event, nodeId, side = null) {
-  // Root has no siblings → its parallel "+" adds a branch on the clicked side;
-  // other nodes add a real sibling (which inherits their side in the model).
-  const id = isRoot(props.mindmap, nodeId) ? store.addChildNode(nodeId, side) : store.addSiblingNode(nodeId)
-  startEdit(event, id)
+  // The lower "+" adds another node at the CHILD level of this node (a second
+  // child, parallel to the first) — not a sibling of the node itself.
+  startEdit(event, store.addChildNode(nodeId, side))
 }
 
 // Add buttons show ONLY while the node (and the zone around its branch end,
@@ -442,6 +444,7 @@ function nodePoly(node, b) {
       :stroke="link.color"
       stroke-width="2.5"
       stroke-linecap="round"
+      :stroke-dasharray="link.dash"
       :opacity="dimmed(link.id) ? 0.12 : 1"
     />
 
@@ -595,7 +598,7 @@ function nodePoly(node, b) {
         @pointerdown.stop
         @pointerenter="hoveredId = node.id"
       >
-        <title>Add parallel node (same level)</title>
+        <title>Add another child</title>
         <line
           :x1="sib.stubX1" :y1="box.h / 2" :x2="sib.cx" :y2="sib.cy"
           :stroke="colorOf(node)" stroke-width="2" stroke-linecap="round"
