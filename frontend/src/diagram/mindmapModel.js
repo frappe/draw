@@ -58,21 +58,26 @@ export function isRoot(model, id) {
 }
 
 // Add a child under `parentId`, appended after existing children. Returns its id.
-export function addChild(model, parentId, text = '') {
+// `side` ('left'|'right') pins a first-level branch to a side of the root so it's
+// placed where the user clicked (the layout honours it); ignored for deeper nodes.
+export function addChild(model, parentId, text = '', side = null) {
   const parent = nodeById(model, parentId)
   if (!parent) return null
   const siblings = childrenOf(model, parentId)
   const node = makeNode(parentId, text, siblings.length, parent.depth + 1)
+  if (side && parentId === model.rootId) node.side = side
   model.nodes.push(node)
   return node.id
 }
 
 // Add a sibling after `nodeId`. The root has no siblings, so this is a no-op
-// there (callers should add a child instead). Returns the new node id.
+// there (callers should add a child instead). Returns the new node id. A new
+// first-level sibling inherits the source node's side so it lands next to it,
+// not on the opposite side of the root.
 export function addSibling(model, nodeId, text = '') {
   const node = nodeById(model, nodeId)
   if (!node || isRoot(model, nodeId)) return null
-  const newId = addChild(model, node.parentId, text)
+  const newId = addChild(model, node.parentId, text, node.side)
   reorderAfter(model, node.parentId, newId, node.order)
   return newId
 }

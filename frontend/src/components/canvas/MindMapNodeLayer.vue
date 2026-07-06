@@ -189,8 +189,10 @@ function siblingButtonsFor(node, b) {
   const btns = addButtonsFor(node, b)
   return btns.length ? [{ ...btns[0], cy: b.h / 2 + SIB_DY }] : []
 }
-function addSibling(event, nodeId) {
-  const id = isRoot(props.mindmap, nodeId) ? store.addChildNode(nodeId) : store.addSiblingNode(nodeId)
+function addSibling(event, nodeId, side = null) {
+  // Root has no siblings → its parallel "+" adds a branch on the clicked side;
+  // other nodes add a real sibling (which inherits their side in the model).
+  const id = isRoot(props.mindmap, nodeId) ? store.addChildNode(nodeId, side) : store.addSiblingNode(nodeId)
   startEdit(event, id)
 }
 
@@ -209,8 +211,8 @@ function addProminent(node) {
   return singleSelected || hoveredId.value === node.id
 }
 
-function addChild(event, parentId) {
-  startEdit(event, store.addChildNode(parentId))
+function addChild(event, parentId, side = null) {
+  startEdit(event, store.addChildNode(parentId, side))
 }
 
 function nodeFontSize(node) {
@@ -550,7 +552,7 @@ function nodePoly(node, b) {
         :key="`add-${add.side}`"
         style="cursor: pointer; transition: opacity 120ms ease"
         :style="{ opacity: addProminent(node) ? 1 : 0.4 }"
-        @click.stop="addChild($event, node.id)"
+        @click.stop="addChild($event, node.id, add.side)"
         @pointerdown.stop
         @pointerenter="hoveredId = node.id"
       >
@@ -571,7 +573,7 @@ function nodePoly(node, b) {
         :key="`sib-${sib.side}`"
         style="cursor: pointer; transition: opacity 120ms ease"
         :style="{ opacity: addProminent(node) ? 1 : 0.4 }"
-        @click.stop="addSibling($event, node.id)"
+        @click.stop="addSibling($event, node.id, sib.side)"
         @pointerdown.stop
         @pointerenter="hoveredId = node.id"
       >

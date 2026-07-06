@@ -115,9 +115,18 @@ function placeRoot(model, sizes, metrics, positions) {
   const rootSize = sizes[model.rootId]
   positions[model.rootId] = { x: -rootSize.w / 2, y: -rootSize.h / 2, ...rootSize }
 
+  // Split first-level branches into sides. A branch with an explicit `side`
+  // (set when it was added from a specific "+" ) goes there; the rest alternate
+  // for a balanced default.
   const branches = childrenOf(model, model.rootId)
-  const right = branches.filter((_, index) => index % 2 === 0)
-  const left = branches.filter((_, index) => index % 2 === 1)
+  const right = []
+  const left = []
+  let autoIndex = 0
+  for (const branch of branches) {
+    if (branch.side === 'right') right.push(branch)
+    else if (branch.side === 'left') left.push(branch)
+    else (autoIndex++ % 2 === 0 ? right : left).push(branch)
+  }
 
   placeSide(model, right, rootSize.w / 2 + H_GAP, 1, sizes, metrics, positions)
   placeSide(model, left, -rootSize.w / 2 - H_GAP, -1, sizes, metrics, positions)

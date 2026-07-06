@@ -84,10 +84,10 @@ function assembleStore(state, history) {
 // helpers inside commit() so each is one undoable unit (Part G6); layout is
 // derived from the model, never stored. No-ops for non-mindmap diagrams.
 function attachMindMap(store, state, history) {
-  store.addChildNode = (parentId) => {
+  store.addChildNode = (parentId, side = null) => {
     if (!state.mindmap) return null
     let id = null
-    history.commit('Add child', () => (id = addChild(state.mindmap, parentId)))
+    history.commit('Add child', () => (id = addChild(state.mindmap, parentId, '', side)))
     return id
   }
   // First idea on an empty map (spec: blank mind map starts truly empty).
@@ -331,7 +331,10 @@ function applyPatch(target, patch) {
   if (!target) return
   for (const [key, value] of Object.entries(patch)) {
     if (isPlainObject(value) && isPlainObject(target[key])) {
-      Object.assign(target[key], value)
+      // Deep-merge nested objects so patching one field (e.g. text.style.bold)
+      // doesn't wipe its siblings (size, italic, align). Fixes text formatting
+      // "losing" edits across all diagram types.
+      applyPatch(target[key], value)
     } else {
       target[key] = value
     }
