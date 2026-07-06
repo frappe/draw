@@ -196,19 +196,27 @@ function addSibling(event, nodeId, side = null) {
   startEdit(event, id)
 }
 
-// The add button stays visible around every (expanded) node's branch end so
-// it's always discoverable — not just on hover. It rests faint and lifts to
-// full strength when the node is hovered or the lone selection. Hidden only
-// while collapsed or mid-drag (where it would be noise).
+// Add buttons show ONLY while the node (and the zone around its branch end,
+// see hoverPad) is hovered, or it's the lone selection — never always-on.
 function showAdd(node) {
-  return !node.collapsed && !interaction.drag.active
-}
-
-// Full strength on the hovered / lone-selected node; a quiet resting hint on
-// the rest, so the persistent buttons don't shout across the whole map.
-function addProminent(node) {
+  if (node.collapsed || interaction.drag.active) return false
   const singleSelected = store.state.selection.length === 1 && isSelected(node.id)
   return singleSelected || hoveredId.value === node.id
+}
+function addProminent() {
+  return true // only rendered when relevant, so always full strength
+}
+
+// An invisible hit-pad that extends the node's hover region out to (and a little
+// past) its "+" buttons, so moving the pointer from the node to a button keeps
+// them visible instead of them vanishing in the gap.
+const HOVER_OUT = ADD_OFFSET + ADD_R + 12
+function hoverPad(node, b) {
+  const root = isRoot(props.mindmap, node.id)
+  const side = branchSideOf(node, b)
+  const left = root || side === 'left' ? HOVER_OUT : 6
+  const right = root || side === 'right' ? HOVER_OUT : 6
+  return { x: -left, y: -8, w: b.w + left + right, h: b.h + SIB_DY + ADD_R + 14 }
 }
 
 function addChild(event, parentId, side = null) {
@@ -462,6 +470,16 @@ function nodePoly(node, b) {
       @pointerenter="hoveredId = node.id"
       @pointerleave="hoveredId === node.id && (hoveredId = null)"
     >
+      <!-- Invisible pad extending the hover region out to the "+" buttons, so
+           the buttons appear on hover-near and don't vanish while reaching them.
+           Only active while this node is the hovered one (else it would swallow
+           empty-canvas marquee presses near other nodes). -->
+      <rect
+        v-if="hoveredId === node.id"
+        :x="hoverPad(node, box).x" :y="hoverPad(node, box).y"
+        :width="hoverPad(node, box).w" :height="hoverPad(node, box).h"
+        fill="transparent"
+      />
       <ellipse
         v-if="node.shape === 'ellipse'"
         :cx="box.w / 2"
