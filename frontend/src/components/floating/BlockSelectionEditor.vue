@@ -88,7 +88,8 @@ function markText(name) {
   if (editing.value) {
     if (name === 'bold') richCommands.toggleBold()
     else if (name === 'italic') richCommands.toggleItalic()
-    else richCommands.toggleUnderline()
+    else if (name === 'underline') richCommands.toggleUnderline()
+    else if (name === 'strike') richCommands.toggleStrike()
   } else updateTextStyle({ [name]: !textStyle.value[name] })
 }
 function markActive(name) {
@@ -175,6 +176,7 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
         <Tooltip text="Bold"><button :class="[btn, markActive('bold') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="markText('bold')"><LucideIcon name="bold" class="h-4 w-4" /></button></Tooltip>
         <Tooltip text="Italic"><button :class="[btn, markActive('italic') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="markText('italic')"><LucideIcon name="italic" class="h-4 w-4" /></button></Tooltip>
         <Tooltip text="Underline"><button :class="[btn, markActive('underline') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="markText('underline')"><LucideIcon name="underline" class="h-4 w-4" /></button></Tooltip>
+        <Tooltip text="Strikethrough"><button :class="[btn, markActive('strike') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="markText('strike')"><LucideIcon name="strikethrough" class="h-4 w-4" /></button></Tooltip>
         <Tooltip text="Align left"><button :class="[btn, alignActive('left') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="setTextAlign('left')"><LucideIcon name="text-align-start" class="h-4 w-4" /></button></Tooltip>
         <Tooltip text="Align center"><button :class="[btn, alignActive('center') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="setTextAlign('center')"><LucideIcon name="text-align-center" class="h-4 w-4" /></button></Tooltip>
         <Tooltip text="Align right"><button :class="[btn, alignActive('right') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="setTextAlign('right')"><LucideIcon name="text-align-end" class="h-4 w-4" /></button></Tooltip>

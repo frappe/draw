@@ -95,6 +95,7 @@ function labelStyle(node, ink) {
     fontSize: (ts.size || 14) + 'px',
     fontWeight: ts.bold ? 700 : 400,
     fontStyle: ts.italic ? 'italic' : 'normal',
+    textDecoration: [ts.underline && 'underline', ts.strike && 'line-through'].filter(Boolean).join(' ') || 'none',
     textAlign: align,
     justifyContent: align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center',
   }

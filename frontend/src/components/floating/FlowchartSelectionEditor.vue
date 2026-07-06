@@ -218,6 +218,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
       </div>
       <Tooltip text="Bold"><button :class="[btn, tstyle.bold && 'bg-surface-gray-3 text-ink-gray-9']" @click="toggleMark('bold')"><LucideIcon name="bold" class="h-4 w-4" /></button></Tooltip>
       <Tooltip text="Italic"><button :class="[btn, tstyle.italic && 'bg-surface-gray-3 text-ink-gray-9']" @click="toggleMark('italic')"><LucideIcon name="italic" class="h-4 w-4" /></button></Tooltip>
+      <Tooltip text="Strikethrough"><button :class="[btn, tstyle.strike && 'bg-surface-gray-3 text-ink-gray-9']" @click="toggleMark('strike')"><LucideIcon name="strikethrough" class="h-4 w-4" /></button></Tooltip>
       <Tooltip text="Align left"><button :class="[btn, (tstyle.align||'center')==='left' && 'bg-surface-gray-3 text-ink-gray-9']" @click="setTextAlign('left')"><LucideIcon name="text-align-start" class="h-4 w-4" /></button></Tooltip>
       <Tooltip text="Align center"><button :class="[btn, (tstyle.align||'center')==='center' && 'bg-surface-gray-3 text-ink-gray-9']" @click="setTextAlign('center')"><LucideIcon name="text-align-center" class="h-4 w-4" /></button></Tooltip>
       <Tooltip text="Align right"><button :class="[btn, (tstyle.align||'center')==='right' && 'bg-surface-gray-3 text-ink-gray-9']" @click="setTextAlign('right')"><LucideIcon name="text-align-end" class="h-4 w-4" /></button></Tooltip>

@@ -102,6 +102,9 @@ function toggleBold() {
 function toggleItalic() {
   if (node.value) patch({ italic: !node.value.italic })
 }
+function toggleStrike() {
+  if (node.value) patch({ strike: !node.value.strike })
+}
 function setFill(fill) {
   // Explicit node fill, its own field (null clears back to the branch tint).
   for (const n of selectedNodes.value) store.updateNode(n.id, { fill })
@@ -196,6 +199,11 @@ function activeBtn(on) {
         <Tooltip text="Italic">
           <button :class="[btn, activeBtn(node.italic)]" @mousedown.prevent @click="toggleItalic">
             <LucideIcon name="italic" class="h-4 w-4" />
+          </button>
+        </Tooltip>
+        <Tooltip text="Strikethrough">
+          <button :class="[btn, activeBtn(node.strike)]" @mousedown.prevent @click="toggleStrike">
+            <LucideIcon name="strikethrough" class="h-4 w-4" />
           </button>
         </Tooltip>
 

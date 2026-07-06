@@ -54,6 +54,7 @@ export const richCommands = {
   toggleBold: () => run((c) => c.toggleBold()),
   toggleItalic: () => run((c) => c.toggleItalic()),
   toggleUnderline: () => run((c) => c.toggleUnderline()),
+  toggleStrike: () => run((c) => c.toggleStrike()),
   toggleBulletList: () => run((c) => c.toggleBulletList()),
   toggleOrderedList: () => run((c) => c.toggleOrderedList()),
   setAlign: (align) => run((c) => c.setTextAlign(align)),

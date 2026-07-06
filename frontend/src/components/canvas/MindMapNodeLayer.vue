@@ -240,6 +240,7 @@ function textStyle(node) {
     lineHeight: (LINE_H * fontSize) / 14 + 'px',
     fontWeight: node.bold ? 700 : isRoot(props.mindmap, node.id) ? 600 : 500,
     fontStyle: node.italic ? 'italic' : 'normal',
+    textDecoration: node.strike ? 'line-through' : 'none',
     color: inkOf(node),
   }
 }

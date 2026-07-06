@@ -80,7 +80,7 @@ export function textStyleCss(style = {}, valign = 'middle', align = 'center') {
     lineHeight: String(LINE_HEIGHT),
     fontWeight: style.bold ? 700 : 500,
     fontStyle: style.italic ? 'italic' : 'normal',
-    textDecoration: style.underline ? 'underline' : 'none',
+    textDecoration: [style.underline && 'underline', style.strike && 'line-through'].filter(Boolean).join(' ') || 'none',
     color: style.color || '#171717',
     textAlign: align,
     display: 'flex',
