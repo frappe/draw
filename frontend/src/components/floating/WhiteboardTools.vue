@@ -35,6 +35,13 @@ const TOOLS = [
 const OPTION_TOOLS = ['pen', 'highlighter', 'sticky', 'line', 'table']
 
 const activeTool = computed(() => editorUi.state.tool)
+// The eraser is only useful once there's ink to erase — hide it until the board
+// has at least one stroke (keep it while it's the active tool so it can't vanish
+// mid-erase).
+const hasInk = computed(() => (store.state.whiteboard?.strokes?.length || 0) > 0)
+const visibleTools = computed(() =>
+  TOOLS.filter((t) => t.tool !== 'eraser' || hasInk.value || activeTool.value === 'eraser'),
+)
 const activeHasOptions = computed(() => OPTION_TOOLS.includes(activeTool.value))
 const optionsLabel = computed(() => `${capitalize(activeTool.value)} options`)
 function capitalize(value) {
@@ -67,7 +74,7 @@ function applyTableDefault(patch) {
   <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
 
   <!-- Tools: a single click arms; the next canvas action draws. -->
-  <Tooltip v-for="t in TOOLS" :key="t.tool" :text="t.label">
+  <Tooltip v-for="t in visibleTools" :key="t.tool" :text="t.label">
     <button :class="[buttonBase, toggleClass(activeTool === t.tool)]" @click="editorUi.setTool(t.tool)">
       <LucideIcon :name="t.icon" class="h-4 w-4" />
     </button>

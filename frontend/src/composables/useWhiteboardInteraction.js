@@ -16,7 +16,7 @@ import { registerModeInteraction, useModeInteraction } from '@/composables/useMo
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { simplifyStroke } from '@/diagram/strokeSimplify.js'
 import {
-  strokeAt, lineAt, tableAt, tableCellAt,
+  strokeAt, lineAt, tableAt, tableCellAt, distanceToStroke, makeStroke,
   whiteboardObjectBoxes, translateWhiteboardObject,
 } from '@/diagram/whiteboardModel.js'
 import { rectsIntersect } from '@/diagram/geometry.js'
@@ -24,6 +24,7 @@ import { HIGHLIGHTER_WIDTH } from '@/diagram/whiteboardColors.js'
 import { isAdditiveEvent, runMarqueeDrag } from '@/composables/pointer.js'
 
 const ERASER_TOLERANCE = 6 // canvas units of slack around a stroke path
+const ERASE_RADIUS = 12 // eraser tip radius: only ink within this of the cursor goes
 const MARQUEE_MIN = 3 // ignore sub-3px drags (treat as a click)
 
 // The select-helper on the whiteboard UI for each object kind.
@@ -125,7 +126,11 @@ function beginStroke(context, ui, drawing, tool) {
 
 function beginErase(context, store, erasing) {
   erasing.active = true
-  eraseAt(context.point, store)
+  erasing.dirty = false
+  // Snapshot the strokes so the whole drag-erase commits as ONE undoable unit
+  // (we erode the live model without history during the drag, then commit on up).
+  erasing.original = JSON.parse(JSON.stringify(store.state.whiteboard.strokes))
+  eraseAt(context.point, store, erasing)
 }
 
 function onPointerMove(event, context, ui, drawing, erasing, store, lining) {
@@ -139,14 +144,28 @@ function onPointerMove(event, context, ui, drawing, erasing, store, lining) {
     ui.liveLine.value = { ...ui.liveLine.value, x2: context.point.x, y2: context.point.y }
     return
   }
-  if (erasing.active) return eraseAt(context.point, store)
+  if (erasing.active) return eraseAt(context.point, store, erasing)
   if (context.editorUi.state.tool === 'laser') return ui.pushLaserPoint(context.point)
 }
 
 function onPointerUp(event, context, store, ui, drawing, erasing, lining) {
   if (drawing.active) return finishStroke(ui, drawing, store)
   if (lining.active) return finishLine(ui, lining, store)
-  if (erasing.active) erasing.active = false
+  if (erasing.active) return finishErase(store, erasing)
+}
+
+// Commit the whole erase gesture as one undoable unit: restore the pre-drag
+// strokes (so the history snapshot captures them) then re-apply the eroded set.
+function finishErase(store, erasing) {
+  erasing.active = false
+  const original = erasing.original
+  erasing.original = null
+  if (!erasing.dirty) return
+  const final = store.state.whiteboard.strokes
+  store.state.whiteboard.strokes = original
+  store.updateWhiteboardModel('Erase', (m) => {
+    m.strokes = final
+  })
 }
 
 // Commit the line on pointer-up; discard a degenerate (zero-length) drag.
@@ -178,11 +197,90 @@ function finishStroke(ui, drawing, store) {
   store.addStroke(simplified, { color: live.color, width: live.width, kind: live.kind })
 }
 
-// Erase whole strokes whose path geometry (not bbox) is under the cursor
-// (spec W3/C10). One removal = one undoable unit.
-function eraseAt(point, store) {
-  const hit = strokeAt(store.state.whiteboard, point, ERASER_TOLERANCE)
-  if (hit) store.removeStroke(hit.id)
+// Erase the part of any stroke within the eraser tip (radius) of the cursor —
+// like a real whiteboard eraser, not a whole-stroke delete. Each affected stroke
+// is split into the sub-paths that survive around the erased span; a stroke that
+// is entirely under the tip disappears. Mutates the live model without history
+// (finishErase commits the whole gesture as one undoable unit).
+function eraseAt(point, store, erasing) {
+  const model = store.state.whiteboard
+  let changed = false
+  const next = []
+  for (const stroke of model.strokes) {
+    const radius = ERASE_RADIUS + (stroke.width || 1) / 2
+    if (distanceToStroke(point, stroke) > radius) {
+      next.push(stroke)
+      continue
+    }
+    const runs = splitStrokeByErase(stroke.points, point, radius)
+    // Untouched (single run covering the whole stroke) — keep the original.
+    if (runs.length === 1 && runs[0].length === stroke.points.length) {
+      next.push(stroke)
+      continue
+    }
+    changed = true
+    for (const run of runs) {
+      if (run.length >= 2) next.push(makeStroke(run, { color: stroke.color, width: stroke.width, kind: stroke.kind }))
+    }
+  }
+  if (changed) {
+    model.strokes = next
+    erasing.dirty = true
+  }
+}
+
+// Split a polyline into the runs that lie OUTSIDE a disk (eraser tip), cutting
+// segments where they cross the disk boundary. Returns an array of point-runs.
+function splitStrokeByErase(points, center, radius) {
+  const r2 = radius * radius
+  const runs = []
+  let run = []
+  const dist2 = (p) => (p.x - center.x) ** 2 + (p.y - center.y) ** 2
+  const push = (p) => {
+    const last = run[run.length - 1]
+    if (!last || last.x !== p.x || last.y !== p.y) run.push(p)
+  }
+  const cut = () => {
+    if (run.length >= 2) runs.push(run)
+    run = []
+  }
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const a = points[i]
+    const b = points[i + 1]
+    const bounds = [0, ...circleSegmentTs(a, b, center, radius), 1]
+    for (let k = 0; k < bounds.length - 1; k += 1) {
+      const t0 = bounds[k]
+      const t1 = bounds[k + 1]
+      const mid = (t0 + t1) / 2
+      const pm = { x: a.x + (b.x - a.x) * mid, y: a.y + (b.y - a.y) * mid }
+      if (dist2(pm) <= r2) {
+        cut() // this sub-segment is inside the tip → break the run
+      } else {
+        push({ x: a.x + (b.x - a.x) * t0, y: a.y + (b.y - a.y) * t0 })
+        push({ x: a.x + (b.x - a.x) * t1, y: a.y + (b.y - a.y) * t1 })
+      }
+    }
+  }
+  cut()
+  return runs
+}
+
+// The t-values in (0,1) where segment a→b crosses the circle of `radius` at
+// `center`, sorted. Solves |a + t(b-a) - c|² = r².
+function circleSegmentTs(a, b, center, radius) {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const aa = dx * dx + dy * dy
+  if (aa === 0) return []
+  const fx = a.x - center.x
+  const fy = a.y - center.y
+  const bb = 2 * (fx * dx + fy * dy)
+  const cc = fx * fx + fy * fy - radius * radius
+  const disc = bb * bb - 4 * aa * cc
+  if (disc <= 0) return []
+  const sq = Math.sqrt(disc)
+  const ts = [(-bb - sq) / (2 * aa), (-bb + sq) / (2 * aa)].filter((t) => t > 0 && t < 1)
+  return ts.sort((m, n) => m - n)
 }
 
 // Drop a sticky note centered on the click (spec W4); enter edit by selecting it.
