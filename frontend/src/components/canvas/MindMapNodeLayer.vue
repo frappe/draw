@@ -279,6 +279,11 @@ function startEdit(event, id) {
 function focusField(id) {
   const field = editFields.value[id]
   if (!field) return
+  // Seed the editable's text imperatively (the template leaves it empty) so
+  // reactive re-renders never reset the caret; then focus + select all.
+  const node = props.mindmap.nodes.find((candidate) => candidate.id === id)
+  const text = node ? node.text : ''
+  if (field.innerText !== text) field.textContent = text
   field.focus()
   const range = document.createRange()
   range.selectNodeContents(field)
@@ -508,6 +513,10 @@ function nodePoly(node, b) {
       </template>
       <foreignObject v-else :x="TEXT_INSET" :y="0" :width="box.w - PAD_X" :height="box.h">
         <div class="fd-mm-textwrap">
+          <!-- Content is set imperatively in focusField (NOT interpolated), so the
+               live `node.text` updates from @input (grow-as-you-type) never
+               re-patch this editable's DOM — otherwise the caret jumps to the
+               start and the text comes out reversed. -->
           <div
             :ref="(el) => (editFields[node.id] = el)"
             contenteditable="true"
@@ -518,7 +527,7 @@ function nodePoly(node, b) {
             @paste="onPaste($event, node.id)"
             @blur="commitText(node.id)"
             @pointerdown.stop
-          >{{ node.text }}</div>
+          />
         </div>
       </foreignObject>
 
