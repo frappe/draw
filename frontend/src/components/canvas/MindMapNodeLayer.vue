@@ -149,12 +149,20 @@ function hasChildren(id) {
 // was easy to miss (and the confusing double-click-on-empty). Click it to add a
 // child on that side and start typing.
 const ADD_R = 11
-const ADD_OFFSET = 22 // gap from the node edge to the button centre
+const ADD_OFFSET = 28 // gap from the node edge to the "+" centre (clears the collapse "−")
 const hoveredId = ref(null)
 
 function rootCenterX() {
   const root = box(props.mindmap.rootId)
   return root ? root.x + root.w / 2 : 0
+}
+
+// The single branch side a node grows on (root defaults to right for its own
+// collapse toggle). The collapse "−" and add "+" both live on this side, so on a
+// left-hand branch they sit at the node's LEFT end, mirroring the right.
+function branchSideOf(node, b) {
+  if (isRoot(props.mindmap, node.id)) return 'right'
+  return b.x + b.w / 2 >= rootCenterX() ? 'right' : 'left'
 }
 
 // The branch side(s) a node grows on: the root grows both ways; any other node
@@ -531,28 +539,10 @@ function nodePoly(node, b) {
         </div>
       </foreignObject>
 
-      <!-- Collapse/expand toggle + hidden-descendant count badge (M4). -->
-      <g
-        v-if="hasChildren(node.id)"
-        :transform="`translate(${box.w + 2} ${box.h / 2})`"
-        style="cursor: pointer"
-        @click="toggleCollapse($event, node.id)"
-        @pointerdown.stop
-      >
-        <circle r="9" fill="#FFFFFF" :stroke="colorOf(node)" stroke-width="1.5" />
-        <path
-          v-if="!node.collapsed"
-          d="M-4 0 H4" :stroke="colorOf(node)" stroke-width="1.6" stroke-linecap="round"
-        />
-        <text
-          v-else text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="700"
-          :fill="colorOf(node)" style="font-family: Inter, sans-serif"
-        >{{ childCount(node.id) }}</text>
-      </g>
-
-      <!-- Clear circular "+" add buttons on the branch side(s): always present
-           around the node's branch end (faint at rest, full on hover/select) —
-           click to add a child and start typing. -->
+      <!-- Add "+" (child) on the branch side, just past the node end; and, on
+           hover/select, a parallel "+" below it (same level / sibling). Rendered
+           BEFORE the collapse toggle so the toggle sits cleanly on top of the
+           short branch stub. -->
       <g
         v-for="add in showAdd(node) ? addButtonsFor(node, box) : []"
         :key="`add-${add.side}`"
@@ -573,8 +563,6 @@ function nodePoly(node, b) {
         />
       </g>
 
-      <!-- Add-sibling "+" (parallel node, same level) just below the child button
-           at the branch end — shown only on hover / lone selection. -->
       <g
         v-for="sib in addProminent(node) ? siblingButtonsFor(node, box) : []"
         :key="`sib-${sib.side}`"
@@ -582,12 +570,36 @@ function nodePoly(node, b) {
         @click.stop="addSibling($event, node.id)"
         @pointerdown.stop
       >
-        <title>Add sibling</title>
-        <circle :cx="sib.cx" :cy="sib.cy" :r="ADD_R - 1.5" fill="#FFFFFF" :stroke="colorOf(node)" stroke-width="1.5" />
-        <path
-          :d="`M${sib.cx - 4} ${sib.cy} H${sib.cx + 4} M${sib.cx} ${sib.cy - 4} V${sib.cy + 4}`"
-          :stroke="colorOf(node)" stroke-width="1.6" stroke-linecap="round"
+        <title>Add parallel node (same level)</title>
+        <line
+          :x1="sib.stubX1" :y1="box.h / 2" :x2="sib.cx" :y2="sib.cy"
+          :stroke="colorOf(node)" stroke-width="2" stroke-linecap="round"
         />
+        <circle :cx="sib.cx" :cy="sib.cy" :r="ADD_R" :fill="colorOf(node)" />
+        <path
+          :d="`M${sib.cx - 4.5} ${sib.cy} H${sib.cx + 4.5} M${sib.cx} ${sib.cy - 4.5} V${sib.cy + 4.5}`"
+          stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"
+        />
+      </g>
+
+      <!-- Collapse/expand toggle + hidden-descendant count badge (M4), at the
+           node's branch end (mirrored for left-hand branches). -->
+      <g
+        v-if="hasChildren(node.id)"
+        :transform="`translate(${branchSideOf(node, box) === 'right' ? box.w + 2 : -2} ${box.h / 2})`"
+        style="cursor: pointer"
+        @click="toggleCollapse($event, node.id)"
+        @pointerdown.stop
+      >
+        <circle r="9" fill="#FFFFFF" :stroke="colorOf(node)" stroke-width="1.5" />
+        <path
+          v-if="!node.collapsed"
+          d="M-4 0 H4" :stroke="colorOf(node)" stroke-width="1.6" stroke-linecap="round"
+        />
+        <text
+          v-else text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="700"
+          :fill="colorOf(node)" style="font-family: Inter, sans-serif"
+        >{{ childCount(node.id) }}</text>
       </g>
     </g>
 
