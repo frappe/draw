@@ -41,9 +41,17 @@ function restore(state, snap) {
   state.mindmap = clone(snap.mindmap)
   state.flowchart = clone(snap.flowchart)
   state.whiteboard = clone(snap.whiteboard)
+  // Every id that can be selected via the shared store selection: block shapes +
+  // connectors, sections, and the per-type node arrays (mind-map / flowchart).
+  // Without the per-type ids, undo/redo of a mind-map or flowchart edit would
+  // silently clear the selection (and its floating toolbar) even though the node
+  // still exists. Whiteboard objects use a separate UI selection store.
   const live = new Set([
     ...state.shapes.map((s) => s.id),
     ...state.connectors.map((c) => c.id),
+    ...(state.sections || []).map((s) => s.id),
+    ...(state.mindmap?.nodes || []).map((n) => n.id),
+    ...(state.flowchart?.nodes || []).map((n) => n.id),
   ])
   state.selection = (snap.selection || []).filter((id) => live.has(id))
 }

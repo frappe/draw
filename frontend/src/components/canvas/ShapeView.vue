@@ -52,9 +52,12 @@ const transform = computed(() =>
 )
 
 const border = computed(() => props.shape.border || {})
-const dashArray = computed(() =>
-  border.value.dash === 'dashed' ? `${border.value.width * 3} ${border.value.width * 2}` : null,
-)
+const dashArray = computed(() => {
+  const w = border.value.width || 1
+  if (border.value.dash === 'dashed') return `${w * 3} ${w * 2}`
+  if (border.value.dash === 'dotted') return `${w} ${w * 2}`
+  return null
+})
 
 // Triangle and diamond are polygons described by their bounding box corners.
 const trianglePoints = computed(() => {

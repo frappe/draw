@@ -481,8 +481,15 @@ function onSurfacePointerDown(event) {
     if (!event.shiftKey && !event.metaKey && !event.ctrlKey) store.clearSelection()
   }
   // Flowchart/whiteboard own the surface (+ handles, drag-to-empty, pen, sticky):
-  // delegate to the registered mode interaction (Part G1).
-  if (delegateSurfaceEvent('onPointerDown', event)) return
+  // delegate to the registered mode interaction (Part G1). Capture the pointer so
+  // a drag gesture (pen stroke, eraser, line) still receives move/up even when it
+  // ends off the surface — over the bottom palette or outside the pane. Without
+  // this, finishStroke/finishErase/finishLine never run: the live stroke lingers,
+  // the erase can't be undone, and the drawn line is silently dropped.
+  if (delegateSurfaceEvent('onPointerDown', event)) {
+    surface.value?.setPointerCapture?.(event.pointerId)
+    return
+  }
   // Mind map is auto-layout: no free shape select/draw/move on the surface
   // (node interactions live on the nodes themselves).
   if (isMindmap.value) return

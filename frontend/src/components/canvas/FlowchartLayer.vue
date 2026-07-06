@@ -165,7 +165,15 @@ function beginEdit(id) {
   flowchartUi.editingId = id
 }
 
+// Set by Escape so the @blur that fires as the editor unmounts is skipped —
+// otherwise ending the edit would persist the very text Escape meant to discard.
+const cancellingId = ref(null)
+
 function commitEdit(id, value) {
+  if (cancellingId.value === id) {
+    cancellingId.value = null
+    return
+  }
   endFlowchartEdit(id)
   const node = props.flowchart.nodes.find((n) => n.id === id)
   const text = (value ?? '').trim()
@@ -179,6 +187,7 @@ function onEditKeydown(event, id) {
     commitEdit(id, editFields.value[id]?.innerText)
   } else if (event.key === 'Escape') {
     event.preventDefault()
+    cancellingId.value = id
     endFlowchartEdit(id)
   }
 }

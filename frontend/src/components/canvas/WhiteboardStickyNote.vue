@@ -90,6 +90,13 @@ watch(
 
 onMounted(() => {
   if (field.value) field.value.textContent = props.note.text || ''
+  // A sticky placed from the tool sets stickyEditRequest BEFORE this component
+  // mounts, so the (non-immediate) watch below never observes it. Honour a
+  // pending request on mount so a freshly-dropped note opens for typing.
+  if (ui.state.stickyEditRequest === props.note.id) {
+    ui.state.stickyEditRequest = null
+    startEditing()
+  }
 })
 
 const sketchOutline = computed(() =>

@@ -8,6 +8,7 @@ import { computed } from 'vue'
 import { Popover, Tooltip, Select } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
+import { anchorPoint } from '@/diagram/geometry.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
 import { activeEditor, richCommands, isMarkActive } from '@/composables/useRichText.js'
 import FillBorderSection from '@/components/palette-right/FillBorderSection.vue'
@@ -35,6 +36,20 @@ const multi = computed(() => shapes.value.length >= 2)
 const primaryFill = computed(() => shapes.value[0]?.fill || '#ffffff')
 const primaryBorder = computed(() => shapes.value[0]?.border?.color || '#171717')
 
+// Resolve a connector endpoint to a concrete world point: attached ends
+// ({shapeId,anchor}) follow the shape's anchor; free ends carry {x,y}.
+function resolveEndpoint(endpoint) {
+  if (!endpoint) return null
+  if (endpoint.shapeId) {
+    const shape = store.shapeById(endpoint.shapeId)
+    if (shape) return anchorPoint(shape, endpoint.anchor || 'right')
+  }
+  if (typeof endpoint.x === 'number' && typeof endpoint.y === 'number') {
+    return { x: endpoint.x, y: endpoint.y }
+  }
+  return null
+}
+
 // Selection bounding box in canvas coords (shapes: x/y/w/h; connector: endpoints).
 const box = computed(() => {
   if (hasShapes.value) {
@@ -44,7 +59,11 @@ const box = computed(() => {
     return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y }
   }
   if (connector.value) {
-    const pts = [connector.value.from, connector.value.to].filter(Boolean)
+    // Resolve each endpoint to a concrete point: attached ends carry
+    // {shapeId,anchor} with null x/y, so use the shape's anchor point (mirrors
+    // ConnectorView.resolve). Feeding the raw nulls to Math.min would coerce to
+    // 0 and pin the toolbar to the canvas origin.
+    const pts = [connector.value.from, connector.value.to].map(resolveEndpoint).filter(Boolean)
     if (!pts.length) return null
     const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y)
     const x = Math.min(...xs), y = Math.min(...ys)

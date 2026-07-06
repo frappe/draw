@@ -20,6 +20,7 @@ import { resolveNodeColor, nodeFill } from '@/diagram/mindmapColors.js'
 import { SWATCH_PALETTE } from '@/diagram/palette.js'
 import { deleteNodes, clearMindmap } from '@/diagram/mindmapOperations.js'
 import { mindmapUi, selectedNodeId, selectNode, beginEdit } from '@/stores/mindmapUi.js'
+import { requestDelete } from '@/composables/useMindmapKeys.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
@@ -143,10 +144,10 @@ function startCrosslink() {
   mindmapUi.pendingLinkSource = selId.value
 }
 function removeNode() {
-  // Delete every selected non-root node (the root is never deletable) as one
-  // undoable unit.
-  const ids = selectedNodes.value.filter((n) => !isRoot(model.value, n.id)).map((n) => n.id)
-  deleteNodes(store, ids)
+  // Route through the same path as the keyboard Delete: nodes with sub-branches
+  // raise the in-product confirm dialog first (leaves delete immediately), so the
+  // toolbar trash can't silently nuke a whole subtree without confirmation.
+  requestDelete(store)
 }
 
 // Confirm (in-product dialog) the delete requested by the keyboard handler for

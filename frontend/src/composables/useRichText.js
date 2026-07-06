@@ -63,5 +63,15 @@ export const richCommands = {
 
 export function isMarkActive(name, attrs) {
   const editor = activeEditor.value
-  return editor ? editor.isActive(name, attrs) : false
+  // Guard a destroyed editor (unmounted while still referenced) and TipTap's
+  // isActive() throwing "Cannot convert undefined or null to object" on some
+  // transient states (empty doc / no selection) — return false ("not active"),
+  // otherwise the computed that reads this re-throws on every reactive tick and
+  // spams the console (surfaced by the whiteboard text-box + select-all path).
+  if (!editor || editor.isDestroyed) return false
+  try {
+    return name ? editor.isActive(name, attrs) : editor.isActive(attrs)
+  } catch {
+    return false
+  }
 }

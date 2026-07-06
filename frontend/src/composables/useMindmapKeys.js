@@ -68,7 +68,7 @@ function handleArrow(store, model, id, event) {
 // undoable unit; nodes with children are confirmed first and removed as subtrees.
 // The root is never deleted (offer Clear map in the palette). Reads the shared
 // selection array directly, since selectedNodeId() is null during a multi-select.
-function requestDelete(store) {
+export function requestDelete(store) {
   const model = store.state.mindmap
   const selection = store.state.selection || []
   if (!selection.length) return false

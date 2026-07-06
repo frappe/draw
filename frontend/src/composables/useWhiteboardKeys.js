@@ -34,11 +34,15 @@ function pickColor(event, editorUi, ui) {
   const index = '123456789'.indexOf(event.key)
   if (index === -1) return false
   const tool = editorUi.state.tool
+  // Palettes have fewer than 9 entries; ignore keys past the end of the active
+  // one rather than setting an undefined (off-palette) color.
   if (tool === 'pen' || tool === 'highlighter') {
+    if (index >= PEN_COLORS.length) return false
     ui.state.penColor = PEN_COLORS[index]
     return true
   }
   if (tool === 'sticky') {
+    if (index >= STICKY_COLORS.length) return false
     ui.state.stickyColor = STICKY_COLORS[index]
     return true
   }
