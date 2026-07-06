@@ -63,13 +63,18 @@ function attachConnectorEditing(api, session, store) {
 // diamonds/triangles). Returns null when no shape is editing.
 export function shapeTextArea(shape) {
   if (!shape) return null
+  // Optional horizontal insets (px) let the ruler markers set where the text
+  // sits inside the shape.
+  const il = Math.max(0, shape.text?.insetLeft || 0)
+  const ir = Math.max(0, shape.text?.insetRight || 0)
   const factor = INSCRIBED_FACTOR[shape.type]
   if (!factor) {
-    return { x: shape.x, y: shape.y, w: shape.w, h: shape.h }
+    return { x: shape.x + il, y: shape.y, w: Math.max(8, shape.w - il - ir), h: shape.h }
   }
-  const w = shape.w * factor - INSCRIBED_PAD * 2
+  const w = Math.max(8, shape.w * factor - INSCRIBED_PAD * 2 - il - ir)
   const h = shape.h * factor - INSCRIBED_PAD * 2
-  return { x: shapeCenter(shape).x - w / 2, y: shapeCenter(shape).y - h / 2, w, h }
+  const cx = shapeCenter(shape).x + (il - ir) / 2
+  return { x: cx - w / 2, y: shapeCenter(shape).y - h / 2, w, h }
 }
 
 // CSS for the contentEditable, derived from the shape's text.style.

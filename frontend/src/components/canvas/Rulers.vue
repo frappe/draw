@@ -5,6 +5,8 @@
 import { computed, ref, watch, onBeforeUnmount } from 'vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
+import { useDiagramStore } from '@/stores/useDiagramStore.js'
+import { shapeTextArea } from '@/composables/useTextEditing.js'
 import { mindmapUi } from '@/stores/mindmapUi.js'
 
 const props = defineProps({
@@ -13,11 +15,48 @@ const props = defineProps({
 
 const editorUi = useEditorUi()
 const editing = useTextEditing()
+const store = useDiagramStore()
+
+// The block shape currently being edited (draggable ruler markers set its text
+// insets). Null for non-shape editing (mind-map / flowchart / whiteboard).
+const editedShape = computed(() => {
+  const id = editing?.editingShapeId?.value || store.state.selection?.[0]
+  const shape = id ? store.shapeById?.(id) : null
+  return shape && typeof shape.w === 'number' ? shape : null
+})
+
+// Drag a top-ruler marker to set the edited shape's left/right text inset. Maps
+// the pointer's window x into canvas units via the surface rect + viewport.
+function startMarkerDrag(event, side) {
+  const shape = editedShape.value
+  if (!shape) return
+  event.preventDefault()
+  event.stopPropagation()
+  const surface = document.querySelector('[data-fdpreset]')
+  const rect = surface ? surface.getBoundingClientRect() : { left: 0 }
+  const move = (e) => {
+    const zoom = editorUi.viewport.state.zoom || 1
+    const canvasX = (e.clientX - rect.left - editorUi.viewport.state.panX) / zoom
+    if (side === 'left') {
+      const insetLeft = Math.max(0, Math.min(shape.w - 16 - (shape.text?.insetRight || 0), canvasX - shape.x))
+      store.updateShapes([shape.id], { text: { insetLeft: Math.round(insetLeft) } })
+    } else {
+      const insetRight = Math.max(0, Math.min(shape.w - 16 - (shape.text?.insetLeft || 0), shape.x + shape.w - canvasX))
+      store.updateShapes([shape.id], { text: { insetRight: Math.round(insetRight) } })
+    }
+  }
+  const up = () => {
+    window.removeEventListener('pointermove', move)
+    window.removeEventListener('pointerup', up)
+  }
+  window.addEventListener('pointermove', move)
+  window.addEventListener('pointerup', up)
+}
 
 // Show while editing any text: shared text boxes/shapes (block + whiteboard) or a
 // mind-map node. Rulers help line things up the moment you start typing (spec §6).
 const shown = computed(
-  () => props.visible || Boolean(editing?.isEditing.value) || Boolean(mindmapUi.editingId),
+  () => props.visible || Boolean(editing?.isEditing.value) || Boolean(mindmapUi.editingId) || Boolean(editedShape.value),
 )
 
 const THICKNESS = 22
@@ -74,14 +113,28 @@ function trackEditor() {
     editBounds.value = null
     return
   }
-  const el = document.activeElement
-  const editable = el && (el.isContentEditable || el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type === 'text'))
-  if (editable) {
-    const r = el.getBoundingClientRect()
-    // Positions within the top ruler band (which starts THICKNESS px from the left).
-    editBounds.value = { left: r.left - THICKNESS, right: r.right - THICKNESS }
+  const shape = editedShape.value
+  if (shape) {
+    // Derive marker positions from the shape's TEXT AREA geometry (not the live
+    // editor element), so they persist while the shape is selected and follow
+    // the inset as the marker is dragged — independent of edit focus.
+    const area = shapeTextArea(shape)
+    const surface = document.querySelector('[data-fdpreset]')
+    const left = surface ? surface.getBoundingClientRect().left : 0
+    const zoom = editorUi.viewport.state.zoom || 1
+    const panX = editorUi.viewport.state.panX
+    editBounds.value = {
+      left: left + panX + area.x * zoom - THICKNESS,
+      right: left + panX + (area.x + area.w) * zoom - THICKNESS,
+    }
   } else {
-    editBounds.value = null
+    // Other editors (mind-map/flowchart/whiteboard text): read the focused
+    // editable element's bounds — indicator markers only (not draggable).
+    const el = document.activeElement
+    const editable = el && (el.isContentEditable || el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type === 'text'))
+    editBounds.value = editable
+      ? (() => { const r = el.getBoundingClientRect(); return { left: r.left - THICKNESS, right: r.right - THICKNESS } })()
+      : null
   }
   raf = requestAnimationFrame(trackEditor)
 }
@@ -121,15 +174,22 @@ onBeforeUnmount(() => {
       >{{ Math.round(tick.value) }}</span>
 
       <!-- Para start/end markers (Google-Docs style): blue triangles at the edited
-           text box's left and right edges. -->
+           text box's left and right edges. Draggable (for a block shape) to set
+           where the text sits inside the shape. -->
       <template v-if="editBounds">
         <div
           class="absolute bottom-0"
-          :style="{ left: editBounds.left + 'px', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '7px solid #2563EB' }"
+          :class="editedShape ? 'cursor-ew-resize' : ''"
+          :style="{ left: editBounds.left + 'px', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '7px solid #2563EB', pointerEvents: editedShape ? 'auto' : 'none' }"
+          @mousedown.prevent
+          @pointerdown="startMarkerDrag($event, 'left')"
         />
         <div
           class="absolute bottom-0"
-          :style="{ left: editBounds.right + 'px', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '7px solid #2563EB' }"
+          :class="editedShape ? 'cursor-ew-resize' : ''"
+          :style="{ left: editBounds.right + 'px', transform: 'translateX(-50%)', width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '7px solid #2563EB', pointerEvents: editedShape ? 'auto' : 'none' }"
+          @mousedown.prevent
+          @pointerdown="startMarkerDrag($event, 'right')"
         />
       </template>
     </div>
