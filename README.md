@@ -1,18 +1,31 @@
-### Frappe Draw
+# Frappe Draw
 
-A diagram creation app
+Diagramming for Frappe — create **mind maps, flowcharts, block diagrams and
+freeform whiteboards**, with real-time co-editing, right inside your Frappe site.
 
-### Installation
+## Features
 
-You can install this app using the [bench](https://github.com/frappe/bench) CLI:
+- **Mind maps** — auto-laid-out, balanced two-sided trees with keyboard-first editing, cross-links, markers and per-node styling.
+- **Flowcharts** — typed nodes (process, decision, terminator, …), auto-routed orthogonal connectors, branch labels and one-click tidy.
+- **Block diagrams** — shapes, connectors with attached endpoints, alignment/distribution, rich text and a floating contextual toolbar.
+- **Whiteboards** — pen, highlighter, partial eraser, sticky notes, tables, lines, laser pointer and image insert.
+- **Real-time co-editing** — multiple people on the same canvas at once.
+- **Library** — organise diagrams into folders, pin favourites, search and filter; per-user and permission-scoped.
+- **Export** — PNG and PDF.
+
+## Installation
+
+Install on any [Frappe](https://github.com/frappe/frappe) site using the [bench](https://github.com/frappe/bench) CLI:
 
 ```bash
 cd $PATH_TO_YOUR_BENCH
-bench get-app $URL_OF_THIS_REPO --branch N
-bench install-app draw
+bench get-app https://github.com/frappe/draw
+bench --site your-site.localhost install-app draw
 ```
 
-### Contributing
+Then open `https://your-site.localhost/draw`.
+
+## Contributing
 
 This app uses `pre-commit` for code formatting and linting. Please [install pre-commit](https://pre-commit.com/#installation) and enable it for this repository:
 
@@ -21,13 +34,8 @@ cd apps/draw
 pre-commit install
 ```
 
-Pre-commit is configured to use the following tools for checking and formatting your code:
+Pre-commit is configured to use ruff, eslint, prettier and pyupgrade. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 
-- ruff
-- eslint
-- prettier
-- pyupgrade
+## License
 
-### License
-
-mit
+[GNU Affero General Public License v3.0](license.txt)

@@ -3,7 +3,7 @@ app_title = "Frappe Draw"
 app_publisher = "Frappe"
 app_description = "A diagram creation app"
 app_email = "vibhav@frappe.io"
-app_license = "mit"
+app_license = "agpl-3.0"
 
 # Serve the Vue SPA at /draw (built into www/draw.html).
 website_route_rules = [
