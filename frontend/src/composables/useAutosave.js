@@ -63,7 +63,7 @@ async function maybeRestoreLocal(session, store, diagramResource, revision) {
 // A save session bundles the debounce timer, the in-memory pending document, the
 // last known server revision, and the offline-freeze timer.
 function createSaveSession(store, diagramResource, status, frozen) {
-  const saver = createResource({ url: 'frappe_draw.api.diagram.save_diagram' })
+  const saver = createResource({ url: 'draw.api.diagram.save_diagram' })
   const session = {
     debounceTimer: null,
     offlineTimer: null,

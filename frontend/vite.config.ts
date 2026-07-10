@@ -8,10 +8,10 @@ export default defineConfig(async () => {
   return {
     plugins: [
       frappeui({
-        frontendRoute: '/frappe_draw',
+        frontendRoute: '/draw',
         frappeTypes: {
           input: {
-            frappe_draw: ['draw_diagram', 'draw_folder'],
+            draw: ['draw_diagram', 'draw_folder'],
           },
         },
       }),

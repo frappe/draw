@@ -10,6 +10,6 @@ const routes = [
 ]
 
 export const router = createRouter({
-  history: createWebHistory('/frappe_draw'),
+  history: createWebHistory('/draw'),
   routes,
 })

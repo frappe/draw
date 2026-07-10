@@ -19,7 +19,7 @@ import { provideModeInteraction } from '@/composables/useModeInteraction.js'
 import { loadDiagram } from '@/data/diagrams.js'
 import { parseDiagramDocument } from '@/diagram/schema.js'
 
-const PUBLIC_METHOD = 'frappe_draw.api.diagram.get_public_diagram'
+const PUBLIC_METHOD = 'draw.api.diagram.get_public_diagram'
 
 const props = defineProps({
   name: { type: String, required: true },

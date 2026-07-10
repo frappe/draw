@@ -7,13 +7,13 @@
 import { ref, computed } from 'vue'
 import { call, toast } from 'frappe-ui'
 
-const TOGGLE_METHOD = 'frappe_draw.api.diagram.set_public_access'
+const TOGGLE_METHOD = 'draw.api.diagram.set_public_access'
 const SHARE = {
-  list: 'frappe_draw.api.diagram.list_shares',
-  add: 'frappe_draw.api.diagram.add_share',
-  update: 'frappe_draw.api.diagram.update_share',
-  remove: 'frappe_draw.api.diagram.remove_share',
-  search: 'frappe_draw.api.diagram.search_users',
+  list: 'draw.api.diagram.list_shares',
+  add: 'draw.api.diagram.add_share',
+  update: 'draw.api.diagram.update_share',
+  remove: 'draw.api.diagram.remove_share',
+  search: 'draw.api.diagram.search_users',
 }
 
 export function useShare(diagramResource) {
@@ -79,7 +79,7 @@ export function useShare(diagramResource) {
   const shareLink = computed(() => {
     const name = diagramResource?.doc?.name
     if (!name) return ''
-    return `${window.location.origin}/frappe_draw/view/${encodeURIComponent(name)}`
+    return `${window.location.origin}/draw/view/${encodeURIComponent(name)}`
   })
 
   async function toggleGlobalAccess() {

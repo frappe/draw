@@ -10,7 +10,7 @@ export const meta = {
   ],
 }
 
-const APP = '/Users/vibhavkatre/frappe-bench/apps/frappe_draw'
+const APP = '/Users/vibhavkatre/frappe-bench/apps/draw'
 const FE = APP + '/frontend'
 
 const PREAMBLE = `You are extending Frappe Draw, a Vue 3 + frappe-ui SVG diagram editor on a Frappe bench.

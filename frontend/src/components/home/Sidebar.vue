@@ -21,7 +21,7 @@ const showSettings = ref(false)
 
 onMounted(() => folders.fetch())
 
-// Real logged-in user, injected into the page boot by www/frappe_draw.py.
+// Real logged-in user, injected into the page boot by www/draw.py.
 const fullName = computed(() => window.full_name || 'You')
 
 // Header dropdown (Settings + Log out), matching Drive's header menu.

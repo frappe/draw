@@ -315,7 +315,7 @@ export function isDocumentEmpty(rawDocument) {
 // URL into a private File and links it — spec §11.2/§11.4).
 export function useThumbnail(store, diagramResource) {
   let lastRunAt = 0
-  const saver = createResource({ url: 'frappe_draw.api.diagram.save_thumbnail' })
+  const saver = createResource({ url: 'draw.api.diagram.save_thumbnail' })
 
   async function generate() {
     const now = Date.now()

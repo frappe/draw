@@ -57,7 +57,7 @@ const menuItems = computed(() => [
 
 // Copy the diagram's editor link to the clipboard (spec I5, "under sharing").
 function copyLink() {
-  const url = `${window.location.origin}/frappe_draw/d/${props.diagram.name}`
+  const url = `${window.location.origin}/draw/d/${props.diagram.name}`
   navigator.clipboard?.writeText(url).then(
     () => toast.success('Link copied'),
     () => toast.error('Could not copy link'),

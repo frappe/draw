@@ -14,7 +14,7 @@ def get_context(context):
 	the user's name so the sidebar shows the real account (like Frappe Drive).
 	"""
 	if frappe.session.user == "Guest":
-		path = (frappe.local.request.path if frappe.local.request else "") or "/frappe_draw"
+		path = (frappe.local.request.path if frappe.local.request else "") or "/draw"
 		if "/view/" not in path:
 			frappe.local.flags.redirect_location = f"/login?redirect-to={path}"
 			raise frappe.Redirect

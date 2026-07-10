@@ -25,15 +25,15 @@ contract that lets independently-built features integrate. Also read:
 6. **Brand violet `#6846E3`** only for the logomark + avatar. Chrome stays neutral gray.
 
 ## App / paths
-- App root: `apps/frappe_draw/frappe_draw/` (Python module "Frappe Draw")
-- Frontend SPA: `apps/frappe_draw/frontend/` (Vue 3 + frappe-ui + Vite + Tailwind)
+- App root: `apps/draw/draw/` (Python module "Frappe Draw")
+- Frontend SPA: `apps/draw/frontend/` (Vue 3 + frappe-ui + Vite + Tailwind)
 - DocTypes already exist: `Draw Diagram`, `Draw Folder` (see SPEC §11.3). Fields on Draw
   Diagram: title, description, folder (Link), canvas_size (Select), document (JSON),
   is_public (Check), revision (Int), is_trashed (Check), trashed_on (Datetime),
   thumbnail (Attach Image), sort_order (Int). Diagram name is a hash (permanent URL id).
-- SPA served at route `/frappe_draw`; router base `/frappe_draw`; routes use names
+- SPA served at route `/draw`; router base `/draw`; routes use names
   `Home` (`/`) and `Editor` (`/d/:name`).
-- Build: `cd apps/frappe_draw/frontend && yarn build`. Dev: `yarn dev`. Bench runs via
+- Build: `cd apps/draw/frontend && yarn build`. Dev: `yarn dev`. Bench runs via
   `bench start` (already running); site is `test.localhost`.
 
 ## Frontend file layout (create files ONLY in your assigned area)
@@ -137,13 +137,13 @@ viewport (from useViewport), zoomPercent, fit(), reset100() }`.
   and makes `yarn build` pass.
 
 ## Backend
-- Whitelisted API methods live in `frappe_draw/api/` (e.g., `diagram.py`) with
+- Whitelisted API methods live in `draw/api/` (e.g., `diagram.py`) with
   `@frappe.whitelist()`. Guest read-only access for `is_public` diagrams via a guarded
   method. Trash auto-purge after 30 days = a scheduled job in hooks.py `scheduler_events`.
 - Permissions: owner-based. Add a role the SPA users have; use `if_owner` where appropriate;
   System Manager full. Public diagrams readable by Guest only when `is_public`.
 
 ## Testing
-- Python: `bench --site test.localhost run-tests --app frappe_draw`.
+- Python: `bench --site test.localhost run-tests --app draw`.
 - Keep diagram-domain logic (geometry, store mutations, schema) in pure JS modules so they
   are unit-testable without a browser.

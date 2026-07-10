@@ -9,7 +9,7 @@ export const meta = {
   ],
 }
 
-const APP = '/Users/vibhavkatre/frappe-bench/apps/frappe_draw'
+const APP = '/Users/vibhavkatre/frappe-bench/apps/draw'
 const FE = APP + '/frontend'
 
 const PREAMBLE = `You are finishing Frappe Draw, a Vue 3 + frappe-ui SVG diagram editor, on a Frappe bench.
@@ -134,7 +134,7 @@ footer, access-denied state for private diagrams. Print: stylesheet prints canva
   },
   {
     label: 'persistence+backend',
-    files: 'composables/useAutosave.js; backend: frappe_draw/api/diagram.py (+ __init__.py) + hooks.py edits + permissions/role + purge job',
+    files: 'composables/useAutosave.js; backend: draw/api/diagram.py (+ __init__.py) + hooks.py edits + permissions/role + purge job',
     tasks: `Persistence + backend (SPEC §8/§11.4, §2 trash, §9 sharing). useAutosave(store, diagramResource):
 debounce ~1.5s after last change; save store.getDocument() via a whitelisted method; revision-check (stale ->
 freeze "changed elsewhere — reload"); expose .status ('saved'|'saving'|'error') consumed by EditorShell/
@@ -142,7 +142,7 @@ SaveIndicator; hold unsaved in memory, flush on reconnect; offline freeze after 
 (@frappe.whitelist): get_diagram(name) [owner or public], save_diagram(name, document, revision), list_diagrams,
 trash/restore/duplicate, save_thumbnail; guest read only when is_public. Add a role normal users get + Draw Diagram
 DocType perms with if_owner (read/write/create/delete own), keep System Manager full (apply via a patch under
-frappe_draw/patches + patches.txt, or fixtures). Daily scheduled job purging Draw Diagram where is_trashed and
+draw/patches + patches.txt, or fixtures). Daily scheduled job purging Draw Diagram where is_trashed and
 trashed_on older than 30 days; register in hooks.py scheduler_events. Run: cd /Users/vibhavkatre/frappe-bench &&
 bench --site test.localhost migrate, and fix any error. Do NOT touch frontend files other than useAutosave.js.`,
   },

@@ -279,7 +279,7 @@ Guides are momentary (only during drag, only while alignment holds), computed ag
 Follows Frappe ecosystem norms (Gameplan, Frappe Drive, Frappe Insights patterns).
 
 ### 11.1 Architecture
-- Standard **bench-installable Frappe app** (working name `frappe_draw`).
+- Standard **bench-installable Frappe app** (working name `draw`).
 - **Backend:** Frappe (Python, MariaDB).
 - **Frontend:** **Vue 3 + frappe-ui + Tailwind** SPA at the app route.
 - **Design system:** Espresso — including the **color palette** (the color picker exposes Espresso colors only: a curated set + recent + the system's defined values; no arbitrary hex in v1).
