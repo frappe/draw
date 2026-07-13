@@ -9,6 +9,16 @@ export default defineConfig(async () => {
     plugins: [
       frappeui({
         frontendRoute: '/draw',
+        // Explicit build paths so the SPA builds without a surrounding Frappe
+        // bench (e.g. CI, a standalone `git clone`). Paths are relative to this
+        // frontend/ dir; the Python package sits at ../draw. Without these the
+        // plugin tries to infer the app name from bench config and fails with
+        // "indexHtmlPath is required in buildConfig options".
+        buildConfig: {
+          outDir: '../draw/public/frontend',
+          indexHtmlPath: '../draw/www/draw.html',
+          baseUrl: '/assets/draw/frontend/',
+        },
         frappeTypes: {
           input: {
             draw: ['draw_diagram', 'draw_folder'],
