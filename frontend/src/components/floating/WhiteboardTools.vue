@@ -16,6 +16,13 @@ import LineOptions from './LineOptions.vue'
 import TableOptions from './TableOptions.vue'
 import { useImageInsert } from '@/composables/useImageInsert.js'
 
+// `exclude` hides tools the surrounding context already provides — on the unified
+// canvas the block group owns text/line/image, so they're excluded here to avoid
+// duplicate buttons and tool-name collisions.
+const props = defineProps({
+  exclude: { type: Array, default: () => [] },
+})
+
 const editorUi = useEditorUi()
 const store = useDiagramStore()
 const ui = useWhiteboardUi()
@@ -40,8 +47,11 @@ const activeTool = computed(() => editorUi.state.tool)
 // mid-erase).
 const hasInk = computed(() => (store.state.whiteboard?.strokes?.length || 0) > 0)
 const visibleTools = computed(() =>
-  TOOLS.filter((t) => t.tool !== 'eraser' || hasInk.value || activeTool.value === 'eraser'),
+  TOOLS.filter((t) => !props.exclude.includes(t.tool)).filter(
+    (t) => t.tool !== 'eraser' || hasInk.value || activeTool.value === 'eraser',
+  ),
 )
+const showImageInsert = computed(() => !props.exclude.includes('image'))
 const activeHasOptions = computed(() => OPTION_TOOLS.includes(activeTool.value))
 const optionsLabel = computed(() => `${capitalize(activeTool.value)} options`)
 function capitalize(value) {
@@ -80,8 +90,8 @@ function applyTableDefault(patch) {
     </button>
   </Tooltip>
 
-  <!-- Insert image (action, not a tool). -->
-  <Tooltip text="Insert image">
+  <!-- Insert image (action, not a tool). Hidden when the surrounding palette owns it. -->
+  <Tooltip v-if="showImageInsert" text="Insert image">
     <button :class="buttonBase" @click="imageInsert.pick()">
       <LucideIcon name="image" class="h-4 w-4" />
     </button>

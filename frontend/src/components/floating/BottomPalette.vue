@@ -8,6 +8,7 @@ import LucideIcon from '@/icons/LucideIcon.vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
+import { isUnifiedDocument } from '@/diagram/schema.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
 import { recentShapes, pushRecentShape } from '@/composables/useRecentShapes.js'
 import { collapseAll } from '@/diagram/mindmapOperations.js'
@@ -28,6 +29,12 @@ const isBlock = computed(() => modeStrategy?.value?.type === 'block')
 const isWhiteboard = computed(() => modeStrategy?.value?.type === 'whiteboard')
 const isMindmap = computed(() => modeStrategy?.value?.type === 'mindmap')
 const isFlowchart = computed(() => modeStrategy?.value?.type === 'flowchart')
+
+// The unified canvas exposes BOTH the block creation tools and the whiteboard
+// annotation tools on one palette (detected from the doc, not the strategy, which
+// falls back to block). The whiteboard group hides the tools block already owns
+// (text/line/image) to avoid duplicates + tool-name collisions.
+const isUnified = computed(() => isUnifiedDocument(store.state))
 
 // Map-wide flowchart actions (per-node editing lives in the floating toolbar).
 const flowDirection = computed(() => store.state.flowchart?.direction || 'TB')
@@ -155,8 +162,9 @@ function setGuides(state) {
       <button :class="[buttonBase, toggleClass(editorUi.state.tool === 'section')]" @click="addSection"><LucideIcon name="layout" class="h-4 w-4" /></button>
     </Tooltip>
 
-    <!-- Block creation tools: Shapes + Connectors popovers + Text. -->
-    <template v-if="isBlock">
+    <!-- Block creation tools: Shapes + Connectors popovers + Text. Shown for block
+         AND the unified canvas. -->
+    <template v-if="isBlock || isUnified">
       <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
       <Popover>
         <template #target="{ togglePopover }">
@@ -272,7 +280,12 @@ function setGuides(state) {
     </template>
 
     <!-- Whiteboard: full tool set + every control (no right panel). -->
-    <WhiteboardTools v-if="isWhiteboard" />
+    <!-- Whiteboard tools: full set for a whiteboard doc; on the unified canvas the
+         block-owned tools (text/line/image) are hidden to avoid duplicates. -->
+    <WhiteboardTools
+      v-if="isWhiteboard || isUnified"
+      :exclude="isUnified ? ['text', 'line', 'image'] : []"
+    />
 
     <!-- Any other type that declares extra surface tools (seam; none today). -->
     <template v-else-if="surfaceTools.length">
