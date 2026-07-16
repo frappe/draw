@@ -47,8 +47,8 @@ export function useWhiteboardInteraction(store, editorUi) {
     onPointerUp: (event, context) => onPointerUp(event, context, store, ui, drawing, erasing, lining),
     onDoubleClick: (event, context) => onDoubleClick(context, store),
   }
-  registerModeInteraction(interactionRef, handlers)
-  onBeforeUnmount(() => registerModeInteraction(interactionRef, null))
+  registerModeInteraction(interactionRef, 'whiteboard', handlers)
+  onBeforeUnmount(() => registerModeInteraction(interactionRef, 'whiteboard', null))
 
   return { ui }
 }
