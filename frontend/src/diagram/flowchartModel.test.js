@@ -143,4 +143,17 @@ describe('flowchart model', () => {
     expect(flowchartNodeById(model, a).text).toBe('1. A')
     expect(flowchartNodeById(model, c).text).toBe('2. C')
   })
+
+  // Batch-2/3 regression: a label that legitimately begins with "N. " must not be
+  // mistaken for a step number and eaten on the number-steps toggle round-trip.
+  it('preserves a label that starts with a number across a number toggle', () => {
+    const model = createFlowchart()
+    const id = addFlowchartNode(model, 'process', '3. 14 kg batch', 0, 0)
+    autoNumberFlow(model) // on
+    expect(flowchartNodeById(model, id).text).toBe('1. 3. 14 kg batch')
+    expect(isFlowNumbered(model)).toBe(true)
+    autoNumberFlow(model) // off
+    expect(flowchartNodeById(model, id).text).toBe('3. 14 kg batch') // user content intact
+    expect(isFlowNumbered(model)).toBe(false)
+  })
 })

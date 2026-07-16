@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { createDiagramStore } from './useDiagramStore.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
+import { flowchartKeydown } from '@/composables/useFlowchartKeys.js'
 
 // Regression tests for demo-hardening batch 2 — the logic-level store fixes.
 // (The component/DOM-level fixes in the same batch aren't unit-reachable.)
@@ -56,5 +57,27 @@ describe('deleting a flowchart node prunes the selection', () => {
 
     store.removeFlowchartNodes([n2])
     expect(store.state.selection).toEqual([])
+  })
+})
+
+describe('keyboard-extend from a decision node uses a labelled branch port', () => {
+  it('fills the first free branch (Yes, then No) with its label', () => {
+    const store = createDiagramStore(createDiagramDocument(undefined, 'flowchart'))
+    const dec = store.addFlowchartNode('decision', 'OK?')
+
+    store.select([dec])
+    flowchartKeydown({ key: 'Enter' }, store, null) // → first child via 'yes'
+    const m = store.state.flowchart
+    const first = m.edges.find((e) => e.from.nodeId === dec)
+    expect(first.from.port).toBe('yes')
+    expect(first.label).toBe('Yes')
+
+    store.select([dec]) // the create selected the child; re-select the decision
+    flowchartKeydown({ key: 'Enter' }, store, null) // → second child via 'no'
+    const ports = m.edges
+      .filter((e) => e.from.nodeId === dec)
+      .map((e) => e.from.port)
+      .sort()
+    expect(ports).toEqual(['no', 'yes'])
   })
 })

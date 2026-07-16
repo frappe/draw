@@ -58,11 +58,30 @@ function normaliseKey(key) {
 function createChild(store, parent, nodeType) {
   store.updateFlowchartModel('Add node', (model) => {
     const draft = makeFlowchartNode(nodeType, defaultNodeText(nodeType), 0, 0)
-    const position = placeChild(model, parent.id, { ...draft, ...nodeSize(draft) })
+    // Extending from a decision node: attach via a branch port (Yes/No/…) and
+    // carry its label onto the edge, the same as the "+"-handle and drag-connect
+    // paths — otherwise the new edge leaves the diamond's centre unlabelled,
+    // outside the branch system. Fan the child into that branch's lane.
+    const branch = pickFreeBranch(parent, model)
+    const branchCount = parent.nodeType === 'decision' ? parent.branches.length : 1
+    const branchIndex = branch ? parent.branches.findIndex((b) => b.port === branch.port) : null
+    const position = placeChild(model, parent.id, { ...draft, ...nodeSize(draft) }, branchIndex, branchCount)
     draft.x = position.x
     draft.y = position.y
     model.nodes.push(draft)
-    model.edges.push(makeFlowchartEdge(parent.id, draft.id))
+    const edgeOpts = branch ? { fromPort: branch.port, label: branch.label } : {}
+    model.edges.push(makeFlowchartEdge(parent.id, draft.id, edgeOpts))
     store.select([draft.id])
   })
+}
+
+// The first decision branch with no outgoing edge yet (so repeated Enter fills
+// Yes, then No, …), falling back to the first branch once all are taken. Null for
+// non-decision nodes — they extend from the default 'out' port.
+function pickFreeBranch(parent, model) {
+  if (parent.nodeType !== 'decision' || !parent.branches?.length) return null
+  const used = new Set(
+    model.edges.filter((e) => e.from.nodeId === parent.id).map((e) => e.from.port),
+  )
+  return parent.branches.find((b) => !used.has(b.port)) || parent.branches[0]
 }
