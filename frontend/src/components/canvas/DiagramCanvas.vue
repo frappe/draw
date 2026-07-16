@@ -39,7 +39,11 @@ import MindMapNodeLayer from './MindMapNodeLayer.vue'
 import FlowchartLayer from './FlowchartLayer.vue'
 import WhiteboardLayer from './WhiteboardLayer.vue'
 import Rulers from './Rulers.vue'
-import { useModeInteraction, resolveModeHandlers } from '@/composables/useModeInteraction.js'
+import {
+  useModeInteraction,
+  resolveModeHandlers,
+  isWhiteboardTool,
+} from '@/composables/useModeInteraction.js'
 import { isUnifiedDocument } from '@/diagram/schema.js'
 
 const store = useDiagramStore()
@@ -356,6 +360,12 @@ function pointerPosition(event) {
 // interaction object (flowchart/whiteboard). Hand-tool panning is never
 // delegated — it stays shared so every type pans the same way.
 function delegatesSurface() {
+  // On the unified canvas, only the unambiguous whiteboard tools delegate to the
+  // whiteboard layer; select/shape/connector tools fall through to the shared
+  // block handling. Legacy single-type docs delegate whenever the strategy says so.
+  if (isUnified.value) {
+    return isWhiteboardTool(editorUi.state.tool) && activeModeHandlers() != null
+  }
   return modeStrategy.value.handlesSurfaceInteraction && activeModeHandlers() != null
 }
 

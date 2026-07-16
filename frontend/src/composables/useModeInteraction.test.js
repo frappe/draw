@@ -22,16 +22,18 @@ describe('resolveModeHandlers', () => {
     expect(resolveModeHandlers({ flowchart: fc }, 'anything')).toBe(fc)
   })
 
-  it('routes whiteboard tools to the whiteboard layer when several are registered', () => {
+  it('routes unambiguous whiteboard tools to the whiteboard layer when several are registered', () => {
     const reg = { whiteboard: wb, flowchart: fc }
-    for (const tool of ['pen', 'highlighter', 'eraser', 'sticky', 'line', 'table', 'laser']) {
+    for (const tool of ['pen', 'highlighter', 'eraser', 'sticky', 'table', 'laser']) {
       expect(resolveModeHandlers(reg, tool)).toBe(wb)
     }
   })
 
-  it('routes non-whiteboard tools to the other registrant when several are registered', () => {
+  it('routes block-shared tools (line/text/image) and select to the other registrant', () => {
     const reg = { whiteboard: wb, flowchart: fc }
-    expect(resolveModeHandlers(reg, 'select')).toBe(fc)
-    expect(resolveModeHandlers(reg, 'hand')).toBe(fc)
+    // 'line'/'text'/'image' collide with block on a shared canvas — block owns them.
+    for (const tool of ['select', 'hand', 'line', 'text', 'image']) {
+      expect(resolveModeHandlers(reg, tool)).toBe(fc)
+    }
   })
 })

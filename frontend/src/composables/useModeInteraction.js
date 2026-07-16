@@ -25,18 +25,25 @@ import { provide, inject, ref } from 'vue'
 
 const MODE_INTERACTION_KEY = 'modeInteraction'
 
-// Whiteboard's freehand/insert tools. When the unified canvas has several layers
-// registered at once, these route surface events to the whiteboard layer; any
-// other tool falls through to the non-whiteboard registrant (flowchart today).
+// Whiteboard tools with NO block equivalent — on the unified canvas these route
+// surface events to the whiteboard layer. Deliberately excludes the tools that
+// collide with block on a shared canvas: 'line' (block owns the connector line),
+// 'text' and 'image' (block owns those). Legacy single-type whiteboards are
+// unaffected — the sole-registrant rule routes every tool to them regardless.
 const WHITEBOARD_TOOLS = new Set([
   'pen',
   'highlighter',
   'eraser',
   'sticky',
-  'line',
   'table',
   'laser',
 ])
+
+// Whether a tool is an unambiguous whiteboard tool (used to route surface events
+// on the unified canvas, where block and whiteboard share the tool namespace).
+export function isWhiteboardTool(tool) {
+  return WHITEBOARD_TOOLS.has(tool)
+}
 
 // Called once in EditorShell/ViewerPage. Returns the shared registry ref (a map
 // of layerKey -> handler object); child components inject instead.
