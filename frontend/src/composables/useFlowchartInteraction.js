@@ -10,7 +10,7 @@
 // creation, auto-connect and auto-position stay one undoable unit each (G6).
 // Every point arrives already in canvas units (Part G4).
 
-import { reactive } from 'vue'
+import { reactive, onBeforeUnmount } from 'vue'
 import { registerModeInteraction } from '@/composables/useModeInteraction.js'
 import {
   nodeSize,
@@ -420,12 +420,13 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
     return branch?.label || ''
   }
 
-  registerModeInteraction(interactionRef, {
+  registerModeInteraction(interactionRef, 'flowchart', {
     onPointerDown,
     onPointerMove,
     onPointerUp,
     onDoubleClick,
   })
+  onBeforeUnmount(() => registerModeInteraction(interactionRef, 'flowchart', null))
 
   return { ui, selectedNode, openPicker, closePicker, cancel, chooseNodeType, createConnectedNode }
 }

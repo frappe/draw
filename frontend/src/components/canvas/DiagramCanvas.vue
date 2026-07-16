@@ -39,7 +39,7 @@ import MindMapNodeLayer from './MindMapNodeLayer.vue'
 import FlowchartLayer from './FlowchartLayer.vue'
 import WhiteboardLayer from './WhiteboardLayer.vue'
 import Rulers from './Rulers.vue'
-import { useModeInteraction } from '@/composables/useModeInteraction.js'
+import { useModeInteraction, resolveModeHandlers } from '@/composables/useModeInteraction.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
@@ -347,7 +347,13 @@ function pointerPosition(event) {
 // interaction object (flowchart/whiteboard). Hand-tool panning is never
 // delegated — it stays shared so every type pans the same way.
 function delegatesSurface() {
-  return modeStrategy.value.handlesSurfaceInteraction && modeInteraction.value
+  return modeStrategy.value.handlesSurfaceInteraction && activeModeHandlers() != null
+}
+
+// The registered handler object that owns surface events for the active tool
+// (resolved from the layer-keyed registry). Null when no layer is registered.
+function activeModeHandlers() {
+  return resolveModeHandlers(modeInteraction.value, editorUi.state.tool)
 }
 
 // Context handed to mode interaction handlers; `point` is already in canvas units
@@ -364,7 +370,8 @@ function interactionContext(event) {
 // true when the type owns the event so the shared fallback is skipped.
 function delegateSurfaceEvent(handlerName, event) {
   if (!delegatesSurface()) return false
-  const handler = modeInteraction.value[handlerName]
+  const handlers = activeModeHandlers()
+  const handler = handlers && handlers[handlerName]
   if (typeof handler !== 'function') return false
   handler(event, interactionContext(event))
   return true
