@@ -40,6 +40,7 @@ import FlowchartLayer from './FlowchartLayer.vue'
 import WhiteboardLayer from './WhiteboardLayer.vue'
 import Rulers from './Rulers.vue'
 import { useModeInteraction, resolveModeHandlers } from '@/composables/useModeInteraction.js'
+import { isUnifiedDocument } from '@/diagram/schema.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
@@ -63,6 +64,14 @@ const activeType = computed(() => modeStrategy.value.type)
 const isMindmap = computed(() => activeType.value === 'mindmap')
 const isFlowchart = computed(() => activeType.value === 'flowchart')
 const isWhiteboard = computed(() => activeType.value === 'whiteboard')
+
+// The unified canvas (roadmap: canvas unification). Detected from the document's
+// own type, NOT the strategy — an unknown 'unified' type falls back to the BLOCK
+// strategy, so activeType would read 'block'. On a unified doc the shared block
+// substrate and the whiteboard layer compose over one canvas (the auto-layout
+// types become frames in a later phase); legacy single-type docs are unchanged.
+const isUnified = computed(() => isUnifiedDocument(store.state))
+const showBlockLayer = computed(() => !rendersOwnLayer.value || isUnified.value)
 
 const mindmapLayout = computed(() =>
   isMindmap.value && store.state.mindmap ? layoutMindMap(store.state.mindmap) : null,
@@ -666,8 +675,9 @@ const surfaceCursor = computed(() => {
           stroke-dasharray="6 4"
         />
 
-        <!-- Block mode: shapes/connectors + overlays on the canvas. -->
-        <template v-if="!rendersOwnLayer">
+        <!-- Block substrate: shapes/connectors + overlays. Renders for block mode
+             AND the unified canvas (where the whiteboard layer composes on top). -->
+        <template v-if="showBlockLayer">
           <ConnectorView
             v-for="connector in store.state.connectors"
             :key="connector.id"
@@ -707,27 +717,33 @@ const surfaceCursor = computed(() => {
           <TextEditor />
         </template>
 
-        <!-- Mind-map mode: the laid-out tree (spec diagram-types Part A). -->
+        <!-- Mind-map mode: the laid-out tree (spec diagram-types Part A). Legacy
+             single-type only for now; becomes a frame on the unified canvas later. -->
         <MindMapNodeLayer
-          v-else-if="isMindmap && mindmapLayout"
+          v-if="isMindmap && mindmapLayout"
           :mindmap="store.state.mindmap"
           :positions="mindmapLayout.positions"
         />
 
-        <!-- Flowchart mode: typed nodes + orthogonal edges (spec Part B). -->
+        <!-- Flowchart mode: typed nodes + orthogonal edges (spec Part B). Legacy
+             single-type only for now; becomes a frame on the unified canvas later. -->
         <FlowchartLayer
-          v-else-if="isFlowchart && store.state.flowchart"
+          v-if="isFlowchart && store.state.flowchart"
           :flowchart="store.state.flowchart"
         />
 
-        <!-- Whiteboard mode: strokes + stickies + objects (spec Part C). Whiteboard
-             text lives in the shared shapes[] (C9), so it reuses the block
-             TextEditor overlay for inline double-click-to-type (W1). -->
-        <template v-else-if="isWhiteboard && store.state.whiteboard">
+        <!-- Whiteboard: strokes + stickies + objects (spec Part C). Renders for a
+             legacy whiteboard AND the unified canvas. Whiteboard text lives in the
+             shared shapes[] (C9), reusing the block TextEditor overlay (W1). -->
+        <template v-if="(isWhiteboard || isUnified) && store.state.whiteboard">
           <WhiteboardLayer :whiteboard="store.state.whiteboard" />
-          <!-- Selection handles for text/image shapes selected on the board (S13/U1). -->
-          <SelectionLayer v-if="store.state.selection.length" />
-          <TextEditor />
+          <!-- A legacy whiteboard has no block substrate, so it supplies its own
+               selection + text overlays. On the unified canvas the block substrate
+               above already provides these — don't double-mount them. -->
+          <template v-if="isWhiteboard && !isUnified">
+            <SelectionLayer v-if="store.state.selection.length" />
+            <TextEditor />
+          </template>
         </template>
       </g>
     </svg>

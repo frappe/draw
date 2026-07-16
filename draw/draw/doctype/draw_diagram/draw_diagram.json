@@ -56,8 +56,8 @@
    "fieldtype": "Select",
    "in_standard_filter": 1,
    "label": "Diagram Type",
-   "options": "block\nmindmap\nflowchart\nwhiteboard",
-   "description": "Mirrored from the document JSON's diagramType; selects the editor mode."
+   "options": "block\nmindmap\nflowchart\nwhiteboard\nunified",
+   "description": "Mirrored from the document JSON's diagramType; selects the editor mode. `unified` is the multi-type canvas (canvas unification)."
   },
   {
    "fieldname": "column_break_settings",
