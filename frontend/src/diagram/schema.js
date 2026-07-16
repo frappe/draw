@@ -15,6 +15,19 @@ export const SCHEMA_VERSION = 1
 export const DEFAULT_DIAGRAM_TYPE = 'block'
 export const DIAGRAM_TYPES = ['block', 'mindmap', 'flowchart', 'whiteboard']
 
+// The unified canvas (roadmap: canvas unification). A `unified` document is not
+// locked to one type — it carries the shared block substrate AND all three
+// sub-models (mind map / flowchart / whiteboard) initialised empty, so any tool
+// works on the same canvas. Legacy single-type documents are untouched and keep
+// rendering via their original path (back-compat). Phase 1 = data model only;
+// rendering/interaction/menu unification land in later phases.
+export const UNIFIED_DIAGRAM_TYPE = 'unified'
+
+// True when a document uses the unified canvas rather than a single locked type.
+export function isUnifiedDocument(document) {
+  return document?.diagramType === UNIFIED_DIAGRAM_TYPE
+}
+
 // Canvas background "no color" renders white in the editor but exports
 // transparent (spec §4.1). Null is the sentinel for "no color".
 const NO_COLOR = null
@@ -34,13 +47,24 @@ export function createDiagramDocument(presetName = DEFAULT_PRESET_NAME, diagramT
     connectors: [],
     // Named sections/frames that group content (spec: available in every type).
     sections: [],
-    // Per-type sub-objects; only the active type's is populated. The canvas
-    // always starts fully blank — a mind map begins with NO root node (the
-    // user places the first idea themselves).
-    mindmap: diagramType === 'mindmap' ? createEmptyMindMap() : null,
-    flowchart: diagramType === 'flowchart' ? createFlowchart() : null,
-    whiteboard: diagramType === 'whiteboard' ? createWhiteboard() : null,
+    // Per-type sub-objects. A single-type doc populates only its own; a unified
+    // doc populates ALL of them (empty) so any tool works on one canvas. The
+    // canvas always starts fully blank — a mind map begins with NO root node.
+    mindmap: usesSubModel('mindmap', diagramType) ? createEmptyMindMap() : null,
+    flowchart: usesSubModel('flowchart', diagramType) ? createFlowchart() : null,
+    whiteboard: usesSubModel('whiteboard', diagramType) ? createWhiteboard() : null,
   }
+}
+
+// Whether a document of `diagramType` should carry the given sub-model: its own
+// type, or ALL of them when unified.
+function usesSubModel(subModel, diagramType) {
+  return diagramType === subModel || diagramType === UNIFIED_DIAGRAM_TYPE
+}
+
+// Create a blank unified-canvas document (shared substrate + all sub-models).
+export function createUnifiedDocument(presetName = DEFAULT_PRESET_NAME) {
+  return createDiagramDocument(presetName, UNIFIED_DIAGRAM_TYPE)
 }
 
 // Parse a document that may arrive as a JSON string (from the API) or an object,
@@ -59,5 +83,12 @@ function migrateDocument(document) {
   if (document.mindmap === undefined) document.mindmap = null
   if (document.flowchart === undefined) document.flowchart = null
   if (document.whiteboard === undefined) document.whiteboard = null
+  // A unified document must carry every sub-model — backfill any that a document
+  // saved before this sub-model existed is missing, so all tools stay available.
+  if (isUnifiedDocument(document)) {
+    if (!document.mindmap) document.mindmap = createEmptyMindMap()
+    if (!document.flowchart) document.flowchart = createFlowchart()
+    if (!document.whiteboard) document.whiteboard = createWhiteboard()
+  }
   return document
 }

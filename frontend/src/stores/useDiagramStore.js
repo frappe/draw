@@ -317,6 +317,11 @@ function attachQueries(store, state) {
     }
     return null
   })
+  // Capability check for the unified canvas: does this document carry the given
+  // sub-model? Features should branch on this (content-driven) rather than on the
+  // single `diagramType` string, so a unified doc — which has all sub-models —
+  // enables every tool. For legacy single-type docs this matches the old behaviour.
+  store.hasSubModel = (subModel) => state[subModel] != null
 }
 
 function maxZIndex(shapes) {
