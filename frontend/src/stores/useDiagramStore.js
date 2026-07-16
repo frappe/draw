@@ -4,7 +4,7 @@
 // All shape/connector mutations are history-tracked via commit().
 
 import { reactive, computed, provide, inject } from 'vue'
-import { createShape, createConnector } from '@/diagram/factories.js'
+import { createShape, createConnector, nextId } from '@/diagram/factories.js'
 import { makeSection } from '@/diagram/sections.js'
 import { createHistory } from '@/stores/history.js'
 import { findThemePreset, DEFAULT_THEME_PRESET } from '@/diagram/theme.js'
@@ -128,13 +128,20 @@ function attachFlowchart(store, state, history) {
     })
   store.removeFlowchartNode = (id) => {
     if (!state.flowchart) return
-    history.commit('Delete node', () => removeFlowchartNode(state.flowchart, id))
+    history.commit('Delete node', () => {
+      removeFlowchartNode(state.flowchart, id)
+      // Drop the dead id from the selection, like the block/connector removers —
+      // else it lingers and flowchartKeydown's selectedNode() resolves to a ghost,
+      // silently killing keyboard building until the user clicks another node.
+      state.selection = state.selection.filter((sid) => sid !== id)
+    })
   }
   // Delete several flowchart nodes (+ their edges) as ONE undoable unit.
   store.removeFlowchartNodes = (ids) => {
     if (!state.flowchart || !ids?.length) return
     history.commit('Delete nodes', () => {
       for (const id of ids) removeFlowchartNode(state.flowchart, id)
+      state.selection = state.selection.filter((sid) => !ids.includes(sid))
     })
   }
   store.addFlowchartEdge = (fromNodeId, toNodeId, partial = {}) => {
@@ -299,6 +306,17 @@ function attachQueries(store, state) {
   store.selectedShapes = computed(() =>
     state.shapes.filter((shape) => state.selection.includes(shape.id)),
   )
+  // The reference ("key") shape for align/match-size: the LAST one the user
+  // clicked. state.selection preserves click order (toggle/add append), whereas
+  // selectedShapes re-derives in z-order — so align must read selection, not the
+  // filtered array, or it snaps to whichever shape happens to sit last in z.
+  store.lastSelectedShape = computed(() => {
+    for (let i = state.selection.length - 1; i >= 0; i -= 1) {
+      const shape = state.shapes.find((s) => s.id === state.selection[i])
+      if (shape) return shape
+    }
+    return null
+  })
 }
 
 function maxZIndex(shapes) {
@@ -516,7 +534,10 @@ function repackZIndex(state) {
 
 function attachGrouping(store, state, history) {
   store.group = (ids) => {
-    const groupId = `g${Date.now().toString(36)}`
+    // Use the shared monotonic id source (counter + client salt), NOT Date.now():
+    // two groups minted in the same millisecond would otherwise share an id and
+    // merge into one selectable/movable unit via expandGroups.
+    const groupId = nextId('g')
     history.commit('Group', () =>
       state.shapes.forEach((shape) => {
         if (ids.includes(shape.id)) shape.groupId = groupId

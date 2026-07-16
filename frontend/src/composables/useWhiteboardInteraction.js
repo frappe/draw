@@ -17,7 +17,7 @@ import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { simplifyStroke } from '@/diagram/strokeSimplify.js'
 import {
   strokeAt, lineAt, tableAt, tableCellAt, distanceToStroke, makeStroke,
-  whiteboardObjectBoxes, translateWhiteboardObject,
+  whiteboardObjectBoxes, translateWhiteboardObject, clearVote,
 } from '@/diagram/whiteboardModel.js'
 import { rectsIntersect } from '@/diagram/geometry.js'
 import { HIGHLIGHTER_WIDTH } from '@/diagram/whiteboardColors.js'
@@ -165,6 +165,13 @@ function finishErase(store, erasing) {
   store.state.whiteboard.strokes = original
   store.updateWhiteboardModel('Erase', (m) => {
     m.strokes = final
+    // Erasing removes strokes or replaces them with fresh-id sub-paths; clear the
+    // votes for any id that didn't survive so model.votes doesn't leak stale keys
+    // across the session (the keyboard/Delete path already clears via removeStroke).
+    const surviving = new Set(final.map((s) => s.id))
+    for (const s of original) {
+      if (!surviving.has(s.id)) clearVote(m, 'stroke', s.id)
+    }
   })
 }
 

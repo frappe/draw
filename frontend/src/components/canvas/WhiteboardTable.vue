@@ -45,24 +45,47 @@ const editingCell = computed(() =>
   ui.state.editingCell?.tableId === props.table.id ? ui.state.editingCell : null,
 )
 const draft = ref('')
+// The cell `draft` currently belongs to. We commit against THIS, not
+// editingCell.value, because switching cells (the T2 single-click path) reuses
+// the same <input> and advances editingCell synchronously — so a commit keyed on
+// editingCell.value would write to the wrong cell (or lose the text entirely).
+const draftCell = ref(null)
+const cancelling = ref(false)
 const inputEl = ref(null)
+
+// The editingCell watch is the single commit point. On every transition — cell
+// A → cell B, or → null (Enter/click-away) — flush the outgoing cell's draft
+// (unless Escape cancelled it), then load the incoming cell. No @blur handler:
+// it raced with the reused <input> and double-committed to the wrong cell.
 watch(
   editingCell,
   (cell) => {
-    if (!cell) return
+    if (draftCell.value && !cancelling.value) {
+      const prev = draftCell.value
+      const committed = props.table.cells[`${prev.row},${prev.col}`] || ''
+      // Only write when the text actually changed — moving the caret between
+      // cells without typing must not push an empty "Edit cell" undo step.
+      if (draft.value.trim() !== committed) {
+        store.setTableCell(props.table.id, prev.row, prev.col, draft.value.trim())
+      }
+    }
+    cancelling.value = false
+    if (!cell) {
+      draftCell.value = null
+      return
+    }
     draft.value = props.table.cells[`${cell.row},${cell.col}`] || ''
+    draftCell.value = { row: cell.row, col: cell.col }
     nextTick(() => inputEl.value?.focus())
   },
   { immediate: true },
 )
 
 function commitEdit() {
-  const cell = editingCell.value
-  if (!cell) return
-  store.setTableCell(props.table.id, cell.row, cell.col, draft.value.trim())
-  ui.state.editingCell = null
+  ui.state.editingCell = null // the watch flushes draftCell for us
 }
 function cancelEdit() {
+  cancelling.value = true // tell the watch to discard, not commit
   ui.state.editingCell = null
 }
 </script>
@@ -145,7 +168,6 @@ function cancelEdit() {
         @pointerdown.stop
         @keydown.enter.prevent="commitEdit"
         @keydown.esc.prevent="cancelEdit"
-        @blur="commitEdit"
       />
     </foreignObject>
   </g>

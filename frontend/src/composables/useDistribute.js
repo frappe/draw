@@ -52,10 +52,10 @@ export function useDistribute(store) {
     })
   }
 
-  // Match width/height/both to the reference (last-selected) shape.
+  // Match width/height/both to the reference (last-CLICKED) shape.
   function matchSizeTo(keys, label) {
     if (shapes.value.length < 2) return
-    const reference = shapes.value[shapes.value.length - 1]
+    const reference = store.lastSelectedShape || shapes.value[shapes.value.length - 1]
     const patch = {}
     for (const key of keys) patch[key] = reference[key]
     store.updateShapes(idsExcept(reference.id), patch)

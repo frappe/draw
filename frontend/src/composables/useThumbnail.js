@@ -228,7 +228,8 @@ function flowchartEdge(model, edge, offsetIndex) {
 function flowchartNode(node, triad) {
   const size = flowchartNodeSize(node)
   const shape = nodeShape(node.nodeType, size.w, size.h)
-  const fill = node.fill || triad.fill
+  // Mirror the live layer: 'none' is the explicit "No fill" sentinel.
+  const fill = node.fill === 'none' ? 'transparent' : node.fill || triad.fill
   const stroke = node.border || triad.stroke
   const attrs = `fill="${fill}" stroke="${stroke}" stroke-width="1.5"`
   let body

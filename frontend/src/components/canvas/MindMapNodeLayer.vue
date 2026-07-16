@@ -355,13 +355,21 @@ function onEditKeydown(event, id) {
 
 // Before a Tab/Enter create, fold the typed text straight into the model node
 // (no separate commit) so the create's history snapshot captures it — one undo
-// then reverts both the text and the new node together.
+// removes the new node in a single, coherent step.
 function commitTextIfNeeded(event, id) {
   const creates = event.key === 'Tab' || (event.key === 'Enter' && !event.shiftKey)
   if (!creates) return
   const field = editFields.value[id]
   const node = props.mindmap.nodes.find((candidate) => candidate.id === id)
-  if (field && node) node.text = field.innerText.trim()
+  if (field && node) {
+    node.text = field.innerText.trim()
+    // Mark this text as already-persisted: the create moves editing to the new
+    // node, and the old field's unmount @blur then runs commitText. Without this,
+    // commitText would rewind + re-commit a SECOND "Update node" step, leaving the
+    // undo history at two entries with a nonsensical middle state (empty parent,
+    // child present). Aligning editStartText makes that blur a no-op.
+    editStartText.value[id] = node.text
+  }
 }
 
 // Paste onto a node: an indented/bulleted outline grows a subtree; plain text

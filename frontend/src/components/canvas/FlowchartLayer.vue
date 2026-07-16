@@ -127,7 +127,10 @@ const nodes = computed(() =>
       node,
       size,
       shape: nodeShape(node.nodeType, size.w, size.h),
-      fill: node.fill || triad.value.fill,
+      // 'none' is the explicit "No fill" sentinel (a fresh node defaults to null →
+      // theme fill). Render it as 'transparent', not fill="none", so the node body
+      // still receives pointer events and stays selectable.
+      fill: node.fill === 'none' ? 'transparent' : node.fill || triad.value.fill,
       stroke: node.border || triad.value.stroke,
       ink: triad.value.ink,
     }

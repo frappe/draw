@@ -5,7 +5,7 @@
 // node's pointerdown. Everything routes through the shared viewport transform so
 // hit-testing is correct at any zoom (Part G4).
 
-import { reactive } from 'vue'
+import { reactive, onScopeDispose } from 'vue'
 import { reparentNode, reorderNode } from '@/diagram/mindmapOperations.js'
 import { nodeById, isDescendant } from '@/diagram/mindmapModel.js'
 import { isNodeHidden } from '@/diagram/mindmapLayout.js'
@@ -35,16 +35,26 @@ export function useMindmapInteraction(store, viewport, positionsRef) {
   }
 
   // Track the move; resolve the hovered node as a potential drop target.
+  // Tracks the active drag's listener-removal so an unmount mid-drag (undo that
+  // swaps the diagram, type switch, route change) doesn't leave window listeners
+  // attached — a later stray pointerup would otherwise run applyDrop against
+  // whatever diagram is current.
+  let releaseDrag = null
   function bindWindow(session) {
     const onMove = (event) => onDragMove(event, session)
     const onUp = (event) => {
+      releaseDrag?.()
+      onDragEnd(event, session)
+    }
+    releaseDrag = () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
-      onDragEnd(event, session)
+      releaseDrag = null
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
   }
+  onScopeDispose(() => releaseDrag?.())
 
   function onDragMove(event, session) {
     const point = clientToLogical(event, session.surfaceRect, viewport)

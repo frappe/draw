@@ -68,6 +68,11 @@ function attachSelection(api, state) {
   const setSelection = (list) => {
     state.selection = list
     state.selected = list.length === 1 ? list[0] : null
+    // Any selection change (click away, marquee, select another object) closes an
+    // open table-cell editor; the cell's watch flushes the pending draft on the
+    // editingCell → null transition. The direct cell-to-cell switch does NOT route
+    // through here (it sets editingCell straight), so this never cuts an edit short.
+    state.editingCell = null
   }
   api.setSelection = setSelection
 

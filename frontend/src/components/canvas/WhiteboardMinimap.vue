@@ -9,6 +9,7 @@ import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
+import { tableWidth, tableHeight } from '@/diagram/whiteboardModel.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
@@ -89,7 +90,15 @@ const miniLines = computed(() =>
 const miniTables = computed(() =>
   (store.state.whiteboard.tables || []).map((t) => {
     const p = toMini(t.x, t.y)
-    return { id: t.id, x: p.x, y: p.y, w: (t.w || 0) * scale.value, h: (t.h || 0) * scale.value }
+    // Tables have no w/h fields — their size is cols*cellW / rows*cellH (see
+    // whiteboardModel). Reading t.w/t.h drew every table as a 2px stub.
+    return {
+      id: t.id,
+      x: p.x,
+      y: p.y,
+      w: tableWidth(t) * scale.value,
+      h: tableHeight(t) * scale.value,
+    }
   }),
 )
 

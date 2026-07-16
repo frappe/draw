@@ -11,9 +11,11 @@ import { axisAlignedBBox } from '@/diagram/geometry.js'
 export function useAlignment(store) {
   const shapes = computed(() => store.selectedShapes)
 
-  // The reference rect: the last-selected shape's bbox.
+  // The reference rect: the last-CLICKED shape's bbox (click order, from the
+  // store), falling back to the last in the derived list if unavailable.
   function referenceRect() {
-    return axisAlignedBBox(shapes.value[shapes.value.length - 1])
+    const ref = store.lastSelectedShape || shapes.value[shapes.value.length - 1]
+    return axisAlignedBBox(ref)
   }
 
   // Shift a shape so the chosen edge/center of its bbox lands on the target.
