@@ -128,7 +128,10 @@ export function makeFlowchartEdge(fromNodeId, toNodeId, partial = {}) {
 // Start empty — the user builds from scratch (double-click the canvas to drop
 // the first node, then grow it with the + handles).
 export function createFlowchart(direction = 'TB') {
-  return { direction, nodes: [], edges: [] }
+  // `origin` is the frame's top-left on the unified canvas (canvas unification):
+  // a flowchart is a positioned, self-laying-out region. {0,0} = no offset, which
+  // is exactly how a legacy single-type flowchart renders today.
+  return { direction, nodes: [], edges: [], origin: { x: 0, y: 0 } }
 }
 
 export function flowchartNodeById(model, id) {
