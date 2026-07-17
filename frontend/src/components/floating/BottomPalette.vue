@@ -51,6 +51,18 @@ function flowNumber() {
   store.updateFlowchartModel('Number steps', (m) => autoNumberFlow(m))
 }
 
+// Templates / Insert menu (canvas unification): drop a starter mind map or
+// flowchart frame onto the unified canvas (they have no single-click tool since
+// they auto-lay-out — you add them like a shape/template).
+function insertMindmap(togglePopover) {
+  store.insertMindmapStarter()
+  togglePopover?.()
+}
+function insertFlowchart(togglePopover) {
+  store.insertFlowchartStarter()
+  togglePopover?.()
+}
+
 // Arm the section DRAW tool (T4/B6): the next press-drag on the canvas sizes the
 // frame (DiagramCanvas owns the drag-create); a plain click drops a default one.
 // Toggles off if it's already armed.
@@ -280,6 +292,41 @@ function setGuides(state) {
     </template>
 
     <!-- Whiteboard: full tool set + every control (no right panel). -->
+    <!-- Insert menu (unified canvas): add auto-layout frames like templates. -->
+    <template v-if="isUnified">
+      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+      <Popover>
+        <template #target="{ togglePopover }">
+          <Tooltip text="Insert">
+            <button :class="buttonBase" @click="togglePopover()">
+              <LucideIcon name="layout-template" class="h-4 w-4" />
+            </button>
+          </Tooltip>
+        </template>
+        <template #body-main="{ togglePopover }">
+          <div class="w-[168px] p-1.5">
+            <div class="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">
+              Insert
+            </div>
+            <button
+              class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-ink-gray-8 hover:bg-surface-gray-2"
+              @click="insertMindmap(togglePopover)"
+            >
+              <LucideIcon name="git-fork" class="h-4 w-4 text-ink-gray-6" />
+              Mind map
+            </button>
+            <button
+              class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-ink-gray-8 hover:bg-surface-gray-2"
+              @click="insertFlowchart(togglePopover)"
+            >
+              <LucideIcon name="workflow" class="h-4 w-4 text-ink-gray-6" />
+              Flowchart
+            </button>
+          </div>
+        </template>
+      </Popover>
+    </template>
+
     <!-- Whiteboard tools: full set for a whiteboard doc; on the unified canvas the
          block-owned tools (text/line/image) are hidden to avoid duplicates. -->
     <WhiteboardTools
