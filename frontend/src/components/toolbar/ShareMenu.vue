@@ -42,7 +42,7 @@ watch(query, (txt) => {
 })
 
 async function invite(user) {
-  await share.addMember(user, inviteRole.value === 'edit')
+  await share.addMember(user, inviteRole.value)
   query.value = ''
   results.value = []
 }
@@ -103,6 +103,7 @@ const accessLevel = computed({
               class="h-9 rounded-md border border-outline-gray-2 bg-surface-base px-2 text-sm text-ink-gray-8 outline-none"
             >
               <option value="view">Can view</option>
+              <option value="comment">Can comment</option>
               <option value="edit">Can edit</option>
             </select>
           </div>
@@ -124,11 +125,12 @@ const accessLevel = computed({
                 <div class="truncate text-[11px] text-ink-gray-5">{{ m.user }}</div>
               </div>
               <select
-                :value="m.can_edit ? 'edit' : 'view'"
+                :value="m.level || (m.can_edit ? 'edit' : 'view')"
                 class="h-8 rounded-md border border-outline-gray-2 bg-surface-base px-2 text-[13px] text-ink-gray-8 outline-none"
-                @change="share.setMemberRole(m.user, $event.target.value === 'edit')"
+                @change="share.setMemberRole(m.user, $event.target.value)"
               >
                 <option value="view">Can view</option>
+                <option value="comment">Can comment</option>
                 <option value="edit">Can edit</option>
               </select>
               <button

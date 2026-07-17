@@ -44,12 +44,54 @@ def unshare_diagram(name: str, user: str) -> list:
 	return get_diagram_shares(name)
 
 
+def _level_of(row) -> str:
+	if row.get("write"):
+		return "edit"
+	if row.get("comment"):
+		return "comment"
+	return "view"
+
+
 @frappe.whitelist()
 def get_diagram_shares(name: str) -> list:
-	"""The users this diagram is shared with, each with their access flags."""
+	"""The users this diagram is shared with, enriched for the Share dialog:
+	{user, full_name, user_image, level, can_edit} + the raw read/write/comment
+	flags. Excludes the public ("everyone") row."""
 	if not frappe.has_permission("Draw Diagram", "read", doc=name):
 		frappe.throw(_("Not permitted."), frappe.PermissionError)
-	return frappe.share.get_users("Draw Diagram", name)
+	shares = []
+	for row in frappe.share.get_users("Draw Diagram", name):
+		if row.get("everyone") or not row.get("user"):
+			continue
+		info = frappe.db.get_value("User", row.user, ["full_name", "user_image"], as_dict=True) or {}
+		shares.append(
+			{
+				"user": row.user,
+				"full_name": info.get("full_name"),
+				"user_image": info.get("user_image"),
+				"read": row.read,
+				"write": row.write,
+				"comment": row.get("comment"),
+				"level": _level_of(row),
+				"can_edit": bool(row.write),
+			}
+		)
+	return shares
+
+
+@frappe.whitelist()
+def search_users(txt: str = "") -> list:
+	"""Enabled users matching `txt` (name or full name), for the invite box.
+	Excludes Guest/Administrator."""
+	like = f"%{txt or ''}%"
+	return frappe.get_all(
+		"User",
+		filters={"enabled": 1, "name": ["not in", ("Administrator", "Guest")]},
+		or_filters={"name": ["like", like], "full_name": ["like", like]},
+		fields=["name", "full_name", "user_image"],
+		limit=10,
+		order_by="full_name asc",
+	)
 
 
 @frappe.whitelist()

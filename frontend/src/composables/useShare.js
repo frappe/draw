@@ -7,13 +7,12 @@
 import { ref, computed } from 'vue'
 import { call, toast } from 'frappe-ui'
 
-const TOGGLE_METHOD = 'draw.api.diagram.set_public_access'
+const TOGGLE_METHOD = 'draw.api.share.set_public'
 const SHARE = {
-  list: 'draw.api.diagram.list_shares',
-  add: 'draw.api.diagram.add_share',
-  update: 'draw.api.diagram.update_share',
-  remove: 'draw.api.diagram.remove_share',
-  search: 'draw.api.diagram.search_users',
+  list: 'draw.api.share.get_diagram_shares',
+  share: 'draw.api.share.share_diagram', // idempotent: also updates an existing level
+  remove: 'draw.api.share.unshare_diagram',
+  search: 'draw.api.share.search_users',
 }
 
 export function useShare(diagramResource) {
@@ -36,10 +35,11 @@ export function useShare(diagramResource) {
     }
   }
 
-  async function addMember(user, canEdit) {
+  // level is 'view' | 'comment' | 'edit'.
+  async function addMember(user, level = 'view') {
     if (!name() || !user) return
     try {
-      await call(SHARE.add, { name: name(), user, can_edit: canEdit ? 1 : 0 })
+      await call(SHARE.share, { name: name(), user, level })
       await loadShares()
       toast.success(`Shared with ${user}`)
     } catch (error) {
@@ -47,10 +47,10 @@ export function useShare(diagramResource) {
     }
   }
 
-  async function setMemberRole(user, canEdit) {
+  async function setMemberRole(user, level) {
     if (!name()) return
     try {
-      await call(SHARE.update, { name: name(), user, can_edit: canEdit ? 1 : 0 })
+      await call(SHARE.share, { name: name(), user, level })
       await loadShares()
     } catch (error) {
       toast.error('Could not update access.')
@@ -129,7 +129,7 @@ export function useShare(diagramResource) {
 // field update through the document resource. Either way refresh local state.
 async function persistAccess(diagramResource, name, isPublic) {
   try {
-    await call(TOGGLE_METHOD, { name, is_public: isPublic ? 1 : 0 })
+    await call(TOGGLE_METHOD, { name, enabled: isPublic ? 1 : 0 })
   } catch (error) {
     if (!isMethodMissing(error)) throw error
     await diagramResource.setValue.submit({ is_public: isPublic ? 1 : 0 })
