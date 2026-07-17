@@ -129,15 +129,12 @@ website_route_rules = [
 
 # Permissions
 # -----------
-# Permissions evaluated in scripted ways
-
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
-#
-# has_permission = {
-# 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
+# Diagrams are owner-scoped by default; widen list visibility to also include
+# diagrams shared with the user (DocShare) and public ones. Document-level
+# read/write/comment come from DocShare + the custom "comment" permission type.
+permission_query_conditions = {
+	"Draw Diagram": "draw.api.permission.query_conditions",
+}
 
 # Document Events
 # ---------------
