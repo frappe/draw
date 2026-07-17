@@ -42,6 +42,8 @@ class TestDrawDiagram(IntegrationTestCase):
 	# ----- Writer-style sharing (view / comment / edit) -----
 
 	def _user(self, email):
+		# Deliberately NO Draw-specific role — this proves DocShare alone grants
+		# access to a shared diagram, independent of any role permission.
 		if not frappe.db.exists("User", email):
 			frappe.get_doc(
 				{
@@ -49,7 +51,6 @@ class TestDrawDiagram(IntegrationTestCase):
 					"email": email,
 					"first_name": email.split("@")[0],
 					"send_welcome_email": 0,
-					"roles": [{"role": "Draw User"}],
 				}
 			).insert(ignore_permissions=True)
 			self.addCleanup(lambda: frappe.delete_doc("User", email, force=True, ignore_permissions=True))
