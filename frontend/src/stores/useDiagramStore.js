@@ -108,6 +108,21 @@ function attachMindMap(store, state, history) {
       const node = state.mindmap?.nodes.find((n) => n.id === id)
       if (node) applyPatch(node, patch)
     })
+  // Templates/Insert (canvas unification): drop a starter mind map into the frame
+  // as one undoable unit. Seeds root + two branches when empty; otherwise adds a
+  // branch to the root so repeat inserts keep growing it.
+  store.insertMindmapStarter = () =>
+    history.commit('Insert mind map', () => {
+      const m = state.mindmap
+      if (!m) return
+      if (!m.rootId || !m.nodes.length) {
+        const root = addRootNode(m, 'Central idea')
+        addChild(m, root, 'Idea 1', 'right')
+        addChild(m, root, 'Idea 2', 'left')
+      } else {
+        addChild(m, m.rootId, 'New idea')
+      }
+    })
 }
 
 // Flowchart mutations (spec diagram-types Part B). Each runs the pure model
@@ -165,6 +180,22 @@ function attachFlowchart(store, state, history) {
     if (!state.flowchart) return
     history.commit(label, () => mutatorFn(state.flowchart))
   }
+  // Templates/Insert (canvas unification): drop a starter flowchart into the frame
+  // as one undoable unit — two connected nodes when empty, else append a step.
+  store.insertFlowchartStarter = () =>
+    history.commit('Insert flowchart', () => {
+      const m = state.flowchart
+      if (!m) return
+      if (!m.nodes.length) {
+        const a = addFlowchartNode(m, 'terminator', 'Start', 0, 0)
+        const b = addFlowchartNode(m, 'process', 'Step', 0, 150)
+        addFlowchartEdge(m, a, b)
+      } else {
+        const last = m.nodes[m.nodes.length - 1]
+        const next = addFlowchartNode(m, 'process', 'Step', last.x, (last.y || 0) + 150)
+        addFlowchartEdge(m, last.id, next)
+      }
+    })
 }
 
 // Whiteboard mutations (spec diagram-types Part C). Strokes are simplified by the

@@ -239,9 +239,16 @@ const orderedShapes = computed(() =>
 const blockEmpty = computed(() => {
   const noBlock = !orderedShapes.value.length && !store.state.connectors.length
   // On the unified canvas the block prompt is the single empty-state, so it must
-  // also account for whiteboard content (the whiteboard layer suppresses its own
-  // prompt on a unified doc to avoid two overlapping hints).
-  if (isUnified.value) return noBlock && isWhiteboardEmpty(store.state.whiteboard, store.state.shapes)
+  // account for ALL layers — whiteboard ink AND the mind map / flowchart frames —
+  // or it wrongly shows "nothing here yet" over real frame content.
+  if (isUnified.value) {
+    return (
+      noBlock &&
+      isWhiteboardEmpty(store.state.whiteboard, store.state.shapes) &&
+      !store.state.mindmap?.nodes.length &&
+      !store.state.flowchart?.nodes.length
+    )
+  }
   return activeType.value === 'block' && noBlock
 })
 
