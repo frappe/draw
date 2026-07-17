@@ -38,3 +38,71 @@ class TestDrawDiagram(IntegrationTestCase):
 		for t in ("block", "mindmap", "flowchart", "whiteboard"):
 			doc = self._make(t, {"schemaVersion": 1, "diagramType": t})
 			self.assertEqual(doc.diagram_type, t)
+
+	# ----- Writer-style sharing (view / comment / edit) -----
+
+	def _user(self, email):
+		# Deliberately NO Draw-specific role — this proves DocShare alone grants
+		# access to a shared diagram, independent of any role permission.
+		if not frappe.db.exists("User", email):
+			frappe.get_doc(
+				{
+					"doctype": "User",
+					"email": email,
+					"first_name": email.split("@")[0],
+					"send_welcome_email": 0,
+				}
+			).insert(ignore_permissions=True)
+			self.addCleanup(lambda: frappe.delete_doc("User", email, force=True, ignore_permissions=True))
+		return email
+
+	def test_share_edit_grants_read_write_comment(self):
+		from draw.api.share import get_diagram_shares, share_diagram
+
+		user = self._user("draw-editor@example.com")
+		doc = self._make("unified", {"schemaVersion": 1, "diagramType": "unified"})
+		share_diagram(doc.name, user, "edit")
+
+		# Core flags on the share row are reliable everywhere.
+		shares = {s["user"]: s for s in get_diagram_shares(doc.name)}
+		self.assertIn(user, shares)
+		self.assertTrue(shares[user]["read"] and shares[user]["write"])
+
+		# The contract that matters is enforcement — check it functionally, incl.
+		# the custom "comment" permission type.
+		frappe.set_user(user)
+		try:
+			self.assertTrue(frappe.has_permission("Draw Diagram", "read", doc=doc.name))
+			self.assertTrue(frappe.has_permission("Draw Diagram", "write", doc=doc.name))
+			self.assertTrue(frappe.has_permission("Draw Diagram", "comment", doc=doc.name))
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_share_view_is_read_only(self):
+		from draw.api.share import share_diagram
+
+		user = self._user("draw-viewer@example.com")
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		share_diagram(doc.name, user, "view")
+
+		frappe.set_user(user)
+		try:
+			self.assertTrue(frappe.has_permission("Draw Diagram", "read", doc=doc.name))
+			self.assertFalse(frappe.has_permission("Draw Diagram", "write", doc=doc.name))
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_unshare_revokes_access(self):
+		from draw.api.share import get_diagram_shares, share_diagram, unshare_diagram
+
+		user = self._user("draw-revoke@example.com")
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		share_diagram(doc.name, user, "edit")
+		unshare_diagram(doc.name, user)
+
+		self.assertEqual(get_diagram_shares(doc.name), [])
+		frappe.set_user(user)
+		try:
+			self.assertFalse(frappe.has_permission("Draw Diagram", "read", doc=doc.name))
+		finally:
+			frappe.set_user("Administrator")

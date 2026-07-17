@@ -4,4 +4,6 @@
 
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
-draw.patches.add_draw_user_role_and_permissions
+# (App setup — Draw User role, permissions, "comment" permission type — now lives
+# in draw.setup.ensure_setup, run from after_install + after_migrate so it also
+# applies on fresh installs, which skip patches.)

@@ -91,7 +91,11 @@ website_route_rules = [
 # ------------
 
 # before_install = "draw.install.before_install"
-# after_install = "draw.install.after_install"
+# Idempotent setup (Draw User role + owner perms + diagram "comment" permission
+# type). Run on fresh install AND on every migrate, because patches.txt patches do
+# NOT execute on a fresh install.
+after_install = "draw.setup.ensure_setup"
+after_migrate = "draw.setup.ensure_setup"
 
 # Uninstallation
 # ------------
@@ -129,15 +133,12 @@ website_route_rules = [
 
 # Permissions
 # -----------
-# Permissions evaluated in scripted ways
-
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
-#
-# has_permission = {
-# 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
+# Diagrams are owner-scoped by default; widen list visibility to also include
+# diagrams shared with the user (DocShare) and public ones. Document-level
+# read/write/comment come from DocShare + the custom "comment" permission type.
+permission_query_conditions = {
+	"Draw Diagram": "draw.api.permission.query_conditions",
+}
 
 # Document Events
 # ---------------
