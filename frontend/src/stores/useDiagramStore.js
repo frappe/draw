@@ -123,6 +123,16 @@ function attachMindMap(store, state, history) {
         addChild(m, m.rootId, 'New idea')
       }
     })
+  // Move a frame (mind map / flowchart) on the unified canvas by a delta, as one
+  // undoable unit — repositions the frame's origin (its top-left on the canvas).
+  store.moveFrame = (kind, dx, dy) => {
+    const m = kind === 'flowchart' ? state.flowchart : state.mindmap
+    if (!m || (!dx && !dy)) return
+    history.commit('Move frame', () => {
+      const o = m.origin || { x: 0, y: 0 }
+      m.origin = { x: o.x + dx, y: o.y + dy }
+    })
+  }
 }
 
 // Flowchart mutations (spec diagram-types Part B). Each runs the pure model
