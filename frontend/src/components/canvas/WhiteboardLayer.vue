@@ -14,6 +14,7 @@
 // edits) while still living for the whole time the board is on screen.
 import { computed } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
+import { isUnifiedDocument } from '@/diagram/schema.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useWhiteboardInteraction } from '@/composables/useWhiteboardInteraction.js'
 import { useWhiteboardUi, LASER_FADE_MS } from '@/composables/useWhiteboardUi.js'
@@ -76,7 +77,11 @@ const liveLine = computed(() => ui.liveLine.value)
 
 // Empty-state hint (spec C8/W6): a faint center prompt while the board has no
 // strokes, stickies, or base shapes. Placed near the canvas origin/center.
-const isEmpty = computed(() => isWhiteboardEmpty(props.whiteboard, store.state.shapes))
+// On the unified canvas the shared block layer renders the single empty-state, so
+// suppress this whiteboard-specific prompt to avoid two overlapping hints.
+const isEmpty = computed(
+  () => isWhiteboardEmpty(props.whiteboard, store.state.shapes) && !isUnifiedDocument(store.state),
+)
 const hintCenter = computed(() => ({
   x: (store.state.canvas.width || 1280) / 2,
   y: (store.state.canvas.height || 720) / 2,

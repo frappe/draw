@@ -1,6 +1,7 @@
 <script setup>
-// Home page — composes the sidebar + tile grid (+ empty state) + new-diagram
-// dialog + trash view, and routes to the editor on create/open (spec §2).
+// Home page — composes the sidebar + tile grid (+ empty state) + trash view, and
+// routes to the editor on create/open (spec §2). "New diagram" creates a unified
+// canvas and lands straight on the editor — no type picker (canvas unification).
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Button, Dialog, FormControl } from 'frappe-ui'
@@ -9,7 +10,6 @@ import Sidebar from '@/components/home/Sidebar.vue'
 import TileGrid from '@/components/home/TileGrid.vue'
 import EmptyState from '@/components/home/EmptyState.vue'
 import TrashView from '@/components/home/TrashView.vue'
-import NewDiagramDialog from '@/components/home/NewDiagramDialog.vue'
 import { diagrams, createDiagram } from '@/data/diagrams.js'
 import { folders, createFolder } from '@/data/folders.js'
 
@@ -17,7 +17,6 @@ const router = useRouter()
 const route = useRoute()
 const view = ref('home')
 const folderPath = ref([]) // ancestor chain of open folders (root → current)
-const showNewDiagram = ref(false)
 
 // New folder — created in the current location (nested under the open folder).
 // Lifted here from the tile grid so it's a header CTA next to "New diagram".
@@ -115,7 +114,9 @@ async function create(payload = {}) {
   isCreating.value = true
   try {
     // Create inside the folder currently being viewed (P1); root when none.
-    const name = await createDiagram(payload.title, payload.document, payload.type || 'block', currentFolder.value?.name || null)
+    // Every new diagram is a unified canvas now (canvas unification) — no type
+    // picker; the user lands straight on the blank canvas and just starts drawing.
+    const name = await createDiagram(payload.title, payload.document, payload.type || 'unified', currentFolder.value?.name || null)
     if (!name) throw new Error('Server returned no diagram name')
     diagrams.reload()
     // A new diagram lands directly on its blank canvas; `new` selects the title
@@ -171,30 +172,25 @@ function open(name) {
               <template #prefix><LucideIcon name="folder-plus" class="h-4 w-4" /></template>
               New folder
             </Button>
-            <Button variant="solid" @click="showNewDiagram = true">
+            <Button variant="solid" :loading="isCreating" @click="create()">
               <template #prefix><LucideIcon name="plus" class="h-4 w-4" /></template>
               New diagram
             </Button>
           </div>
         </div>
 
-        <EmptyState
-          v-if="isEmpty"
-          @create="create({ type: $event })"
-          @new-folder="openNewFolder"
-        />
+        <EmptyState v-if="isEmpty" @create="create()" @new-folder="openNewFolder" />
         <TileGrid
           v-else
           :mode="view"
           :folder="currentFolder"
-          @create="showNewDiagram = true"
+          @create="create()"
           @open="open"
           @open-folder="openFolder"
         />
       </template>
     </main>
 
-    <NewDiagramDialog v-model="showNewDiagram" @create="create" />
 
     <Dialog v-model="newFolder.open" :options="{ title: currentFolder ? `New folder in ${currentFolder.folder_name || currentFolder.name}` : 'New folder' }">
       <template #body-content>

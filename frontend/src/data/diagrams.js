@@ -18,6 +18,7 @@ const TYPE_TITLE_BASE = {
   mindmap: 'Mind map',
   flowchart: 'Flowchart',
   whiteboard: 'Whiteboard',
+  unified: 'Drawing',
 }
 
 // Next unused default title for a type — "Flowchart 1", "Flowchart 2", … —
