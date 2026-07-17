@@ -30,7 +30,10 @@ export function createMindMap(rootText = ROOT_TEXT) {
 // A truly empty mind map — no root yet (spec: "blank" must show no defaults).
 // The first idea is added via addRootNode from the canvas prompt.
 export function createEmptyMindMap() {
-  return { rootId: null, nodes: [], crosslinks: [], layout: 'balanced' }
+  // `origin` is the frame's top-left on the unified canvas (canvas unification):
+  // a mind map is a positioned, self-laying-out region. {0,0} = no offset, which
+  // is exactly how a legacy single-type mind map renders today.
+  return { rootId: null, nodes: [], crosslinks: [], layout: 'balanced', origin: { x: 0, y: 0 } }
 }
 
 // Create the root of an empty map (no-op if one already exists). Returns its id.

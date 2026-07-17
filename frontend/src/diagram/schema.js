@@ -63,8 +63,14 @@ function usesSubModel(subModel, diagramType) {
 }
 
 // Create a blank unified-canvas document (shared substrate + all sub-models).
+// The auto-layout sub-models get distinct default frame origins so their content
+// doesn't stack on top of the block substrate (which lives around 0,0) or on each
+// other once they're populated.
 export function createUnifiedDocument(presetName = DEFAULT_PRESET_NAME) {
-  return createDiagramDocument(presetName, UNIFIED_DIAGRAM_TYPE)
+  const document = createDiagramDocument(presetName, UNIFIED_DIAGRAM_TYPE)
+  document.mindmap.origin = { x: 600, y: 200 }
+  document.flowchart.origin = { x: 600, y: 700 }
+  return document
 }
 
 // Parse a document that may arrive as a JSON string (from the API) or an object,
@@ -89,6 +95,9 @@ function migrateDocument(document) {
     if (!document.mindmap) document.mindmap = createEmptyMindMap()
     if (!document.flowchart) document.flowchart = createFlowchart()
     if (!document.whiteboard) document.whiteboard = createWhiteboard()
+    // Backfill frame origins on docs saved before the frame model existed.
+    if (!document.mindmap.origin) document.mindmap.origin = { x: 0, y: 0 }
+    if (!document.flowchart.origin) document.flowchart.origin = { x: 0, y: 0 }
   }
   return document
 }

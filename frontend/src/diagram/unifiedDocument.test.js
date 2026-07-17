@@ -32,6 +32,13 @@ describe('unified document', () => {
     expect(doc.flowchart.nodes).toEqual([])
     expect(doc.whiteboard.strokes).toEqual([])
   })
+
+  it('gives the auto-layout frames distinct origins so they do not stack', () => {
+    const doc = createUnifiedDocument()
+    expect(doc.mindmap.origin).toEqual({ x: 600, y: 200 })
+    expect(doc.flowchart.origin).toEqual({ x: 600, y: 700 })
+    expect(doc.mindmap.origin).not.toEqual(doc.flowchart.origin)
+  })
 })
 
 describe('legacy single-type documents are unchanged', () => {
@@ -64,6 +71,9 @@ describe('migration', () => {
     expect(doc.mindmap).not.toBeNull()
     expect(doc.flowchart).not.toBeNull()
     expect(doc.whiteboard).not.toBeNull()
+    // Frame origins backfilled for older unified docs.
+    expect(doc.mindmap.origin).toEqual({ x: 0, y: 0 })
+    expect(doc.flowchart.origin).toEqual({ x: 0, y: 0 })
   })
 
   it('does NOT add sub-models to a legacy single-type doc', () => {
