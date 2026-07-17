@@ -1,17 +1,11 @@
 <script setup>
-// Home empty state — a welcoming hero shown when there are no diagrams yet.
-// Offers a one-click start for each diagram type, plus a quieter "new folder".
+// Home empty state — a welcoming hero shown when there are no diagrams yet. One
+// canvas does everything now (canvas unification), so it's a single "New diagram"
+// start (no type picker) plus a quieter "new folder".
 import LucideIcon from '@/icons/LucideIcon.vue'
-import { DIAGRAM_TYPES } from '@/data/diagramTypes.js'
+import { Button } from 'frappe-ui'
 
 defineEmits(['create', 'new-folder'])
-
-const HINTS = {
-  block: 'Boxes, arrows & flows',
-  mindmap: 'Branch out ideas',
-  flowchart: 'Steps & decisions',
-  whiteboard: 'Freeform sketching',
-}
 </script>
 
 <template>
@@ -26,23 +20,15 @@ const HINTS = {
     </div>
 
     <h2 class="text-lg font-semibold text-ink-gray-9">Create your first diagram</h2>
-    <p class="mt-1 text-[13px] text-ink-gray-5">Pick a type to start with a blank canvas — you can switch later.</p>
+    <p class="mt-1 text-[13px] text-ink-gray-5">
+      One canvas for diagrams, mind maps, flowcharts & sketches — just start drawing.
+    </p>
 
-    <!-- One-click start per type. -->
-    <div class="mt-6 grid w-full max-w-[560px] grid-cols-2 gap-3 sm:grid-cols-4">
-      <button
-        v-for="t in DIAGRAM_TYPES"
-        :key="t.value"
-        class="group flex flex-col items-center gap-2 rounded-xl border border-outline-gray-2 bg-surface-base p-4 transition-colors hover:border-ink-gray-9 hover:bg-surface-gray-1"
-        @click="$emit('create', t.value)"
-      >
-        <div class="flex h-11 w-11 items-center justify-center rounded-lg bg-surface-gray-2 text-ink-gray-8 group-hover:bg-surface-gray-3">
-          <LucideIcon :name="t.icon" class="h-5 w-5" />
-        </div>
-        <div class="text-[13px] font-semibold text-ink-gray-8">{{ t.label }}</div>
-        <div class="text-[11px] leading-tight text-ink-gray-5">{{ HINTS[t.value] }}</div>
-      </button>
-    </div>
+    <!-- One canvas does it all: a single start, straight to the blank canvas. -->
+    <Button class="mt-6" variant="solid" size="lg" @click="$emit('create')">
+      <template #prefix><LucideIcon name="plus" class="h-4 w-4" /></template>
+      New diagram
+    </Button>
 
     <button
       class="mt-5 flex items-center gap-1.5 text-[13px] font-medium text-ink-gray-5 hover:text-ink-gray-8"

@@ -45,6 +45,7 @@ import {
   isWhiteboardTool,
 } from '@/composables/useModeInteraction.js'
 import { isUnifiedDocument } from '@/diagram/schema.js'
+import { isWhiteboardEmpty } from '@/diagram/whiteboardModel.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
@@ -230,9 +231,14 @@ const orderedShapes = computed(() =>
 
 // Block has no own-layer empty prompt (whiteboard/mind-map/flowchart do), so show
 // a faint centred hint on a blank block canvas, consistent with the others.
-const blockEmpty = computed(
-  () => activeType.value === 'block' && !orderedShapes.value.length && !store.state.connectors.length,
-)
+const blockEmpty = computed(() => {
+  const noBlock = !orderedShapes.value.length && !store.state.connectors.length
+  // On the unified canvas the block prompt is the single empty-state, so it must
+  // also account for whiteboard content (the whiteboard layer suppresses its own
+  // prompt on a unified doc to avoid two overlapping hints).
+  if (isUnified.value) return noBlock && isWhiteboardEmpty(store.state.whiteboard, store.state.shapes)
+  return activeType.value === 'block' && noBlock
+})
 
 const groupTransform = computed(
   () => `translate(${viewport.state.panX} ${viewport.state.panY}) scale(${viewport.state.zoom})`,
