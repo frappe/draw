@@ -79,8 +79,13 @@ const isUnified = computed(() => isUnifiedDocument(store.state))
 const showBlockLayer = computed(() => !rendersOwnLayer.value || isUnified.value)
 
 const mindmapLayout = computed(() =>
-  isMindmap.value && store.state.mindmap ? layoutMindMap(store.state.mindmap) : null,
+  (isMindmap.value || isUnified.value) && store.state.mindmap ? layoutMindMap(store.state.mindmap) : null,
 )
+
+// Frame origins (top-left on the shared canvas) for the auto-layout sub-models on
+// the unified canvas. {0,0} for legacy single-type docs (rendered untranslated).
+const mmOrigin = computed(() => store.state.mindmap?.origin || { x: 0, y: 0 })
+const fcOrigin = computed(() => store.state.flowchart?.origin || { x: 0, y: 0 })
 
 // Derived content bbox per own-layer type, reused for fit-to-view + scroll region
 // (Part G8). Null for block (which uses the bounded paper rect).
@@ -747,6 +752,25 @@ const surfaceCursor = computed(() => {
           v-if="isFlowchart && store.state.flowchart"
           :flowchart="store.state.flowchart"
         />
+
+        <!-- Unified canvas: mind map & flowchart render as positioned, read-only
+             frames (translated by their origin). In-frame editing is wired in a
+             later phase; pointer-events off here so a frame never intercepts the
+             block/whiteboard interaction underneath it. -->
+        <g
+          v-if="isUnified && mindmapLayout && store.state.mindmap.nodes.length"
+          :transform="`translate(${mmOrigin.x} ${mmOrigin.y})`"
+          style="pointer-events: none"
+        >
+          <MindMapNodeLayer :mindmap="store.state.mindmap" :positions="mindmapLayout.positions" />
+        </g>
+        <g
+          v-if="isUnified && store.state.flowchart.nodes.length"
+          :transform="`translate(${fcOrigin.x} ${fcOrigin.y})`"
+          style="pointer-events: none"
+        >
+          <FlowchartLayer :flowchart="store.state.flowchart" />
+        </g>
 
         <!-- Whiteboard: strokes + stickies + objects (spec Part C). Renders for a
              legacy whiteboard AND the unified canvas. Whiteboard text lives in the
