@@ -87,6 +87,65 @@ const mindmapLayout = computed(() =>
 const mmOrigin = computed(() => store.state.mindmap?.origin || { x: 0, y: 0 })
 const fcOrigin = computed(() => store.state.flowchart?.origin || { x: 0, y: 0 })
 
+// ----- Unified-canvas frames: select + move (Phase 4c) -----------------------
+// A frame (mind map / flowchart) is a selectable, movable object. A hit-rect over
+// its content bbox captures the press; dragging it repositions the whole frame
+// (its origin) as one undo step. The inner content stays pointer-events:none.
+const FRAME_PAD = 12
+const selectedFrame = ref(null) // 'mindmap' | 'flowchart' | null
+const frameDrag = reactive({ kind: null, dx: 0, dy: 0, startX: 0, startY: 0 })
+
+// Content bbox (local, pre-origin) for each frame, padded, or null when empty.
+const mmBox = computed(() => {
+  const positions = mindmapLayout.value?.positions
+  if (!positions || !store.state.mindmap?.nodes.length) return null
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  for (const id in positions) {
+    const p = positions[id]
+    minX = Math.min(minX, p.x); minY = Math.min(minY, p.y)
+    maxX = Math.max(maxX, p.x + p.w); maxY = Math.max(maxY, p.y + p.h)
+  }
+  if (!Number.isFinite(minX)) return null
+  return { x: minX - FRAME_PAD, y: minY - FRAME_PAD, w: maxX - minX + FRAME_PAD * 2, h: maxY - minY + FRAME_PAD * 2 }
+})
+const fcBox = computed(() => {
+  if (!store.state.flowchart?.nodes.length) return null
+  const b = flowchartContentBounds(store.state.flowchart)
+  return { x: b.x - FRAME_PAD, y: b.y - FRAME_PAD, w: b.w + FRAME_PAD * 2, h: b.h + FRAME_PAD * 2 }
+})
+
+// Origins with the live drag delta folded in, so the frame follows the cursor.
+const renderedMmOrigin = computed(() => offsetForDrag('mindmap', mmOrigin.value))
+const renderedFcOrigin = computed(() => offsetForDrag('flowchart', fcOrigin.value))
+function offsetForDrag(kind, origin) {
+  if (frameDrag.kind !== kind) return origin
+  return { x: origin.x + frameDrag.dx, y: origin.y + frameDrag.dy }
+}
+
+function startFrameDrag(kind, event) {
+  if (event.button !== 0) return
+  selectedFrame.value = kind
+  const p = selection.toLogicalFor(event, surface.value, viewport)
+  Object.assign(frameDrag, { kind, dx: 0, dy: 0, startX: p.x, startY: p.y })
+  window.addEventListener('pointermove', onFrameDragMove)
+  window.addEventListener('pointerup', onFrameDragUp)
+}
+function onFrameDragMove(event) {
+  const p = selection.toLogicalFor(event, surface.value, viewport)
+  frameDrag.dx = p.x - frameDrag.startX
+  frameDrag.dy = p.y - frameDrag.startY
+}
+function onFrameDragUp() {
+  releaseFrameDrag()
+  if (frameDrag.kind) store.moveFrame(frameDrag.kind, frameDrag.dx, frameDrag.dy)
+  Object.assign(frameDrag, { kind: null, dx: 0, dy: 0 })
+}
+function releaseFrameDrag() {
+  window.removeEventListener('pointermove', onFrameDragMove)
+  window.removeEventListener('pointerup', onFrameDragUp)
+}
+onBeforeUnmount(releaseFrameDrag)
+
 // Derived content bbox per own-layer type, reused for fit-to-view + scroll region
 // (Part G8). Null for block (which uses the bounded paper rect).
 const ownLayerBounds = computed(() => {
@@ -507,6 +566,9 @@ function onSurfacePointerDown(event) {
   // A press anywhere but a section's title (which stops propagation) clears the
   // section selection, so its handles/menu disappear.
   editorUi.clearSection()
+  // A press that reaches the surface (a frame hit-rect stops propagation) is
+  // outside any frame — deselect the unified-canvas frame.
+  selectedFrame.value = null
   // Section draw tool wins before any per-type handling (works in every type).
   if (editorUi.state.tool === 'section') return startSectionDraft(event)
   // Hand tool always pans, for every type (shared transform, Part G4).
@@ -764,19 +826,33 @@ const surfaceCursor = computed(() => {
              frames (translated by their origin). In-frame editing is wired in a
              later phase; pointer-events off here so a frame never intercepts the
              block/whiteboard interaction underneath it. -->
-        <g
-          v-if="isUnified && mindmapLayout && store.state.mindmap.nodes.length"
-          :transform="`translate(${mmOrigin.x} ${mmOrigin.y})`"
-          style="pointer-events: none"
-        >
-          <MindMapNodeLayer :mindmap="store.state.mindmap" :positions="mindmapLayout.positions" />
+        <g v-if="isUnified && mindmapLayout && store.state.mindmap.nodes.length && mmBox"
+          :transform="`translate(${renderedMmOrigin.x} ${renderedMmOrigin.y})`">
+          <rect
+            :x="mmBox.x" :y="mmBox.y" :width="mmBox.w" :height="mmBox.h" rx="10"
+            :fill="selectedFrame === 'mindmap' ? 'rgba(0,110,219,0.04)' : 'transparent'"
+            :stroke="selectedFrame === 'mindmap' ? '#006EDB' : 'transparent'"
+            :stroke-width="selectedFrame === 'mindmap' ? 1.5 : 0"
+            stroke-dasharray="6 4" style="cursor: move"
+            @pointerdown.stop="startFrameDrag('mindmap', $event)"
+          />
+          <g class="unified-frame-content">
+            <MindMapNodeLayer :mindmap="store.state.mindmap" :positions="mindmapLayout.positions" />
+          </g>
         </g>
-        <g
-          v-if="isUnified && store.state.flowchart.nodes.length"
-          :transform="`translate(${fcOrigin.x} ${fcOrigin.y})`"
-          style="pointer-events: none"
-        >
-          <FlowchartLayer :flowchart="store.state.flowchart" />
+        <g v-if="isUnified && store.state.flowchart.nodes.length && fcBox"
+          :transform="`translate(${renderedFcOrigin.x} ${renderedFcOrigin.y})`">
+          <rect
+            :x="fcBox.x" :y="fcBox.y" :width="fcBox.w" :height="fcBox.h" rx="10"
+            :fill="selectedFrame === 'flowchart' ? 'rgba(0,110,219,0.04)' : 'transparent'"
+            :stroke="selectedFrame === 'flowchart' ? '#006EDB' : 'transparent'"
+            :stroke-width="selectedFrame === 'flowchart' ? 1.5 : 0"
+            stroke-dasharray="6 4" style="cursor: move"
+            @pointerdown.stop="startFrameDrag('flowchart', $event)"
+          />
+          <g style="pointer-events: none">
+            <FlowchartLayer :flowchart="store.state.flowchart" />
+          </g>
         </g>
 
         <!-- Whiteboard: strokes + stickies + objects (spec Part C). Renders for a
@@ -829,5 +905,13 @@ const surfaceCursor = computed(() => {
 :deep(textarea) {
   user-select: text;
   -webkit-user-select: text;
+}
+
+/* Unified-canvas frames render read-only: their content must NOT capture pointer
+   events (the frame's hit-rect handles select/move). Override the viewport's
+   [&_*]:pointer-events-auto utility, which otherwise re-enables every descendant. */
+:deep(.unified-frame-content),
+:deep(.unified-frame-content *) {
+  pointer-events: none !important;
 }
 </style>
