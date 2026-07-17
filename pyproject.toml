@@ -3,7 +3,7 @@ name = "draw"
 authors = [
     { name = "Frappe", email = "vibhav@frappe.io"}
 ]
-description = "A diagram creation app"
+description = "Mind maps, flowcharts, whiteboards & diagrams on one canvas"
 requires-python = ">=3.14"
 readme = "README.md"
 dynamic = ["version"]

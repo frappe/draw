@@ -1,7 +1,7 @@
 app_name = "draw"
 app_title = "Frappe Draw"
 app_publisher = "Frappe"
-app_description = "A diagram creation app"
+app_description = "Mind maps, flowcharts, whiteboards & diagrams on one canvas"
 app_email = "vibhav@frappe.io"
 app_license = "agpl-3.0"
 
