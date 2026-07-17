@@ -108,6 +108,43 @@ class TestDrawDiagram(IntegrationTestCase):
 		self.assertEqual(row["level"], "edit")
 		self.assertTrue(row["can_edit"])
 
+	def test_register_in_drive_when_available(self):
+		# Optional Drive integration — only exercised when Drive is installed
+		# (CI's fresh site has no Drive, so this skips there).
+		from draw.api.drive_integration import drive_installed, register_in_drive
+
+		if not drive_installed():
+			self.skipTest("Frappe Drive not installed")
+
+		teams = frappe.get_all("Drive Team", pluck="name")
+		team = (
+			teams[0]
+			if teams
+			else frappe.get_doc({"doctype": "Drive Team", "title": "Draw CI Team"}).insert(
+				ignore_permissions=True
+			).name
+		)
+		doc = self._make("unified", {"schemaVersion": 1, "diagramType": "unified"})
+
+		file_name = register_in_drive(doc.name, team=team)
+		self.addCleanup(lambda: frappe.delete_doc("File", file_name, force=True, ignore_permissions=True))
+		self.assertTrue(file_name)
+		self.assertTrue(
+			frappe.db.exists(
+				"File", {"content_doctype": "Draw Diagram", "content_docname": doc.name}
+			)
+		)
+		# Idempotent — a second call reuses the same File.
+		self.assertEqual(register_in_drive(doc.name, team=team), file_name)
+
+	def test_drive_registration_noops_without_team(self):
+		# Registration is a safe no-op when Drive isn't set up / not installed.
+		from draw.api import drive_integration
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		if not drive_integration.drive_installed():
+			self.assertIsNone(drive_integration.register_in_drive(doc.name))
+
 	def test_unshare_revokes_access(self):
 		from draw.api.share import get_diagram_shares, share_diagram, unshare_diagram
 
