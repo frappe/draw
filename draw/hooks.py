@@ -91,7 +91,11 @@ website_route_rules = [
 # ------------
 
 # before_install = "draw.install.before_install"
-# after_install = "draw.install.after_install"
+# Idempotent setup (Draw User role + owner perms + diagram "comment" permission
+# type). Run on fresh install AND on every migrate, because patches.txt patches do
+# NOT execute on a fresh install.
+after_install = "draw.setup.ensure_setup"
+after_migrate = "draw.setup.ensure_setup"
 
 # Uninstallation
 # ------------
