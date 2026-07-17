@@ -92,6 +92,22 @@ class TestDrawDiagram(IntegrationTestCase):
 		finally:
 			frappe.set_user("Administrator")
 
+	def test_get_shares_reports_level_for_dialog(self):
+		from draw.api.share import get_diagram_shares, share_diagram
+
+		user = self._user("draw-level@example.com")
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+
+		share_diagram(doc.name, user, "comment")
+		row = next(s for s in get_diagram_shares(doc.name) if s["user"] == user)
+		self.assertEqual(row["level"], "comment")
+		self.assertFalse(row["can_edit"])
+
+		share_diagram(doc.name, user, "edit")  # idempotent update
+		row = next(s for s in get_diagram_shares(doc.name) if s["user"] == user)
+		self.assertEqual(row["level"], "edit")
+		self.assertTrue(row["can_edit"])
+
 	def test_unshare_revokes_access(self):
 		from draw.api.share import get_diagram_shares, share_diagram, unshare_diagram
 
