@@ -4,6 +4,9 @@
 // Icons match the new-diagram dialog cards so a diagram's type reads the same
 // everywhere it appears.
 export const DIAGRAM_TYPES = [
+  // `unified` is the current default (one canvas, all types). The four single
+  // types remain for the legacy diagrams created before canvas unification.
+  { value: 'unified', label: 'Drawing', icon: 'layout-template' },
   { value: 'block', label: 'Block', icon: 'box' },
   { value: 'mindmap', label: 'Mind map', icon: 'git-branch' },
   { value: 'flowchart', label: 'Flowchart', icon: 'activity' },
