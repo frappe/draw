@@ -20,6 +20,10 @@ export function createEditorUi() {
     infiniteCanvas: true,
     // The selected section id (chrome — sections aren't part of shape selection).
     selectedSectionId: null,
+    // Unified canvas: the frame being edited in focus mode ('mindmap'|'flowchart'
+    // |null). While set, the editor behaves as that sub-model's single-type editor
+    // (full node editing/keyboard/toolbar); "Back to canvas" clears it.
+    focusedFrame: null,
     // True for a short window after a layout op (tidy / flip) so node positions
     // tween instead of jumping (spec 17.1). Off during free drag → no lag.
     animateLayout: false,
@@ -48,6 +52,11 @@ function assembleUi(state, viewport) {
 // Switching to draw remembers the chosen shape so the tool can be re-armed.
 function attachTools(ui, state) {
   ui.setTool = (tool) => (state.tool = tool)
+  // Enter/leave a frame's focused single-type editing mode (unified canvas).
+  ui.setFocusedFrame = (kind) => {
+    state.focusedFrame = kind || null
+    state.tool = 'select'
+  }
   ui.setDrawShape = (type) => {
     state.drawShapeType = type
     state.lastShapeType = type

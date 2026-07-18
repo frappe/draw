@@ -75,7 +75,10 @@ const isWhiteboard = computed(() => activeType.value === 'whiteboard')
 // strategy, so activeType would read 'block'. On a unified doc the shared block
 // substrate and the whiteboard layer compose over one canvas (the auto-layout
 // types become frames in a later phase); legacy single-type docs are unchanged.
-const isUnified = computed(() => isUnifiedDocument(store.state))
+// A unified doc renders the composed canvas — EXCEPT while a frame is focused for
+// editing, when the mode strategy is overridden to that sub-model's type and the
+// editor renders as its single-type editor (so isUnified goes false here).
+const isUnified = computed(() => isUnifiedDocument(store.state) && !editorUi.state.focusedFrame)
 const showBlockLayer = computed(() => !rendersOwnLayer.value || isUnified.value)
 
 const mindmapLayout = computed(() =>
@@ -378,6 +381,14 @@ function openAtActualSize() {
 }
 
 let resizeObserver = null
+
+// Entering/leaving a frame's focus mode reframes the view: on enter, fit the now
+// single-type content (the frame); on exit, fit the unified canvas. Without this
+// the frame renders at its own coords, off-screen from where the frame sat.
+watch(
+  () => editorUi.state.focusedFrame,
+  () => nextTick(fitToView),
+)
 
 onMounted(() => {
   openAtActualSize()
@@ -835,6 +846,7 @@ const surfaceCursor = computed(() => {
             :stroke-width="selectedFrame === 'mindmap' ? 1.5 : 0"
             stroke-dasharray="6 4" style="cursor: move"
             @pointerdown.stop="startFrameDrag('mindmap', $event)"
+            @dblclick.stop="editorUi.setFocusedFrame('mindmap')"
           />
           <g class="unified-frame-content">
             <MindMapNodeLayer :mindmap="store.state.mindmap" :positions="mindmapLayout.positions" />
@@ -849,6 +861,7 @@ const surfaceCursor = computed(() => {
             :stroke-width="selectedFrame === 'flowchart' ? 1.5 : 0"
             stroke-dasharray="6 4" style="cursor: move"
             @pointerdown.stop="startFrameDrag('flowchart', $event)"
+            @dblclick.stop="editorUi.setFocusedFrame('flowchart')"
           />
           <g style="pointer-events: none">
             <FlowchartLayer :flowchart="store.state.flowchart" />

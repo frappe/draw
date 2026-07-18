@@ -19,6 +19,7 @@ import { useCollaboration } from '@/composables/useCollaboration.js'
 import { useAppSettings } from '@/composables/useAppSettings.js'
 import TopToolbar from '@/components/toolbar/TopToolbar.vue'
 import DiagramCanvas from '@/components/canvas/DiagramCanvas.vue'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import Minimap from '@/components/canvas/Minimap.vue'
 import WhiteboardMinimap from '@/components/canvas/WhiteboardMinimap.vue'
 import MindMapOverlay from '@/components/canvas/MindMapOverlay.vue'
@@ -41,8 +42,13 @@ const editorUi = createEditorUi()
 provideDiagramStore(store)
 provideEditorUi(editorUi)
 
-// Active mode module for this diagram's type (spec diagram-types §0/G1).
-const modeStrategy = computed(() => getModeStrategy(store.state.diagramType))
+// Active mode module for this diagram's type (spec diagram-types §0/G1). On the
+// unified canvas, entering a frame (editorUi.state.focusedFrame) overrides the
+// strategy to that sub-model's type, so the whole editor becomes its single-type
+// editor (full node editing/keyboard/toolbar) until "Back to canvas".
+const modeStrategy = computed(() =>
+  getModeStrategy(editorUi.state.focusedFrame || store.state.diagramType),
+)
 provideModeStrategy(modeStrategy)
 
 // Surface-interaction delegation seam (spec diagram-types Part G1/G4). The active
@@ -128,6 +134,16 @@ onMounted(() => {
 
     <div class="flex min-h-0 flex-1">
       <main class="relative min-h-0 min-w-0 flex-1">
+        <!-- Focus-mode bar: shown while editing a frame on the unified canvas. -->
+        <button
+          v-if="editorUi.state.focusedFrame"
+          class="absolute left-1/2 top-3 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-outline-gray-2 bg-surface-base px-3 py-1.5 text-[13px] font-medium text-ink-gray-8 shadow-md hover:bg-surface-gray-2"
+          @click="editorUi.setFocusedFrame(null)"
+        >
+          <LucideIcon name="arrow-left" class="h-4 w-4" />
+          Back to canvas
+          <span class="text-ink-gray-5">· editing {{ editorUi.state.focusedFrame }}</span>
+        </button>
         <DiagramCanvas />
         <Minimap />
         <WhiteboardMinimap v-if="modeStrategy.type === 'whiteboard'" />
