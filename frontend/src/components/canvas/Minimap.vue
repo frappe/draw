@@ -14,6 +14,8 @@ import { layoutMindMap } from '@/diagram/mindmapLayout.js'
 import { resolveNodeColor, nodeFill } from '@/diagram/mindmapColors.js'
 import { isRoot as isMindRoot } from '@/diagram/mindmapModel.js'
 import { nodeSize as flowchartNodeSize } from '@/diagram/flowchartModel.js'
+import { whiteboardObjectBoxes } from '@/diagram/whiteboardModel.js'
+import { isUnifiedDocument } from '@/diagram/schema.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
@@ -67,6 +69,43 @@ function miniMindShape(shape) {
 // real `fill`, an optional `stroke`, and a `kind` the template renders — so the
 // overview looks like the diagram (colours + shapes), not flat grey boxes.
 const items = computed(() => {
+  // Unified canvas: overview ALL content — block shapes + whiteboard objects +
+  // the mind-map / flowchart frames (offset by their origin).
+  if (isUnifiedDocument(store.state)) {
+    const out = []
+    for (const s of store.state.shapes.filter(isVisible)) {
+      const b = axisAlignedBBox(s)
+      out.push({
+        id: `s-${s.id}`, x: b.x, y: b.y, w: b.w, h: b.h,
+        fill: s.fill && s.fill !== 'none' ? s.fill : '#CBD5E1',
+        stroke: s.border?.color || null, kind: miniKind(s.type),
+      })
+    }
+    const wb = store.state.whiteboard
+    if (wb) {
+      for (const o of whiteboardObjectBoxes(wb)) {
+        out.push({ id: `w-${o.id}`, ...o.box, fill: '#E2E8F0', stroke: '#94A3B8', kind: 'rect' })
+      }
+    }
+    const mm = store.state.mindmap
+    if (mm?.nodes?.length) {
+      const { positions } = layoutMindMap(mm)
+      const o = mm.origin || { x: 0, y: 0 }
+      for (const n of mm.nodes) {
+        const b = positions[n.id]
+        if (b) out.push({ id: `m-${n.id}`, x: b.x + o.x, y: b.y + o.y, w: b.w, h: b.h, fill: '#F3F3F3', stroke: '#CBD5E1', kind: 'rounded' })
+      }
+    }
+    const fc = store.state.flowchart
+    if (fc?.nodes?.length) {
+      const o = fc.origin || { x: 0, y: 0 }
+      for (const n of fc.nodes) {
+        const s = flowchartNodeSize(n)
+        out.push({ id: `f-${n.id}`, x: n.x + o.x, y: n.y + o.y, w: s.w, h: s.h, fill: n.fill && n.fill !== 'none' ? n.fill : '#EEF2F7', stroke: '#94A3B8', kind: 'rect' })
+      }
+    }
+    return out
+  }
   if (type.value === 'flowchart' && store.state.flowchart) {
     return store.state.flowchart.nodes.map((n) => {
       const s = flowchartNodeSize(n)
