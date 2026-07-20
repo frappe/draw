@@ -129,10 +129,9 @@ class TestDrawDiagram(IntegrationTestCase):
 		file_name = register_in_drive(doc.name, team=team)
 		self.addCleanup(lambda: frappe.delete_doc("File", file_name, force=True, ignore_permissions=True))
 		self.assertTrue(file_name)
-		self.assertTrue(
-			frappe.db.exists(
-				"File", {"content_doctype": "Draw Diagram", "content_docname": doc.name}
-			)
+		# Registered as a Drive link that opens the Draw editor.
+		self.assertEqual(
+			frappe.db.get_value("File", file_name, "file_url"), f"/draw/d/{doc.name}"
 		)
 		# Idempotent — a second call reuses the same File.
 		self.assertEqual(register_in_drive(doc.name, team=team), file_name)
