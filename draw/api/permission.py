@@ -8,6 +8,12 @@
 import frappe
 
 
+def has_app_permission(user: str | None = None) -> bool:
+	"""Whether to show Frappe Draw on the Desk /apps launcher — any signed-in
+	(non-Guest) user."""
+	return (user or frappe.session.user) != "Guest"
+
+
 def query_conditions(user: str | None = None) -> str:
 	"""SQL clause limiting Draw Diagram list queries to what `user` may see:
 	their own diagrams, ones shared with them, and public ones. System Managers
