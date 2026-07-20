@@ -15,16 +15,16 @@ website_route_rules = [
 
 # required_apps = []
 
-# Each item in the list will be shown as an app in the apps page
-# add_to_apps_screen = [
-# 	{
-# 		"name": "draw",
-# 		"logo": "/assets/draw/logo.png",
-# 		"title": "Frappe Draw",
-# 		"route": "/draw",
-# 		"has_permission": "draw.api.permission.has_app_permission"
-# 	}
-# ]
+# Show Frappe Draw in the Desk /apps launcher (violet 3-node logomark).
+add_to_apps_screen = [
+	{
+		"name": "draw",
+		"logo": "/assets/draw/logo.svg",
+		"title": "Frappe Draw",
+		"route": "/draw",
+		"has_permission": "draw.api.permission.has_app_permission",
+	}
+]
 
 # Includes in <head>
 # ------------------
