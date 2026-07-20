@@ -34,7 +34,7 @@ const NO_COLOR = null
 
 export function createDiagramDocument(presetName = DEFAULT_PRESET_NAME, diagramType = DEFAULT_DIAGRAM_TYPE) {
   const preset = findPreset(presetName)
-  return {
+  const document = {
     schemaVersion: SCHEMA_VERSION,
     diagramType,
     canvas: {
@@ -54,6 +54,19 @@ export function createDiagramDocument(presetName = DEFAULT_PRESET_NAME, diagramT
     flowchart: usesSubModel('flowchart', diagramType) ? createFlowchart() : null,
     whiteboard: usesSubModel('whiteboard', diagramType) ? createWhiteboard() : null,
   }
+  // A unified canvas holds every frame at once, so seed distinct frame origins —
+  // otherwise the mind map and flowchart both default to (0,0) and land stacked
+  // when inserted. They stay freely movable afterwards.
+  if (diagramType === UNIFIED_DIAGRAM_TYPE) applyUnifiedFrameOrigins(document)
+  return document
+}
+
+// The default spatial layout of a fresh unified canvas: mind map upper-centre,
+// flowchart well below it, both clear of the block substrate around (0,0).
+function applyUnifiedFrameOrigins(document) {
+  if (document.mindmap) document.mindmap.origin = { x: 600, y: 200 }
+  if (document.flowchart) document.flowchart.origin = { x: 600, y: 700 }
+  return document
 }
 
 // Whether a document of `diagramType` should carry the given sub-model: its own
@@ -63,14 +76,10 @@ function usesSubModel(subModel, diagramType) {
 }
 
 // Create a blank unified-canvas document (shared substrate + all sub-models).
-// The auto-layout sub-models get distinct default frame origins so their content
-// doesn't stack on top of the block substrate (which lives around 0,0) or on each
-// other once they're populated.
+// createDiagramDocument already seeds the distinct frame origins for a unified
+// type; this stays as a named, intent-revealing entry point.
 export function createUnifiedDocument(presetName = DEFAULT_PRESET_NAME) {
-  const document = createDiagramDocument(presetName, UNIFIED_DIAGRAM_TYPE)
-  document.mindmap.origin = { x: 600, y: 200 }
-  document.flowchart.origin = { x: 600, y: 700 }
-  return document
+  return createDiagramDocument(presetName, UNIFIED_DIAGRAM_TYPE)
 }
 
 // Parse a document that may arrive as a JSON string (from the API) or an object,

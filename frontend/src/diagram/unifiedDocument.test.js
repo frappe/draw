@@ -39,6 +39,15 @@ describe('unified document', () => {
     expect(doc.flowchart.origin).toEqual({ x: 600, y: 700 })
     expect(doc.mindmap.origin).not.toEqual(doc.flowchart.origin)
   })
+
+  it('seeds the distinct origins via the plain factory too (the create-flow path)', () => {
+    // The home "New diagram" flow builds the doc with
+    // createDiagramDocument(undefined, 'unified') — NOT createUnifiedDocument — so
+    // the offsets must live in the factory, else the frames land stacked at (0,0).
+    const doc = createDiagramDocument(undefined, UNIFIED_DIAGRAM_TYPE)
+    expect(doc.mindmap.origin).toEqual({ x: 600, y: 200 })
+    expect(doc.flowchart.origin).toEqual({ x: 600, y: 700 })
+  })
 })
 
 describe('legacy single-type documents are unchanged', () => {
