@@ -62,7 +62,8 @@ def register_in_drive(diagram_name: str, team: str | None = None) -> str | None:
 def is_available() -> dict:
 	"""Whether the Drive integration can be used (Drive installed + a team exists).
 	The editor calls this once to decide whether to show the "Add to Drive" action."""
-	return {"installed": drive_installed(), "ready": bool(drive_installed() and _default_team())}
+	installed = drive_installed()
+	return {"installed": installed, "ready": bool(installed and _default_team())}
 
 
 @frappe.whitelist()
