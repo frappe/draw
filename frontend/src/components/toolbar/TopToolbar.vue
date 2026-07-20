@@ -12,6 +12,7 @@ import TitleEditor from './TitleEditor.vue'
 import SaveIndicator from './SaveIndicator.vue'
 import ExportMenu from './ExportMenu.vue'
 import ShareMenu from './ShareMenu.vue'
+import DriveMenu from './DriveMenu.vue'
 import PresenceAvatars from './PresenceAvatars.vue'
 
 const props = defineProps({
@@ -76,6 +77,7 @@ function print() {
 
     <div class="ml-auto flex items-center gap-2">
       <ExportMenu />
+      <DriveMenu />
       <ShareMenu />
 
       <Tooltip text="Print">

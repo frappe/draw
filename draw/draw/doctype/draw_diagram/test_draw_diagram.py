@@ -136,6 +136,17 @@ class TestDrawDiagram(IntegrationTestCase):
 		# Idempotent — a second call reuses the same File.
 		self.assertEqual(register_in_drive(doc.name, team=team), file_name)
 
+	def test_drive_is_available_reports_status(self):
+		# The editor calls is_available() to decide whether to show "Add to Drive".
+		# It must always return the two booleans without raising, Drive or not.
+		from draw.api.drive_integration import drive_installed, is_available
+
+		status = is_available()
+		self.assertEqual(status["installed"], drive_installed())
+		self.assertIn("ready", status)
+		if not drive_installed():
+			self.assertFalse(status["ready"])
+
 	def test_drive_registration_noops_without_team(self):
 		# Registration is a safe no-op when Drive isn't set up / not installed.
 		from draw.api import drive_integration
