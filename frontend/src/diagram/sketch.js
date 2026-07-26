@@ -48,12 +48,3 @@ export function roughenRect(rect, amount = 1.6, seed = 1) {
   }
   return path
 }
-
-// Convert a point path to an SVG path `d` string (M then L's). Closed by caller
-// appending 'Z' via the `close` flag.
-export function pointsToPath(points, close = false) {
-  if (!points.length) return ''
-  const head = `M ${points[0].x} ${points[0].y}`
-  const rest = points.slice(1).map((point) => `L ${point.x} ${point.y}`)
-  return `${head} ${rest.join(' ')}${close ? ' Z' : ''}`
-}

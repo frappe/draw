@@ -120,11 +120,6 @@ function elbowPoints(start, end, direction, offsetIndex) {
   return [start, { x: start.x, y: midY }, { x: end.x, y: midY }, end]
 }
 
-// SVG path data for a polyline.
-export function pointsToPath(points) {
-  return points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
-}
-
 // Where a branch label (a decision's Yes/No) sits: a short way along the route
 // from the source port, so it hugs the edge just OUTSIDE the node it leaves
 // rather than overlapping the shape (P10). On a very short edge it falls back to

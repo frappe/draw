@@ -17,13 +17,8 @@ import { flowchartUi, endFlowchartEdit } from '@/stores/flowchartUi.js'
 import { primaryTriad } from '@/diagram/theme.js'
 import { nodeSize } from '@/diagram/flowchartModel.js'
 import { nodeShape } from '@/diagram/flowchartShapes.js'
-import {
-  routeEdge,
-  routeOffsets,
-  pointsToPath,
-  portPoint,
-  branchInfoFor,
-} from '@/diagram/flowchartLayout.js'
+import { routeEdge, routeOffsets, portPoint, branchInfoFor } from '@/diagram/flowchartLayout.js'
+import { pointsToPath } from '@/diagram/svgPath.js'
 import FlowchartNodeTypePicker from './FlowchartNodeTypePicker.vue'
 import SmartGuidesLayer from './SmartGuidesLayer.vue'
 

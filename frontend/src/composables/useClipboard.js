@@ -3,6 +3,8 @@
 // A module-level buffer lets paste repeat after the selection changes, and
 // lets useKeyboard share the same session without prop plumbing.
 
+import { clone } from '@/utils/clone.js'
+
 const PASTE_OFFSET = 10
 
 let buffer = { shapes: [], connectors: [] }
@@ -87,8 +89,4 @@ function pasteConnectors(store, idMap, newIds) {
 function remapEndpoint(endpoint, idMap) {
   if (endpoint.shapeId) return { ...endpoint, shapeId: idMap[endpoint.shapeId] }
   return { ...endpoint, x: endpoint.x + PASTE_OFFSET, y: endpoint.y + PASTE_OFFSET }
-}
-
-function clone(value) {
-  return JSON.parse(JSON.stringify(value))
 }

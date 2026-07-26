@@ -5,6 +5,7 @@
 // Pasting into a focused text field is left to the browser.
 
 import { onMounted, onBeforeUnmount } from 'vue'
+import { isEditingText } from '@/utils/dom.js'
 
 export function useCanvasPaste({ imageInsert, clipboard, getCenter }) {
   const onPaste = (event) => handlePaste(event, imageInsert, clipboard, getCenter)
@@ -35,10 +36,4 @@ function imageFileFrom(clipboardData) {
     }
   }
   return null
-}
-
-function isEditingText(target) {
-  if (!target) return false
-  const tag = target.tagName
-  return target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA'
 }

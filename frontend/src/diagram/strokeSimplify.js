@@ -4,16 +4,7 @@
 // to drop points that lie within `tolerance` canvas units of the line they sit
 // on, keeping the visible shape while shrinking the path. Pure + unit-tested.
 
-// Perpendicular distance from `point` to the segment a→b (canvas units).
-function distanceToSegment(point, a, b) {
-  const dx = b.x - a.x
-  const dy = b.y - a.y
-  const lengthSquared = dx * dx + dy * dy
-  if (!lengthSquared) return Math.hypot(point.x - a.x, point.y - a.y)
-  let t = ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared
-  t = Math.max(0, Math.min(1, t))
-  return Math.hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy))
-}
+import { distanceToSegment } from './geometry.js'
 
 // Recursive RDP: keep the endpoints, recurse on the side whose farthest point
 // exceeds the tolerance, and drop everything in between otherwise.
