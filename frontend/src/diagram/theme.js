@@ -2,8 +2,6 @@
 // theme-preset tokens"). Shapes reference these via the --t* / --t2* / --t3*
 // CSS custom properties scoped to the canvas wrapper, NOT chrome tokens.
 
-export const THEME_PRESET_NAMES = ['slate', 'ocean', 'violet', 'sunset']
-
 // New shapes default to the neutral SLATE triad (off-white / gray), not a colour
 // tint — users then pick any colour (spec E1). Slate is listed first accordingly.
 export const DEFAULT_THEME_PRESET = 'slate'

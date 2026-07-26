@@ -7,10 +7,6 @@ export function isHidden(shape) {
   return !!shape?.hidden
 }
 
-export function isLocked(shape) {
-  return !!shape?.locked
-}
-
 // Shown on the canvas (everything except explicitly hidden).
 export function isVisible(shape) {
   return !isHidden(shape)

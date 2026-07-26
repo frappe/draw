@@ -28,10 +28,6 @@ function commitMindmap(store, label, mutatorFn) {
   return result
 }
 
-export function deleteNode(store, id) {
-  return commitMindmap(store, 'Delete node', (model) => deleteSubtree(model, id))
-}
-
 // Delete several nodes (+ their subtrees) as ONE undoable unit — for a
 // multi-selection Delete. The caller filters out the root; deleting an ancestor
 // first makes a later descendant delete a harmless no-op.
@@ -77,6 +73,8 @@ export function linkNodes(store, fromId, toId, label = '') {
   return commitMindmap(store, 'Add cross-link', (model) => addCrosslink(model, fromId, toId, label))
 }
 
+// Remove a cross-link. Cross-links can be CREATED from the overlay but nothing
+// calls this yet — there is no delete affordance for one (see README/backlog).
 export function unlinkNodes(store, id) {
   return commitMindmap(store, 'Remove cross-link', (model) => removeCrosslink(model, id))
 }
@@ -86,12 +84,4 @@ export function pasteOutline(store, parentId, rawText) {
   const items = parseIndentedText(rawText)
   if (!items.length) return []
   return commitMindmap(store, 'Paste outline', (model) => buildSubtree(model, parentId, items))
-}
-
-// Clear every node's manual color override so theme/branch colors take over again
-// (spec A9 "theme presets reassign"). One undoable unit.
-export function reassignBranchColors(store) {
-  return commitMindmap(store, 'Recolor branches', (model) => {
-    for (const node of model.nodes) node.color = null
-  })
 }

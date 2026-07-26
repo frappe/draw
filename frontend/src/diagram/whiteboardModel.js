@@ -10,8 +10,6 @@ import { nextId } from './factories.js'
 
 // Pen and highlighter are the two stroke kinds (spec C3); eraser removes whole
 // strokes rather than producing one.
-export const STROKE_KINDS = ['pen', 'highlighter']
-
 export function makeStroke(points, partial = {}) {
   return {
     id: nextId('w'),

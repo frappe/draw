@@ -180,8 +180,10 @@ function dropAt(store, editorUi, type, point) {
   editorUi.setTool('select')
 }
 
-// Palette tiles call this on dragstart to carry the chosen tool type and arm
-// draw mode, so a drop, a pointer-draw, and the active highlight all agree.
+// Palette tiles are meant to call this on dragstart to carry the chosen tool type
+// and arm draw mode, so a drop, a pointer-draw, and the active highlight all
+// agree. The canvas drop handler above is live, but no palette tile calls this
+// yet — drag-a-tool-onto-the-canvas is unreachable until one does.
 export function startPaletteDrag(event, type, editorUi) {
   editorUi.setDrawShape(type)
   event.dataTransfer?.setData(DATA_TRANSFER_KEY, type)

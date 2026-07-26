@@ -1,16 +1,14 @@
 // Mind-map editor UI state (chrome, NOT the document). A single reactive
-// singleton shared by the node layer, keyboard handler, right palette and
-// outline panel so they agree on which node is selected/editing and whether
-// focus mode / the outline / the notes panel are open. Selection of node ids
-// itself reuses the shared store.state.selection; this holds only mind-map UI.
+// singleton shared by the node layer, keyboard handler and right palette so they
+// agree on which node is selected/editing, whether focus mode is on, and what
+// is mid-flight (cross-link, delete confirm). Selection of node ids itself
+// reuses the shared store.state.selection; this holds only mind-map UI.
 
 import { reactive } from 'vue'
 
 export const mindmapUi = reactive({
   editingId: null, // node currently in text-edit mode (or null)
   focusId: null, // focus mode: only this node's branch is shown (or null)
-  outlineVisible: false, // outline side panel open
-  notesNodeId: null, // node whose note is shown in the side panel (or null)
   pendingLinkSource: null, // first endpoint while creating a cross-link (or null)
   confirmDelete: null, // { ids: string[], label } awaiting an in-product confirm, or null
 })
@@ -38,10 +36,8 @@ export function isEditing() {
   return mindmapUi.editingId !== null
 }
 
-export function toggleOutline() {
-  mindmapUi.outlineVisible = !mindmapUi.outlineVisible
-}
-
+// Focus mode: show only the selected node's branch. MindMapNodeLayer reads
+// focusId; nothing calls this yet (no toolbar affordance).
 export function toggleFocus(store) {
   mindmapUi.focusId = mindmapUi.focusId ? null : selectedNodeId(store)
 }
