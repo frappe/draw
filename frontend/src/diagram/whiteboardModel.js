@@ -7,6 +7,7 @@
 // commit() for undo (Part G6).
 
 import { nextId } from './factories.js'
+import { distanceToSegment } from './geometry.js'
 
 // Pen and highlighter are the two stroke kinds (spec C3); eraser removes whole
 // strokes rather than producing one.
@@ -175,17 +176,6 @@ export function addStickyNote(model, x, y, partial = {}) {
 
 export function removeStickyNote(model, id) {
   model.stickyNotes = model.stickyNotes.filter((note) => note.id !== id)
-}
-
-// Perpendicular distance from a point to the segment a→b (canvas units).
-function distanceToSegment(point, a, b) {
-  const dx = b.x - a.x
-  const dy = b.y - a.y
-  const lengthSquared = dx * dx + dy * dy
-  if (!lengthSquared) return Math.hypot(point.x - a.x, point.y - a.y)
-  let t = ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared
-  t = Math.max(0, Math.min(1, t))
-  return Math.hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy))
 }
 
 // Smallest distance from a point to any segment of a stroke's path. Used by the

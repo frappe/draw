@@ -8,6 +8,7 @@
 // flowchartLayout.js, never stored here.
 
 import { nextId } from './factories.js'
+import { wrapLineCount, charsPerLine } from './textMetrics.js'
 
 // Curated node-type set (spec B3). nodeType selects the SVG shape at render.
 // The standard flowchart shape set (spec R4/P7): the six core shapes plus the
@@ -60,32 +61,8 @@ export function nodeSize(node) {
   if (!text || node.nodeType === 'connector') return { w, h: baseH }
   const inset = node.nodeType === 'decision' ? Math.round(w * 0.16) : 10
   const textW = Math.max(24, w - 2 * inset)
-  const perLine = Math.max(1, Math.floor(textW / FC_CHAR_W))
-  const lines = wrapLineCount(text, perLine)
+  const lines = wrapLineCount(text, charsPerLine(textW, FC_CHAR_W))
   return { w, h: Math.max(baseH, lines * FC_LINE_H + FC_PAD_Y) }
-}
-
-// Greedy word-wrap line count at `perLine` chars (breaks over-long words).
-function wrapLineCount(text, perLine) {
-  const words = String(text).split(/\s+/).filter(Boolean)
-  if (!words.length) return 1
-  let lines = 1
-  let col = 0
-  for (const word of words) {
-    if (word.length > perLine) {
-      if (col > 0) lines++
-      lines += Math.ceil(word.length / perLine) - 1
-      col = word.length % perLine || perLine
-      continue
-    }
-    const need = col === 0 ? word.length : col + 1 + word.length
-    if (need <= perLine) col = need
-    else {
-      lines++
-      col = word.length
-    }
-  }
-  return lines
 }
 
 export function makeFlowchartNode(nodeType, text, x, y) {

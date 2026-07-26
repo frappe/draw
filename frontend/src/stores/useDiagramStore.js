@@ -7,6 +7,7 @@ import { reactive, computed, provide, inject } from 'vue'
 import { createShape, createConnector, nextId } from '@/diagram/factories.js'
 import { makeSection } from '@/diagram/sections.js'
 import { createHistory } from '@/stores/history.js'
+import { clone } from '@/utils/clone.js'
 import { findThemePreset, DEFAULT_THEME_PRESET } from '@/diagram/theme.js'
 import { createDiagramDocument, SCHEMA_VERSION, DEFAULT_DIAGRAM_TYPE } from '@/diagram/schema.js'
 import { addChild, addSibling, addRootNode } from '@/diagram/mindmapModel.js'
@@ -55,10 +56,6 @@ export function createDiagramStore(initialDocument) {
   })
   const history = createHistory(state)
   return assembleStore(state, history)
-}
-
-function clone(value) {
-  return JSON.parse(JSON.stringify(value))
 }
 
 // Build the full method surface around reactive state + history.

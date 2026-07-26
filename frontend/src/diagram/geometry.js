@@ -84,3 +84,17 @@ export function pointInShape(point, shape) {
 export function rectsIntersect(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
 }
+
+// Perpendicular distance from `point` to the segment a→b, clamped to the segment
+// (so a point past an endpoint measures to that endpoint, not the infinite line).
+// Shared by stroke simplification, stroke/line hit-testing and flowchart edge
+// picking — every "how far is the cursor from this polyline?" test.
+export function distanceToSegment(point, a, b) {
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const lengthSquared = dx * dx + dy * dy
+  if (!lengthSquared) return Math.hypot(point.x - a.x, point.y - a.y)
+  let t = ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared
+  t = Math.max(0, Math.min(1, t))
+  return Math.hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy))
+}

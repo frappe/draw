@@ -6,6 +6,7 @@
 // rightward and (mirrored) leftward, with the root centred between the sides.
 
 import { childrenOf, nodeById, subtreeIds } from './mindmapModel.js'
+import { wrapLineCount, charsPerLine } from './textMetrics.js'
 
 const H_GAP = 70 // horizontal gap between depth columns
 const V_GAP = 18 // vertical gap between sibling subtrees
@@ -36,36 +37,9 @@ export function measureNodeSize(node, isRoot = false) {
   const width = clamp(singleLineWidth, MIN_W * fontScale, MAX_W * fontScale)
   // How many lines the text wraps to inside the padded box, packing whole words
   // (mirroring CSS normal wrapping) so the height fits the rendered text.
-  const lines = wrapLineCount(text, charWidth, width - PAD_X)
+  const lines = wrapLineCount(text, charsPerLine(width - PAD_X, charWidth))
   const height = lines * lineHeight + PAD_Y
   return { w: Math.round(width), h: Math.round(height) }
-}
-
-// Greedy word-wrap line count at `textWidth` px: packs whole words per line, and
-// breaks a single word too long to fit across lines. Approximates how the
-// rendered wrapping <div> lays the same text out, so the measured box height
-// leaves room for every line (no clipped text).
-function wrapLineCount(text, charWidth, textWidth) {
-  const words = text.split(/\s+/).filter(Boolean)
-  if (!words.length) return 1
-  const perLine = Math.max(1, Math.floor(textWidth / charWidth))
-  let lines = 1
-  let col = 0
-  for (const word of words) {
-    if (word.length > perLine) {
-      if (col > 0) lines++ // finish the current line before the long word
-      lines += Math.ceil(word.length / perLine) - 1
-      col = word.length % perLine || perLine
-      continue
-    }
-    const need = col === 0 ? word.length : col + 1 + word.length
-    if (need <= perLine) col = need
-    else {
-      lines++
-      col = word.length
-    }
-  }
-  return lines
 }
 
 function clamp(value, min, max) {

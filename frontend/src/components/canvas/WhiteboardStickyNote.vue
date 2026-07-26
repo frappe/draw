@@ -19,7 +19,8 @@ import { voteFor } from '@/diagram/whiteboardModel.js'
 import VoteButtons from '@/components/floating/VoteButtons.vue'
 import { isAdditiveEvent } from '@/composables/pointer.js'
 import { contrastInk, STICKY_COLORS } from '@/diagram/whiteboardColors.js'
-import { roughenRect, pointsToPath } from '@/diagram/sketch.js'
+import { roughenRect } from '@/diagram/sketch.js'
+import { pointsToPath } from '@/diagram/svgPath.js'
 
 const props = defineProps({
   note: { type: Object, required: true },

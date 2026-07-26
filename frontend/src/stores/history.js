@@ -5,11 +5,9 @@
 // do — the objects affected by the step you reverse light up with their handles,
 // instead of leaving you staring at a changed canvas with nothing selected.
 
-const MAX_STEPS = 50
+import { clone } from '@/utils/clone.js'
 
-function clone(value) {
-  return JSON.parse(JSON.stringify(value))
-}
+const MAX_STEPS = 50
 
 // Capture the document slice that participates in history. The per-type
 // sub-objects (mindmap/flowchart/whiteboard) are included so each type's edits

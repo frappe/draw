@@ -6,18 +6,11 @@
 // surface/ink/outline chrome recolors automatically (canvas content stays light).
 
 import { reactive, watch } from 'vue'
+import { readJson, writeJson } from '@/utils/localStore.js'
 
 const STORAGE_KEY = 'frappe-draw-settings'
 
-function load() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}
-  } catch {
-    return {}
-  }
-}
-
-const stored = load()
+const stored = readJson(STORAGE_KEY, {})
 const settings = reactive({
   darkMode: Boolean(stored.darkMode),
 })
@@ -28,7 +21,7 @@ function apply() {
   const root = document.documentElement
   if (settings.darkMode) root.setAttribute('data-theme', 'dark')
   else root.removeAttribute('data-theme')
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ darkMode: settings.darkMode }))
+  writeJson(STORAGE_KEY, { darkMode: settings.darkMode })
 }
 
 apply()

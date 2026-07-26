@@ -5,59 +5,19 @@
 // and the pan/zoom, and routes panning through the shared viewport (Part G4) so
 // the canvas and minimap never disagree. Floated bottom-right like the other
 // types' Minimap (spec Q10/B2), for a consistent navigator across all types.
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
-import { useEditorUi } from '@/stores/useEditorUi.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
 import { tableWidth, tableHeight } from '@/diagram/whiteboardModel.js'
+import { useMinimapNavigator, WIDTH, HEIGHT } from '@/composables/useMinimapNavigator.js'
 
 const store = useDiagramStore()
-const editorUi = useEditorUi()
-const viewport = editorUi.viewport
-
-const WIDTH = 180
-const HEIGHT = 120
-
-// The canvas surface element (carries data-fdpreset) gives us the live viewport
-// pixel size needed to draw the "what you can see now" rectangle.
-const surface = ref(null)
-const surfaceSize = ref({ w: 0, h: 0 })
-
-function measureSurface() {
-  surface.value = document.querySelector('[data-fdpreset]')
-  if (surface.value) {
-    const rect = surface.value.getBoundingClientRect()
-    surfaceSize.value = { w: rect.width, h: rect.height }
-  }
-}
-
-let resize = null
-onMounted(() => {
-  measureSurface()
-  resize = () => measureSurface()
-  window.addEventListener('resize', resize)
-})
-onBeforeUnmount(() => window.removeEventListener('resize', resize))
 
 // Content bounds union (Part G8), with a sane fallback for an empty board.
 const bounds = computed(() => whiteboardContentBounds(store.state.whiteboard, store.state.shapes))
 
-// Scale that fits the content bounds into the minimap box, preserving aspect.
-const scale = computed(() => Math.min(WIDTH / bounds.value.w, HEIGHT / bounds.value.h))
-
-function toMini(x, y) {
-  return { x: (x - bounds.value.x) * scale.value, y: (y - bounds.value.y) * scale.value }
-}
-
-// Visible viewport rect in canvas units, mapped into the minimap.
-const viewRect = computed(() => {
-  const zoom = viewport.state.zoom || 1
-  const topLeft = { x: -viewport.state.panX / zoom, y: -viewport.state.panY / zoom }
-  const visW = surfaceSize.value.w / zoom
-  const visH = surfaceSize.value.h / zoom
-  const a = toMini(topLeft.x, topLeft.y)
-  return { x: a.x, y: a.y, w: visW * scale.value, h: visH * scale.value }
-})
+// Fit/pan/drag mechanics (shared with the other types' Minimap).
+const { scale, toMini, viewRect, onDown, onMove, onUp } = useMinimapNavigator(bounds)
 
 // Content previews (sticky rects + stroke bboxes) in minimap space.
 const stickies = computed(() =>
@@ -101,30 +61,6 @@ const miniTables = computed(() =>
     }
   }),
 )
-
-// Click/drag in the minimap pans so the clicked content point centers in view.
-function panTo(event) {
-  measureSurface()
-  const rect = event.currentTarget.getBoundingClientRect()
-  const miniX = event.clientX - rect.left
-  const miniY = event.clientY - rect.top
-  const canvasX = bounds.value.x + miniX / scale.value
-  const canvasY = bounds.value.y + miniY / scale.value
-  const zoom = viewport.state.zoom || 1
-  viewport.setPan(surfaceSize.value.w / 2 - canvasX * zoom, surfaceSize.value.h / 2 - canvasY * zoom)
-}
-
-const dragging = ref(false)
-function onDown(event) {
-  dragging.value = true
-  panTo(event)
-}
-function onMove(event) {
-  if (dragging.value) panTo(event)
-}
-function onUp() {
-  dragging.value = false
-}
 </script>
 
 <template>

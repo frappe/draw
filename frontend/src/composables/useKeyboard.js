@@ -11,6 +11,7 @@ import { flowchartKeydown } from '@/composables/useFlowchartKeys.js'
 import { whiteboardKeydown } from '@/composables/useWhiteboardKeys.js'
 import { toggleShortcutsHelp } from '@/composables/useShortcutsHelp.js'
 import { mindmapUi } from '@/stores/mindmapUi.js'
+import { isEditingText } from '@/utils/dom.js'
 
 const ARROW_DELTAS = {
   ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
@@ -113,13 +114,6 @@ function dispatchModeKey(event, store, editorUi) {
   const handler = modeKeyboardFor(store)
   if (!handler) return false
   return handler(event, store, editorUi) === true
-}
-
-// Skip shortcuts while the user types in an input, textarea, or contentEditable.
-function isEditingText(target) {
-  if (!target) return false
-  const tag = target.tagName
-  return target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA'
 }
 
 // Cmd/Ctrl shortcuts (§7.3). Shift+Z is treated as redo alongside Y.

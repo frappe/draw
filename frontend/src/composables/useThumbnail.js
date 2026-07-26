@@ -10,14 +10,9 @@ import { resolveNodeColor, nodeFill, readableInk } from '@/diagram/mindmapColors
 import { isRoot } from '@/diagram/mindmapModel.js'
 import { nodeSize as flowchartNodeSize } from '@/diagram/flowchartModel.js'
 import { nodeShape } from '@/diagram/flowchartShapes.js'
-import {
-  routeEdge,
-  routeOffsets,
-  pointsToPath as flowchartPointsToPath,
-  flowchartContentBounds,
-} from '@/diagram/flowchartLayout.js'
+import { routeEdge, routeOffsets, flowchartContentBounds } from '@/diagram/flowchartLayout.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
-import { pointsToPath as strokePointsToPath } from '@/diagram/sketch.js'
+import { pointsToPath } from '@/diagram/svgPath.js'
 import { contrastInk, HIGHLIGHTER_OPACITY } from '@/diagram/whiteboardColors.js'
 
 const THROTTLE_MS = 30000
@@ -217,7 +212,7 @@ function flowchartEdge(model, edge, offsetIndex) {
   const route = routeEdge(model, edge, offsetIndex)
   if (!route) return ''
   const markerEnd = edge.arrowheads?.end ? ' marker-end="url(#fc-arrow)"' : ''
-  const path = `<path d="${flowchartPointsToPath(route.points)}" fill="none" stroke="#7C7C7C" stroke-width="2"${markerEnd}/>`
+  const path = `<path d="${pointsToPath(route.points)}" fill="none" stroke="#7C7C7C" stroke-width="2"${markerEnd}/>`
   if (!edge.label) return path
   const half = edge.label.length * 4 + 8
   const pill = `<rect x="${route.labelPoint.x - half}" y="${route.labelPoint.y - 10}" width="${edge.label.length * 8 + 16}" height="20" rx="6" fill="#FFFFFF" stroke="#E2E2E2"/>`
@@ -282,7 +277,7 @@ function whiteboardStroke(stroke) {
   if (!stroke.points || stroke.points.length < 2) return ''
   const opacity = stroke.kind === 'highlighter' ? HIGHLIGHTER_OPACITY : 1
   const linecap = stroke.kind === 'highlighter' ? 'butt' : 'round'
-  return `<path d="${strokePointsToPath(stroke.points)}" fill="none" stroke="${stroke.color}" stroke-width="${stroke.width}" stroke-opacity="${opacity}" stroke-linecap="${linecap}" stroke-linejoin="round"/>`
+  return `<path d="${pointsToPath(stroke.points)}" fill="none" stroke="${stroke.color}" stroke-width="${stroke.width}" stroke-opacity="${opacity}" stroke-linecap="${linecap}" stroke-linejoin="round"/>`
 }
 
 function whiteboardSticky(note) {
