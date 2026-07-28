@@ -11,6 +11,9 @@ export const mindmapUi = reactive({
   focusId: null, // focus mode: only this node's branch is shown (or null)
   pendingLinkSource: null, // first endpoint while creating a cross-link (or null)
   confirmDelete: null, // { ids: string[], label } awaiting an in-product confirm, or null
+  // A cross-link is not a node, so it can't live in store.state.selection (which
+  // holds node ids). It gets its own single-selection slot so Delete can target it.
+  selectedCrosslinkId: null,
 })
 
 // The single selected node id (mind map selects one node at a time for keyboard
@@ -22,6 +25,13 @@ export function selectedNodeId(store) {
 
 export function selectNode(store, id) {
   store.select(id ? [id] : [])
+  // Node and cross-link selection are mutually exclusive — otherwise Delete would
+  // have two plausible targets.
+  mindmapUi.selectedCrosslinkId = null
+}
+
+export function selectCrosslink(id) {
+  mindmapUi.selectedCrosslinkId = id
 }
 
 export function beginEdit(id) {
@@ -36,8 +46,9 @@ export function isEditing() {
   return mindmapUi.editingId !== null
 }
 
-// Focus mode: show only the selected node's branch. MindMapNodeLayer reads
-// focusId; nothing calls this yet (no toolbar affordance).
+// Focus mode: show only the selected node's branch (MindMapNodeLayer reads
+// focusId and dims/hides everything outside that subtree). Toggling off always
+// wins, so the button is never a one-way trap even with nothing selected.
 export function toggleFocus(store) {
   mindmapUi.focusId = mindmapUi.focusId ? null : selectedNodeId(store)
 }

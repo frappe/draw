@@ -9,7 +9,7 @@
 import { registerModeKeyboardHandler } from '@/composables/useKeyboard.js'
 import { navigate } from '@/diagram/mindmapNavigation.js'
 import { isRoot } from '@/diagram/mindmapModel.js'
-import { deleteNodes, promoteNode, reorderNode } from '@/diagram/mindmapOperations.js'
+import { deleteNodes, promoteNode, reorderNode, unlinkNodes } from '@/diagram/mindmapOperations.js'
 import { selectedNodeId, selectNode, beginEdit, mindmapUi } from '@/stores/mindmapUi.js'
 
 const ARROW_DIRECTIONS = {
@@ -24,7 +24,17 @@ export function mindmapKeydown(event, store) {
   if (event.key === 'Tab') return handleTab(store, id, event)
   if (event.key === 'Enter') return addSiblingAndEdit(store, id)
   if (ARROW_DIRECTIONS[event.key]) return handleArrow(store, model, id, event)
-  if (event.key === 'Delete' || event.key === 'Backspace') return requestDelete(store)
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    // A selected cross-link is the Delete target, but only while no node is also
+    // selected — selecting a link clears the node selection, though an additive
+    // click could still add one, and a node delete must win in that case.
+    if (mindmapUi.selectedCrosslinkId && !(store.state.selection || []).length) {
+      unlinkNodes(store, mindmapUi.selectedCrosslinkId)
+      mindmapUi.selectedCrosslinkId = null
+      return true
+    }
+    return requestDelete(store)
+  }
   return false
 }
 

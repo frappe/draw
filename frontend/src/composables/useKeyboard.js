@@ -171,6 +171,11 @@ function escape(store, editorUi) {
     mindmapUi.pendingLinkSource = null
     return
   }
+  // A selected cross-link deselects like any other selection would.
+  if (mindmapUi.selectedCrosslinkId) {
+    mindmapUi.selectedCrosslinkId = null
+    return
+  }
   if (editorUi.state.tool !== 'select') return editorUi.setTool('select')
   store.clearSelection()
 }

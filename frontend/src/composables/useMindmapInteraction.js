@@ -10,7 +10,7 @@ import { reparentNode, reorderNode } from '@/diagram/mindmapOperations.js'
 import { nodeById, isDescendant } from '@/diagram/mindmapModel.js'
 import { isNodeHidden } from '@/diagram/mindmapLayout.js'
 import { rectsIntersect } from '@/diagram/geometry.js'
-import { selectNode } from '@/stores/mindmapUi.js'
+import { selectNode, mindmapUi } from '@/stores/mindmapUi.js'
 import { isAdditiveEvent, clientToLogical, runMarqueeDrag } from '@/composables/pointer.js'
 
 const DRAG_THRESHOLD = 5 // canvas units before a press becomes a drag
@@ -116,7 +116,12 @@ export function useMindmapInteraction(store, viewport, positionsRef) {
   function beginMarquee(event) {
     if (event.button !== 0) return
     const additive = isAdditiveEvent(event)
-    if (!additive) store.clearSelection()
+    // Pressing empty canvas drops the cross-link selection too, so its × doesn't
+    // linger over a map the user has moved on from.
+    if (!additive) {
+      store.clearSelection()
+      mindmapUi.selectedCrosslinkId = null
+    }
     const surface = event.target.closest('[data-fdpreset]')
     const surfaceRect = surface ? surface.getBoundingClientRect() : { left: 0, top: 0 }
     const start = clientToLogical(event, surfaceRect, viewport)

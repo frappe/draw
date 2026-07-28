@@ -19,11 +19,18 @@ import {
 } from '@/diagram/mindmapLayout.js'
 import { resolveNodeColor, nodeFill, readableInk } from '@/diagram/mindmapColors.js'
 import { isRoot, subtreeIds } from '@/diagram/mindmapModel.js'
-import { toggleNodeCollapsed, pasteOutline, linkNodes } from '@/diagram/mindmapOperations.js'
+import { toggleNodeCollapsed, pasteOutline, linkNodes, unlinkNodes } from '@/diagram/mindmapOperations.js'
 import { looksLikeOutline } from '@/diagram/mindmapPaste.js'
 import { useMindmapInteraction } from '@/composables/useMindmapInteraction.js'
 import { isAdditiveEvent } from '@/composables/pointer.js'
-import { mindmapUi, selectedNodeId, selectNode, beginEdit, endEdit } from '@/stores/mindmapUi.js'
+import {
+  mindmapUi,
+  selectedNodeId,
+  selectNode,
+  selectCrosslink,
+  beginEdit,
+  endEdit,
+} from '@/stores/mindmapUi.js'
 import { mindmapKeydownInEdit } from '@/composables/useMindmapEditKeys.js'
 // Side-effect import: registers the mind-map keyboard handler into the shared
 // keyboard seam (the dispatcher calls it for non-edit keys).
@@ -276,6 +283,27 @@ function finishLink(id) {
   mindmapUi.pendingLinkSource = null
 }
 
+// Cross-links are selectable so they can be removed: click one to select (the
+// invisible wide hit-line below makes a 2px dotted line comfortably clickable),
+// then Delete — or the × that appears at its midpoint. Without this a link could
+// be created and never undone except through undo history.
+function onCrosslinkPointerDown(event, id) {
+  event.stopPropagation()
+  // Don't steal the click while the user is picking a cross-link target.
+  if (mindmapUi.pendingLinkSource) return
+  selectNode(store, null) // clears node selection AND any prior link selection
+  selectCrosslink(id)
+}
+
+function removeCrosslink(id) {
+  unlinkNodes(store, id)
+  if (mindmapUi.selectedCrosslinkId === id) mindmapUi.selectedCrosslinkId = null
+}
+
+function isCrosslinkSelected(id) {
+  return mindmapUi.selectedCrosslinkId === id
+}
+
 // N5 click model: first click selects; clicking the already-selected node again
 // drops the text cursor in. A drag (reparent) is not a click, so it never edits.
 // Double-click (startEdit) still selects+edits immediately.
@@ -457,16 +485,40 @@ function nodePoly(node, b) {
       :opacity="dimmed(link.id) ? 0.12 : 1"
     />
 
-    <!-- Cross-links: dotted, distinct, optionally labeled — spec A4/M5. -->
+    <!-- Cross-links: dotted, distinct, optionally labeled — spec A4/M5. Selectable
+         (click) so they can be deleted; the selected one turns blue and offers an ×. -->
     <g v-for="link in crosslinks" :key="link.id">
+      <!-- Invisible wide hit-line: a 1.5px dotted line is far too thin to click. -->
       <line
         :x1="link.x1" :y1="link.y1" :x2="link.x2" :y2="link.y2"
-        stroke="#7C7C7C" stroke-width="1.5" stroke-dasharray="2 5" stroke-linecap="round"
+        stroke="transparent" stroke-width="12" stroke-linecap="round"
+        style="cursor: pointer"
+        @pointerdown="onCrosslinkPointerDown($event, link.id)"
       />
-      <g v-if="link.label" :transform="`translate(${link.mx} ${link.my})`">
-        <rect x="-26" y="-10" width="52" height="20" rx="6" fill="#FFFFFF" stroke="#C7C7C7" />
+      <line
+        :x1="link.x1" :y1="link.y1" :x2="link.x2" :y2="link.y2"
+        :stroke="isCrosslinkSelected(link.id) ? '#006EDB' : '#7C7C7C'"
+        :stroke-width="isCrosslinkSelected(link.id) ? 2.5 : 1.5"
+        stroke-dasharray="2 5" stroke-linecap="round"
+        style="pointer-events: none"
+      />
+      <g v-if="link.label" :transform="`translate(${link.mx} ${link.my})`" style="pointer-events: none">
+        <rect x="-26" y="-10" width="52" height="20" rx="6" fill="#FFFFFF"
+          :stroke="isCrosslinkSelected(link.id) ? '#006EDB' : '#C7C7C7'" />
         <text text-anchor="middle" dominant-baseline="central" font-size="11" fill="#525252"
           style="font-family: Inter, sans-serif">{{ link.label }}</text>
+      </g>
+      <!-- Remove affordance, offset clear of a label when there is one. -->
+      <g
+        v-if="isCrosslinkSelected(link.id)"
+        :transform="`translate(${link.mx} ${link.my + (link.label ? 20 : 0)})`"
+        style="cursor: pointer"
+        @pointerdown.stop="removeCrosslink(link.id)"
+      >
+        <title>Remove cross-link</title>
+        <circle r="9" fill="#FFFFFF" stroke="#006EDB" stroke-width="1.5" />
+        <path d="M -3.5 -3.5 L 3.5 3.5 M 3.5 -3.5 L -3.5 3.5" stroke="#006EDB"
+          stroke-width="1.6" stroke-linecap="round" fill="none" />
       </g>
     </g>
 

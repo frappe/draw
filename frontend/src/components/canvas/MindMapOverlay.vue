@@ -19,7 +19,7 @@ import { isRoot } from '@/diagram/mindmapModel.js'
 import { resolveNodeColor, nodeFill } from '@/diagram/mindmapColors.js'
 import { SWATCH_PALETTE } from '@/diagram/palette.js'
 import { deleteNodes, clearMindmap } from '@/diagram/mindmapOperations.js'
-import { mindmapUi, selectedNodeId, selectNode, beginEdit } from '@/stores/mindmapUi.js'
+import { mindmapUi, selectedNodeId, selectNode, beginEdit, toggleFocus } from '@/stores/mindmapUi.js'
 import { requestDelete } from '@/composables/useMindmapKeys.js'
 
 const store = useDiagramStore()
@@ -140,6 +140,12 @@ function setMarker(icon) {
 function setShape(shape) {
   patch({ shape })
 }
+// Focus mode: isolate the selected node's branch. Toggling off works whatever is
+// selected, so the only way in is also always a way out.
+function toggleFocusMode() {
+  toggleFocus(store)
+}
+
 function startCrosslink() {
   // Toggle: pressing the button again (or when already arming) cancels, so the
   // "click a target node" mode is never a one-way trap.
@@ -184,6 +190,19 @@ function activeBtn(on) {
 </script>
 
 <template>
+  <!-- Focus-mode banner. Deliberately OUTSIDE the contextual toolbar (which only
+       renders while a node is selected) so isolating a branch is always reversible
+       — clearing the selection would otherwise hide the only way out. -->
+  <Teleport to="body">
+    <div
+      v-if="mindmapUi.focusId"
+      class="fixed left-1/2 top-3 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-outline-gray-2 bg-surface-base py-1 pl-3 pr-1 shadow-lg"
+    >
+      <span class="text-sm text-ink-gray-7">Focusing one branch</span>
+      <Button variant="subtle" size="sm" label="Exit" @click="toggleFocusMode" />
+    </div>
+  </Teleport>
+
   <!-- Contextual toolbar above the selected node. -->
   <Teleport to="body">
     <div
@@ -395,6 +414,15 @@ function activeBtn(on) {
       <Tooltip :text="mindmapUi.pendingLinkSource ? 'Click a target node…' : 'Link to node'">
         <button :class="[btn, activeBtn(!!mindmapUi.pendingLinkSource)]" @click="startCrosslink">
           <LucideIcon name="link-2" class="h-4 w-4" />
+        </button>
+      </Tooltip>
+
+      <!-- Focus mode: isolate this branch. The way OUT is the always-visible pill
+           below, not this button — this toolbar only exists while a node is
+           selected, and clearing the selection must not strand the user. -->
+      <Tooltip :text="mindmapUi.focusId ? 'Exit focus' : 'Focus this branch'">
+        <button :class="[btn, activeBtn(!!mindmapUi.focusId)]" @click="toggleFocusMode">
+          <LucideIcon name="crosshair" class="h-4 w-4" />
         </button>
       </Tooltip>
       </template>
