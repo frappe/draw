@@ -46,9 +46,26 @@ export function isEditing() {
   return mindmapUi.editingId !== null
 }
 
-// Focus mode: show only the selected node's branch (MindMapNodeLayer reads
-// focusId and dims/hides everything outside that subtree). Toggling off always
-// wins, so the button is never a one-way trap even with nothing selected.
+// Focus mode: show only the selected node's branch (MindMapNodeLayer dims
+// everything outside that subtree). Toggling off always wins, so the button is
+// never a one-way trap even with nothing selected.
 export function toggleFocus(store) {
   mindmapUi.focusId = mindmapUi.focusId ? null : selectedNodeId(store)
+}
+
+// The focused node id, but ONLY while that node still exists in `model`.
+//
+// focusId can outlive the node it names — delete the focused node, undo past its
+// creation, switch documents, or receive a collaborator's delete. subtreeIds()
+// returns [id] for an unknown id, so a stale focusId would leave a "focused
+// subtree" containing nothing real and dim EVERY remaining node. Reading focus
+// through this guard makes a stale id inert instead: no dimming, no banner.
+//
+// Deliberately pure — it does not clear focusId, because it is called from
+// computeds and mutating reactive state during evaluation invites feedback loops.
+// Turning focus off explicitly stays the job of toggleFocus.
+export function focusedNodeId(model) {
+  const id = mindmapUi.focusId
+  if (!id) return null
+  return model?.nodes?.some((node) => node.id === id) ? id : null
 }

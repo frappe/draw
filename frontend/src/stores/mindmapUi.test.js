@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createDiagramStore } from './useDiagramStore.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
-import { mindmapUi, selectNode, selectCrosslink, toggleFocus } from './mindmapUi.js'
-import { linkNodes } from '@/diagram/mindmapOperations.js'
+import { mindmapUi, selectNode, selectCrosslink, toggleFocus, focusedNodeId } from './mindmapUi.js'
+import { linkNodes, deleteNodes } from '@/diagram/mindmapOperations.js'
 import { mindmapKeydown } from '@/composables/useMindmapKeys.js'
 
 // Cross-link selection + focus mode: both existed in the model but had no way to
@@ -116,5 +116,52 @@ describe('focus mode', () => {
     selectNode(store, null)
     toggleFocus(store)
     expect(mindmapUi.focusId).toBeNull()
+  })
+})
+
+// focusId can outlive the node it names. subtreeIds() returns [id] for an unknown
+// id, so an unguarded stale focus would produce a "focused subtree" containing
+// nothing real — and dim EVERY remaining node while the banner claimed a focus.
+describe('focusedNodeId guards a stale focus', () => {
+  it('reports the focused node while it exists', () => {
+    const { store, a } = mindmapStore()
+    selectNode(store, a)
+    toggleFocus(store)
+    expect(focusedNodeId(store.state.mindmap)).toBe(a)
+  })
+
+  it('reports null once the focused node is deleted', () => {
+    const { store, a } = mindmapStore()
+    selectNode(store, a)
+    toggleFocus(store)
+    expect(focusedNodeId(store.state.mindmap)).toBe(a)
+
+    deleteNodes(store, [a])
+
+    // The raw flag still points at the dead node...
+    expect(mindmapUi.focusId).toBe(a)
+    // ...but every consumer reads through the guard, so focus is inert.
+    expect(focusedNodeId(store.state.mindmap)).toBeNull()
+  })
+
+  it('reports null after undo removes the focused node again', () => {
+    const { store, root } = mindmapStore()
+    const c = store.addChildNode(root)
+    selectNode(store, c)
+    toggleFocus(store)
+    store.undo() // undoes the node creation, so focusId names a node that is gone
+    expect(focusedNodeId(store.state.mindmap)).toBeNull()
+  })
+
+  it('reports null for a missing or empty model (document switch)', () => {
+    mindmapUi.focusId = 'some-node'
+    expect(focusedNodeId(null)).toBeNull()
+    expect(focusedNodeId(undefined)).toBeNull()
+    expect(focusedNodeId({ nodes: [] })).toBeNull()
+  })
+
+  it('stays null when focus was never turned on', () => {
+    const { store } = mindmapStore()
+    expect(focusedNodeId(store.state.mindmap)).toBeNull()
   })
 })

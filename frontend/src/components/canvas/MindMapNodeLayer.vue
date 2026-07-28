@@ -28,6 +28,7 @@ import {
   selectedNodeId,
   selectNode,
   selectCrosslink,
+  focusedNodeId,
   beginEdit,
   endEdit,
 } from '@/stores/mindmapUi.js'
@@ -135,10 +136,13 @@ function isSelected(id) {
   return store.state.selection.includes(id)
 }
 
-// Focus mode dims everything outside the focused node's branch (M6).
-const focusedSubtree = computed(() =>
-  mindmapUi.focusId ? new Set(subtreeIds(props.mindmap, mindmapUi.focusId)) : null,
-)
+// Focus mode dims everything outside the focused node's branch (M6). Read through
+// focusedNodeId so a focusId whose node is gone (deleted, undone, document
+// switched) dims nothing rather than dimming everything.
+const focusedSubtree = computed(() => {
+  const focused = focusedNodeId(props.mindmap)
+  return focused ? new Set(subtreeIds(props.mindmap, focused)) : null
+})
 
 function dimmed(id) {
   const focus = focusedSubtree.value
