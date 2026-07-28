@@ -5,12 +5,13 @@
 # owner-or-public reads, revision-checked saves, thumbnail upload, and the daily
 # trash purge. Guests may read only public diagrams.
 #
-# Deliberately NOT here: listing, trash/restore/delete and sharing. The frontend
-# does its CRUD through frappe-ui's list/document resources (see
-# frontend/src/data/diagrams.js), and sharing lives in draw/api/share.py, which is
-# the only implementation — it carries the three-level view/comment/edit model.
-# Parallel endpoints for those used to sit in this module, unused, and a caller
-# reaching one would have got weaker access rules than the live path applies.
+# Deliberately NOT here: listing, trash/restore/delete, duplicate and sharing. The
+# frontend does all of that CRUD through frappe-ui's list/document resources (see
+# frontend/src/data/diagrams.js and TileGrid's duplicate/trash handlers), and
+# sharing lives in draw/api/share.py, which is the only implementation — it carries
+# the three-level view/comment/edit model. Parallel endpoints for those used to sit
+# in this module, unused, and a caller reaching one would have got weaker access
+# rules than the live path applies.
 
 import json
 
@@ -189,26 +190,3 @@ def purge_old_trashed_diagrams() -> None:
 		frappe.delete_doc(DOCTYPE, name, ignore_permissions=True, force=True)
 	if stale:
 		frappe.db.commit()
-
-
-@frappe.whitelist()
-def duplicate_diagram(name: str) -> dict:
-	"""Copy a diagram (document + metadata) into a fresh draft owned by the caller.
-
-	Kept although no UI calls it yet — there is no "Duplicate" action on the home
-	grid. This is a missing affordance rather than dead code, so removing the
-	endpoint would cement the gap.
-	"""
-	source = _get_readable_diagram(name)
-	copy = frappe.get_doc(
-		{
-			"doctype": DOCTYPE,
-			"title": _("{0} (copy)").format(source.title),
-			"description": source.description,
-			"folder": source.folder,
-			"canvas_size": source.canvas_size,
-			"document": source.document,
-		}
-	).insert()
-	frappe.db.commit()
-	return {"name": copy.name, "title": copy.title}
