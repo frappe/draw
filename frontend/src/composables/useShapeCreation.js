@@ -18,7 +18,7 @@ import { ref } from 'vue'
 import { useTextEditing } from '@/composables/useTextEditing.js'
 import { useEdgeAutoPan } from '@/composables/useEdgeAutoPan.js'
 
-const DATA_TRANSFER_KEY = 'application/x-frappe-draw-tool'
+export const DATA_TRANSFER_KEY = 'application/x-frappe-draw-tool'
 
 // Connector draw tools → geometry + default endpoints. 'line' is a plain
 // straight segment with no arrowheads; 'arrow' adds an end arrow. elbow/curved
@@ -180,10 +180,10 @@ function dropAt(store, editorUi, type, point) {
   editorUi.setTool('select')
 }
 
-// Palette tiles are meant to call this on dragstart to carry the chosen tool type
-// and arm draw mode, so a drop, a pointer-draw, and the active highlight all
-// agree. The canvas drop handler above is live, but no palette tile calls this
-// yet — drag-a-tool-onto-the-canvas is unreachable until one does.
+// Palette tiles call this on dragstart to carry the chosen tool type and arm draw
+// mode, so a drop, a pointer-draw, and the active highlight all agree. The payload
+// key must stay in sync with readToolPayload below — it is exported so a test can
+// pin that contract, since a mismatch silently makes the whole gesture a no-op.
 export function startPaletteDrag(event, type, editorUi) {
   editorUi.setDrawShape(type)
   event.dataTransfer?.setData(DATA_TRANSFER_KEY, type)

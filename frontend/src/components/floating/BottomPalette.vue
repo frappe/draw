@@ -11,6 +11,7 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { isUnifiedDocument } from '@/diagram/schema.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
 import { recentShapes, pushRecentShape } from '@/composables/useRecentShapes.js'
+import { startPaletteDrag } from '@/composables/useShapeCreation.js'
 import { collapseAll } from '@/diagram/mindmapOperations.js'
 import { autoNumberFlow, isFlowNumbered } from '@/diagram/flowchartModel.js'
 import { tidyLayout, toggleDirection } from '@/diagram/flowchartLayout.js'
@@ -116,6 +117,23 @@ function isArmed(type) {
   return editorUi.state.tool === 'draw' && editorUi.state.drawShapeType === type
 }
 
+// Drag a tile onto the canvas to place that shape where you drop it. The canvas
+// drop handler (DiagramCanvas -> useShapeCreation.onCanvasDrop) has always been
+// live; nothing produced the payload until now, so the gesture did nothing.
+// startPaletteDrag also arms draw mode, so a drag released outside the canvas
+// leaves the tool ready — the same end state as clicking the tile.
+function startTileDrag(event, type) {
+  startPaletteDrag(event, type, editorUi)
+  pushRecentShape(type)
+}
+
+// Close the popover only once the drag is over. Closing it on dragstart would
+// unmount the element being dragged, which cancels the drag in some browsers.
+function endTileDrag(close) {
+  shapeQuery.value = ''
+  close?.()
+}
+
 // Just the two universal pointer modes. The generic "Draw" plus was removed: it
 // duplicated the zoom-in "+" and is redundant with the left palette (block) and
 // the per-type surface tools below (whiteboard).
@@ -200,7 +218,10 @@ function setGuides(state) {
                   <button
                     class="flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-gray-2"
                     :class="isArmed(s.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
+                    draggable="true"
                     @click="arm(s.type, togglePopover)"
+                    @dragstart="startTileDrag($event, s.type)"
+                    @dragend="endTileDrag(togglePopover)"
                   >
                     <LucideIcon :name="s.icon" class="h-[18px] w-[18px]" :class="s.type === 'diamond' ? 'rotate-45' : ''" />
                   </button>
@@ -214,7 +235,10 @@ function setGuides(state) {
                 <button
                   class="flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-gray-2"
                   :class="isArmed(s.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
+                  draggable="true"
                   @click="arm(s.type, togglePopover)"
+                  @dragstart="startTileDrag($event, s.type)"
+                  @dragend="endTileDrag(togglePopover)"
                 >
                   <LucideIcon :name="s.icon" class="h-[18px] w-[18px]" :class="s.type === 'diamond' ? 'rotate-45' : ''" />
                 </button>
@@ -227,7 +251,10 @@ function setGuides(state) {
                 <button
                   class="flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-gray-2"
                   :class="isArmed(con.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
+                  draggable="true"
                   @click="arm(con.type, togglePopover)"
+                  @dragstart="startTileDrag($event, con.type)"
+                  @dragend="endTileDrag(togglePopover)"
                 >
                   <LucideIcon :name="con.icon" class="h-[18px] w-[18px]" />
                 </button>
