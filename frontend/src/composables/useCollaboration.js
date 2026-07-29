@@ -178,12 +178,19 @@ export function useCollaboration(store, editorUi, name) {
     if (destroyed || !session?.room) return
 
     canWrite = Boolean(session.can_write)
-    persistence = new IndexeddbPersistence(session.room, doc)
-    // First sync: adopt the shared state if peers already have one, else seed ours.
-    persistence.once('synced', () => {
-      if (yShapes.size || yConnectors.size || yMeta.size) applyFromYjs()
-      else pushToYjs()
-    })
+    // Only editors get the offline cache. The provider broadcasts whatever ends up
+    // in the doc, whoever put it there — so replaying a view-only user's cached
+    // updates would push edits they are no longer allowed to make (e.g. after an
+    // edit share was downgraded to view).
+    if (canWrite) {
+      persistence = new IndexeddbPersistence(session.room, doc)
+      // First sync: adopt the shared state if peers already have one, else seed ours.
+      persistence.once('synced', () => {
+        if (destroyed) return
+        if (yShapes.size || yConnectors.size || yMeta.size) applyFromYjs()
+        else pushToYjs()
+      })
+    }
     try {
       provider = new WebrtcProvider(session.room, doc, {
         ...REALTIME_CONFIG,
