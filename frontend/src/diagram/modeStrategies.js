@@ -64,20 +64,14 @@ const WHITEBOARD = {
   hasBoundedPaper: true, // a bounded white canvas/paper, like block
   handlesSurfaceInteraction: true, // pen/highlighter/eraser/sticky/text/laser
   keyboardMode: 'whiteboard',
-  // Extra bottom-palette pointer modes (spec C6). The whiteboard carries its full
-  // tool set here AND each tool's options live in the bottom palette — there is no
-  // whiteboard right panel. Freehand tools (pen/highlighter/eraser/sticky/laser)
-  // plus straight lines and a basic table.
-  surfaceTools: [
-    { tool: 'pen', icon: 'edit-2', label: 'Pen' },
-    { tool: 'highlighter', icon: 'edit-3', label: 'Highlighter' },
-    { tool: 'eraser', icon: 'delete', label: 'Eraser' },
-    { tool: 'text', icon: 'type', label: 'Text' },
-    { tool: 'sticky', icon: 'sticky-note', label: 'Sticky note' },
-    { tool: 'line', icon: 'minus', label: 'Line' },
-    { tool: 'table', icon: 'grid', label: 'Table' },
-    { tool: 'laser', icon: 'zap', label: 'Laser pointer' },
-  ],
+  // NO surfaceTools here on purpose. The whiteboard's tool set lives in
+  // WhiteboardTools.vue, which BottomPalette renders for whiteboard and unified
+  // documents; the palette's `surfaceTools` branch is a `v-else-if` after it, so
+  // anything declared here would never render. A duplicate list did sit here, with
+  // icons that had drifted from the ones actually shown (pen as 'edit-2' vs the real
+  // 'pen-line'), which is misleading rather than harmless — it reads as the
+  // authoritative tool set. The seam stays available for a future type that has no
+  // component of its own.
   showsShapeTools: false, // no shape palette on the whiteboard
 }
 

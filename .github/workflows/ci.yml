@@ -78,3 +78,91 @@ jobs:
       - name: Run server tests
         working-directory: /home/runner/frappe-bench
         run: bench --site test_site run-tests --app draw
+
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    # Not a required check yet: it boots a full bench and drives a browser, so it is
+    # the most fragile job here. Promote it in branch protection once it has proven
+    # itself over a few runs.
+    services:
+      mariadb:
+        image: mariadb:10.6
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --host localhost --user root --password=root"
+          --health-interval=5s --health-timeout=2s --health-retries=15
+      redis-cache:
+        image: redis:6.2-alpine
+        ports:
+          - 13000:6379
+      redis-queue:
+        image: redis:6.2-alpine
+        ports:
+          - 11000:6379
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install bench + create test site
+        run: bash ${GITHUB_WORKSPACE}/.github/helper/install.sh
+
+      - name: Install E2E dependencies
+        run: |
+          yarn install --frozen-lockfile
+          # Chromium rather than the config's default installed Chrome, which a
+          # runner does not have.
+          npx playwright install --with-deps chromium
+
+      - name: Build the SPA
+        run: yarn build
+
+      - name: Start bench
+        working-directory: /home/runner/frappe-bench
+        run: |
+          # Full `bench start` (not just `bench serve`) so socketio is up too: the
+          # specs assert that no request fails, and a missing realtime endpoint shows
+          # up as exactly that kind of noise.
+          nohup bench start > /home/runner/bench-start.log 2>&1 &
+          # localhost resolves to the default site recorded in sites/currentsite.txt.
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/method/ping || true)
+            if [ "$code" = "200" ]; then echo "bench up after ${i}s"; exit 0; fi
+            sleep 1
+          done
+          echo "bench did not come up in 60s"; tail -50 /home/runner/bench-start.log; exit 1
+
+      - name: Run E2E tests
+        env:
+          DRAW_BASE_URL: http://localhost:8000
+          DRAW_USER: Administrator
+          DRAW_PASSWORD: admin
+          PLAYWRIGHT_CHANNEL: chromium
+        run: yarn test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+      - name: Bench log on failure
+        if: failure()
+        run: tail -100 /home/runner/bench-start.log || true
