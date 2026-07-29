@@ -175,6 +175,7 @@ function setGuides(state) {
 
 <template>
   <div
+    data-palette
     class="absolute bottom-[18px] left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-[10px] border border-outline-gray-1 bg-surface-base p-[5px] shadow-lg"
   >
     <Tooltip v-for="mode in modes" :key="mode.tool" :text="mode.label">

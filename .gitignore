@@ -64,3 +64,6 @@ draw/www/draw.html
 
 # Aider AI Chat
 .aider*
+e2e/.auth/
+test-results/
+playwright-report/

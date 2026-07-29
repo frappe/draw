@@ -4,6 +4,13 @@
   "scripts": {
     "postinstall": "cd frontend && yarn install",
     "dev": "cd frontend && yarn dev",
-    "build": "cd frontend && yarn build"
+    "build": "cd frontend && yarn build",
+    "test": "cd frontend && yarn test",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.0"
   }
 }

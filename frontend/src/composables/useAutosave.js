@@ -107,14 +107,21 @@ async function flush(session, saver, diagramResource, status, frozen) {
 
   const document = session.pendingDocument
   session.inFlight = true
+  let saveAgain = false
   try {
     const result = await saveDocument(saver, session, diagramResource, document)
-    onSaveSuccess(session, diagramResource, status, document, result)
+    saveAgain = onSaveSuccess(session, diagramResource, status, document, result)
   } catch (error) {
     onSaveError(session, status, frozen, error)
   } finally {
     session.inFlight = false
   }
+  // Edits made WHILE that save was in flight need their own save. This has to run
+  // after the `finally` above: called any earlier, inFlight is still true and the
+  // follow-up flush returns at its own guard, silently stranding the newer document
+  // until the user happens to make another edit. That lost real work — inserting a
+  // flowchart frame right after opening a diagram never reached the server.
+  if (saveAgain) session.flushNow()
 }
 
 function saveDocument(saver, session, diagramResource, document) {
@@ -138,9 +145,11 @@ function onSaveSuccess(session, diagramResource, status, savedDocument, result) 
     status.value = 'saved'
     // Server has the latest — drop the local override so the next open trusts it.
     clearLocalDoc(session.diagramName())
-  } else {
-    session.flushNow()
+    return false
   }
+  // A newer edit landed mid-flight. Report that rather than flushing here: the
+  // caller must clear inFlight first, or the follow-up flush no-ops (see flush()).
+  return true
 }
 
 // A stale revision freezes the editor for reload; a network failure starts the
