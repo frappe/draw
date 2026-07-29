@@ -155,6 +155,56 @@ class TestDrawDiagram(IntegrationTestCase):
 		if not drive_integration.drive_installed():
 			self.assertIsNone(drive_integration.register_in_drive(doc.name))
 
+	# ----- collaboration room (real-time session scoping) -----
+
+	def test_collab_room_is_not_the_diagram_name(self):
+		# Names are title slugs ("drawing-1"), so a name-derived room would put
+		# unrelated sites into one session on the public signaling server.
+		from draw.api.diagram import get_collab_room
+
+		doc = self._make("unified", {"schemaVersion": 1, "diagramType": "unified"})
+		session = get_collab_room(doc.name)
+
+		self.assertNotIn(doc.name, session["room"])
+		self.assertNotEqual(session["room"], session["password"])
+		self.assertEqual(session["room"], get_collab_room(doc.name)["room"])  # stable
+		self.assertTrue(session["can_write"])  # owner
+
+	def test_collab_room_differs_per_diagram(self):
+		from draw.api.diagram import get_collab_room
+
+		first = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		second = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		self.assertNotEqual(get_collab_room(first.name)["room"], get_collab_room(second.name)["room"])
+
+	def test_collab_room_follows_share_level(self):
+		from draw.api.diagram import get_collab_room
+		from draw.api.share import share_diagram
+
+		user = self._user("draw-collab@example.com")
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+
+		frappe.set_user(user)
+		try:
+			# No share yet: the room is never handed out, so there is nothing to join.
+			self.assertRaises(frappe.PermissionError, get_collab_room, doc.name)
+		finally:
+			frappe.set_user("Administrator")
+
+		share_diagram(doc.name, user, "view")
+		frappe.set_user(user)
+		try:
+			self.assertFalse(get_collab_room(doc.name)["can_write"])
+		finally:
+			frappe.set_user("Administrator")
+
+		share_diagram(doc.name, user, "edit")
+		frappe.set_user(user)
+		try:
+			self.assertTrue(get_collab_room(doc.name)["can_write"])
+		finally:
+			frappe.set_user("Administrator")
+
 	def test_unshare_revokes_access(self):
 		from draw.api.share import get_diagram_shares, share_diagram, unshare_diagram
 

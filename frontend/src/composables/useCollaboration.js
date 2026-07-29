@@ -12,8 +12,13 @@
 // two-way bridge keeps store <-> Yjs in sync without echo loops. The JSON autosave
 // is unchanged (each client rebuilds Yjs from the loaded JSON), so nothing extra
 // is persisted server-side. With no peers it's a silent no-op.
+//
+// Because the signaling server is shared and public, the room is not derived from
+// the diagram name: the backend issues a site-scoped room id + encryption password
+// to users who may read the diagram, and only editors push changes into it.
 
 import { ref, watch, onBeforeUnmount } from 'vue'
+import { call } from 'frappe-ui'
 import * as Y from 'yjs'
 import { WebrtcProvider } from 'y-webrtc'
 import { IndexeddbPersistence } from 'y-indexeddb'
@@ -43,15 +48,10 @@ export function useCollaboration(store, editorUi, name) {
   if (!name) return { collaborators, setCursor() {}, destroy() {} }
 
   const doc = new Y.Doc()
-  const room = `fdraw-${name}`
-  const persistence = new IndexeddbPersistence(room, doc)
+  let persistence = null
   let provider = null
-  try {
-    provider = new WebrtcProvider(room, doc, REALTIME_CONFIG)
-  } catch (error) {
-    // WebRTC/signaling unavailable → collaboration silently off; local editing fine.
-    console.warn('Collaboration unavailable', error)
-  }
+  let canWrite = false
+  let destroyed = false
 
   const yShapes = doc.getMap('shapes')
   const yConnectors = doc.getMap('connectors')
@@ -63,7 +63,8 @@ export function useCollaboration(store, editorUi, name) {
 
   // ---- store -> Yjs (local edits) ------------------------------------------
   function pushToYjs() {
-    if (applyingRemote) return
+    // View-only collaborators observe and follow; they never write to the room.
+    if (applyingRemote || !canWrite) return
     doc.transact(() => {
       for (const key of ['shapes', 'connectors', 'sections']) {
         reconcileList(maps[key], store.state[key] || [])
@@ -129,17 +130,10 @@ export function useCollaboration(store, editorUi, name) {
   ySections.observe(observer)
   yMeta.observe(observer)
 
-  // First sync: adopt the shared state if peers already have one, else seed ours.
-  persistence.once('synced', () => {
-    if (yShapes.size || yConnectors.size || yMeta.size) applyFromYjs()
-    else pushToYjs()
-  })
-
   // ---- awareness: presence + live cursors ----------------------------------
-  const awareness = provider?.awareness
-  if (awareness) {
-    const me = currentUser()
-    awareness.setLocalStateField('user', me)
+  function attachAwareness(awareness) {
+    if (!awareness) return
+    awareness.setLocalStateField('user', currentUser())
     awareness.on('change', () => {
       const out = []
       awareness.getStates().forEach((s, clientId) => {
@@ -151,20 +145,57 @@ export function useCollaboration(store, editorUi, name) {
   }
 
   function setCursor(point) {
-    awareness?.setLocalStateField('cursor', point ? { x: point.x, y: point.y } : null)
+    provider?.awareness?.setLocalStateField('cursor', point ? { x: point.x, y: point.y } : null)
   }
 
   function destroy() {
+    destroyed = true
     stop()
     try {
       provider?.destroy()
-      persistence.destroy()
+      persistence?.destroy()
       doc.destroy()
     } catch (error) {
       /* ignore teardown races */
     }
   }
   onBeforeUnmount(destroy)
+
+  // The room id and its encryption password come from the backend, which only
+  // hands them out to users who may read this diagram (see api/diagram.py). The
+  // diagram name is never used as the room: it is guessable and identical across
+  // sites, which would join unrelated installs into one session.
+  async function connect() {
+    let session
+    try {
+      session = await call('draw.api.diagram.get_collab_room', { name })
+    } catch (error) {
+      // No access, offline, or signaling unavailable → collaboration stays off;
+      // local editing and JSON autosave are unaffected.
+      console.warn('Collaboration unavailable', error)
+      return
+    }
+    if (destroyed || !session?.room) return
+
+    canWrite = Boolean(session.can_write)
+    persistence = new IndexeddbPersistence(session.room, doc)
+    // First sync: adopt the shared state if peers already have one, else seed ours.
+    persistence.once('synced', () => {
+      if (yShapes.size || yConnectors.size || yMeta.size) applyFromYjs()
+      else pushToYjs()
+    })
+    try {
+      provider = new WebrtcProvider(session.room, doc, {
+        ...REALTIME_CONFIG,
+        password: session.password,
+      })
+      attachAwareness(provider.awareness)
+    } catch (error) {
+      console.warn('Collaboration unavailable', error)
+    }
+  }
+
+  connect()
 
   return { collaborators, setCursor, destroy }
 }

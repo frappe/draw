@@ -13,11 +13,14 @@
 # in this module, unused, and a caller reaching one would have got weaker access
 # rules than the live path applies.
 
+import hashlib
+import hmac
 import json
 
 import frappe
 from frappe import _
 from frappe.utils import now_datetime
+from frappe.utils.password import get_encryption_key
 
 DOCTYPE = "Draw Diagram"
 
@@ -80,6 +83,34 @@ def get_public_diagram(name: str) -> dict:
 	access) surface as a permission error the viewer renders as "You need access".
 	"""
 	return get_diagram(name)
+
+
+# --- real-time collaboration room (SPEC §11.1) -------------------------------
+# The editor syncs peer-to-peer over Frappe's *public* signaling server, so the
+# room id is the only thing separating one session from another. Deriving it
+# from the diagram name alone put every site that slugged a title the same way
+# ("flowchart-1") into a single shared room. Room id and encryption password are
+# therefore HMACs keyed on the site's encryption key: unguessable from outside
+# and distinct per site. Handing them out is read-gated, so a user without
+# access to the diagram never learns the room to join it.
+
+
+@frappe.whitelist()
+def get_collab_room(name: str) -> dict:
+	"""Room id, encryption password and write flag for a diagram's live session."""
+	diagram = _get_readable_diagram(name)
+	can_write = diagram.owner == frappe.session.user or diagram.has_permission("write")
+	return {
+		"room": _room_secret(diagram.name, "room"),
+		"password": _room_secret(diagram.name, "password"),
+		"can_write": bool(can_write),
+	}
+
+
+def _room_secret(name: str, purpose: str) -> str:
+	"""Site-scoped, unguessable token for a diagram's collaboration room."""
+	message = f"draw:{purpose}:{name}".encode()
+	return hmac.new(get_encryption_key().encode(), message, hashlib.sha256).hexdigest()
 
 
 # --- writes ------------------------------------------------------------------
