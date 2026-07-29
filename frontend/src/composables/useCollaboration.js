@@ -71,7 +71,10 @@ export function useCollaboration(store, editorUi, name) {
 
   // ---- store -> Yjs (local edits) ------------------------------------------
   function pushToYjs() {
-    if (applyingRemote) return
+    // No room means no write access (or none yet). The doc outlives any single
+    // room, so anything accumulated here while unauthorized would be broadcast
+    // the moment a room does open — keep it out in the first place.
+    if (applyingRemote || !room) return
     doc.transact(() => {
       for (const key of ['shapes', 'connectors', 'sections']) {
         reconcileList(maps[key], store.state[key] || [])
