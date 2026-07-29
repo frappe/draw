@@ -14,8 +14,11 @@
 // is persisted server-side. With no peers it's a silent no-op.
 //
 // Because the signaling server is shared and public, the room is not derived from
-// the diagram name: the backend issues a site-scoped room id + encryption password
-// to users who may read the diagram, and only editors push changes into it.
+// the diagram name: the backend issues a site-scoped room id + encryption password,
+// and only to users who may edit — no server sits between the peers to hold anyone
+// to read-only. The room also changes when the diagram's access list does, so we
+// re-check it periodically and follow it; a peer whose share was revoked cannot
+// derive the new room and is left behind in the old one.
 
 import { ref, watch, onBeforeUnmount } from 'vue'
 import { call } from 'frappe-ui'
@@ -40,6 +43,10 @@ const REALTIME_CONFIG = {
   },
 }
 
+// How often to re-check the issued room, so a revoked share takes effect while
+// the editor is open rather than at the next reload.
+const ROOM_POLL_MS = 60_000
+
 const META_KEYS = ['canvas', 'themePreset', 'diagramType', 'mindmap', 'flowchart', 'whiteboard']
 const CURSOR_COLORS = ['#6846E3', '#0A84FF', '#16A34A', '#D97706', '#DB2777', '#0E7490', '#7C3AED']
 
@@ -50,7 +57,8 @@ export function useCollaboration(store, editorUi, name) {
   const doc = new Y.Doc()
   let persistence = null
   let provider = null
-  let canWrite = false
+  let room = null
+  let poll = null
   let destroyed = false
 
   const yShapes = doc.getMap('shapes')
@@ -63,8 +71,7 @@ export function useCollaboration(store, editorUi, name) {
 
   // ---- store -> Yjs (local edits) ------------------------------------------
   function pushToYjs() {
-    // View-only collaborators observe and follow; they never write to the room.
-    if (applyingRemote || !canWrite) return
+    if (applyingRemote) return
     doc.transact(() => {
       for (const key of ['shapes', 'connectors', 'sections']) {
         reconcileList(maps[key], store.state[key] || [])
@@ -151,9 +158,9 @@ export function useCollaboration(store, editorUi, name) {
   function destroy() {
     destroyed = true
     stop()
+    clearInterval(poll)
+    closeRoom()
     try {
-      provider?.destroy()
-      persistence?.destroy()
       doc.destroy()
     } catch (error) {
       /* ignore teardown races */
@@ -161,36 +168,15 @@ export function useCollaboration(store, editorUi, name) {
   }
   onBeforeUnmount(destroy)
 
-  // The room id and its encryption password come from the backend, which only
-  // hands them out to users who may read this diagram (see api/diagram.py). The
-  // diagram name is never used as the room: it is guessable and identical across
-  // sites, which would join unrelated installs into one session.
-  async function connect() {
-    let session
-    try {
-      session = await call('draw.api.diagram.get_collab_room', { name })
-    } catch (error) {
-      // No access, offline, or signaling unavailable → collaboration stays off;
-      // local editing and JSON autosave are unaffected.
-      console.warn('Collaboration unavailable', error)
-      return
-    }
-    if (destroyed || !session?.room) return
-
-    canWrite = Boolean(session.can_write)
-    // Only editors get the offline cache. The provider broadcasts whatever ends up
-    // in the doc, whoever put it there — so replaying a view-only user's cached
-    // updates would push edits they are no longer allowed to make (e.g. after an
-    // edit share was downgraded to view).
-    if (canWrite) {
-      persistence = new IndexeddbPersistence(session.room, doc)
-      // First sync: adopt the shared state if peers already have one, else seed ours.
-      persistence.once('synced', () => {
-        if (destroyed) return
-        if (yShapes.size || yConnectors.size || yMeta.size) applyFromYjs()
-        else pushToYjs()
-      })
-    }
+  function openRoom(session) {
+    room = session.room
+    persistence = new IndexeddbPersistence(session.room, doc)
+    // First sync: adopt the shared state if peers already have one, else seed ours.
+    persistence.once('synced', () => {
+      if (destroyed) return
+      if (yShapes.size || yConnectors.size || yMeta.size) applyFromYjs()
+      else pushToYjs()
+    })
     try {
       provider = new WebrtcProvider(session.room, doc, {
         ...REALTIME_CONFIG,
@@ -202,7 +188,41 @@ export function useCollaboration(store, editorUi, name) {
     }
   }
 
-  connect()
+  function closeRoom() {
+    room = null
+    collaborators.value = []
+    try {
+      provider?.destroy()
+      persistence?.destroy()
+    } catch (error) {
+      /* ignore teardown races */
+    }
+    provider = null
+    persistence = null
+  }
+
+  // The room id and its encryption password come from the backend, which hands
+  // them out only to users who may edit this diagram (see api/diagram.py). They
+  // also change whenever the diagram's access list does, so this runs on a timer:
+  // losing edit access closes the session, gaining it opens one.
+  async function syncRoom() {
+    let session
+    try {
+      session = await call('draw.api.diagram.get_collab_room', { name })
+    } catch (error) {
+      // No access, or the site is unreachable → collaboration stays off; local
+      // editing and JSON autosave are unaffected.
+      console.warn('Collaboration unavailable', error)
+      session = null
+    }
+    if (destroyed || (session?.room || null) === room) return
+
+    closeRoom()
+    if (session?.room) openRoom(session)
+  }
+
+  syncRoom()
+  poll = setInterval(syncRoom, ROOM_POLL_MS)
 
   return { collaborators, setCursor, destroy }
 }
