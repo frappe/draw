@@ -1,7 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createDiagramStore } from './useDiagramStore.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
-import { mindmapUi, selectNode, selectCrosslink, toggleFocus, focusedNodeId } from './mindmapUi.js'
+import {
+  mindmapUi,
+  selectNode,
+  selectCrosslink,
+  toggleFocus,
+  focusedNodeId,
+  resetMindmapUi,
+} from './mindmapUi.js'
 import { linkNodes, deleteNodes } from '@/diagram/mindmapOperations.js'
 import { mindmapKeydown } from '@/composables/useMindmapKeys.js'
 
@@ -19,14 +26,9 @@ function mindmapStore() {
   return { store, root, a, b }
 }
 
-// mindmapUi is a module singleton, so each test starts from a known slate.
-beforeEach(() => {
-  mindmapUi.editingId = null
-  mindmapUi.focusId = null
-  mindmapUi.pendingLinkSource = null
-  mindmapUi.confirmDelete = null
-  mindmapUi.selectedCrosslinkId = null
-})
+// mindmapUi is a module singleton, so each test starts from a known slate — using
+// the same reset the editor applies at each document boundary.
+beforeEach(resetMindmapUi)
 
 describe('cross-link selection', () => {
   it('is mutually exclusive with node selection', () => {
@@ -163,6 +165,34 @@ describe('focusedNodeId guards a stale focus', () => {
   it('stays null when focus was never turned on', () => {
     const { store } = mindmapStore()
     expect(focusedNodeId(store.state.mindmap)).toBeNull()
+  })
+
+  // The existence guard is not enough on its own. Node ids come from a per-session
+  // counter, so two documents created in different sessions both hold ids like 'm2'
+  // — and a focus left behind in one map then passes the guard against an unrelated
+  // node of the same id in the next. Hence the document-boundary reset.
+  it('does not re-attach to a same-id node in a different document', () => {
+    const first = mindmapStore()
+    selectNode(first.store, first.a)
+    toggleFocus(first.store)
+    const leaked = mindmapUi.focusId
+
+    // A different document that happens to contain that id (as a persisted one would).
+    const otherDoc = createDiagramDocument(undefined, 'mindmap')
+    otherDoc.mindmap = {
+      rootId: leaked,
+      nodes: [{ id: leaked, parentId: null, text: 'Unrelated node', depth: 0 }],
+      crosslinks: [],
+      layout: 'balanced',
+      origin: { x: 0, y: 0 },
+    }
+    const second = createDiagramStore(otherDoc)
+
+    // Left alone, the stale id passes the existence guard and focuses a stranger.
+    expect(focusedNodeId(second.state.mindmap)).toBe(leaked)
+    // Clearing the chrome as each document loads is what actually prevents it.
+    resetMindmapUi()
+    expect(focusedNodeId(second.state.mindmap)).toBeNull()
   })
 
   it('lets the next toggle focus immediately rather than spending a click on stale state', () => {

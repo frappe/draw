@@ -10,6 +10,7 @@ import { parseDiagramDocument } from '@/diagram/schema.js'
 import { createDiagramStore, provideDiagramStore } from '@/stores/useDiagramStore.js'
 import { createEditorUi, provideEditorUi } from '@/stores/useEditorUi.js'
 import { provideModeStrategy, getModeStrategy } from '@/stores/useModeStrategy.js'
+import { resetMindmapUi } from '@/stores/mindmapUi.js'
 import { provideModeInteraction } from '@/composables/useModeInteraction.js'
 import { useKeyboard } from '@/composables/useKeyboard.js'
 import { useClipboard } from '@/composables/useClipboard.js'
@@ -39,6 +40,11 @@ const props = defineProps({
 const diagram = loadDiagram(props.name)
 const store = createDiagramStore(parseDiagramDocument(diagram.doc?.document))
 const editorUi = createEditorUi()
+// editorUi is created per editor, but mindmapUi is a module singleton whose fields
+// all hold node ids — and node ids are per-document counters, so they repeat across
+// maps. Clear it as each document loads, or leftovers (a branch focus, a half-armed
+// cross-link) silently re-attach to whichever node shares that id here.
+resetMindmapUi()
 provideDiagramStore(store)
 provideEditorUi(editorUi)
 
@@ -78,11 +84,16 @@ watch(
   },
 )
 
-// The doc may arrive after mount; load it into the store once it lands.
+// The doc may arrive after mount; load it into the store once it lands. Reset the
+// mind-map chrome with it — this fires for a late-arriving document and for any
+// in-place document swap, neither of which re-runs setup.
 watch(
   () => diagram.doc?.document,
   (raw) => {
-    if (raw) store.loadDocument(parseDiagramDocument(raw))
+    if (raw) {
+      resetMindmapUi()
+      store.loadDocument(parseDiagramDocument(raw))
+    }
   },
 )
 

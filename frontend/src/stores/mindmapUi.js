@@ -16,6 +16,21 @@ export const mindmapUi = reactive({
   selectedCrosslinkId: null,
 })
 
+// Every field here is scoped to ONE document: each holds a node id (or a set of
+// them), and node ids are per-document counters, so 'm3' exists in most maps.
+// Unlike editorUi, which EditorShell creates fresh per editor, this is a module
+// singleton that outlives a document — so it has to be cleared at the boundary,
+// or state leaks into the next map and silently attaches to unrelated nodes that
+// happen to share an id: a restored branch focus, a half-armed cross-link, or a
+// delete confirm for a node the user never touched.
+export function resetMindmapUi() {
+  mindmapUi.editingId = null
+  mindmapUi.focusId = null
+  mindmapUi.pendingLinkSource = null
+  mindmapUi.confirmDelete = null
+  mindmapUi.selectedCrosslinkId = null
+}
+
 // The single selected node id (mind map selects one node at a time for keyboard
 // navigation), read from the shared store selection.
 export function selectedNodeId(store) {
