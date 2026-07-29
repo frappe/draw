@@ -46,13 +46,6 @@ export function isEditing() {
   return mindmapUi.editingId !== null
 }
 
-// Focus mode: show only the selected node's branch (MindMapNodeLayer dims
-// everything outside that subtree). Toggling off always wins, so the button is
-// never a one-way trap even with nothing selected.
-export function toggleFocus(store) {
-  mindmapUi.focusId = mindmapUi.focusId ? null : selectedNodeId(store)
-}
-
 // The focused node id, but ONLY while that node still exists in `model`.
 //
 // focusId can outlive the node it names — delete the focused node, undo past its
@@ -68,4 +61,17 @@ export function focusedNodeId(model) {
   const id = mindmapUi.focusId
   if (!id) return null
   return model?.nodes?.some((node) => node.id === id) ? id : null
+}
+
+// Focus mode: show only the selected node's branch (MindMapNodeLayer dims
+// everything outside that subtree). Toggling off always wins, so the button is
+// never a one-way trap even with nothing selected.
+//
+// The on/off decision reads the GUARDED state, not the raw flag: with a stale
+// focusId the UI already shows "not focused", so a raw-flag toggle would spend the
+// user's first click silently clearing state that was inert anyway, and they would
+// have to click again to actually focus. The button and the toggle must agree.
+export function toggleFocus(store) {
+  const active = focusedNodeId(store.state.mindmap)
+  mindmapUi.focusId = active ? null : selectedNodeId(store)
 }

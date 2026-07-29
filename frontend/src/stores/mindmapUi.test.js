@@ -164,4 +164,17 @@ describe('focusedNodeId guards a stale focus', () => {
     const { store } = mindmapStore()
     expect(focusedNodeId(store.state.mindmap)).toBeNull()
   })
+
+  it('lets the next toggle focus immediately rather than spending a click on stale state', () => {
+    const { store, a, b } = mindmapStore()
+    selectNode(store, a)
+    toggleFocus(store)
+    deleteNodes(store, [a]) // focusId now names a node that is gone
+
+    // The UI shows "not focused", so one click must actually focus — if toggleFocus
+    // read the raw flag it would only clear it, and the user would need a 2nd click.
+    selectNode(store, b)
+    toggleFocus(store)
+    expect(focusedNodeId(store.state.mindmap)).toBe(b)
+  })
 })
