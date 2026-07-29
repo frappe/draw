@@ -40,6 +40,13 @@ jspm_packages/
 draw/public/frontend/
 draw/www/draw.html
 
+# Screen recordings. Kept OUT of git on purpose: a 6 MB binary is permanent in
+# history and can never be pruned without a rewrite. Attach demos to a GitHub
+# release or an issue and link them from the README instead. (Raster logos are
+# small enough to track — see design/assets/logomark/.)
+*.mp4
+*.mov
+
 # IDEs and editors
 .vscode/
 .vs/
