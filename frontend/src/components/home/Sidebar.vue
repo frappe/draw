@@ -5,11 +5,12 @@
 // render through the #sidebar-item slot using frappe-ui's SidebarItem with
 // lucide icons, so the whole thing keeps the standard Frappe look and feel.
 import { ref, computed, onMounted } from 'vue'
-import { Sidebar, SidebarItem, Dropdown, Dialog, Button, FormControl } from 'frappe-ui'
+import { Sidebar, SidebarItem, Dropdown, Dialog, Button, FormControl, toast } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import Logomark from '@/components/Logomark.vue'
 import SettingsDialog from '@/components/home/SettingsDialog.vue'
 import { folders, renameFolder, deleteFolder } from '@/data/folders.js'
+import { logout } from '@/data/session.js'
 
 const props = defineProps({
   active: { type: String, default: 'all' },
@@ -24,13 +25,23 @@ onMounted(() => folders.fetch())
 // Real logged-in user, injected into the page boot by www/draw.py.
 const fullName = computed(() => window.full_name || 'You')
 
+// Log out, keeping the user here with an error if the session survives — a
+// silent no-op would look like the old "403 Not Permitted" logout.
+async function signOut() {
+  try {
+    await logout()
+  } catch (error) {
+    toast.error('Could not log out', { text: error?.message || '' })
+  }
+}
+
 // Header dropdown (Settings + Log out), matching Drive's header menu.
 const header = computed(() => ({
   title: 'Frappe Draw',
   subtitle: fullName.value,
   menuItems: [
     { label: 'Settings', icon: 'settings', onClick: () => (showSettings.value = true) },
-    { label: 'Log out', icon: 'log-out', onClick: () => (window.location.href = '/api/method/logout') },
+    { label: 'Log out', icon: 'log-out', onClick: signOut },
   ],
 }))
 
