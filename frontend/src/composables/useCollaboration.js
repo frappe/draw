@@ -60,6 +60,7 @@ export function useCollaboration(store, editorUi, name) {
   let room = null
   let poll = null
   let destroyed = false
+  let syncGeneration = 0
 
   const yShapes = doc.getMap('shapes')
   const yConnectors = doc.getMap('connectors')
@@ -191,12 +192,17 @@ export function useCollaboration(store, editorUi, name) {
     }
   }
 
-  function closeRoom() {
+  // `dropCache` deletes the offline database as well as closing it. y-indexeddb
+  // names that database after the room id, so a rotation would otherwise orphan
+  // one per share change, permanently. On unmount the room is unchanged and the
+  // cache is what makes the next open fast, so it stays.
+  function closeRoom({ dropCache = false } = {}) {
     room = null
     collaborators.value = []
     try {
       provider?.destroy()
-      persistence?.destroy()
+      if (dropCache) Promise.resolve(persistence?.clearData()).catch(() => {})
+      else persistence?.destroy()
     } catch (error) {
       /* ignore teardown races */
     }
@@ -209,18 +215,22 @@ export function useCollaboration(store, editorUi, name) {
   // also change whenever the diagram's access list does, so this runs on a timer:
   // losing edit access closes the session, gaining it opens one.
   async function syncRoom() {
+    const generation = ++syncGeneration
     let session
     try {
       session = await call('draw.api.diagram.get_collab_room', { name })
     } catch (error) {
-      // No access, or the site is unreachable → collaboration stays off; local
-      // editing and JSON autosave are unaffected.
-      console.warn('Collaboration unavailable', error)
-      session = null
+      // The call failed; that is not an answer about access. Tearing the session
+      // down here would cost everyone in the room up to a poll interval over one
+      // network blip, so keep the current room and re-check on the next tick.
+      console.warn('Collaboration room check failed', error)
+      return
     }
-    if (destroyed || (session?.room || null) === room) return
+    // Responses can land out of order; only the newest one decides the room.
+    if (destroyed || generation !== syncGeneration) return
+    if ((session?.room || null) === room) return
 
-    closeRoom()
+    closeRoom({ dropCache: true })
     if (session?.room) openRoom(session)
   }
 
