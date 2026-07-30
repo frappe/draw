@@ -416,10 +416,17 @@ function syncMeasure() {
   viewport.setMeasure({ containerW: bounds.width, containerH: bounds.height })
 }
 
-// The document's canvas dimensions settle after the async load; re-open at 100%
-// (true size) when they do, rather than zooming to fit.
+// Re-open at 100% (true size) when a document lands after mount, or when the
+// canvas is resized to a different preset — not zoomed to fit.
+//
+// Each source is its own getter so Vue compares the values, not a wrapper array.
+// A single `() => [canvas.value.width, canvas.value.height]` getter returned a
+// fresh array whenever `state.canvas` was replaced — which undo/redo and remote
+// sync do wholesale, with identical dimensions — so every Ctrl+Z re-ran
+// openAtActualSize() and threw the user back to the default view before they
+// could see what was undone (#28).
 watch(
-  () => [canvas.value.width, canvas.value.height],
+  [() => store.state.loadCount, () => canvas.value.width, () => canvas.value.height],
   () => nextTick(openAtActualSize),
 )
 

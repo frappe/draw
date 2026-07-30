@@ -53,6 +53,10 @@ export function createDiagramStore(initialDocument) {
     whiteboard: document.whiteboard ? clone(document.whiteboard) : null,
     selection: [],
     themePreset: document.themePreset || DEFAULT_THEME_PRESET,
+    // Bumped by loadDocument() so views can tell "a whole new document arrived"
+    // apart from "the document was edited". Not part of the saved document, and
+    // deliberately outside the history snapshot — undo must not look like a load.
+    loadCount: 0,
   })
   const history = createHistory(state)
   return assembleStore(state, history)
@@ -647,6 +651,7 @@ function attachDocumentIo(store, state, history) {
     state.whiteboard = document.whiteboard ? clone(document.whiteboard) : null
     state.themePreset = document.themePreset || DEFAULT_THEME_PRESET
     state.selection = []
+    state.loadCount += 1
     history.clear()
   }
 }
