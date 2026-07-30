@@ -127,8 +127,12 @@ jobs:
           # runner does not have.
           npx playwright install --with-deps chromium
 
-      - name: Build the SPA
-        run: yarn build
+      - name: Build the SPA inside the bench
+        working-directory: /home/runner/frappe-bench
+        # install.sh runs `bench get-app draw <workspace>`, which COPIES the checkout
+        # into apps/draw, and `bench init --skip-assets` builds nothing — so a build in
+        # the workspace would never reach the app that gets served. Build in the bench.
+        run: bench build --app draw
 
       - name: Start bench
         working-directory: /home/runner/frappe-bench
@@ -137,13 +141,18 @@ jobs:
           # specs assert that no request fails, and a missing realtime endpoint shows
           # up as exactly that kind of noise.
           nohup bench start > /home/runner/bench-start.log 2>&1 &
-          # localhost resolves to the default site recorded in sites/currentsite.txt.
-          for i in $(seq 1 60); do
-            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/method/ping || true)
-            if [ "$code" = "200" ]; then echo "bench up after ${i}s"; exit 0; fi
+          # localhost resolves to the default site in sites/currentsite.txt. Any HTTP
+          # response means the server is listening — don't probe a specific endpoint
+          # for a specific status, since an unauthenticated request to a whitelisted
+          # method can legitimately answer 403 and that still means "up".
+          for i in $(seq 1 120); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/draw || true)
+            if [ -n "$code" ] && [ "$code" != "000" ]; then
+              echo "bench up after ${i}s (HTTP $code)"; exit 0
+            fi
             sleep 1
           done
-          echo "bench did not come up in 60s"; tail -50 /home/runner/bench-start.log; exit 1
+          echo "bench did not come up in 120s"; tail -80 /home/runner/bench-start.log; exit 1
 
       - name: Run E2E tests
         env:
