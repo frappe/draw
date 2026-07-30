@@ -106,6 +106,16 @@ export function useViewport() {
     Object.assign(measure, next)
   }
 
+  // The logical canvas point under the centre of the visible container. Anything
+  // inserted without a pointer position (a pasted image, an inserted mind map or
+  // flowchart frame) is placed here so it lands in view at any pan/zoom.
+  function centerPoint() {
+    return {
+      x: (measure.containerW / 2 - state.panX) / state.zoom,
+      y: (measure.containerH / 2 - state.panY) / state.zoom,
+    }
+  }
+
   // Centre the content (top-left at originX/originY, size canvasW×canvasH) in the
   // container at the given scale.
   function centerAt(scale) {
@@ -160,6 +170,7 @@ export function useViewport() {
     fit,
     setPan,
     setMeasure,
+    centerPoint,
     placeTopCenter,
   }
 }

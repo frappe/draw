@@ -85,9 +85,14 @@ const LINES = [
 // dropped on the unified canvas. They have no single-click tool since they
 // lay themselves out — you add them like a shape/template — so they sit in the
 // Shapes popover's last section instead of a separate Insert menu (#44).
+//
+// A new frame is centred on the visible viewport rather than the canvas origin,
+// so it appears where the user is working instead of somewhere they have to pan
+// off and find (#30). Insert has no pointer position of its own, so the viewport
+// centre is the only sensible anchor.
 const DIAGRAMS = [
-  { key: 'mindmap', icon: 'git-fork', label: 'Mind map', insert: () => store.insertMindmapStarter() },
-  { key: 'flowchart', icon: 'workflow', label: 'Flowchart', insert: () => store.insertFlowchartStarter() },
+  { key: 'mindmap', icon: 'git-fork', label: 'Mind map', insert: () => store.insertMindmapStarter(viewport.centerPoint()) },
+  { key: 'flowchart', icon: 'workflow', label: 'Flowchart', insert: () => store.insertFlowchartStarter(viewport.centerPoint()) },
 ]
 function insertDiagram(diagram, close) {
   diagram.insert()

@@ -219,14 +219,9 @@ const clipboard = useClipboard(store)
 
 // Cmd/Ctrl+V: paste an OS-clipboard image at the viewport centre, else the
 // internal shape buffer (spec 2.6). Owns paste so the keyboard composable doesn't.
-useCanvasPaste({ imageInsert, clipboard, getCenter: () => viewportCenterPoint() })
-
-// Logical canvas point at the centre of the visible viewport (where a pasted
-// image lands, so it appears in view regardless of pan/zoom).
-function viewportCenterPoint() {
-  const { panX, panY, zoom } = viewport.state
-  return { x: (viewWidth.value / 2 - panX) / zoom, y: (viewHeight.value / 2 - panY) / zoom }
-}
+// The centre point lives on the viewport, so the palette's Insert can place a new
+// frame on the same anchor.
+useCanvasPaste({ imageInsert, clipboard, getCenter: () => viewport.centerPoint() })
 
 // Right-click context menu (suppresses the browser default). Items differ for a
 // shape vs empty canvas.
