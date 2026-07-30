@@ -24,16 +24,26 @@ const AUTH_DIR = 'e2e/.auth'
 export const test = base.extend({
   workerStorageState: [
     async ({ browser }, use, workerInfo) => {
-      const file = path.resolve(AUTH_DIR, `worker-${workerInfo.workerIndex}.json`)
-      if (fs.existsSync(file)) {
-        await use(file)
-        return
-      }
       const usr = process.env.DRAW_USER || 'Administrator'
       const pwd = process.env.DRAW_PASSWORD || 'Admin'
       // A worker fixture cannot depend on the test-scoped `baseURL`, so read it off
       // the project config (same value playwright.config.js resolves).
       const baseURL = workerInfo.project.use.baseURL
+
+      // The cache key includes the site AND the user, not just the worker index.
+      // e2e/.auth is gitignored and therefore survives between runs, so a key of
+      // worker index alone would reuse a session from a previous run after
+      // DRAW_BASE_URL or DRAW_USER changed — silently testing the wrong site or
+      // identity, with no login attempt to reveal it.
+      const slug = (value) => String(value).replace(/[^a-z0-9]+/gi, '-').toLowerCase()
+      const file = path.resolve(
+        AUTH_DIR,
+        `worker-${workerInfo.workerIndex}-${slug(baseURL)}-${slug(usr)}.json`,
+      )
+      if (fs.existsSync(file)) {
+        await use(file)
+        return
+      }
 
       const context = await browser.newContext({ storageState: undefined })
       const res = await context.request.post(`${baseURL}/api/method/login`, {
@@ -96,16 +106,26 @@ export const test = base.extend({
 // uncaught exceptions and are always a real defect. `failures` carries the URL and
 // status of every 4xx/5xx, because the bare console line ("Failed to load resource:
 // … 400") names no URL and is undiagnosable on its own.
+// Requests whose failure says nothing about Draw. The realtime transport is the one
+// that matters in practice: socket.io long-polling legitimately 400s when a session
+// is torn down or a transport upgrade races, which happens routinely in CI and would
+// otherwise fail whichever spec happened to be running at the time. Everything else
+// — the app's own API calls and assets — is still asserted on.
+const IGNORED_FAILURES = [/\/socket\.io\//]
+
 export function watchForErrors(page) {
-  const state = { consoleErrors: [], pageErrors: [], failures: [] }
+  const state = { consoleErrors: [], pageErrors: [], failures: [], ignoredFailures: [] }
   page.on('console', (m) => {
     if (m.type() === 'error') state.consoleErrors.push(m.text())
   })
   page.on('pageerror', (e) => state.pageErrors.push(String(e)))
   page.on('response', (res) => {
-    if (res.status() >= 400) {
-      state.failures.push(`${res.status()} ${res.request().method()} ${res.url()}`)
-    }
+    if (res.status() < 400) return
+    const entry = `${res.status()} ${res.request().method()} ${res.url()}`
+    const bucket = IGNORED_FAILURES.some((re) => re.test(res.url()))
+      ? state.ignoredFailures
+      : state.failures
+    bucket.push(entry)
   })
   return state
 }
