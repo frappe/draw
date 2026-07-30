@@ -136,11 +136,26 @@ export const documents = {
 
   // The unified canvas holds every sub-model at once. Frame origins are kept
   // apart so an inserted mind map and flowchart don't land stacked.
+  //
+  // `withFrames` uses the document's spread-out default origins, which is what an
+  // inserted frame looks like — but they fall OUTSIDE the initial view, so nothing
+  // inside them can be clicked. `framesInView` seeds the same content at origins
+  // within the window, for any test that has to interact with a frame.
+  // page.mouse silently ignores out-of-window coordinates, so getting this wrong
+  // yields a test that passes while doing nothing at all — see enterFrame().
   unified: (opts = {}) => ({
     ...baseDocument('unified'),
     shapes: opts.empty ? [] : [rect('s1', 120, 140), rect('s2', 700, 460)],
-    mindmap: opts.withFrames ? seededMindmap({ x: 0, y: 900 }) : emptyMindmap({ x: 0, y: 900 }),
-    flowchart: opts.withFrames ? seededFlowchart({ x: 1500, y: 0 }) : emptyFlowchart({ x: 1500, y: 0 }),
+    mindmap: opts.framesInView
+      ? seededMindmap({ x: 60, y: 600 })
+      : opts.withFrames
+        ? seededMindmap({ x: 0, y: 900 })
+        : emptyMindmap({ x: 0, y: 900 }),
+    flowchart: opts.framesInView
+      ? seededFlowchart({ x: 1000, y: 60 })
+      : opts.withFrames
+        ? seededFlowchart({ x: 1500, y: 0 })
+        : emptyFlowchart({ x: 1500, y: 0 }),
     whiteboard: opts.empty ? emptyWhiteboard() : seededWhiteboard(),
   }),
 }

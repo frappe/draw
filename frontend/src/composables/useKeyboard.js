@@ -99,19 +99,33 @@ function handleKeydown(event, store, editorUi, clipboard, transform) {
   }
   // The block type keeps the shared shape shortcuts (delete/escape/nudge). Other
   // types delegate fully to their per-mode handler above (and its no-op stub).
-  if (modeKeyboardFor(store) !== null) return
+  if (modeKeyboardFor(store, editorUi) !== null) return
   if (handlePlainKey(event, store, editorUi, transform)) event.preventDefault()
 }
 
-// The per-mode handler for the active diagram type (or null for block/unset).
-function modeKeyboardFor(store) {
-  const strategy = getModeStrategy(store.state.diagramType)
+// The type whose keyboard is live. On the unified canvas, entering a frame makes the
+// editor that sub-model's single-type editor — EditorShell resolves its whole mode
+// strategy as `focusedFrame || diagramType`, and the keyboard has to agree.
+//
+// It did not. This read `store.state.diagramType` alone, and there is no 'unified'
+// strategy (getModeStrategy falls back to BLOCK), so on every unified document the
+// per-type handlers were unreachable: inside a mind-map frame the nodes selected and
+// the toolbar appeared, but Tab, Enter, the arrows and Delete all did nothing — the
+// keys that are the ONLY way to grow a mind map. Same for a flowchart frame. Since
+// new diagrams are unified, that was the common case.
+export function effectiveKeyboardMode(store, editorUi) {
+  return editorUi?.state?.focusedFrame || store.state.diagramType
+}
+
+// The per-mode handler for the type whose keyboard is live (or null for block/unset).
+function modeKeyboardFor(store, editorUi) {
+  const strategy = getModeStrategy(effectiveKeyboardMode(store, editorUi))
   return MODE_KEYBOARD_HANDLERS[strategy.keyboardMode] ?? null
 }
 
 // Offer a non-modifier key to the active type's handler; returns true if consumed.
 function dispatchModeKey(event, store, editorUi) {
-  const handler = modeKeyboardFor(store)
+  const handler = modeKeyboardFor(store, editorUi)
   if (!handler) return false
   return handler(event, store, editorUi) === true
 }

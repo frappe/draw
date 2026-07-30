@@ -172,3 +172,36 @@ export async function clickMinimap(page, dx, dy) {
   if (!box) throw new Error('minimap not rendered — does the document have content?')
   await page.mouse.click(box.x + dx, box.y + dy)
 }
+
+// --- unified-canvas frames ---------------------------------------------------
+
+// The focus-mode indicator: EditorShell renders one button reading
+// "Back to canvas · editing <frame>" while editorUi.state.focusedFrame is set.
+//
+// Match the BUTTON, never getByText(/editing/i). The `diagram` fixture names each
+// document after the test that created it, so that pattern happily matched the test
+// title in the editor header — an assertion that passed whatever the app did.
+export function backToCanvas(page) {
+  return page.getByRole('button', { name: /back to canvas/i })
+}
+
+// Enter in-frame editing by double-clicking a node inside a frame, and wait for the
+// indicator so later keystrokes are not delivered mid-transition.
+//
+// Throws if the node is outside the window: frames are seeded at their own origin and
+// a document whose frame sits below the fold silently swallows every interaction —
+// page.mouse ignores out-of-window coordinates. Use the `framesInView` fixture.
+export async function enterFrame(page, label) {
+  const target = page.locator('.fd-mm-label', { hasText: label }).first()
+  const box = await target.boundingBox()
+  if (!box) throw new Error(`node "${label}" is not rendered`)
+  const { width, height } = page.viewportSize()
+  if (box.y + box.height > height || box.x + box.width > width) {
+    throw new Error(
+      `node "${label}" is outside the ${width}x${height} window (at ${Math.round(box.x)},` +
+        `${Math.round(box.y)}) — seed the frames in view rather than clicking into the void`,
+    )
+  }
+  await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2)
+  await expect(backToCanvas(page)).toBeVisible({ timeout: 10_000 })
+}

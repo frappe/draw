@@ -11,6 +11,8 @@ import {
   minimap,
   clickMinimap,
   canvasTransform,
+  enterFrame,
+  backToCanvas,
 } from '../helpers/editor.js'
 
 // The unified canvas is where the four diagram types were merged onto one surface,
@@ -155,15 +157,30 @@ test.describe('unified canvas: frames', () => {
     await expect(page.locator('.fd-mm-label')).toHaveCount(4)
   })
 
-  test('double-clicking a frame enters in-frame editing', async ({ page, diagram }) => {
-    await diagram.open('unified', { withFrames: true })
+  test('double-clicking a mind-map frame enters in-frame editing', async ({ page, diagram }) => {
+    await diagram.open('unified', { framesInView: true })
 
-    const label = page.locator('.fd-mm-label', { hasText: 'Branch A' }).first()
-    const box = await label.boundingBox()
+    // NEVER assert this with getByText(/editing/i). The `diagram` fixture names each
+    // document after the test that created it, so that pattern matched THIS TEST'S
+    // OWN TITLE in the editor header — it passed no matter what the double-click did,
+    // including when the frame sat below the fold and nothing happened at all.
+    await enterFrame(page, 'Branch A')
+    await expect(backToCanvas(page)).toBeVisible()
+  })
+
+  test('double-clicking a flowchart frame enters in-frame editing', async ({ page, diagram }) => {
+    // The flowchart frame wrapped its content in an inline pointer-events:none, which
+    // the viewport's [&_*]:pointer-events-auto overrode — so the double-click hit the
+    // node instead of the frame's hit-rect and the frame could not be entered at all.
+    await diagram.open('unified', { framesInView: true })
+
+    const node = page.getByText('Do work', { exact: true }).first()
+    const box = await node.boundingBox()
     await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2)
 
-    // EditorShell shows a "· editing <frame>" breadcrumb while focusedFrame is set.
-    await expect(page.getByText(/editing/i).first()).toBeVisible({ timeout: 10_000 })
+    await expect(backToCanvas(page), 'a flowchart frame could not be entered').toBeVisible({
+      timeout: 10_000,
+    })
   })
 })
 

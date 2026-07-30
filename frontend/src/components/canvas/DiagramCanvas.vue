@@ -876,7 +876,14 @@ const surfaceCursor = computed(() => {
             @pointerdown.stop="startFrameDrag('flowchart', $event)"
             @dblclick.stop="editorUi.setFocusedFrame('flowchart')"
           />
-          <g style="pointer-events: none">
+          <!-- .unified-frame-content, NOT an inline pointer-events:none. The viewport
+               applies [&_*]:pointer-events-auto to every descendant, which overrides
+               an inline none on this wrapper — so the flowchart's nodes stayed live on
+               the unified canvas. A double-click landed on the node instead of the
+               frame's hit-rect below, which meant the frame could not be ENTERED at
+               all (and the label text selected instead). The mind-map frame above
+               already used the class; this one was missed. -->
+          <g class="unified-frame-content">
             <FlowchartLayer :flowchart="store.state.flowchart" />
           </g>
         </g>
