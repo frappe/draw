@@ -83,6 +83,7 @@ function assembleStore(state, history) {
 // A frame's `origin` is its top-left on the shared canvas; its content sits at
 // origin + the content bbox. Insert used to leave the origin at the document's
 // fixed default, so a user who had panned away got a frame somewhere off-screen.
+// It is now placed inside `view`, the logical rect the canvas currently shows.
 
 const FRAME_GAP = 80
 
@@ -91,13 +92,15 @@ function frameRect(origin, bbox) {
   return { x: origin.x + (bbox.x || 0), y: origin.y + (bbox.y || 0), w: bbox.w, h: bbox.h }
 }
 
-function overlaps(a, b) {
-  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+function overlapArea(a, b) {
+  const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)
+  const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)
+  return Math.max(0, w) * Math.max(0, h)
 }
 
 // The rect held by the auto-layout frame OTHER than `kind`, or null if it's empty.
-// Both frames insert at the same viewport centre, so the second one needs to know
-// where the first one sits.
+// Both frames insert into the same view, so the second one needs to know where the
+// first one sits.
 function otherFrameRect(state, kind) {
   if (kind === 'mindmap') {
     const f = state.flowchart
@@ -109,18 +112,51 @@ function otherFrameRect(state, kind) {
   return frameRect(m.origin || { x: 0, y: 0 }, layoutMindMap(m).bbox)
 }
 
-// The origin that centres `bbox` on `at`, a logical canvas point — normally the
-// centre of the visible viewport, so an inserted frame appears where the user is
-// looking. Dropped below `avoid` when it would land on the other frame, which the
-// document's fixed default origins used to prevent.
-function frameOriginCentredOn(bbox, at, avoid = null) {
-  const origin = {
-    x: at.x - ((bbox.x || 0) + bbox.w / 2),
-    y: at.y - ((bbox.y || 0) + bbox.h / 2),
+// One axis of a rect placed inside the view: kept within its bounds, or centred on
+// it when the rect is the larger of the two.
+function insideAxis(pos, size, min, extent) {
+  if (size >= extent) return min + (extent - size) / 2
+  return Math.min(Math.max(pos, min), min + extent - size)
+}
+
+function insideView(rect, view) {
+  return {
+    ...rect,
+    x: insideAxis(rect.x, rect.w, view.x, view.w),
+    y: insideAxis(rect.y, rect.h, view.y, view.h),
   }
-  const rect = frameRect(origin, bbox)
-  if (avoid && overlaps(rect, avoid)) origin.y += avoid.y + avoid.h + FRAME_GAP - rect.y
-  return origin
+}
+
+function centredInView(size, view) {
+  return { x: view.x + (view.w - size.w) / 2, y: view.y + (view.h - size.h) / 2, ...size }
+}
+
+// The four ways to sit clear of `avoid` — below, above, right, left — each centred
+// in the view on the other axis and then pulled back inside it. That pull can leave
+// a sliver of overlap when the view has no room to clear the other frame; a small
+// overlap the user can drag apart beats a frame parked off-screen (#30).
+function placementsClearing(size, view, avoid) {
+  const centred = centredInView(size, view)
+  return [
+    { ...centred, y: avoid.y + avoid.h + FRAME_GAP },
+    { ...centred, y: avoid.y - FRAME_GAP - size.h },
+    { ...centred, x: avoid.x + avoid.w + FRAME_GAP },
+    { ...centred, x: avoid.x - FRAME_GAP - size.w },
+  ].map((rect) => insideView(rect, view))
+}
+
+// The origin that puts `bbox` in the middle of `view`, so an inserted frame appears
+// where the user is looking — moved aside to whichever in-view placement covers the
+// other frame least, which the document's fixed default origins used to prevent.
+function frameOriginInView(bbox, view, avoid = null) {
+  const size = { w: bbox.w, h: bbox.h }
+  let rect = insideView(centredInView(size, view), view)
+  if (avoid && overlapArea(rect, avoid) > 0) {
+    rect = placementsClearing(size, view, avoid).reduce((best, next) =>
+      overlapArea(next, avoid) < overlapArea(best, avoid) ? next : best,
+    )
+  }
+  return { x: rect.x - (bbox.x || 0), y: rect.y - (bbox.y || 0) }
 }
 
 // Mind-map tree mutations (spec diagram-types Part A). They run the pure model
@@ -155,12 +191,12 @@ function attachMindMap(store, state, history) {
   // as one undoable unit. Seeds root + two branches when empty; otherwise adds a
   // branch to the root so repeat inserts keep growing it.
   //
-  // `at` is an optional logical canvas point to centre a NEW frame on (#30). Only
-  // the seeding branch uses it — once the frame exists it stays where the user put
-  // it, so growing it must never move it. The layout is run inside the commit to
-  // get the seeded tree's real size; it is pure and already derived on every
-  // render, so this costs nothing extra.
-  store.insertMindmapStarter = (at = null) =>
+  // `view` is the optional logical canvas rect on screen, to place a NEW frame in
+  // (#30). Only the seeding branch uses it — once the frame exists it stays where
+  // the user put it, so growing it must never move it. The layout is run inside the
+  // commit to get the seeded tree's real size; it is pure and already derived on
+  // every render, so this costs nothing extra.
+  store.insertMindmapStarter = (view = null) =>
     history.commit('Insert mind map', () => {
       const m = state.mindmap
       if (!m) return
@@ -168,8 +204,8 @@ function attachMindMap(store, state, history) {
         const root = addRootNode(m, 'Central idea')
         addChild(m, root, 'Idea 1', 'right')
         addChild(m, root, 'Idea 2', 'left')
-        if (at) {
-          m.origin = frameOriginCentredOn(layoutMindMap(m).bbox, at, otherFrameRect(state, 'mindmap'))
+        if (view) {
+          m.origin = frameOriginInView(layoutMindMap(m).bbox, view, otherFrameRect(state, 'mindmap'))
         }
       } else {
         addChild(m, m.rootId, 'New idea')
@@ -245,9 +281,9 @@ function attachFlowchart(store, state, history) {
   // Templates/Insert (canvas unification): drop a starter flowchart into the frame
   // as one undoable unit — two connected nodes when empty, else append a step.
   //
-  // `at` centres a NEW frame on that logical canvas point (#30); appending a step
+  // `view` places a NEW frame in that logical on-screen rect (#30); appending a step
   // to an existing chart leaves the frame where it is.
-  store.insertFlowchartStarter = (at = null) =>
+  store.insertFlowchartStarter = (view = null) =>
     history.commit('Insert flowchart', () => {
       const m = state.flowchart
       if (!m) return
@@ -255,8 +291,8 @@ function attachFlowchart(store, state, history) {
         const a = addFlowchartNode(m, 'terminator', 'Start', 0, 0)
         const b = addFlowchartNode(m, 'process', 'Step', 0, 150)
         addFlowchartEdge(m, a, b)
-        if (at) {
-          m.origin = frameOriginCentredOn(flowchartContentBounds(m), at, otherFrameRect(state, 'flowchart'))
+        if (view) {
+          m.origin = frameOriginInView(flowchartContentBounds(m), view, otherFrameRect(state, 'flowchart'))
         }
       } else {
         const last = m.nodes[m.nodes.length - 1]
