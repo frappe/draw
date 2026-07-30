@@ -156,23 +156,33 @@ function unifiedBody(doc) {
   const boxes = [parseViewBox(base.viewBox)]
   let body = base.body
 
+  // Origins are persisted values reaching an SVG attribute, so they go through num()
+  // for the same reason colours go through safeColor(): this markup is injected into a
+  // viewer's DOM, and the document may have been authored by someone else.
   const mindmap = doc.mindmap
   if (mindmap?.nodes?.length) {
-    const origin = mindmap.origin || { x: 0, y: 0 }
+    const ox = num(mindmap.origin?.x)
+    const oy = num(mindmap.origin?.y)
     const { bbox } = layoutMindMap(mindmap)
-    body += `<g transform="translate(${origin.x} ${origin.y})">${mindmapBody(doc).body}</g>`
-    boxes.push({ x: origin.x, y: origin.y, w: bbox.w, h: bbox.h })
+    body += `<g transform="translate(${ox} ${oy})">${mindmapBody(doc).body}</g>`
+    boxes.push({ x: ox, y: oy, w: bbox.w, h: bbox.h })
   }
 
   const flowchart = doc.flowchart
+  let labelled = false
   if (flowchart?.nodes?.length) {
-    const origin = flowchart.origin || { x: 0, y: 0 }
+    const ox = num(flowchart.origin?.x)
+    const oy = num(flowchart.origin?.y)
     const bounds = flowchartContentBounds(flowchart)
-    body += `<g transform="translate(${origin.x} ${origin.y})">${flowchartBody(doc).body}</g>`
-    boxes.push({ x: origin.x + bounds.x, y: origin.y + bounds.y, w: bounds.w, h: bounds.h })
+    body += `<g transform="translate(${ox} ${oy})">${flowchartBody(doc).body}</g>`
+    boxes.push({ x: ox + bounds.x, y: oy + bounds.y, w: bounds.w, h: bounds.h })
+    labelled = (flowchart.edges || []).some((edge) => edge.label)
   }
 
-  return { viewBox: unionViewBox(boxes), body }
+  // flowchartContentBounds covers nodes, not the labels drawn beside edge routes, so
+  // allow more margin when any edge carries one rather than cropping it. Measuring
+  // label text properly would need font metrics — not worth it until someone hits it.
+  return { viewBox: unionViewBox(boxes, labelled ? 96 : 40), body }
 }
 
 function parseViewBox(viewBox) {

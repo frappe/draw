@@ -155,6 +155,22 @@ describe('safeColor', () => {
     expect(safeColor('', '#171717')).toBe('#171717')
   })
 
+  it('keeps an injected frame origin out of the rendered markup', () => {
+    const doc = unifiedDocument()
+    doc.flowchart.origin = { x: '0" /><script>alert(1)</script>', y: 0 }
+    const svg = documentToSvg(doc)
+    expect(svg).not.toContain('<script')
+    expect(svg).not.toContain('alert(1)')
+  })
+
+  it('gives an edge-labelled flowchart more margin so the label is not cropped', () => {
+    const plain = unifiedDocument()
+    const labelled = unifiedDocument()
+    labelled.flowchart.edges[0].label = 'a long branch label'
+    const boxOf = (d) => documentToSvg(d).match(/viewBox="([^"]+)"/)[1].split(' ').map(Number)
+    expect(boxOf(labelled)[2]).toBeGreaterThan(boxOf(plain)[2])
+  })
+
   it('keeps an injected colour out of the rendered markup', () => {
     const doc = unifiedDocument()
     doc.whiteboard.lines[0].color = '" onload="alert(1)'
