@@ -127,6 +127,14 @@ jobs:
           # runner does not have.
           npx playwright install --with-deps chromium
 
+      - name: Point test_site at localhost
+        # Frappe resolves the site from the Host header and answers 404 when no site
+        # matches — which is what `http://localhost:8000` did, so even /api/method/login
+        # 404'd. Map the site name to the loopback and address the site by name.
+        run: |
+          echo "127.0.0.1 test_site" | sudo tee -a /etc/hosts
+          cd /home/runner/frappe-bench && bench use test_site
+
       - name: Build the SPA inside the bench
         working-directory: /home/runner/frappe-bench
         # install.sh runs `bench get-app draw <workspace>`, which COPIES the checkout
@@ -141,12 +149,12 @@ jobs:
           # specs assert that no request fails, and a missing realtime endpoint shows
           # up as exactly that kind of noise.
           nohup bench start > /home/runner/bench-start.log 2>&1 &
-          # localhost resolves to the default site in sites/currentsite.txt. Any HTTP
-          # response means the server is listening — don't probe a specific endpoint
-          # for a specific status, since an unauthenticated request to a whitelisted
-          # method can legitimately answer 403 and that still means "up".
+          # Addressed by site NAME so the Host header resolves the site (see the
+          # /etc/hosts step). Any HTTP response means the server is listening — don't
+          # require a specific status, since an unauthenticated request to a
+          # whitelisted method can legitimately answer 403 and that still means "up".
           for i in $(seq 1 120); do
-            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/draw || true)
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://test_site:8000/draw || true)
             if [ -n "$code" ] && [ "$code" != "000" ]; then
               echo "bench up after ${i}s (HTTP $code)"; exit 0
             fi
@@ -156,7 +164,7 @@ jobs:
 
       - name: Run E2E tests
         env:
-          DRAW_BASE_URL: http://localhost:8000
+          DRAW_BASE_URL: http://test_site:8000
           DRAW_USER: Administrator
           DRAW_PASSWORD: admin
           PLAYWRIGHT_CHANNEL: chromium
