@@ -38,16 +38,19 @@ describe('loadCount distinguishes a document load from an edit', () => {
 })
 
 describe('undo restores the canvas without looking like a resize', () => {
-  it('leaves the dimensions equal, so a per-value watcher stays quiet', async () => {
+  it('leaves the dimensions equal, so a per-value watcher stays quiet', () => {
     const store = createDiagramStore()
-    const before = { ...store.state.canvas }
+    // Hold the live object, not a copy of it — the point is that undo swaps the
+    // identity while keeping the values, which is what the old watcher tripped on.
+    const original = store.state.canvas
+    const dimensions = { width: original.width, height: original.height }
     store.addShape({ x: 10, y: 10 })
     store.undo()
 
     // restore() hands back a NEW canvas object; only the values must match.
-    expect(store.state.canvas).not.toBe(before)
-    expect(store.state.canvas.width).toBe(before.width)
-    expect(store.state.canvas.height).toBe(before.height)
+    expect(store.state.canvas).not.toBe(original)
+    expect(store.state.canvas.width).toBe(dimensions.width)
+    expect(store.state.canvas.height).toBe(dimensions.height)
   })
 
   // Guards the watcher shape itself: one getter returning an array re-fires on
