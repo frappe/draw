@@ -178,6 +178,76 @@ describe('safeColor', () => {
   })
 })
 
+// The markup this file builds is injected with v-html by the home and trash tiles
+// (DiagramTile/TrashView), and that grid lists diagrams SHARED with the user and
+// public ones — documents authored by someone else. parseDiagramDocument does no
+// value coercion whatsoever, so every field below arrives exactly as it was posted.
+//
+// safeColor and num existed but were only applied to the whiteboard line/table
+// renderers, so every other layer still interpolated raw. One case per field, so a
+// regression names the field that reopened it rather than just "injection".
+describe('no persisted value can escape its SVG attribute', () => {
+  const PAYLOAD = '" onload="alert(1)'
+  const CLOSING = '"/><script>alert(1)</script><rect x="0'
+
+  // Each entry crafts one field of an otherwise ordinary unified document.
+  const FIELDS = {
+    'block shape fill': (d) => (d.shapes[0].fill = PAYLOAD),
+    'block shape border colour': (d) => (d.shapes[0].border.color = PAYLOAD),
+    'block shape border width': (d) => (d.shapes[0].border.width = PAYLOAD),
+    'block shape opacity': (d) => (d.shapes[0].opacity = PAYLOAD),
+    'block shape x': (d) => (d.shapes[0].x = CLOSING),
+    'block shape w': (d) => (d.shapes[0].w = CLOSING),
+    'block shape text colour': (d) => (d.shapes[0].text.style = { color: PAYLOAD }),
+    'block shape text size': (d) => (d.shapes[0].text.style = { size: PAYLOAD }),
+    'connector colour': (d) => (d.connectors = [{ id: 'c1', from: { x: 0, y: 0 }, to: { x: 9, y: 9 }, style: { color: PAYLOAD } }]),
+    'connector free endpoint': (d) => (d.connectors = [{ id: 'c1', from: { x: CLOSING, y: 0 }, to: { x: 9, y: 9 }, style: {} }]),
+    'section colour': (d) => (d.sections = [{ id: 'sec1', x: 0, y: 0, w: 10, h: 10, color: PAYLOAD, title: 'T' }]),
+    'section geometry': (d) => (d.sections = [{ id: 'sec1', x: CLOSING, y: 0, w: 10, h: 10, title: 'T' }]),
+    'canvas width (the viewBox)': (d) => (d.canvas.width = CLOSING),
+    'mind-map node colour': (d) => (d.mindmap.nodes[1].color = PAYLOAD),
+    'mind-map node font size': (d) => (d.mindmap.nodes[1].fontSize = PAYLOAD),
+    'flowchart node fill': (d) => (d.flowchart.nodes[0].fill = PAYLOAD),
+    'flowchart node border': (d) => (d.flowchart.nodes[0].border = PAYLOAD),
+    'flowchart node x': (d) => (d.flowchart.nodes[0].x = CLOSING),
+    'flowchart edge label anchor': (d) => {
+      d.flowchart.edges[0].label = 'yes'
+      d.flowchart.nodes[0].y = CLOSING
+    },
+    'whiteboard stroke colour': (d) => (d.whiteboard.strokes[0].color = PAYLOAD),
+    'whiteboard stroke width': (d) => (d.whiteboard.strokes[0].width = PAYLOAD),
+    'whiteboard stroke point': (d) => (d.whiteboard.strokes[0].points[0] = { x: CLOSING, y: 0 }),
+    'sticky note colour': (d) => (d.whiteboard.stickyNotes[0].color = PAYLOAD),
+    'sticky note geometry': (d) => (d.whiteboard.stickyNotes[0].x = CLOSING),
+    'whiteboard line colour': (d) => (d.whiteboard.lines[0].color = PAYLOAD),
+    'whiteboard table colour': (d) => (d.whiteboard.tables[0].color = PAYLOAD),
+    'mind-map frame origin': (d) => (d.mindmap.origin = { x: CLOSING, y: 0 }),
+    'flowchart frame origin': (d) => (d.flowchart.origin = { x: CLOSING, y: 0 }),
+  }
+
+  for (const [field, craft] of Object.entries(FIELDS)) {
+    it(`neutralises a payload in the ${field}`, () => {
+      const doc = unifiedDocument()
+      craft(doc)
+      const svg = documentToSvg(doc)
+      expect(svg, 'an event handler reached the markup').not.toMatch(/\son[a-z]+\s*=/i)
+      expect(svg, 'a tag was injected').not.toContain('<script')
+      expect(svg, 'the payload survived verbatim').not.toContain('alert(1)')
+    })
+  }
+
+  it('still renders every layer of an untampered document', () => {
+    // The guards must not be silently swallowing legitimate values: the fallbacks are
+    // all valid colours/numbers too, so a broken guard would pass the tests above.
+    const svg = documentToSvg(unifiedDocument())
+    expect(svg).toContain('#EFF6FF') // block fill
+    expect(svg).toContain('#123456') // stroke colour
+    expect(svg).toContain('#FEF3C7') // sticky colour
+    expect(svg).toContain('MINDMAP-CHILD')
+    expect(svg).toContain('FLOW-STEP')
+  })
+})
+
 describe('isDocumentEmpty', () => {
   it('does not call a unified document with only ink empty', () => {
     const doc = unifiedDocument()

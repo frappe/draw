@@ -16,6 +16,7 @@ import { useEditorUi } from '@/stores/useEditorUi.js'
 import { anchorPoint } from '@/diagram/geometry.js'
 import { useTextEditing, shapeTextArea, textStyleCss, LINE_HEIGHT } from '@/composables/useTextEditing.js'
 import { RICH_EXTENSIONS, setActiveEditor, clearActiveEditor, contentToHtml } from '@/composables/useRichText.js'
+import { sanitizeRichText } from '@/utils/sanitizeHtml.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
@@ -64,8 +65,11 @@ watch(
   () => [editing.editingShapeId.value, editing.editingConnectorId.value],
   async () => {
     if (!editing.isEditing.value || !editor.value) return
+    // Sanitised on the way in as well as on the way out (ShapeView): TipTap's schema
+    // would drop unknown nodes anyway, but editing a shared shape should not be the
+    // one path where unsanitised markup from someone else's document is parsed.
     const html = shape.value
-      ? shape.value.text?.html || contentToHtml(shape.value.text?.content)
+      ? sanitizeRichText(shape.value.text?.html) || contentToHtml(shape.value.text?.content)
       : contentToHtml(connector.value?.label)
     editor.value.commands.setContent(html, false)
     setActiveEditor(editor.value)

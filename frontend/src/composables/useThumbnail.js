@@ -28,25 +28,34 @@ function diamondPoints(s) {
   return `${cx},${s.y} ${s.x + s.w},${cy} ${cx},${s.y + s.h} ${s.x},${cy}`
 }
 
+// Geometry as well as colour: `s.x` is a persisted value, and `s.x + s.w / 2` on a
+// string concatenates rather than adds, so an unchecked coordinate reaches the
+// attribute intact. box() normalises all four before anything derives from them.
+function box(s) {
+  return { x: num(s.x), y: num(s.y), w: num(s.w), h: num(s.h) }
+}
+
 function shapeBody(s) {
-  const stroke = `stroke="${s.border?.color || 'none'}" stroke-width="${s.border?.width || 0}"`
-  const fill = `fill="${s.fill || 'none'}" fill-opacity="${s.opacity ?? 1}"`
+  const { x, y, w, h } = box(s)
+  const stroke = `stroke="${safeColor(s.border?.color)}" stroke-width="${num(s.border?.width)}"`
+  const fill = `fill="${safeColor(s.fill)}" fill-opacity="${num(s.opacity, 1)}"`
   if (s.type === 'ellipse') {
-    return `<ellipse cx="${s.x + s.w / 2}" cy="${s.y + s.h / 2}" rx="${s.w / 2}" ry="${s.h / 2}" ${fill} ${stroke}/>`
+    return `<ellipse cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2}" ry="${h / 2}" ${fill} ${stroke}/>`
   }
-  if (s.type === 'triangle') return `<polygon points="${trianglePoints(s)}" ${fill} ${stroke}/>`
-  if (s.type === 'diamond') return `<polygon points="${diamondPoints(s)}" ${fill} ${stroke}/>`
-  return `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" rx="8" ${fill} ${stroke}/>`
+  if (s.type === 'triangle') return `<polygon points="${trianglePoints({ x, y, w, h })}" ${fill} ${stroke}/>`
+  if (s.type === 'diamond') return `<polygon points="${diamondPoints({ x, y, w, h })}" ${fill} ${stroke}/>`
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" ${fill} ${stroke}/>`
 }
 
 function shapeText(s) {
   if (!s.text?.content) return ''
   const st = s.text.style || {}
-  const cx = s.x + s.w / 2
-  const cy = s.y + s.h / 2
+  const { x, y, w, h } = box(s)
+  const cx = x + w / 2
+  const cy = y + h / 2
   return (
     `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"` +
-    ` fill="${st.color || '#171717'}" font-size="${st.size || 16}"` +
+    ` fill="${safeColor(st.color, '#171717')}" font-size="${num(st.size || 16, 16)}"` +
     ` font-weight="${st.bold ? 700 : 500}" font-family="Inter, sans-serif">` +
     `${escapeText(s.text.content)}</text>`
   )
@@ -55,7 +64,8 @@ function shapeText(s) {
 function connectorBody(c, shapes) {
   const a = endpointPoint(c.from, shapes)
   const b = endpointPoint(c.to, shapes)
-  return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${c.style?.color || '#7C7C7C'}" stroke-width="${c.style?.width || 2.2}" stroke-linecap="round"/>`
+  const stroke = `stroke="${safeColor(c.style?.color, '#7C7C7C')}" stroke-width="${num(c.style?.width || 2.2, 2.2)}"`
+  return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" ${stroke} stroke-linecap="round"/>`
 }
 
 // Resolve an endpoint to a point. Attached ends use the shape centre as a cheap
@@ -63,9 +73,12 @@ function connectorBody(c, shapes) {
 function endpointPoint(endpoint, shapes) {
   if (endpoint?.shapeId) {
     const shape = shapes.find((s) => s.id === endpoint.shapeId)
-    if (shape) return { x: shape.x + shape.w / 2, y: shape.y + shape.h / 2 }
+    if (shape) {
+      const { x, y, w, h } = box(shape)
+      return { x: x + w / 2, y: y + h / 2 }
+    }
   }
-  return { x: endpoint?.x || 0, y: endpoint?.y || 0 }
+  return { x: num(endpoint?.x), y: num(endpoint?.y) }
 }
 
 function escapeText(value) {
@@ -75,7 +88,9 @@ function escapeText(value) {
 // Colours come out of the persisted document, and this markup is injected into the
 // DOM to preview a diagram — including diagrams SHARED by someone else. escapeText is
 // for text nodes and does not neutralise quotes, so a crafted colour could close the
-// attribute it sits in. Allow only real colour syntax and fall back otherwise.
+// attribute it sits in and add an event handler to the element. Allow only real colour
+// syntax and fall back otherwise. EVERY persisted value reaching an attribute in this
+// file has to pass through safeColor() or num() — a single raw one reopens the hole.
 const COLOR_RE = /^(#[0-9a-f]{3,8}|rgba?\([0-9.,%\s/]+\)|hsla?\([0-9.,%\s/deg]+\)|[a-z]{3,20})$/i
 
 export function safeColor(value, fallback = 'none') {
@@ -107,21 +122,30 @@ export function documentToSvg(rawDocument, options = {}) {
   // Sections render behind everything, in every type.
   const body = sectionsSvg(doc) + rendered.body
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}"` +
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBoxAttr(viewBox)}"` +
     ` preserveAspectRatio="${options.fit || 'xMidYMid meet'}" style="${styleAttr}">` +
     `${body}</svg>`
   )
+}
+
+// Every per-type viewBox is built from the document's own coordinates (canvas size,
+// content bounds derived from node positions), so it is guarded here rather than in
+// each branch — four numbers, nothing else, whatever the document holds.
+function viewBoxAttr(viewBox) {
+  const parts = String(viewBox).trim().split(/\s+/).slice(0, 4).map((v) => num(v))
+  return parts.length === 4 ? parts.join(' ') : '0 0 1 1'
 }
 
 // Named sections/frames (document-level) drawn behind all content, any type.
 function sectionsSvg(doc) {
   return (doc.sections || [])
     .map((s) => {
-      const color = s.color || '#6E56CF'
-      const rect = `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="${s.h}" rx="6" fill="rgba(110,86,207,0.035)" stroke="${color}" stroke-width="1.5"/>`
-      const bar = `<rect x="${s.x}" y="${s.y}" width="${s.w}" height="26" rx="6" fill="${color}"/>`
+      const color = safeColor(s.color, '#6E56CF')
+      const { x, y, w, h } = box(s)
+      const rect = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="rgba(110,86,207,0.035)" stroke="${color}" stroke-width="1.5"/>`
+      const bar = `<rect x="${x}" y="${y}" width="${w}" height="26" rx="6" fill="${color}"/>`
       const title = s.title
-        ? `<text x="${s.x + 8}" y="${s.y + 17}" fill="#FFFFFF" font-size="12" font-weight="600" font-family="Inter, sans-serif">${escapeText(s.title)}</text>`
+        ? `<text x="${x + 8}" y="${y + 17}" fill="#FFFFFF" font-size="12" font-weight="600" font-family="Inter, sans-serif">${escapeText(s.title)}</text>`
         : ''
       return rect + bar + title
     })
@@ -228,13 +252,11 @@ function mindmapBody(doc) {
   return { viewBox: `0 0 ${bbox.w} ${bbox.h}`, body: links + nodes }
 }
 
-// The node's background in its chosen shape (mirrors MindMapNodeLayer).
-function mindmapNodeShape(node, box, fill, color, sw) {
-  const attrs = `fill="${fill}" stroke="${color}" stroke-width="${sw}"`
-  const x = box.x
-  const y = box.y
-  const w = box.w
-  const h = box.h
+// The node's background in its chosen shape (mirrors MindMapNodeLayer). fill and
+// color derive from node.color, so they are persisted values like any other.
+function mindmapNodeShape(node, nodeBox, fill, color, sw) {
+  const attrs = `fill="${safeColor(fill)}" stroke="${safeColor(color)}" stroke-width="${num(sw, 1.8)}"`
+  const { x, y, w, h } = box(nodeBox)
   if (node.shape === 'ellipse') {
     return `<ellipse cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2}" ry="${h / 2}" ${attrs}/>`
   }
@@ -250,21 +272,22 @@ function mindmapNodeShape(node, box, fill, color, sw) {
 }
 
 function mindmapLink(model, node, positions, preset) {
-  const color = resolveNodeColor(model, node, preset)
+  const color = safeColor(resolveNodeColor(model, node, preset))
   return `<path d="${branchPath(positions[node.parentId], positions[node.id])}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>`
 }
 
-function mindmapNode(model, node, box, preset) {
+function mindmapNode(model, node, nodeBox, preset) {
   const color = resolveNodeColor(model, node, preset)
   const fill = node.color ? nodeFill(node.color) : isRoot(model, node.id) ? '#ECE7FE' : nodeFill(color)
-  const ink = readableInk(fill)
+  const ink = safeColor(readableInk(fill), '#171717')
   const strokeWidth = isRoot(model, node.id) ? 2.5 : 1.8
-  const fontSize = node.fontSize || (isRoot(model, node.id) ? 17 : 14)
+  const fontSize = num(node.fontSize || (isRoot(model, node.id) ? 17 : 14), 14)
   const fontWeight = node.bold || isRoot(model, node.id) ? 700 : 500
-  const rect = mindmapNodeShape(node, box, fill, color, strokeWidth)
+  const rect = mindmapNodeShape(node, nodeBox, fill, color, strokeWidth)
+  const { x, y, w, h } = box(nodeBox)
   const label = (node.emoji ? node.emoji + '  ' : '') + (node.text || '')
   const text = label
-    ? `<text x="${box.x + box.w / 2}" y="${box.y + box.h / 2}" text-anchor="middle" dominant-baseline="central" fill="${ink}" font-size="${fontSize}" font-weight="${fontWeight}" font-family="Inter, sans-serif">${escapeText(label)}</text>`
+    ? `<text x="${x + w / 2}" y="${y + h / 2}" text-anchor="middle" dominant-baseline="central" fill="${ink}" font-size="${fontSize}" font-weight="${fontWeight}" font-family="Inter, sans-serif">${escapeText(label)}</text>`
     : ''
   return rect + text
 }
@@ -296,8 +319,12 @@ function flowchartEdge(model, edge, offsetIndex) {
   const path = `<path d="${pointsToPath(route.points)}" fill="none" stroke="#7C7C7C" stroke-width="2"${markerEnd}/>`
   if (!edge.label) return path
   const half = edge.label.length * 4 + 8
-  const pill = `<rect x="${route.labelPoint.x - half}" y="${route.labelPoint.y - 10}" width="${edge.label.length * 8 + 16}" height="20" rx="6" fill="#FFFFFF" stroke="#E2E2E2"/>`
-  const label = `<text x="${route.labelPoint.x}" y="${route.labelPoint.y}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#525252" font-family="Inter, sans-serif">${escapeText(edge.label)}</text>`
+  // The route is derived from node.x/node.y, which are persisted values, so the
+  // label anchor is guarded like any other coordinate in this file.
+  const lx = num(route.labelPoint.x)
+  const ly = num(route.labelPoint.y)
+  const pill = `<rect x="${lx - half}" y="${ly - 10}" width="${edge.label.length * 8 + 16}" height="20" rx="6" fill="#FFFFFF" stroke="#E2E2E2"/>`
+  const label = `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#525252" font-family="Inter, sans-serif">${escapeText(edge.label)}</text>`
   return path + pill + label
 }
 
@@ -305,20 +332,22 @@ function flowchartNode(node, triad) {
   const size = flowchartNodeSize(node)
   const shape = nodeShape(node.nodeType, size.w, size.h)
   // Mirror the live layer: 'none' is the explicit "No fill" sentinel.
-  const fill = node.fill === 'none' ? 'transparent' : node.fill || triad.fill
-  const stroke = node.border || triad.stroke
+  const fill = node.fill === 'none' ? 'transparent' : safeColor(node.fill, triad.fill)
+  const stroke = safeColor(node.border, triad.stroke)
   const attrs = `fill="${fill}" stroke="${stroke}" stroke-width="1.5"`
+  const nx = num(node.x)
+  const ny = num(node.y)
   let body
   if (shape.kind === 'ellipse') {
-    body = `<ellipse cx="${node.x + size.w / 2}" cy="${node.y + size.h / 2}" rx="${size.w / 2}" ry="${size.h / 2}" ${attrs}/>`
+    body = `<ellipse cx="${nx + size.w / 2}" cy="${ny + size.h / 2}" rx="${size.w / 2}" ry="${size.h / 2}" ${attrs}/>`
   } else if (shape.kind === 'polygon') {
-    body = `<polygon points="${shiftPolygon(shape.points, node.x, node.y)}" ${attrs}/>`
+    body = `<polygon points="${shiftPolygon(shape.points, nx, ny)}" ${attrs}/>`
   } else {
-    body = `<rect x="${node.x}" y="${node.y}" width="${size.w}" height="${size.h}" rx="${shape.rx}" ${attrs}/>`
+    body = `<rect x="${nx}" y="${ny}" width="${size.w}" height="${size.h}" rx="${shape.rx}" ${attrs}/>`
   }
   const text =
     node.nodeType !== 'connector' && node.text
-      ? `<text x="${node.x + size.w / 2}" y="${node.y + size.h / 2}" text-anchor="middle" dominant-baseline="central" font-size="14" fill="${triad.ink}" font-family="Inter, sans-serif">${escapeText(node.text)}</text>`
+      ? `<text x="${nx + size.w / 2}" y="${ny + size.h / 2}" text-anchor="middle" dominant-baseline="central" font-size="14" fill="${triad.ink}" font-family="Inter, sans-serif">${escapeText(node.text)}</text>`
       : ''
   return body + text
 }
@@ -362,14 +391,17 @@ function whiteboardStroke(stroke) {
   if (!stroke.points || stroke.points.length < 2) return ''
   const opacity = stroke.kind === 'highlighter' ? HIGHLIGHTER_OPACITY : 1
   const linecap = stroke.kind === 'highlighter' ? 'butt' : 'round'
-  return `<path d="${pointsToPath(stroke.points)}" fill="none" stroke="${stroke.color}" stroke-width="${stroke.width}" stroke-opacity="${opacity}" stroke-linecap="${linecap}" stroke-linejoin="round"/>`
+  const color = safeColor(stroke.color, '#171717')
+  return `<path d="${pointsToPath(stroke.points)}" fill="none" stroke="${color}" stroke-width="${num(stroke.width, 2)}" stroke-opacity="${opacity}" stroke-linecap="${linecap}" stroke-linejoin="round"/>`
 }
 
 function whiteboardSticky(note) {
-  const ink = contrastInk(note.color)
-  const rect = `<rect x="${note.x}" y="${note.y}" width="${note.w}" height="${note.h}" rx="4" fill="${note.color}" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>`
+  const color = safeColor(note.color, '#FFE9A8')
+  const ink = safeColor(contrastInk(color), '#171717')
+  const { x, y, w, h } = box(note)
+  const rect = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${color}" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>`
   const text = note.text
-    ? `<text x="${note.x + 12}" y="${note.y + 24}" fill="${ink}" font-size="15" font-family="Inter, sans-serif">${escapeText(note.text)}</text>`
+    ? `<text x="${x + 12}" y="${y + 24}" fill="${ink}" font-size="15" font-family="Inter, sans-serif">${escapeText(note.text)}</text>`
     : ''
   return rect + text
 }
