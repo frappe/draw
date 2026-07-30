@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from 'vitest'
 // pure, so stub the module boundary.
 vi.mock('frappe-ui', () => ({ createResource: () => ({ submit: () => {} }) }))
 
-const { documentToSvg } = await import('./useThumbnail.js')
+const { documentToSvg, isDocumentEmpty, safeColor } = await import('./useThumbnail.js')
 
 // documentToSvg is the SINGLE render-to-SVG path: PNG/PDF export (useExport), the
 // saved thumbnail, and the home + trash tile previews all go through it. So anything
@@ -136,5 +136,62 @@ describe('documentToSvg still renders single-type documents', () => {
   it('renders a legacy block document', () => {
     const doc = { ...unifiedDocument(), diagramType: 'block' }
     expect(documentToSvg(doc)).toContain('BLOCK-SHAPE')
+  })
+})
+
+describe('safeColor', () => {
+  // Colours reach SVG attributes straight from the persisted document, and diagrams are
+  // SHARED — so a colour crafted by one user is rendered in another user's browser.
+  it('passes real colour syntax through', () => {
+    for (const ok of ['#abc', '#AABBCC', '#aabbccdd', 'rgb(1,2,3)', 'rgba(1,2,3,0.5)', 'red']) {
+      expect(safeColor(ok), ok).toBe(ok)
+    }
+  })
+
+  it('rejects anything that could break out of the attribute', () => {
+    expect(safeColor('" onload="alert(1)')).toBe('none')
+    expect(safeColor('#fff" /><script>alert(1)</script>')).toBe('none')
+    expect(safeColor(undefined)).toBe('none')
+    expect(safeColor('', '#171717')).toBe('#171717')
+  })
+
+  it('keeps an injected colour out of the rendered markup', () => {
+    const doc = unifiedDocument()
+    doc.whiteboard.lines[0].color = '" onload="alert(1)'
+    expect(documentToSvg(doc)).not.toContain('onload')
+  })
+})
+
+describe('isDocumentEmpty', () => {
+  it('does not call a unified document with only ink empty', () => {
+    const doc = unifiedDocument()
+    doc.shapes = []
+    doc.mindmap.nodes = []
+    doc.flowchart.nodes = []
+    doc.flowchart.edges = []
+    // Only whiteboard content remains — previously this reported empty, because
+    // isDocumentEmpty had no unified branch at all.
+    expect(isDocumentEmpty(doc)).toBe(false)
+  })
+
+  it('does not call a whiteboard holding only a table empty', () => {
+    const doc = { ...unifiedDocument(), diagramType: 'whiteboard', mindmap: null, flowchart: null }
+    doc.shapes = []
+    doc.whiteboard.strokes = []
+    doc.whiteboard.stickyNotes = []
+    doc.whiteboard.lines = []
+    expect(isDocumentEmpty(doc)).toBe(false)
+  })
+
+  it('still reports a genuinely blank unified document as empty', () => {
+    const doc = unifiedDocument()
+    doc.shapes = []
+    doc.connectors = []
+    doc.sections = []
+    doc.whiteboard = { strokes: [], stickyNotes: [], lines: [], tables: [], votes: {}, sketchStyle: false }
+    doc.mindmap.nodes = []
+    doc.flowchart.nodes = []
+    doc.flowchart.edges = []
+    expect(isDocumentEmpty(doc)).toBe(true)
   })
 })

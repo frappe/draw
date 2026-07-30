@@ -72,6 +72,23 @@ function escapeText(value) {
   return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
+// Colours come out of the persisted document, and this markup is injected into the
+// DOM to preview a diagram — including diagrams SHARED by someone else. escapeText is
+// for text nodes and does not neutralise quotes, so a crafted colour could close the
+// attribute it sits in. Allow only real colour syntax and fall back otherwise.
+const COLOR_RE = /^(#[0-9a-f]{3,8}|rgba?\([0-9.,%\s/]+\)|hsla?\([0-9.,%\s/deg]+\)|[a-z]{3,20})$/i
+
+export function safeColor(value, fallback = 'none') {
+  const raw = String(value ?? '').trim()
+  return COLOR_RE.test(raw) ? raw : fallback
+}
+
+// Numbers likewise: geometry attributes must never carry arbitrary text.
+function num(value, fallback = 0) {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : fallback
+}
+
 // Build a complete inline <svg> string for a parsed diagram document. This is the
 // single render-to-SVG path (spec Part G8) reused by export, the saved thumbnail
 // and the home/trash/template tile previews. It dispatches on diagramType so
@@ -351,12 +368,14 @@ function whiteboardSticky(note) {
 // decorated end: the export is a flat SVG with no marker defs for these, and a missing
 // line reads far worse than a missing arrowhead.
 function whiteboardLine(line) {
-  const stroke = `stroke="${line.color || '#171717'}" stroke-width="${line.width || 2}" stroke-linecap="round"`
-  let out = `<line x1="${line.x1}" y1="${line.y1}" x2="${line.x2}" y2="${line.y2}" ${stroke}/>`
-  const cap = (x, y) =>
-    `<circle cx="${x}" cy="${y}" r="${(line.width || 2) * 1.6}" fill="${line.color || '#171717'}"/>`
-  if (line.start && line.start !== 'none') out += cap(line.x1, line.y1)
-  if (line.end && line.end !== 'none') out += cap(line.x2, line.y2)
+  const color = safeColor(line.color, '#171717')
+  const width = num(line.width, 2)
+  const [x1, y1, x2, y2] = [num(line.x1), num(line.y1), num(line.x2), num(line.y2)]
+  const stroke = `stroke="${color}" stroke-width="${width}" stroke-linecap="round"`
+  let out = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" ${stroke}/>`
+  const cap = (x, y) => `<circle cx="${x}" cy="${y}" r="${width * 1.6}" fill="${color}"/>`
+  if (line.start && line.start !== 'none') out += cap(x1, y1)
+  if (line.end && line.end !== 'none') out += cap(x2, y2)
   return out
 }
 
@@ -365,14 +384,14 @@ function whiteboardLine(line) {
 function whiteboardTable(table) {
   const cols = table.cols || 0
   const rows = table.rows || 0
-  const cellW = table.cellW || 120
-  const cellH = table.cellH || 40
-  const color = table.color || '#171717'
+  const cellW = num(table.cellW, 120)
+  const cellH = num(table.cellH, 40)
+  const color = safeColor(table.color, '#171717')
   let out = ''
   for (let r = 0; r < rows; r += 1) {
     for (let c = 0; c < cols; c += 1) {
-      const x = table.x + c * cellW
-      const y = table.y + r * cellH
+      const x = num(table.x) + c * cellW
+      const y = num(table.y) + r * cellH
       out += `<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" fill="none" stroke="${color}" stroke-width="1" stroke-opacity="0.45"/>`
       const text = (table.cells || {})[`${r},${c}`] // key format matches setTableCell
       if (text) {
@@ -394,10 +413,31 @@ export function isDocumentEmpty(rawDocument) {
   if (doc.diagramType === 'flowchart' && doc.flowchart) {
     return !(doc.flowchart.nodes || []).length && !(doc.flowchart.edges || []).length
   }
-  if (doc.diagramType === 'whiteboard' && doc.whiteboard) {
-    return !(doc.whiteboard.strokes || []).length && !(doc.whiteboard.stickyNotes || []).length
+  if (doc.diagramType === 'whiteboard' && doc.whiteboard) return isWhiteboardBlank(doc.whiteboard)
+  // The unified canvas had NO branch here, so any unified document without block
+  // shapes was reported empty — a canvas holding only ink, or only a mind-map frame,
+  // showed "nothing to preview". It is empty only when every layer is.
+  if (isUnifiedDocument(doc)) {
+    return (
+      isWhiteboardBlank(doc.whiteboard) &&
+      !(doc.mindmap?.nodes || []).length &&
+      !(doc.flowchart?.nodes || []).length &&
+      !(doc.flowchart?.edges || []).length
+    )
   }
   return true
+}
+
+// Lines and tables count as content too; leaving them out reported a board holding
+// only a table as blank.
+function isWhiteboardBlank(model) {
+  if (!model) return true
+  return (
+    !(model.strokes || []).length &&
+    !(model.stickyNotes || []).length &&
+    !(model.lines || []).length &&
+    !(model.tables || []).length
+  )
 }
 
 // Rasterize a store's current document to a PNG data URL, throttled per store,
