@@ -4,7 +4,7 @@
 
 import { createResource } from 'frappe-ui'
 import { themeVarStyle, findThemePreset, primaryTriad } from '@/diagram/theme.js'
-import { parseDiagramDocument } from '@/diagram/schema.js'
+import { parseDiagramDocument, isUnifiedDocument } from '@/diagram/schema.js'
 import { layoutMindMap, branchPath } from '@/diagram/mindmapLayout.js'
 import { resolveNodeColor, nodeFill, readableInk } from '@/diagram/mindmapColors.js'
 import { isRoot } from '@/diagram/mindmapModel.js'
@@ -115,10 +115,64 @@ function sectionsSvg(doc) {
 // shapes/connectors over the canvas rect; the layered types render their own
 // geometry over their content bbox.
 function renderBody(doc) {
+  if (isUnifiedDocument(doc)) return unifiedBody(doc)
   if (doc.diagramType === 'mindmap' && doc.mindmap) return mindmapBody(doc)
   if (doc.diagramType === 'flowchart' && doc.flowchart) return flowchartBody(doc)
   if (doc.diagramType === 'whiteboard' && doc.whiteboard) return whiteboardBody(doc)
   return blockBody(doc)
+}
+
+// The unified canvas holds every layer at once, so its export has to compose them
+// the way DiagramCanvas draws them — block shapes and whiteboard ink in absolute
+// canvas coordinates, then the mind-map and flowchart frames translated to their
+// origins.
+//
+// Without this a unified document fell through to blockBody(), so export (PNG/PDF),
+// the saved thumbnail and the home/trash tile previews all showed ONLY block shapes:
+// whiteboard ink, sticky notes and both frames vanished, and the canvas-sized viewBox
+// would have cropped the frames even if they had been drawn. Every new diagram is a
+// unified document, so that was the common case, not an edge case.
+function unifiedBody(doc) {
+  // whiteboardBody already emits the shared block layer (connectors + shapes) AND
+  // the whiteboard ink over it, which is exactly the absolute-coordinate layer here.
+  const base = doc.whiteboard ? whiteboardBody(doc) : blockBody(doc)
+  const boxes = [parseViewBox(base.viewBox)]
+  let body = base.body
+
+  const mindmap = doc.mindmap
+  if (mindmap?.nodes?.length) {
+    const origin = mindmap.origin || { x: 0, y: 0 }
+    const { bbox } = layoutMindMap(mindmap)
+    body += `<g transform="translate(${origin.x} ${origin.y})">${mindmapBody(doc).body}</g>`
+    boxes.push({ x: origin.x, y: origin.y, w: bbox.w, h: bbox.h })
+  }
+
+  const flowchart = doc.flowchart
+  if (flowchart?.nodes?.length) {
+    const origin = flowchart.origin || { x: 0, y: 0 }
+    const bounds = flowchartContentBounds(flowchart)
+    body += `<g transform="translate(${origin.x} ${origin.y})">${flowchartBody(doc).body}</g>`
+    boxes.push({ x: origin.x + bounds.x, y: origin.y + bounds.y, w: bounds.w, h: bounds.h })
+  }
+
+  return { viewBox: unionViewBox(boxes), body }
+}
+
+function parseViewBox(viewBox) {
+  const [x, y, w, h] = viewBox.split(' ').map(Number)
+  return { x, y, w, h }
+}
+
+// Smallest box covering every layer that has content, with a little breathing room so
+// frame edges aren't flush against the crop.
+function unionViewBox(boxes, pad = 40) {
+  const present = boxes.filter((b) => b && b.w > 0 && b.h > 0)
+  if (!present.length) return '0 0 1 1'
+  const minX = Math.min(...present.map((b) => b.x))
+  const minY = Math.min(...present.map((b) => b.y))
+  const maxX = Math.max(...present.map((b) => b.x + b.w))
+  const maxY = Math.max(...present.map((b) => b.y + b.h))
+  return `${minX - pad} ${minY - pad} ${maxX - minX + pad * 2} ${maxY - minY + pad * 2}`
 }
 
 function blockBody(doc) {
@@ -267,9 +321,13 @@ function whiteboardBody(doc) {
     .join('')
   const strokes = (model.strokes || []).map(whiteboardStroke).join('')
   const stickies = (model.stickyNotes || []).map(whiteboardSticky).join('')
+  // Lines and tables used to be omitted entirely here, so a board holding either
+  // exported and thumbnailed as though that content did not exist.
+  const lines = (model.lines || []).map(whiteboardLine).join('')
+  const tables = (model.tables || []).map(whiteboardTable).join('')
   return {
     viewBox: `${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}`,
-    body: connectors + shapes + strokes + stickies,
+    body: connectors + shapes + tables + lines + strokes + stickies,
   }
 }
 
@@ -287,6 +345,42 @@ function whiteboardSticky(note) {
     ? `<text x="${note.x + 12}" y="${note.y + 24}" fill="${ink}" font-size="15" font-family="Inter, sans-serif">${escapeText(note.text)}</text>`
     : ''
   return rect + text
+}
+
+// Straight lines. Endpoint decorations (arrow / dot) are approximated by a dot at the
+// decorated end: the export is a flat SVG with no marker defs for these, and a missing
+// line reads far worse than a missing arrowhead.
+function whiteboardLine(line) {
+  const stroke = `stroke="${line.color || '#171717'}" stroke-width="${line.width || 2}" stroke-linecap="round"`
+  let out = `<line x1="${line.x1}" y1="${line.y1}" x2="${line.x2}" y2="${line.y2}" ${stroke}/>`
+  const cap = (x, y) =>
+    `<circle cx="${x}" cy="${y}" r="${(line.width || 2) * 1.6}" fill="${line.color || '#171717'}"/>`
+  if (line.start && line.start !== 'none') out += cap(line.x1, line.y1)
+  if (line.end && line.end !== 'none') out += cap(line.x2, line.y2)
+  return out
+}
+
+// Tables: the grid plus whatever text the cells hold. Size comes from cols*cellW /
+// rows*cellH (there are no w/h fields on the model).
+function whiteboardTable(table) {
+  const cols = table.cols || 0
+  const rows = table.rows || 0
+  const cellW = table.cellW || 120
+  const cellH = table.cellH || 40
+  const color = table.color || '#171717'
+  let out = ''
+  for (let r = 0; r < rows; r += 1) {
+    for (let c = 0; c < cols; c += 1) {
+      const x = table.x + c * cellW
+      const y = table.y + r * cellH
+      out += `<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" fill="none" stroke="${color}" stroke-width="1" stroke-opacity="0.45"/>`
+      const text = (table.cells || {})[`${r},${c}`] // key format matches setTableCell
+      if (text) {
+        out += `<text x="${x + 8}" y="${y + cellH / 2 + 5}" fill="${color}" font-size="13" font-family="Inter, sans-serif">${escapeText(text)}</text>`
+      }
+    }
+  }
+  return out
 }
 
 // True when a parsed document has nothing to preview, accounting for every type's
