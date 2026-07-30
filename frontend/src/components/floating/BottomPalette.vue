@@ -55,12 +55,17 @@ function flowNumber() {
 // Templates / Insert menu (canvas unification): drop a starter mind map or
 // flowchart frame onto the unified canvas (they have no single-click tool since
 // they auto-lay-out — you add them like a shape/template).
+//
+// A new frame is centred on the visible viewport rather than the canvas origin,
+// so it appears where the user is working instead of somewhere they have to pan
+// off and find (#30). Insert has no pointer position of its own, so the viewport
+// centre is the only sensible anchor.
 function insertMindmap(togglePopover) {
-  store.insertMindmapStarter()
+  store.insertMindmapStarter(viewport.centerPoint())
   togglePopover?.()
 }
 function insertFlowchart(togglePopover) {
-  store.insertFlowchartStarter()
+  store.insertFlowchartStarter(viewport.centerPoint())
   togglePopover?.()
 }
 

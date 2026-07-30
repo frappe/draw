@@ -11,6 +11,7 @@ import { clone } from '@/utils/clone.js'
 import { findThemePreset, DEFAULT_THEME_PRESET } from '@/diagram/theme.js'
 import { createDiagramDocument, SCHEMA_VERSION, DEFAULT_DIAGRAM_TYPE } from '@/diagram/schema.js'
 import { addChild, addSibling, addRootNode } from '@/diagram/mindmapModel.js'
+import { layoutMindMap } from '@/diagram/mindmapLayout.js'
 import {
   addFlowchartNode,
   addFlowchartEdge,
@@ -19,6 +20,7 @@ import {
   flowchartNodeById,
   flowchartEdgeById,
 } from '@/diagram/flowchartModel.js'
+import { flowchartContentBounds } from '@/diagram/flowchartLayout.js'
 import {
   addStroke,
   removeStroke,
@@ -77,6 +79,50 @@ function assembleStore(state, history) {
   return store
 }
 
+// ----- Placing an inserted frame (#30) ---------------------------------------
+// A frame's `origin` is its top-left on the shared canvas; its content sits at
+// origin + the content bbox. Insert used to leave the origin at the document's
+// fixed default, so a user who had panned away got a frame somewhere off-screen.
+
+const FRAME_GAP = 80
+
+// The rect a frame occupies on the shared canvas.
+function frameRect(origin, bbox) {
+  return { x: origin.x + (bbox.x || 0), y: origin.y + (bbox.y || 0), w: bbox.w, h: bbox.h }
+}
+
+function overlaps(a, b) {
+  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+}
+
+// The rect held by the auto-layout frame OTHER than `kind`, or null if it's empty.
+// Both frames insert at the same viewport centre, so the second one needs to know
+// where the first one sits.
+function otherFrameRect(state, kind) {
+  if (kind === 'mindmap') {
+    const f = state.flowchart
+    if (!f?.nodes.length) return null
+    return frameRect(f.origin || { x: 0, y: 0 }, flowchartContentBounds(f))
+  }
+  const m = state.mindmap
+  if (!m?.nodes.length) return null
+  return frameRect(m.origin || { x: 0, y: 0 }, layoutMindMap(m).bbox)
+}
+
+// The origin that centres `bbox` on `at`, a logical canvas point — normally the
+// centre of the visible viewport, so an inserted frame appears where the user is
+// looking. Dropped below `avoid` when it would land on the other frame, which the
+// document's fixed default origins used to prevent.
+function frameOriginCentredOn(bbox, at, avoid = null) {
+  const origin = {
+    x: at.x - ((bbox.x || 0) + bbox.w / 2),
+    y: at.y - ((bbox.y || 0) + bbox.h / 2),
+  }
+  const rect = frameRect(origin, bbox)
+  if (avoid && overlaps(rect, avoid)) origin.y += avoid.y + avoid.h + FRAME_GAP - rect.y
+  return origin
+}
+
 // Mind-map tree mutations (spec diagram-types Part A). They run the pure model
 // helpers inside commit() so each is one undoable unit (Part G6); layout is
 // derived from the model, never stored. No-ops for non-mindmap diagrams.
@@ -108,7 +154,13 @@ function attachMindMap(store, state, history) {
   // Templates/Insert (canvas unification): drop a starter mind map into the frame
   // as one undoable unit. Seeds root + two branches when empty; otherwise adds a
   // branch to the root so repeat inserts keep growing it.
-  store.insertMindmapStarter = () =>
+  //
+  // `at` is an optional logical canvas point to centre a NEW frame on (#30). Only
+  // the seeding branch uses it — once the frame exists it stays where the user put
+  // it, so growing it must never move it. The layout is run inside the commit to
+  // get the seeded tree's real size; it is pure and already derived on every
+  // render, so this costs nothing extra.
+  store.insertMindmapStarter = (at = null) =>
     history.commit('Insert mind map', () => {
       const m = state.mindmap
       if (!m) return
@@ -116,6 +168,9 @@ function attachMindMap(store, state, history) {
         const root = addRootNode(m, 'Central idea')
         addChild(m, root, 'Idea 1', 'right')
         addChild(m, root, 'Idea 2', 'left')
+        if (at) {
+          m.origin = frameOriginCentredOn(layoutMindMap(m).bbox, at, otherFrameRect(state, 'mindmap'))
+        }
       } else {
         addChild(m, m.rootId, 'New idea')
       }
@@ -189,7 +244,10 @@ function attachFlowchart(store, state, history) {
   }
   // Templates/Insert (canvas unification): drop a starter flowchart into the frame
   // as one undoable unit — two connected nodes when empty, else append a step.
-  store.insertFlowchartStarter = () =>
+  //
+  // `at` centres a NEW frame on that logical canvas point (#30); appending a step
+  // to an existing chart leaves the frame where it is.
+  store.insertFlowchartStarter = (at = null) =>
     history.commit('Insert flowchart', () => {
       const m = state.flowchart
       if (!m) return
@@ -197,6 +255,9 @@ function attachFlowchart(store, state, history) {
         const a = addFlowchartNode(m, 'terminator', 'Start', 0, 0)
         const b = addFlowchartNode(m, 'process', 'Step', 0, 150)
         addFlowchartEdge(m, a, b)
+        if (at) {
+          m.origin = frameOriginCentredOn(flowchartContentBounds(m), at, otherFrameRect(state, 'flowchart'))
+        }
       } else {
         const last = m.nodes[m.nodes.length - 1]
         const next = addFlowchartNode(m, 'process', 'Step', last.x, (last.y || 0) + 150)
