@@ -56,16 +56,16 @@ function flowNumber() {
 // flowchart frame onto the unified canvas (they have no single-click tool since
 // they auto-lay-out — you add them like a shape/template).
 //
-// A new frame is centred on the visible viewport rather than the canvas origin,
-// so it appears where the user is working instead of somewhere they have to pan
-// off and find (#30). Insert has no pointer position of its own, so the viewport
-// centre is the only sensible anchor.
+// A new frame lands in the visible viewport rather than at the canvas origin, so
+// it appears where the user is working instead of somewhere they have to pan off
+// and find (#30). Insert has no pointer position of its own, so the store places
+// the frame within the rect on screen.
 function insertMindmap(togglePopover) {
-  store.insertMindmapStarter(viewport.centerPoint())
+  store.insertMindmapStarter(viewport.visibleRect())
   togglePopover?.()
 }
 function insertFlowchart(togglePopover) {
-  store.insertFlowchartStarter(viewport.centerPoint())
+  store.insertFlowchartStarter(viewport.visibleRect())
   togglePopover?.()
 }
 
