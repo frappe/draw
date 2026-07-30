@@ -10,7 +10,7 @@ import { useMarquee } from '@/composables/useMarquee.js'
 import { isAdditiveEvent } from '@/composables/pointer.js'
 
 export function useSelection(store, editorUi) {
-  const transform = useShapeTransform(store, editorUi)
+  const transform = useShapeTransform(store)
   const marquee = useMarquee(store)
 
   function onSurfacePointerdown(event) {

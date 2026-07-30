@@ -16,7 +16,6 @@ declare module 'vue' {
     ArrangeSection: typeof import('./src/components/palette-right/ArrangeSection.vue')['default']
     BlockSelectionEditor: typeof import('./src/components/floating/BlockSelectionEditor.vue')['default']
     BottomPalette: typeof import('./src/components/floating/BottomPalette.vue')['default']
-    CanvasSection: typeof import('./src/components/palette-right/CanvasSection.vue')['default']
     CollaboratorCursors: typeof import('./src/components/canvas/CollaboratorCursors.vue')['default']
     ColorPicker: typeof import('./src/components/palette-right/ColorPicker.vue')['default']
     ColorPickerBody: typeof import('./src/components/palette-right/ColorPickerBody.vue')['default']

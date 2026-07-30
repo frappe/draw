@@ -30,7 +30,7 @@ const RESIZE_CURSORS = {
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
-const transform = useShapeTransform(store, editorUi)
+const transform = useShapeTransform(store)
 // useSelection (owned here and wired by Integration) shares its marquee via
 // provide; falls back to no marquee when absent so the layer renders standalone.
 const marquee = inject('selectionMarquee', null)

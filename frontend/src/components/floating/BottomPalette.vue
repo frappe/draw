@@ -16,7 +16,6 @@ import { collapseAll } from '@/diagram/mindmapOperations.js'
 import { autoNumberFlow, isFlowNumbered } from '@/diagram/flowchartModel.js'
 import { tidyLayout, toggleDirection } from '@/diagram/flowchartLayout.js'
 import WhiteboardTools from './WhiteboardTools.vue'
-import CanvasSection from '@/components/palette-right/CanvasSection.vue'
 
 const editorUi = useEditorUi()
 const viewport = editorUi.viewport
@@ -52,12 +51,6 @@ function flowNumber() {
   store.updateFlowchartModel('Number steps', (m) => autoNumberFlow(m))
 }
 
-// Arm the section DRAW tool (T4/B6): the next press-drag on the canvas sizes the
-// frame (DiagramCanvas owns the drag-create); a plain click drops a default one.
-// Toggles off if it's already armed.
-function addSection() {
-  editorUi.setTool(editorUi.state.tool === 'section' ? 'select' : 'section')
-}
 const SHAPES = [
   { type: 'rectangle', icon: 'square', label: 'Rectangle' },
   { type: 'rounded', icon: 'square', label: 'Rounded rectangle' },
@@ -199,12 +192,6 @@ function setGuides(state) {
       </button>
     </Tooltip>
 
-    <!-- Section (named grouping frame) — available in every diagram type. -->
-    <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-    <Tooltip text="Draw section">
-      <button :class="[buttonBase, toggleClass(editorUi.state.tool === 'section')]" @click="addSection"><LucideIcon name="layout" class="h-4 w-4" /></button>
-    </Tooltip>
-
     <!-- Block creation tools: Shapes + Connectors popovers + Text. Shown for block
          AND the unified canvas. -->
     <template v-if="isBlock || isUnified">
@@ -304,17 +291,6 @@ function setGuides(state) {
           <LucideIcon name="image" class="h-4 w-4" />
         </button>
       </Tooltip>
-      <!-- Canvas settings (size / theme / grid) — moved here from the old right panel. -->
-      <Popover>
-        <template #target="{ togglePopover }">
-          <Tooltip text="Canvas settings">
-            <button :class="buttonBase" @click="togglePopover()"><LucideIcon name="settings" class="h-4 w-4" /></button>
-          </Tooltip>
-        </template>
-        <template #body-main>
-          <div class="max-h-[70vh] w-[264px] overflow-y-auto"><CanvasSection /></div>
-        </template>
-      </Popover>
     </template>
 
     <!-- Mind map: map-wide actions (per-node editing is in the floating toolbar). -->

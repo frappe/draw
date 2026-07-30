@@ -45,7 +45,7 @@ export function registerModeKeyboardHandler(keyboardMode, handler) {
 
 export function useKeyboard(store, editorUi) {
   const clipboard = useClipboard(store)
-  const transform = useShapeTransform(store, editorUi)
+  const transform = useShapeTransform(store)
   const handler = (event) => handleKeydown(event, store, editorUi, clipboard, transform)
   onMounted(() => window.addEventListener('keydown', handler))
   onBeforeUnmount(() => window.removeEventListener('keydown', handler))

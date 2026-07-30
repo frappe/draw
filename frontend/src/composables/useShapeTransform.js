@@ -12,23 +12,12 @@ const NUDGE_LARGE = 10
 // (G1: "starting to type moves the shape").
 const MOVE_THRESHOLD = 3
 
-export function useShapeTransform(store, editorUi) {
-  const move = createMover(store, editorUi)
-  const resize = createResizer(store, editorUi)
+export function useShapeTransform(store) {
+  const move = createMover(store)
+  const resize = createResizer(store)
   const rotate = createRotator(store)
   const nudge = createNudger(store)
   return { startMove: move, startResize: resize, startRotate: rotate, nudge }
-}
-
-// Round a value to the nearest grid line (spec 4.3 snap-to-grid).
-function snapValue(value, spacing) {
-  return Math.round(value / spacing) * spacing
-}
-
-// Snap-to-grid is active only when the user toggled it on (editorUi may be
-// absent in tests that drive the transform directly).
-function gridSnap(editorUi) {
-  return editorUi?.state?.snapToGrid ? editorUi.gridSpacing.value : 0
 }
 
 // Snapshot the geometry of the shapes a gesture will touch.
@@ -68,7 +57,7 @@ function runDrag(toLogical, onMove, onEnd) {
 
 // Drag the selection body to translate every selected shape together.
 // The raw drag delta is snapped to alignment guides before being applied.
-function createMover(store, editorUi) {
+function createMover(store) {
   const smartGuides = useSmartGuides(store)
   return ({ toLogical, start, ids }) => {
     // A selection can include connectors (e.g. from a marquee); only shapes are
@@ -78,16 +67,6 @@ function createMover(store, editorUi) {
     let dragging = false
     const apply = (point) => {
       const raw = { x: point.x - start.x, y: point.y - start.y }
-      // Snap-to-grid (when on) takes priority over alignment guides: snap the
-      // primary shape's corner to the grid and shift the whole selection by the
-      // same delta, preserving relative layout (spec 4.3).
-      const spacing = gridSnap(editorUi)
-      if (spacing) {
-        const o0 = originals[0]
-        const dx = snapValue(o0.x + raw.x, spacing) - o0.x
-        const dy = snapValue(o0.y + raw.y, spacing) - o0.y
-        return originals.map((o) => ({ id: o.id, x: o.x + dx, y: o.y + dy }))
-      }
       const snapped = smartGuides.snapDelta(shapeIds, originals, raw)
       return originals.map((o) => ({ id: o.id, x: o.x + snapped.x, y: o.y + snapped.y }))
     }
@@ -129,16 +108,11 @@ function geometryChanged(originals, finals) {
 }
 
 // Resize one shape via a corner/edge handle; Shift preserves aspect ratio.
-function createResizer(store, editorUi) {
+function createResizer(store) {
   return ({ toLogical, handle, id }) => {
     const [original] = snapshotShapes(store, [id])
     const fixed = fixedCornerWorld(original, handle)
-    // Snap the dragged handle to the grid so resized edges land on grid lines.
-    const apply = (point, lockAspect) => {
-      const spacing = gridSnap(editorUi)
-      const p = spacing ? { x: snapValue(point.x, spacing), y: snapValue(point.y, spacing) } : point
-      return [resizeShape(original, handle, p, fixed, lockAspect)]
-    }
+    const apply = (point, lockAspect) => [resizeShape(original, handle, point, fixed, lockAspect)]
     runDrag(
       toLogical,
       (event, point) => applyLive(store, apply(point, event.shiftKey)),
