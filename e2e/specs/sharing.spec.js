@@ -132,18 +132,45 @@ test.describe('sharing: the public link', () => {
 
   test('switching back to restricted makes it private again', async ({ page, diagram }) => {
     const name = await diagram.open('unified')
+    const access = page.getByLabel('General access')
 
     await openShareDialog(page)
-    await page.getByLabel('General access').selectOption('link')
+    await access.selectOption('link')
+    // Wait for the DIALOG to catch up, not just the server. is_public flips as soon as
+    // set_public commits, but the client is still inside its reload() at that point —
+    // polling the API alone and switching straight back raced the reload and made this
+    // test flaky. The select only reads 'link' once reload() has landed.
+    await expect(access).toHaveValue('link')
     await expect.poll(async () => fetchIsPublic(page, name), { timeout: 20_000 }).toBe(1)
 
-    await page.getByLabel('General access').selectOption('restricted')
+    await access.selectOption('restricted')
     await expect
       .poll(async () => fetchIsPublic(page, name), {
         message: 'turning the public link off did not persist',
         timeout: 20_000,
       })
       .toBe(0)
+  })
+
+  test('switching on and straight back off ends up off', async ({ page, diagram }) => {
+    // The change made while the first one is still in flight used to be DROPPED:
+    // toggleGlobalAccess returned early while `updating` was true, so the diagram
+    // stayed public and the dropdown snapped back to "link" as though the second
+    // click had applied. Deliberately no wait between the two selections.
+    const name = await diagram.open('unified')
+    const access = page.getByLabel('General access')
+
+    await openShareDialog(page)
+    await access.selectOption('link')
+    await access.selectOption('restricted')
+
+    await expect
+      .poll(async () => fetchIsPublic(page, name), {
+        message: 'a change made mid-flight was dropped — the diagram is still public',
+        timeout: 20_000,
+      })
+      .toBe(0)
+    await expect(access).toHaveValue('restricted')
   })
 
   test('a public diagram opens in the read-only viewer', async ({ page, diagram }) => {

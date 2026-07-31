@@ -47,12 +47,12 @@ async function invite(user) {
   results.value = []
 }
 
+// Set the state the user picked, rather than toggling whatever the current value is:
+// a toggle fired while a previous change is still in flight flips the wrong way, and
+// the change used to be dropped outright. setGlobalAccess queues instead.
 const accessLevel = computed({
   get: () => (share.isPublic.value ? 'link' : 'restricted'),
-  set: (value) => {
-    const wantPublic = value === 'link'
-    if (wantPublic !== share.isPublic.value) share.toggleGlobalAccess()
-  },
+  set: (value) => share.setGlobalAccess(value === 'link'),
 })
 </script>
 
