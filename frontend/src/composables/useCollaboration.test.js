@@ -276,4 +276,117 @@ describe('useCollaboration', () => {
     expect(api.call).not.toHaveBeenCalled()
     collab.setCursor({ x: 1, y: 1 })
   })
+
+  // ---- offline-cache freshness on open (D4) --------------------------------
+  // y-indexeddb loads the cached Y.Doc for the room and then fires 'synced'. That
+  // cache is keyed by the room id, which is stable across reloads, so a reopen after
+  // someone else saved a newer version elsewhere would otherwise revert the canvas to
+  // the stale cache — and autosave would then persist the stale content back over the
+  // newer server revision (a silent clobber). The synced handler compares the cache's
+  // `__rev` stamp against the freshly loaded server revision to decide adopt vs reseed.
+
+  // Simulate what y-indexeddb does before 'synced': load cached updates into the doc.
+  // Written with no 'local' origin, exactly as the real IndexedDB load would — the
+  // `ready` gate is what must keep the observer from applying this prematurely.
+  function loadCache(doc, { shapes = {}, rev }) {
+    doc.transact(() => {
+      for (const [id, shape] of Object.entries(shapes)) {
+        doc.getMap('shapes').set(id, JSON.stringify({ id, ...shape }))
+      }
+      // A real cache always carries the meta the last push wrote; `canvas` stands in
+      // so `hasContent` sees a populated document, not just the bare `__rev` stamp.
+      doc.getMap('meta').set('canvas', JSON.stringify({ width: 1, height: 1 }))
+      if (rev !== undefined) doc.getMap('meta').set('__rev', String(rev))
+    })
+  }
+
+  it('discards a stale offline cache and reseeds from the freshly loaded server doc', async () => {
+    sessions = [() => Promise.resolve({ room: 'room-a', password: 'pw-a' })]
+    const store = makeStore()
+    store.state.shapes = [{ id: 'server-fresh', type: 'rectangle' }] // loaded from server at rev 5
+
+    const collab = useCollaboration(store, {}, 'diagram-1', () => 5)
+    await flush()
+
+    const doc = created.docs[0]
+    loadCache(doc, { shapes: { 'cached-stale': { type: 'ellipse' } }, rev: 2 })
+    // The ready gate must hold the cache back until the freshness decision is made.
+    expect(store.state.shapes.map((s) => s.id), 'cache must not apply before synced').toEqual([
+      'server-fresh',
+    ])
+
+    created.persistences[0].emitSynced()
+    await nextTick()
+
+    // __rev 2 < server rev 5: the stale cache is dropped, the doc is reseeded from the
+    // store, and the store keeps the fresher server content.
+    expect(shapeIds(doc)).toEqual(['server-fresh'])
+    expect(store.state.shapes.map((s) => s.id)).toEqual(['server-fresh'])
+    expect(doc.getMap('meta').get('__rev')).toBe('5')
+    collab.destroy()
+  })
+
+  it('adopts the offline cache when it is at least as new as the server doc', async () => {
+    sessions = [() => Promise.resolve({ room: 'room-a', password: 'pw-a' })]
+    const store = makeStore()
+    store.state.shapes = [{ id: 'server-old', type: 'rectangle' }] // server at rev 3
+
+    const collab = useCollaboration(store, {}, 'diagram-1', () => 3)
+    await flush()
+
+    const doc = created.docs[0]
+    loadCache(doc, { shapes: { 'cached-new': { type: 'ellipse' } }, rev: 3 })
+
+    created.persistences[0].emitSynced()
+    await nextTick()
+
+    // __rev 3 >= server rev 3: the cache holds edits the server hasn't seen, so it wins
+    // and is applied into the store.
+    expect(store.state.shapes.map((s) => s.id)).toEqual(['cached-new'])
+    expect(shapeIds(doc)).toEqual(['cached-new'])
+    collab.destroy()
+  })
+
+  it('seeds an empty room from the store and stamps the current revision', async () => {
+    sessions = [() => Promise.resolve({ room: 'room-a', password: 'pw-a' })]
+    const store = makeStore()
+    store.state.shapes = [{ id: 'seed-me', type: 'rectangle' }]
+
+    const collab = useCollaboration(store, {}, 'diagram-1', () => 7)
+    await flush()
+
+    // No cache loaded: an empty doc seeds from the freshly loaded store.
+    created.persistences[0].emitSynced()
+    await nextTick()
+
+    expect(shapeIds(created.docs[0])).toEqual(['seed-me'])
+    expect(created.docs[0].getMap('meta').get('__rev')).toBe('7')
+    collab.destroy()
+  })
+
+  it('preserves the live document when the room rotates', async () => {
+    sessions = [
+      () => Promise.resolve({ room: 'room-a', password: 'pw-a' }),
+      () => Promise.resolve({ room: 'room-b', password: 'pw-b' }),
+    ]
+    const store = makeStore()
+    const collab = useCollaboration(store, {}, 'diagram-1', () => 4)
+    await flush()
+    created.persistences[0].emitSynced() // room-a: empty doc seeds from the (empty) store
+    await nextTick()
+
+    await edit(store, { id: 'live', type: 'rectangle' }) // a live edit lands in the shared doc
+    expect(shapeIds(created.docs[0])).toEqual(['live'])
+
+    await vi.advanceTimersByTimeAsync(POLL_MS) // rotate to room-b (shared Y.Doc is retained)
+    expect(created.persistences[1].name).toBe('room-b')
+
+    // The new room's initial sync must not wipe the live content: the doc's __rev (4)
+    // equals the current revision, so it is adopted as-is rather than reseeded away.
+    created.persistences[1].emitSynced()
+    await nextTick()
+    expect(shapeIds(created.docs[0])).toEqual(['live'])
+    expect(store.state.shapes.map((s) => s.id)).toEqual(['live'])
+    collab.destroy()
+  })
 })

@@ -50,7 +50,7 @@ const ROOM_POLL_MS = 60_000
 const META_KEYS = ['canvas', 'themePreset', 'diagramType', 'mindmap', 'flowchart', 'whiteboard']
 const CURSOR_COLORS = ['#6846E3', '#0A84FF', '#16A34A', '#D97706', '#DB2777', '#0E7490', '#7C3AED']
 
-export function useCollaboration(store, editorUi, name) {
+export function useCollaboration(store, editorUi, name, getRevision = () => 0) {
   const collaborators = ref([]) // remote peers: { id, name, color, cursor:{x,y} }
   if (!name) return { collaborators, setCursor() {}, destroy() {} }
 
@@ -61,6 +61,11 @@ export function useCollaboration(store, editorUi, name) {
   let poll = null
   let destroyed = false
   let syncGeneration = 0
+  // Gate remote application until the initial offline-cache sync has been resolved
+  // (see openRoom). y-indexeddb applies the cached updates during load, which fires
+  // the observer with a non-'local' origin; applying that blindly would let a stale
+  // cache overwrite the freshly loaded server document before we've compared them.
+  let ready = false
 
   const yShapes = doc.getMap('shapes')
   const yConnectors = doc.getMap('connectors')
@@ -84,6 +89,12 @@ export function useCollaboration(store, editorUi, name) {
         const value = JSON.stringify(store.state[key] ?? null)
         if (yMeta.get(key) !== value) yMeta.set(key, value)
       }
+      // Stamp the server revision this state corresponds to, so a later open can
+      // tell whether the offline cache is stale relative to the server document
+      // (see the synced handler in openRoom). Kept out of META_KEYS so applyFromYjs
+      // never treats it as store data.
+      const rev = String(getRevision())
+      if (yMeta.get('__rev') !== rev) yMeta.set('__rev', rev)
     }, 'local')
   }
 
@@ -133,7 +144,7 @@ export function useCollaboration(store, editorUi, name) {
 
   // React to any remote document change (only when it originated remotely).
   const observer = (events, transaction) => {
-    if (transaction.origin === 'local') return
+    if (transaction.origin === 'local' || !ready) return
     applyFromYjs()
   }
   yShapes.observe(observer)
@@ -174,12 +185,23 @@ export function useCollaboration(store, editorUi, name) {
 
   function openRoom(session) {
     room = session.room
+    ready = false
     persistence = new IndexeddbPersistence(session.room, doc)
-    // First sync: adopt the shared state if peers already have one, else seed ours.
+    // First sync: adopt the cached offline state only if it is at least as new as
+    // the server document we just loaded (compared via the __rev stamp). A staler
+    // cache — someone saved a newer version elsewhere while this client was away —
+    // must NOT win: it would revert the canvas and then autosave would persist the
+    // stale content back over the newer server revision. Otherwise seed Yjs from the
+    // freshly loaded store. The observer stays gated (ready=false) until this runs,
+    // so the IndexedDB load can't apply the cache before we've made this decision.
     persistence.once('synced', () => {
       if (destroyed) return
-      if (yShapes.size || yConnectors.size || yMeta.size) applyFromYjs()
+      const hasContent =
+        yShapes.size || yConnectors.size || ySections.size || META_KEYS.some((key) => yMeta.has(key))
+      const cachedRev = yMeta.has('__rev') ? Number(yMeta.get('__rev')) : -1
+      if (hasContent && cachedRev >= getRevision()) applyFromYjs()
       else pushToYjs()
+      ready = true
     })
     try {
       provider = new WebrtcProvider(session.room, doc, {

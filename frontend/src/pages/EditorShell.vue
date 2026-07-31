@@ -92,7 +92,7 @@ const dark = computed(() => appSettings.darkMode)
 const autosave = useAutosave(store, diagram)
 const thumbnail = useThumbnail(store, diagram)
 // Real-time co-editing (Yjs + y-webrtc) + live cursors, keyed by the diagram name.
-const collab = useCollaboration(store, editorUi, props.name)
+const collab = useCollaboration(store, editorUi, props.name, () => diagram.doc?.revision || 0)
 useKeyboard(store, editorUi)
 useClipboard(store)
 
