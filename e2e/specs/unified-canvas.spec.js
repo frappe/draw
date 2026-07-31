@@ -1,6 +1,7 @@
 import { test, expect, watchForErrors } from '../helpers/fixtures.js'
 import {
   SURFACE,
+  POPOVER,
   buttonByIcon,
   toolByIcon,
   openShapesPopover,
@@ -19,16 +20,19 @@ import {
 // draws something transient but never saves it looks fine on screen and is broken.
 
 
-// Open the Insert menu and pick an item. The item is awaited for visibility first:
-// clicking straight after opening the popover can land while it is still settling,
-// which misses silently and then looks like a broken inserter.
-async function insertFromMenu(page, label) {
-  await toolByIcon(page, 'layout-template').click()
-  const item = page.getByRole('button', { name: new RegExp(`^${label}$`) }).first()
-  await item.waitFor({ state: 'visible' })
-  await item.click()
+// Insert a starter frame. The Insert menu is gone (#44): the mind-map and
+// flowchart tiles live in the Shapes popover's last section, and the tiles are
+// icon-only, so they're found by glyph like every other tool button. The tile is
+// awaited for visibility first: clicking straight after opening the popover can
+// land while it is still settling, which misses silently and then looks like a
+// broken inserter.
+async function insertFrame(page, icon) {
+  await openShapesPopover(page)
+  const tile = buttonByIcon(page, icon, page.locator(POPOVER))
+  await tile.waitFor({ state: 'visible' })
+  await tile.click()
   // The handler closes the popover, so this also proves the click was delivered.
-  await expect(item).toBeHidden()
+  await expect(tile).toBeHidden()
 }
 
 test.describe('unified canvas: block tools', () => {
@@ -122,28 +126,28 @@ test.describe('unified canvas: whiteboard tools', () => {
 })
 
 test.describe('unified canvas: frames', () => {
-  test('Insert adds a mind-map starter frame', async ({ page, diagram }) => {
+  test('Shapes adds a mind-map starter frame', async ({ page, diagram }) => {
     const name = await diagram.open('unified', { empty: true })
 
-    await insertFromMenu(page, 'Mind map')
+    await insertFrame(page, 'git-fork')
 
     await expect
       .poll(async () => (await diagram.saved(name)).mindmap.nodes.length, {
-        message: 'Insert > Mind map seeded no nodes',
+        message: 'Shapes > Mind map seeded no nodes',
         timeout: 20_000,
       })
       .toBeGreaterThan(0)
     await expect(page.locator('.fd-mm-label').first()).toBeVisible()
   })
 
-  test('Insert adds a flowchart starter frame', async ({ page, diagram }) => {
+  test('Shapes adds a flowchart starter frame', async ({ page, diagram }) => {
     const name = await diagram.open('unified', { empty: true })
 
-    await insertFromMenu(page, 'Flowchart')
+    await insertFrame(page, 'workflow')
 
     await expect
       .poll(async () => (await diagram.saved(name)).flowchart.nodes.length, {
-        message: 'Insert > Flowchart seeded no nodes',
+        message: 'Shapes > Flowchart seeded no nodes',
         timeout: 20_000,
       })
       .toBeGreaterThan(0)

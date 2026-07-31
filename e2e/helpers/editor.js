@@ -10,6 +10,9 @@ export const SURFACE = '[data-fdpreset]'
 export const MINIMAP = '[aria-label="Minimap"], [aria-label="Navigator"]'
 export const MM_TOOLBAR = '[data-mm-toolbar]'
 export const PALETTE = '[data-palette]'
+// frappe-ui portals a Popover's body out of its trigger's subtree, so popover
+// content is NOT inside [data-palette]. Scope lookups to the portalled panel.
+export const POPOVER = '[data-slot="content"]'
 export const TOOL_PAYLOAD_KEY = 'application/x-frappe-draw-tool'
 
 export async function openDiagram(page, name) {

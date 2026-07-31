@@ -21,7 +21,6 @@ import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { useSelection } from '@/composables/useSelection.js'
 import { useShapeCreation } from '@/composables/useShapeCreation.js'
-import { useEdgeAutoPan } from '@/composables/useEdgeAutoPan.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
 import { useCanvasPaste } from '@/composables/useCanvasPaste.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
@@ -521,70 +520,6 @@ function onZoomKey(event) {
 
 const panning = computed(() => editorUi.state.tool === 'hand')
 
-// --- Section as a draw tool (T4/B6): the 'section' tool arms a crosshair; press
-// starts a frame, drag sizes it, release commits + selects it. Works in every
-// diagram type, so it's handled here on the shared surface, before the per-type
-// delegation. A too-small drag (a plain click) falls back to a default size.
-const sectionDraft = ref(null)
-let sectionStart = null
-const SECTION_MIN_DRAG = 24
-
-const sectionPan = useEdgeAutoPan(viewport)
-
-function logicalPoint(event) {
-  return selection.toLogicalFor(event, surface.value, viewport)
-}
-// Client coords → logical (for the auto-pan step, which only has x/y).
-function logicalFromXY(x, y) {
-  const el = surface.value
-  const b = el.getBoundingClientRect()
-  const { panX, panY, zoom } = viewport.state
-  return { x: (x - b.left + el.scrollLeft - panX) / zoom, y: (y - b.top + el.scrollTop - panY) / zoom }
-}
-function startSectionDraft(event) {
-  // Capture the pointer so the surface still gets move/up even if the drag ends
-  // off-canvas (over a toolbar / outside the pane) — otherwise the draft rect
-  // would be left stuck on screen.
-  event.currentTarget?.setPointerCapture?.(event.pointerId)
-  sectionStart = logicalPoint(event)
-  sectionDraft.value = { x: sectionStart.x, y: sectionStart.y, w: 0, h: 0 }
-  // Auto-pan + grow the draft when the drag reaches an edge (draw beyond view).
-  sectionPan.begin(event.currentTarget, (x, y) => sizeSectionDraft(logicalFromXY(x, y)))
-}
-function sizeSectionDraft(p) {
-  if (!sectionStart) return
-  sectionDraft.value = {
-    x: Math.min(sectionStart.x, p.x),
-    y: Math.min(sectionStart.y, p.y),
-    w: Math.abs(p.x - sectionStart.x),
-    h: Math.abs(p.y - sectionStart.y),
-  }
-}
-function updateSectionDraft(event) {
-  sizeSectionDraft(logicalPoint(event))
-  sectionPan.track(event.clientX, event.clientY)
-}
-// Abandon an in-progress section draft (pointer cancelled) without committing.
-function cancelSectionDraft() {
-  sectionPan.stop()
-  sectionDraft.value = null
-  sectionStart = null
-}
-
-function commitSectionDraft() {
-  sectionPan.stop()
-  const d = sectionDraft.value
-  sectionDraft.value = null
-  sectionStart = null
-  if (!d) return
-  // A click (or tiny drag) drops a comfortable default; a real drag uses its box.
-  const draggedEnough = d.w >= SECTION_MIN_DRAG && d.h >= SECTION_MIN_DRAG
-  const box = draggedEnough ? d : { x: d.x - 180, y: d.y - 120, w: 360, h: 240 }
-  const id = store.addSection(Math.round(box.x), Math.round(box.y), Math.round(box.w), Math.round(box.h))
-  editorUi.selectSection(id)
-  editorUi.setTool('select')
-}
-
 // Route a surface pointerdown to the active tool: hand pans, draw creates, and
 // select runs the normal click/move/marquee selection (spec §7.1/§7.2/§4.3).
 function onSurfacePointerDown(event) {
@@ -594,8 +529,6 @@ function onSurfacePointerDown(event) {
   // A press that reaches the surface (a frame hit-rect stops propagation) is
   // outside any frame — deselect the unified-canvas frame.
   selectedFrame.value = null
-  // Section draw tool wins before any per-type handling (works in every type).
-  if (editorUi.state.tool === 'section') return startSectionDraft(event)
   // Hand tool always pans, for every type (shared transform, Part G4).
   if (editorUi.state.tool === 'hand') return viewport.startPan(event)
   // On the whiteboard, text boxes and images are ordinary block shapes. With the
@@ -630,14 +563,12 @@ function onSurfacePointerDown(event) {
 
 function onSurfacePointerMove(event) {
   if (panning.value) return viewport.movePan(event)
-  if (editorUi.state.tool === 'section' && sectionDraft.value) return updateSectionDraft(event)
   if (delegateSurfaceEvent('onPointerMove', event)) return
   if (!isMindmap.value && editorUi.state.tool === 'draw') creation.onCanvasPointerMove(event)
 }
 
 function onSurfacePointerUp(event) {
   viewport.endPan()
-  if (editorUi.state.tool === 'section' && sectionDraft.value) return commitSectionDraft()
   if (delegateSurfaceEvent('onPointerUp', event)) return
   if (!isMindmap.value && editorUi.state.tool === 'draw') creation.onCanvasPointerUp(event)
 }
@@ -721,7 +652,7 @@ const ERASER_CURSOR =
 // Whiteboard placement/drawing tools show a crosshair so it's clear a click will
 // place/draw (S12: arming Text → crosshair, click starts the text box). Pen and
 // eraser get glyph cursors that look like the tool.
-const CROSSHAIR_TOOLS = ['text', 'sticky', 'line', 'table', 'highlighter', 'section']
+const CROSSHAIR_TOOLS = ['text', 'sticky', 'line', 'table', 'highlighter']
 const surfaceCursor = computed(() => {
   const tool = editorUi.state.tool
   if (tool === 'hand') return 'grab'
@@ -745,7 +676,6 @@ const surfaceCursor = computed(() => {
     @pointerdown="onSurfacePointerDown"
     @pointermove="onSurfacePointerMove"
     @pointerup="onSurfacePointerUp"
-    @pointercancel="cancelSectionDraft"
     @pointerleave="viewport.endPan()"
     @dblclick="onSurfaceDoubleClick"
     @contextmenu.prevent="onContextMenu"
@@ -774,20 +704,6 @@ const surfaceCursor = computed(() => {
           :key="section.id"
           :section="section"
           :selected="editorUi.state.selectedSectionId === section.id"
-        />
-
-        <!-- Live frame while drawing a section with the section tool (T4). -->
-        <rect
-          v-if="sectionDraft"
-          :x="sectionDraft.x"
-          :y="sectionDraft.y"
-          :width="sectionDraft.w"
-          :height="sectionDraft.h"
-          rx="6"
-          fill="rgba(110,86,207,0.06)"
-          stroke="#006EDB"
-          stroke-width="1.5"
-          stroke-dasharray="6 4"
         />
 
         <!-- Block substrate: shapes/connectors + overlays. Renders for block mode

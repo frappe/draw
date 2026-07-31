@@ -5,7 +5,6 @@
 
 import { reactive, computed, provide, inject } from 'vue'
 import { createShape, createConnector, nextId } from '@/diagram/factories.js'
-import { makeSection } from '@/diagram/sections.js'
 import { createHistory } from '@/stores/history.js'
 import { clone } from '@/utils/clone.js'
 import { findThemePreset, DEFAULT_THEME_PRESET } from '@/diagram/theme.js'
@@ -574,14 +573,11 @@ function remapDuplicatedEndpoint(endpoint, idMap) {
 }
 
 // Sections (named grouping frames) — one undoable unit each; document-level so
-// they work in every diagram type (spec).
+// they work in every diagram type (spec). Nothing creates them any more (the
+// section tool left the toolbar in #42); sections in saved documents still
+// render, and can be renamed, moved, resized and deleted.
 function attachSections(store, state, history) {
   store.sectionById = (id) => state.sections.find((s) => s.id === id)
-  store.addSection = (x, y, w, h, partial = {}) => {
-    const section = makeSection(x, y, w, h, partial)
-    history.commit('Add section', () => state.sections.push(section))
-    return section.id
-  }
   store.updateSection = (id, patch) =>
     history.commit('Update section', () => applyPatch(store.sectionById(id), patch))
   store.removeSection = (id) =>
