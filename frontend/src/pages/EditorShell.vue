@@ -13,6 +13,7 @@ import { provideModeStrategy, getModeStrategy } from '@/stores/useModeStrategy.j
 import { resetMindmapUi } from '@/stores/mindmapUi.js'
 import { provideModeInteraction } from '@/composables/useModeInteraction.js'
 import { useKeyboard, keyboardOwner } from '@/composables/useKeyboard.js'
+import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { useClipboard } from '@/composables/useClipboard.js'
 import { useAutosave } from '@/composables/useAutosave.js'
 import { useThumbnail } from '@/composables/useThumbnail.js'
@@ -39,6 +40,7 @@ const props = defineProps({
 const diagram = loadDiagram(props.name)
 const store = createDiagramStore(parseDiagramDocument(diagram.doc?.document))
 const editorUi = createEditorUi()
+const whiteboardUi = useWhiteboardUi()
 // editorUi is created per editor, but mindmapUi is a module singleton whose fields
 // all hold node ids — and node ids are per-document counters, so they repeat across
 // maps. Clear it as each document loads, or leftovers (a branch focus, a half-armed
@@ -65,8 +67,14 @@ provideModeStrategy(modeStrategy)
 // SELECTION — the same rule the keyboard uses, so the toolbar you see and the keys
 // that work can never disagree. Mounting the overlays unconditionally instead would
 // drop their single-type empty-state prompts onto the unified canvas.
+//
+// The whiteboard needs the same treatment, and for a sharper reason: its selection
+// editor carries the only Delete button a line, table or stroke has. Gated on the
+// strategy it never mounted on a unified document, so those objects could be placed
+// there and never removed by mouse either.
 const chromeType = computed(() => {
   if (!isUnifiedDocument(store.state)) return modeStrategy.value.type
+  if (whiteboardUi.state.selection.length) return 'whiteboard'
   return keyboardOwner(store) || 'block'
 })
 
@@ -168,7 +176,7 @@ onMounted(() => {
              selected (S13/S14/U1). WhiteboardSelectionEditor handles board objects. -->
         <BlockSelectionEditor v-if="chromeType === 'block' || chromeType === 'whiteboard'" />
         <FlowchartSelectionEditor v-if="chromeType === 'flowchart'" />
-        <WhiteboardSelectionEditor v-if="modeStrategy.type === 'whiteboard'" />
+        <WhiteboardSelectionEditor v-if="chromeType === 'whiteboard'" />
         <CollaboratorCursors :collaborators="collab.collaborators.value" :set-cursor="collab.setCursor" />
         <ViewportControls />
         <BottomPalette />

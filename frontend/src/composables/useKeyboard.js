@@ -8,7 +8,7 @@ import { useShapeTransform } from '@/composables/useShapeTransform.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
 import { getModeStrategy } from '@/stores/useModeStrategy.js'
 import { flowchartKeydown } from '@/composables/useFlowchartKeys.js'
-import { whiteboardKeydown } from '@/composables/useWhiteboardKeys.js'
+import { whiteboardKeydown, deleteWhiteboardSelection } from '@/composables/useWhiteboardKeys.js'
 import { toggleShortcutsHelp } from '@/composables/useShortcutsHelp.js'
 import { mindmapUi } from '@/stores/mindmapUi.js'
 import { isEditingText } from '@/utils/dom.js'
@@ -92,6 +92,22 @@ function handleKeydown(event, store, editorUi, clipboard, transform) {
     editorUi.clearSection()
     event.preventDefault()
     return
+  }
+  // Delete/Backspace removes selected whiteboard objects (ink, stickies, lines,
+  // tables) in EVERY diagram type that can hold them — before per-mode dispatch, so
+  // it works where the whiteboard is not the owning keyboard mode.
+  //
+  // On a unified document it isn't: the owner resolves to block, or to a selected
+  // mind-map / flowchart node. Since nothing else calls removeWhiteboardSelection and
+  // the eraser only rubs out ink, a sticky note, line or table placed on a new
+  // drawing could be created and never removed. Verified end to end: the same select
+  // + Delete that removes a sticky on a legacy whiteboard left it untouched on a
+  // unified one.
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    if (deleteWhiteboardSelection(store)) {
+      event.preventDefault()
+      return
+    }
   }
   if (dispatchModeKey(event, store, editorUi)) {
     event.preventDefault()

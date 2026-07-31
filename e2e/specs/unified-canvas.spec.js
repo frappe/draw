@@ -123,6 +123,29 @@ test.describe('unified canvas: whiteboard tools', () => {
       })
       .toBeGreaterThan(0)
   })
+
+  // Placing a whiteboard object without being able to remove it is worse than not
+  // being able to place it. Delete was the only route those objects ever had — the
+  // eraser rubs out ink only — and it ran through the whiteboard's own key handler,
+  // which is not the owning mode on a unified document. So a sticky placed on a new
+  // drawing stayed there permanently. The legacy-whiteboard equivalent of this test
+  // passed the whole time, which is why nothing caught it.
+  test('a sticky note can be deleted again', async ({ page, diagram }) => {
+    const name = await diagram.open('unified', {})
+    const sticky = page.getByText('note', { exact: true }).first()
+    const box = await sticky.boundingBox()
+    if (!box) throw new Error('the seeded sticky note is not rendered')
+
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    await page.keyboard.press('Delete')
+
+    await expect
+      .poll(async () => (await diagram.saved(name)).whiteboard.stickyNotes.length, {
+        message: 'a sticky note on the unified canvas could not be deleted',
+        timeout: 20_000,
+      })
+      .toBe(0)
+  })
 })
 
 test.describe('unified canvas: frames', () => {

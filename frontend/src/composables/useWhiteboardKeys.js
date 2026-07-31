@@ -71,6 +71,24 @@ function dropAdjacentSticky(store, ui) {
   return true
 }
 
+// Delete the selected whiteboard objects as ONE undoable unit, for callers outside
+// this mode handler.
+//
+// The shared dispatcher needs this because the whiteboard is NOT the owning keyboard
+// mode on a unified document: that resolves to block, or to a selected mind-map /
+// flowchart node. Nothing else in the app calls removeWhiteboardSelection, and the
+// eraser only rubs out ink — so without this route a sticky note, line or table
+// placed on a new drawing could be created and never removed.
+//
+// Returns false unless whiteboard objects are actually selected. Delegating a bare
+// block-shape selection here would route shape deletion through the whiteboard path
+// and commit it under the wrong history entry.
+export function deleteWhiteboardSelection(store) {
+  const ui = useWhiteboardUi()
+  if (!ui.state.selection.length) return false
+  return deleteSelected(store, ui)
+}
+
 function deleteSelected(store, ui) {
   const wbSelection = ui.state.selection
   const shapeSelection = store.state.selection
