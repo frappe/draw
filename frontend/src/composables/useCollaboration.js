@@ -12,8 +12,16 @@
 // two-way bridge keeps store <-> Yjs in sync without echo loops. The JSON autosave
 // is unchanged (each client rebuilds Yjs from the loaded JSON), so nothing extra
 // is persisted server-side. With no peers it's a silent no-op.
+//
+// Because the signaling server is shared and public, the room is not derived from
+// the diagram name: the backend issues a site-scoped room id + encryption password,
+// and only to users who may edit — no server sits between the peers to hold anyone
+// to read-only. The room also changes when the diagram's access list does, so we
+// re-check it periodically and follow it; a peer whose share was revoked cannot
+// derive the new room and is left behind in the old one.
 
 import { ref, watch, onBeforeUnmount } from 'vue'
+import { call } from 'frappe-ui'
 import * as Y from 'yjs'
 import { WebrtcProvider } from 'y-webrtc'
 import { IndexeddbPersistence } from 'y-indexeddb'
@@ -35,6 +43,10 @@ const REALTIME_CONFIG = {
   },
 }
 
+// How often to re-check the issued room, so a revoked share takes effect while
+// the editor is open rather than at the next reload.
+const ROOM_POLL_MS = 60_000
+
 const META_KEYS = ['canvas', 'themePreset', 'diagramType', 'mindmap', 'flowchart', 'whiteboard']
 const CURSOR_COLORS = ['#6846E3', '#0A84FF', '#16A34A', '#D97706', '#DB2777', '#0E7490', '#7C3AED']
 
@@ -43,15 +55,12 @@ export function useCollaboration(store, editorUi, name) {
   if (!name) return { collaborators, setCursor() {}, destroy() {} }
 
   const doc = new Y.Doc()
-  const room = `fdraw-${name}`
-  const persistence = new IndexeddbPersistence(room, doc)
+  let persistence = null
   let provider = null
-  try {
-    provider = new WebrtcProvider(room, doc, REALTIME_CONFIG)
-  } catch (error) {
-    // WebRTC/signaling unavailable → collaboration silently off; local editing fine.
-    console.warn('Collaboration unavailable', error)
-  }
+  let room = null
+  let poll = null
+  let destroyed = false
+  let syncGeneration = 0
 
   const yShapes = doc.getMap('shapes')
   const yConnectors = doc.getMap('connectors')
@@ -63,7 +72,10 @@ export function useCollaboration(store, editorUi, name) {
 
   // ---- store -> Yjs (local edits) ------------------------------------------
   function pushToYjs() {
-    if (applyingRemote) return
+    // No room means no write access (or none yet). The doc outlives any single
+    // room, so anything accumulated here while unauthorized would be broadcast
+    // the moment a room does open — keep it out in the first place.
+    if (applyingRemote || !room) return
     doc.transact(() => {
       for (const key of ['shapes', 'connectors', 'sections']) {
         reconcileList(maps[key], store.state[key] || [])
@@ -129,17 +141,10 @@ export function useCollaboration(store, editorUi, name) {
   ySections.observe(observer)
   yMeta.observe(observer)
 
-  // First sync: adopt the shared state if peers already have one, else seed ours.
-  persistence.once('synced', () => {
-    if (yShapes.size || yConnectors.size || yMeta.size) applyFromYjs()
-    else pushToYjs()
-  })
-
   // ---- awareness: presence + live cursors ----------------------------------
-  const awareness = provider?.awareness
-  if (awareness) {
-    const me = currentUser()
-    awareness.setLocalStateField('user', me)
+  function attachAwareness(awareness) {
+    if (!awareness) return
+    awareness.setLocalStateField('user', currentUser())
     awareness.on('change', () => {
       const out = []
       awareness.getStates().forEach((s, clientId) => {
@@ -151,20 +156,86 @@ export function useCollaboration(store, editorUi, name) {
   }
 
   function setCursor(point) {
-    awareness?.setLocalStateField('cursor', point ? { x: point.x, y: point.y } : null)
+    provider?.awareness?.setLocalStateField('cursor', point ? { x: point.x, y: point.y } : null)
   }
 
   function destroy() {
+    destroyed = true
     stop()
+    clearInterval(poll)
+    closeRoom()
     try {
-      provider?.destroy()
-      persistence.destroy()
       doc.destroy()
     } catch (error) {
       /* ignore teardown races */
     }
   }
   onBeforeUnmount(destroy)
+
+  function openRoom(session) {
+    room = session.room
+    persistence = new IndexeddbPersistence(session.room, doc)
+    // First sync: adopt the shared state if peers already have one, else seed ours.
+    persistence.once('synced', () => {
+      if (destroyed) return
+      if (yShapes.size || yConnectors.size || yMeta.size) applyFromYjs()
+      else pushToYjs()
+    })
+    try {
+      provider = new WebrtcProvider(session.room, doc, {
+        ...REALTIME_CONFIG,
+        password: session.password,
+      })
+      attachAwareness(provider.awareness)
+    } catch (error) {
+      console.warn('Collaboration unavailable', error)
+    }
+  }
+
+  // `dropCache` deletes the offline database as well as closing it. y-indexeddb
+  // names that database after the room id, so a rotation would otherwise orphan
+  // one per share change, permanently. On unmount the room is unchanged and the
+  // cache is what makes the next open fast, so it stays.
+  function closeRoom({ dropCache = false } = {}) {
+    room = null
+    collaborators.value = []
+    try {
+      provider?.destroy()
+      if (dropCache) Promise.resolve(persistence?.clearData()).catch(() => {})
+      else persistence?.destroy()
+    } catch (error) {
+      /* ignore teardown races */
+    }
+    provider = null
+    persistence = null
+  }
+
+  // The room id and its encryption password come from the backend, which hands
+  // them out only to users who may edit this diagram (see api/diagram.py). They
+  // also change whenever the diagram's access list does, so this runs on a timer:
+  // losing edit access closes the session, gaining it opens one.
+  async function syncRoom() {
+    const generation = ++syncGeneration
+    let session
+    try {
+      session = await call('draw.api.diagram.get_collab_room', { name })
+    } catch (error) {
+      // The call failed; that is not an answer about access. Tearing the session
+      // down here would cost everyone in the room up to a poll interval over one
+      // network blip, so keep the current room and re-check on the next tick.
+      console.warn('Collaboration room check failed', error)
+      return
+    }
+    // Responses can land out of order; only the newest one decides the room.
+    if (destroyed || generation !== syncGeneration) return
+    if ((session?.room || null) === room) return
+
+    closeRoom({ dropCache: true })
+    if (session?.room) openRoom(session)
+  }
+
+  syncRoom()
+  poll = setInterval(syncRoom, ROOM_POLL_MS)
 
   return { collaborators, setCursor, destroy }
 }

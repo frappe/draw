@@ -284,6 +284,8 @@ Follows Frappe ecosystem norms (Gameplan, Frappe Drive, Frappe Insights patterns
 - **Frontend:** **Vue 3 + frappe-ui + Tailwind** SPA at the app route.
 - **Design system:** Espresso — including the **color palette** (the color picker exposes Espresso colors only: a curated set + recent + the system's defined values; no arbitrary hex in v1).
 - **Default font:** Inter.
+- **Real-time co-editing:** a Yjs document synced **peer-to-peer** over Frappe's shared signaling/TURN infrastructure (as Drive and Writer do), with the JSON auto-save unchanged and authoritative. The room id and its encryption password are **issued by the backend**, scoped to the site, and rotate whenever the diagram's access list changes.
+- **Live presence is editors-only.** No server sits in the peer-to-peer data path, so a client-side read-only flag would not be enforcement — a peer in the room can write to the shared document whatever its client claims. The room is therefore issued only to users who may edit; **view- and comment-level users get the diagram and the read-only viewer, but do not appear in the collaborator list and see no live cursors.** Extending presence to them needs a server-mediated transport (13).
 
 ### 11.2 Rendering
 - Canvas rendered as **SVG DOM** (not HTML `<canvas>`): native hit-testing, crisp at all zoom, near-free SVG export. Thumbnails and PNG/JPEG produced client-side by rasterizing the same SVG.
