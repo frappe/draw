@@ -215,8 +215,11 @@ function startOfflineFreeze(session, frozen) {
 }
 
 // Flush immediately when the browser regains connectivity so no edits are lost.
-// Returns a disposer that detaches the listener on unmount.
-function watchConnectivity(session) {
+// Returns a disposer that detaches the listener on unmount. Exported for
+// useAutosave.test.js: the offline-freeze-lifting order below was once dead code
+// (the reconnect handler ran but flush() early-returned while still frozen), so it
+// is unit-tested directly rather than only through the editor.
+export function watchConnectivity(session) {
   const onReconnect = () => {
     // Lift an offline freeze before flushing: flush() early-returns while frozen,
     // so without clearing it here the 'online' handler was dead code for exactly
