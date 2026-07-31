@@ -57,11 +57,16 @@ function inkZ(doc) {
   return stroke.zIndex
 }
 
-// Open the Arrange menu of the current selection and click one of its actions.
+// Click one of the Arrange actions for the current selection. The menu is a
+// Popover that stays open after an action is clicked (several arranges in a row
+// is the point of it), and its trigger TOGGLES — so opening unconditionally
+// would shut an already-open menu and then wait forever for it to appear.
 async function arrange(page, action) {
-  await buttonByIcon(page, 'layers').click()
   const menu = page.locator(POPOVER)
-  await menu.waitFor({ state: 'visible' })
+  if (!(await menu.isVisible())) {
+    await buttonByIcon(page, 'layers').click()
+    await menu.waitFor({ state: 'visible' })
+  }
   await menu.getByText(action, { exact: true }).click()
 }
 
