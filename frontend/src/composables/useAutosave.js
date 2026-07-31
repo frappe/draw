@@ -198,6 +198,10 @@ function onSaveError(session, status, frozen, error) {
 }
 
 function isStaleRevision(error) {
+  // Structural signal from the backend (raises StaleRevisionError), so a genuine
+  // revision conflict is detected regardless of the site's language. The message
+  // substring stays only as a fallback for an older backend / English site.
+  if (error?.exc_type === 'StaleRevisionError') return true
   const message = `${error?.messages?.join(' ') || error?.message || ''}`
   return message.includes('changed elsewhere')
 }

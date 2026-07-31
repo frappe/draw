@@ -31,14 +31,36 @@ const ALLOWED_ATTR = ['style', 'class', 'href', 'target', 'rel', 'dir', 'start',
 // sanitisation for frappe-ui, which imports DOMPurify for its own components.
 const purify = typeof window === 'undefined' ? null : DOMPurify(window)
 
-// A style attribute cannot execute script in any current browser, but url() in one
-// still makes the viewer fetch an attacker-controlled address the moment a shared
-// diagram renders. Nothing our editor produces needs it, so drop the whole
-// attribute rather than trying to rewrite the declaration.
+// A style attribute can't run script, but a value that fetches a remote address
+// (url(), image-set(), …) makes the viewer call an attacker-controlled server the
+// moment a shared diagram renders. The editor only round-trips per-run `color` and
+// per-paragraph `text-align` through inline styles, so rebuild the attribute from
+// an allowlist of exactly those two — with validated values — instead of
+// blocklisting `url(` (which image-set() and CSS escapes like `\75 rl(` slip past).
+const SAFE_CSS_COLOR = /^(?:#[0-9a-f]{3,8}|rgba?\([\d.,%\s]+\)|hsla?\([\d.,%\s]+\)|[a-z]+)$/i
+const SAFE_TEXT_ALIGN = ['left', 'right', 'center', 'justify', 'start', 'end']
+
+const STYLE_ALLOW = {
+  color: (value) => (SAFE_CSS_COLOR.test(value) ? value : null),
+  'text-align': (value) => (SAFE_TEXT_ALIGN.includes(value.toLowerCase()) ? value : null),
+}
+
 if (purify?.isSupported) {
   purify.addHook('afterSanitizeAttributes', (node) => {
     const style = node.getAttribute?.('style')
-    if (style && /url\s*\(/i.test(style)) node.removeAttribute('style')
+    if (!style) return
+    const kept = []
+    for (const declaration of style.split(';')) {
+      const colon = declaration.indexOf(':')
+      if (colon < 0) continue
+      const prop = declaration.slice(0, colon).trim().toLowerCase()
+      const value = declaration.slice(colon + 1).trim()
+      const validate = STYLE_ALLOW[prop]
+      const safe = value && validate && validate(value)
+      if (safe) kept.push(`${prop}: ${safe}`)
+    }
+    if (kept.length) node.setAttribute('style', kept.join('; '))
+    else node.removeAttribute('style')
   })
 }
 

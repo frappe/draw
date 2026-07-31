@@ -25,6 +25,12 @@ from frappe.utils.password import get_encryption_key
 DOCTYPE = "Draw Diagram"
 
 
+class StaleRevisionError(frappe.ValidationError):
+	"""A save rejected because the server holds a newer revision. A distinct type so
+	the client detects the conflict from the response `exc_type`, not the translatable
+	message text (which broke stale-revision handling on non-English sites)."""
+
+
 # --- reads -------------------------------------------------------------------
 
 
@@ -171,7 +177,7 @@ def _assert_fresh_revision(diagram: "frappe.model.document.Document", revision: 
 	if int(revision) < server_revision:
 		frappe.throw(
 			_("This diagram was changed elsewhere — reload."),
-			frappe.ValidationError,
+			StaleRevisionError,
 			title=_("Stale revision"),
 		)
 
@@ -204,11 +210,28 @@ def save_thumbnail(name: str, thumbnail: str) -> dict:
 	just decodes the data URL, writes a private file, and links it.
 	"""
 	diagram = _get_writable_diagram(name)
+	previous = diagram.thumbnail
 	file_doc = _save_thumbnail_file(diagram, thumbnail)
 	diagram.db_set("thumbnail", file_doc.file_url, update_modified=False)
+	# The client re-saves the thumbnail up to once every 30s, each time a NEW File;
+	# drop the one it replaces so File rows and private blobs don't grow unbounded
+	# over a diagram's life. Done after the repoint so a failure can't orphan the new.
+	_delete_thumbnail_file(diagram, previous)
 	# POST-only endpoint: the framework commits on a successful request. See the note
 	# in save_diagram — the removed manual commit was a CSRF-via-GET write vector.
 	return {"thumbnail": file_doc.file_url}
+
+
+def _delete_thumbnail_file(diagram: "frappe.model.document.Document", file_url: str | None) -> None:
+	"""Delete the diagram's previous thumbnail File, if any and if different."""
+	if not file_url or file_url == diagram.thumbnail:
+		return
+	old = frappe.db.get_value(
+		"File",
+		{"file_url": file_url, "attached_to_doctype": DOCTYPE, "attached_to_name": diagram.name},
+	)
+	if old:
+		frappe.delete_doc("File", old, ignore_permissions=True)
 
 
 def _save_thumbnail_file(
@@ -216,10 +239,18 @@ def _save_thumbnail_file(
 ) -> "frappe.model.document.Document":
 	"""Decode a base64 data URL into a private File attached to the diagram."""
 	import base64
+	import binascii
 
 	header, _sep, encoded = data_url.partition(",")
 	extension = "png" if "png" in header else "jpg"
-	content = base64.b64decode(encoded)
+	try:
+		content = base64.b64decode(encoded, validate=True)
+	except (binascii.Error, ValueError):
+		frappe.throw(_("Could not read the thumbnail image"), frappe.ValidationError)
+	# A thumbnail is a small downscaled PNG/JPEG; cap the decoded size so a malformed
+	# or hostile data URL can't write an arbitrarily large private file.
+	if len(content) > 2 * 1024 * 1024:
+		frappe.throw(_("Thumbnail is too large"), frappe.ValidationError)
 	return frappe.get_doc(
 		{
 			"doctype": "File",

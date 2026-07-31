@@ -57,6 +57,32 @@ describe('sanitizeRichText', () => {
     expect(clean).toContain('t')
   })
 
+  it('drops the remote-fetch styles the old url() blocklist missed', () => {
+    // image-set() fetches without a literal "url(" token, and a CSS escape hides it
+    // from a raw-string regex — so the allowlist keeps only color/text-align rather
+    // than trying to blocklist url().
+    for (const payload of [
+      "<p style=\"background-image: image-set('https://evil.example/x.png' 1x)\">t</p>",
+      '<span style="background: red; width: 5px">t</span>',
+    ]) {
+      const clean = sanitizeRichText(payload)
+      expect(clean, payload).not.toContain('evil.example')
+      expect(clean, payload).not.toContain('image-set')
+      expect(clean, payload).not.toContain('background')
+      expect(clean, payload).toContain('t')
+    }
+  })
+
+  it('keeps color and text-align but drops every other declaration in the same style', () => {
+    const clean = sanitizeRichText(
+      '<p style="color: #ff0000; text-align: right; background: url(https://evil.example/x)">t</p>',
+    )
+    expect(clean).toContain('color: #ff0000')
+    expect(clean).toContain('text-align: right')
+    expect(clean).not.toContain('background')
+    expect(clean).not.toContain('evil.example')
+  })
+
   it('returns null for nothing to render, so callers fall back to plain text', () => {
     expect(sanitizeRichText('')).toBeNull()
     expect(sanitizeRichText(null)).toBeNull()
