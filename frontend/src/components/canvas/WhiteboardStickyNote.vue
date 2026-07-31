@@ -18,6 +18,7 @@ import { startGroupMove } from '@/composables/useWhiteboardInteraction.js'
 import { voteFor } from '@/diagram/whiteboardModel.js'
 import VoteButtons from '@/components/floating/VoteButtons.vue'
 import { isAdditiveEvent } from '@/composables/pointer.js'
+import { safeHref } from '@/utils/safeUrl.js'
 import { contrastInk, STICKY_COLORS } from '@/diagram/whiteboardColors.js'
 import { roughenRect } from '@/diagram/sketch.js'
 import { pointsToPath } from '@/diagram/svgPath.js'
@@ -196,7 +197,12 @@ function openLink(event) {
   const link = props.note.hyperlink
   if (!link || editorUi.state.tool !== 'select' || editing.value || event.shiftKey) return
   if (link.type === 'diagram') router.push({ name: 'Editor', params: { name: link.target } })
-  else window.open(link.target, '_blank', 'noopener')
+  else {
+    // Untrusted document target — only open a safe scheme, so a crafted
+    // javascript:/data: link on a shared sticky can't run on click.
+    const href = safeHref(link.target)
+    if (href) window.open(href, '_blank', 'noopener')
+  }
 }
 </script>
 

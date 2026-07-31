@@ -42,6 +42,10 @@ def register_in_drive(diagram_name: str, team: str | None = None) -> str | None:
 	link for this diagram."""
 	if not drive_installed() or not frappe.db.exists("Draw Diagram", diagram_name):
 		return None
+	# Never register (and thereby disclose the title of) a diagram the caller cannot
+	# read — register_in_drive reads the doc directly, bypassing permission checks.
+	if not frappe.has_permission("Draw Diagram", "read", doc=diagram_name):
+		return None
 	team = team or _default_team()
 	if not team:
 		return None  # Drive present but not set up (no team) — nothing to do yet.

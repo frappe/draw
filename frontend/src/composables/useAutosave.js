@@ -76,6 +76,10 @@ function createSaveSession(store, diagramResource, status, frozen) {
     offlineTimer: null,
     pendingDocument: null,
     inFlight: false,
+    // Why the editor is frozen: 'offline' (lift on reconnect) or 'stale' (needs a
+    // reload). Tracked structurally so the reconnect handler doesn't have to
+    // string-match the user-facing message.
+    frozenReason: null,
   }
 
   session.revision = () => diagramResource.doc?.revision || 0
@@ -95,6 +99,10 @@ function createSaveSession(store, diagramResource, status, frozen) {
     if (session.pendingDocument && session.diagramName()) {
       putLocalDoc(session.diagramName(), session.pendingDocument, session.revision())
     }
+  }
+  session.clearFrozen = () => {
+    frozen.value = null
+    session.frozenReason = null
   }
   return session
 }
@@ -183,6 +191,7 @@ function onSaveError(session, status, frozen, error) {
   status.value = 'error'
   if (isStaleRevision(error)) {
     frozen.value = 'This diagram was changed elsewhere — reload.'
+    session.frozenReason = 'stale'
     return
   }
   startOfflineFreeze(session, frozen)
@@ -197,13 +206,21 @@ function startOfflineFreeze(session, frozen) {
   if (session.offlineTimer) return
   session.offlineTimer = setTimeout(() => {
     frozen.value = "You're offline — reconnect to keep editing."
+    session.frozenReason = 'offline'
   }, OFFLINE_FREEZE_MS)
 }
 
 // Flush immediately when the browser regains connectivity so no edits are lost.
 // Returns a disposer that detaches the listener on unmount.
 function watchConnectivity(session) {
-  const onReconnect = () => session.flushNow()
+  const onReconnect = () => {
+    // Lift an offline freeze before flushing: flush() early-returns while frozen,
+    // so without clearing it here the 'online' handler was dead code for exactly
+    // the case it exists for, and the editor stayed frozen until a manual reload.
+    // A stale-revision freeze is left in place — that genuinely needs a reload.
+    if (session.frozenReason === 'offline') session.clearFrozen()
+    session.flushNow()
+  }
   window.addEventListener('online', onReconnect)
   return () => window.removeEventListener('online', onReconnect)
 }

@@ -432,9 +432,18 @@ function whiteboardLine(line) {
 
 // Tables: the grid plus whatever text the cells hold. Size comes from cols*cellW /
 // rows*cellH (there are no w/h fields on the model).
+// A table's rows/cols come from the untrusted document and drive a nested loop, so
+// a shared/public diagram with rows:1e9 would hang every viewer on the tile/export
+// render. Clamp to a generous ceiling — far above any real table.
+const MAX_TABLE_DIM = 200
+
+function tableDim(value) {
+  return Math.max(0, Math.min(MAX_TABLE_DIM, Math.floor(num(value))))
+}
+
 function whiteboardTable(table) {
-  const cols = table.cols || 0
-  const rows = table.rows || 0
+  const cols = tableDim(table.cols)
+  const rows = tableDim(table.rows)
   const cellW = num(table.cellW, 120)
   const cellH = num(table.cellH, 40)
   const color = safeColor(table.color, '#171717')
