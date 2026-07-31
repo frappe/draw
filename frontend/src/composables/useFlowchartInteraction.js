@@ -11,7 +11,7 @@
 // Every point arrives already in canvas units (Part G4).
 
 import { reactive, onBeforeUnmount } from 'vue'
-import { registerModeInteraction } from '@/composables/useModeInteraction.js'
+import { registerModeInteraction, unregisterModeInteraction } from '@/composables/useModeInteraction.js'
 import {
   nodeSize,
   flowchartNodeById,
@@ -420,13 +420,12 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
     return branch?.label || ''
   }
 
-  registerModeInteraction(interactionRef, 'flowchart', {
-    onPointerDown,
-    onPointerMove,
-    onPointerUp,
-    onDoubleClick,
-  })
-  onBeforeUnmount(() => registerModeInteraction(interactionRef, 'flowchart', null))
+  // Held so the unmount hook can detach ONLY its own entry — entering a flowchart
+  // frame mounts the focus-mode layer before the frame's one unmounts, and both use
+  // this key. See unregisterModeInteraction.
+  const handlers = { onPointerDown, onPointerMove, onPointerUp, onDoubleClick }
+  registerModeInteraction(interactionRef, 'flowchart', handlers)
+  onBeforeUnmount(() => unregisterModeInteraction(interactionRef, 'flowchart', handlers))
 
   return { ui, selectedNode, openPicker, closePicker, cancel, chooseNodeType, createConnectedNode }
 }

@@ -10,12 +10,17 @@
     "test": "vitest run",
     "icons": "node scripts/gen-lucide-nodes.mjs"
   },
+  "//resolutions": "frappe-ui (^3.3.1) and jspdf (^3.4.0) each pull their own dompurify, and yarn 1 keeps one lock entry per range — so the tree shipped 3.4.10 and 3.4.11 alongside our 3.4.12. Those two are affected by GHSA-c2j3-45gr-mqc4 (patched in 3.4.12). Both ranges already permit 3.4.12, so this collapses them onto it rather than shipping known-vulnerable copies for the sake of a duplicate.",
+  "resolutions": {
+    "dompurify": "^3.4.12"
+  },
   "dependencies": {
     "@tiptap/extension-color": "^3.27.1",
     "@tiptap/extension-text-align": "^3.27.1",
     "@tiptap/extension-text-style": "^3.27.1",
     "@tiptap/starter-kit": "^3.27.1",
     "@tiptap/vue-3": "^3.27.1",
+    "dompurify": "^3.4.12",
     "frappe-ui": "1.0.0-beta.19",
     "jspdf": "^4.2.1",
     "vue": "^3.4.0",
@@ -27,6 +32,7 @@
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
     "autoprefixer": "^10.4.0",
+    "jsdom": "^30.0.1",
     "postcss": "^8.4.0",
     "tailwindcss": "^3.4.0",
     "vite": "^5.0.0",

@@ -82,11 +82,27 @@ export function useShare(diagramResource) {
     return `${window.location.origin}/draw/view/${encodeURIComponent(name)}`
   })
 
-  async function toggleGlobalAccess() {
+  // Serialises access changes instead of dropping the ones that arrive mid-flight.
+  //
+  // This used to return early while `updating` was true, so switching to "anyone with
+  // the link" and straight back to "restricted" discarded the second change silently —
+  // and the dropdown then snapped back to the stale value, telling the user their
+  // click had taken effect when it had not. Queueing keeps the last thing they asked
+  // for; the guard against concurrent requests is kept, it just no longer costs the
+  // user their intent.
+  let queue = Promise.resolve()
+
+  // Set the desired state rather than flipping the current one: a toggle applied to a
+  // value that is itself mid-update is ambiguous, a desired state never is.
+  function setGlobalAccess(next) {
+    queue = queue.then(() => applyGlobalAccess(Boolean(next)))
+    return queue
+  }
+
+  async function applyGlobalAccess(next) {
     const name = diagramResource?.doc?.name
-    if (!name || updating.value) return
+    if (!name || next === isPublic.value) return
     updating.value = true
-    const next = !isPublic.value
     try {
       await persistAccess(diagramResource, name, next)
       toast.success(next ? 'Sharing is on — anyone with the link can view' : 'Sharing turned off')
@@ -96,6 +112,12 @@ export function useShare(diagramResource) {
     } finally {
       updating.value = false
     }
+  }
+
+  // Kept as a shim: it was the public name on this composable, and flipping the
+  // current value is still what a bare "toggle" should mean.
+  function toggleGlobalAccess() {
+    return setGlobalAccess(!isPublic.value)
   }
 
   async function copyLink() {
@@ -115,6 +137,7 @@ export function useShare(diagramResource) {
     updating,
     members,
     toggleGlobalAccess,
+    setGlobalAccess,
     copyLink,
     loadShares,
     addMember,

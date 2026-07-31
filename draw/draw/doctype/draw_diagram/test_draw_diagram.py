@@ -169,3 +169,52 @@ class TestDrawDiagram(IntegrationTestCase):
 			self.assertFalse(frappe.has_permission("Draw Diagram", "read", doc=doc.name))
 		finally:
 			frappe.set_user("Administrator")
+
+	# ----- whitelisted API contract -----
+
+	def test_every_whitelisted_endpoint_annotates_all_arguments(self):
+		"""Frappe answers 417 FrappeTypeError for a whitelisted function with an
+		unannotated argument — but only over HTTP. Called in-process the same function
+		works, so a test that imports and calls it (like every other test in this file)
+		cannot see the failure.
+
+		That gap shipped a dead endpoint: `set_public(name: str, enabled)` was missing
+		one annotation, so "anyone with the link can view" failed on every click while
+		the sharing tests here passed. This checks the SIGNATURES instead, which catches
+		the whole class rather than the one instance.
+		"""
+		import ast
+		import pathlib
+
+		app_root = pathlib.Path(frappe.get_app_path("draw"))
+		offenders = []
+		checked = 0
+
+		for path in app_root.rglob("*.py"):
+			for node in ast.walk(ast.parse(path.read_text())):
+				if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+					continue
+				whitelisted = any(
+					(isinstance(d, ast.Call) and getattr(d.func, "attr", "") == "whitelist")
+					or getattr(d, "attr", "") == "whitelist"
+					for d in node.decorator_list
+				)
+				if not whitelisted:
+					continue
+				checked += 1
+				missing = [
+					arg.arg
+					for arg in node.args.args + node.args.kwonlyargs
+					if arg.annotation is None and arg.arg not in ("self", "cls")
+				]
+				if missing:
+					rel = path.relative_to(app_root.parent)
+					offenders.append(f"{rel}:{node.lineno} {node.name}() -> {missing}")
+
+		self.assertGreater(checked, 0, "found no whitelisted endpoints to check — is the walk broken?")
+		self.assertEqual(
+			offenders,
+			[],
+			"whitelisted endpoints with unannotated arguments fail over HTTP with 417:\n"
+			+ "\n".join(offenders),
+		)

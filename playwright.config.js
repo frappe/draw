@@ -7,6 +7,10 @@ import { defineConfig, devices } from '@playwright/test'
 // CI can override with PLAYWRIGHT_CHANNEL=chromium once it provisions browsers.
 const BASE_URL = process.env.DRAW_BASE_URL || 'http://test.localhost:8000'
 
+// Big enough that a unified document's frames sit inside the initial view. Applied
+// in the project block below — see the comment there before moving it.
+const VIEWPORT = { width: 1500, height: 950 }
+
 export default defineConfig({
   testDir: './e2e/specs',
   // The editor boots an SPA, a Yjs provider and an autosave loop per diagram, so
@@ -29,7 +33,6 @@ export default defineConfig({
   use: {
     baseURL: BASE_URL,
     channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome',
-    viewport: { width: 1500, height: 950 },
     // Artifacts only for failures — a passing canvas test needs no 2 MB trace.
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
@@ -38,5 +41,14 @@ export default defineConfig({
   // Auth is handled by a worker-scoped fixture (e2e/helpers/fixtures.js): each
   // worker logs in separately, because parallel workers sharing one Frappe session
   // get intermittent 400s from concurrent sid/CSRF use.
-  projects: [{ name: 'draw', use: { ...devices['Desktop Chrome'] } }],
+  //
+  // The viewport is set HERE, after the device spread, not in the top-level `use`.
+  // devices['Desktop Chrome'] specifies its own viewport (1280x720), and a project's
+  // `use` wins over the top-level one — so a viewport declared up there is silently
+  // discarded. The whole suite ran at 1280x720 while the config claimed 1500x950,
+  // which put the seeded mind-map frame (origin y=900) below the fold and made every
+  // frame interaction unreachable.
+  projects: [
+    { name: 'draw', use: { ...devices['Desktop Chrome'], viewport: VIEWPORT } },
+  ],
 })

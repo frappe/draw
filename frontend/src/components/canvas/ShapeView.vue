@@ -5,6 +5,7 @@
 import { computed, ref } from 'vue'
 import { useTextEditing, shapeTextArea, textStyleCss } from '@/composables/useTextEditing.js'
 import { useAutoFitText } from '@/composables/useAutoFitText.js'
+import { sanitizeRichText } from '@/utils/sanitizeHtml.js'
 
 const props = defineProps({
   shape: { type: Object, required: true },
@@ -19,7 +20,11 @@ const isEditingThis = computed(() => editing?.editingShapeId?.value === props.sh
 
 // Rich text renders as HTML in a foreignObject; legacy shapes with only a plain
 // `content` string still render as a single SVG <text> (backward compatible).
-const richHtml = computed(() => props.shape.text?.html || null)
+//
+// v-html'd, and the document may have been authored by whoever shared it, so the
+// markup is sanitised first. A shape whose html sanitises away to nothing falls
+// through to the plain-text branch below, which is why this stays falsy-or-markup.
+const richHtml = computed(() => sanitizeRichText(props.shape.text?.html) || null)
 const textArea = computed(() => shapeTextArea(props.shape))
 const richStyle = computed(() => {
   const text = props.shape.text || {}

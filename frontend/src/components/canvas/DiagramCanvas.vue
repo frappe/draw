@@ -429,10 +429,17 @@ function syncMeasure() {
   viewport.setMeasure({ containerW: bounds.width, containerH: bounds.height })
 }
 
-// The document's canvas dimensions settle after the async load; re-open at 100%
-// (true size) when they do, rather than zooming to fit.
+// Re-open at 100% (true size) when a document lands after mount, or when the
+// canvas is resized to a different preset — not zoomed to fit.
+//
+// Each source is its own getter so Vue compares the values, not a wrapper array.
+// A single `() => [canvas.value.width, canvas.value.height]` getter returned a
+// fresh array whenever `state.canvas` was replaced — which undo/redo and remote
+// sync do wholesale, with identical dimensions — so every Ctrl+Z re-ran
+// openAtActualSize() and threw the user back to the default view before they
+// could see what was undone (#28).
 watch(
-  () => [canvas.value.width, canvas.value.height],
+  [() => store.state.loadCount, () => canvas.value.width, () => canvas.value.height],
   () => nextTick(openAtActualSize),
 )
 
@@ -787,7 +794,14 @@ const surfaceCursor = computed(() => {
             @pointerdown.stop="startFrameDrag('flowchart', $event)"
             @dblclick.stop="editorUi.setFocusedFrame('flowchart')"
           />
-          <g style="pointer-events: none">
+          <!-- .unified-frame-content, NOT an inline pointer-events:none. The viewport
+               applies [&_*]:pointer-events-auto to every descendant, which overrides
+               an inline none on this wrapper — so the flowchart's nodes stayed live on
+               the unified canvas. A double-click landed on the node instead of the
+               frame's hit-rect below, which meant the frame could not be ENTERED at
+               all (and the label text selected instead). The mind-map frame above
+               already used the class; this one was missed. -->
+          <g class="unified-frame-content">
             <FlowchartLayer :flowchart="store.state.flowchart" />
           </g>
         </g>

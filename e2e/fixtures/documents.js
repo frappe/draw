@@ -92,6 +92,19 @@ export function seededFlowchart(origin = { x: 0, y: 0 }) {
   }
 }
 
+// A board carrying a LINE and a TABLE as well as ink. Both were omitted from the
+// export path entirely until #40, so they need their own seeded content — the
+// default board has neither, and a spec using it cannot notice their absence.
+export function whiteboardWithObjects() {
+  return {
+    ...seededWhiteboard(),
+    lines: [{ id: 'wl1', x1: 300, y1: 500, x2: 620, y2: 500, color: '#AA0011', width: 3, start: 'none', end: 'arrow' }],
+    tables: [
+      { id: 'wt1', x: 300, y: 560, rows: 2, cols: 2, cellW: 120, cellH: 40, color: '#00AA55', cells: { '0,0': 'CELL-TEXT' } },
+    ],
+  }
+}
+
 export function seededWhiteboard() {
   return {
     strokes: [
@@ -113,6 +126,19 @@ export function seededWhiteboard() {
 
 // --- per-type documents ------------------------------------------------------
 
+// One attribute value that closes the attribute it lands in, closes the element, and
+// injects a handler that fires on its own. Two payloads, because the two injection
+// sites parse in different contexts and a single one gives a FALSE PASS in the other:
+//
+//   - <script> is useless in both. Markup assigned through innerHTML — which is what
+//     v-html does — never executes script tags.
+//   - <img onerror> fires in the rich-text foreignObject, which is HTML content.
+//   - Inside the tile preview's <svg> subtree <img> is not an HTML image element and
+//     never errors, so that one needs an SVG animation element instead.
+const BREAKOUT =
+  '0"/><img src="x" onerror="window.__xss=1"/>' +
+  '<animate attributeName="x" dur="0.1s" onbegin="window.__xss=1"/><rect x="0'
+
 export const documents = {
   block: (opts = {}) => ({
     ...baseDocument('block'),
@@ -131,16 +157,66 @@ export const documents = {
 
   whiteboard: (opts = {}) => ({
     ...baseDocument('whiteboard'),
-    whiteboard: opts.empty ? emptyWhiteboard() : seededWhiteboard(),
+    whiteboard: opts.empty
+      ? emptyWhiteboard()
+      : opts.objects
+        ? whiteboardWithObjects()
+        : seededWhiteboard(),
   }),
 
   // The unified canvas holds every sub-model at once. Frame origins are kept
   // apart so an inserted mind map and flowchart don't land stacked.
+  //
+  // `withFrames` uses the document's spread-out default origins, which is what an
+  // inserted frame looks like — but they fall OUTSIDE the initial view, so nothing
+  // inside them can be clicked. `framesInView` seeds the same content at origins
+  // within the window, for any test that has to interact with a frame.
+  // page.mouse silently ignores out-of-window coordinates, so getting this wrong
+  // yields a test that passes while doing nothing at all — see enterFrame().
   unified: (opts = {}) => ({
     ...baseDocument('unified'),
     shapes: opts.empty ? [] : [rect('s1', 120, 140), rect('s2', 700, 460)],
-    mindmap: opts.withFrames ? seededMindmap({ x: 0, y: 900 }) : emptyMindmap({ x: 0, y: 900 }),
-    flowchart: opts.withFrames ? seededFlowchart({ x: 1500, y: 0 }) : emptyFlowchart({ x: 1500, y: 0 }),
+    mindmap: opts.framesInView
+      ? seededMindmap({ x: 60, y: 600 })
+      : opts.withFrames
+        ? seededMindmap({ x: 0, y: 900 })
+        : emptyMindmap({ x: 0, y: 900 }),
+    flowchart: opts.framesInView
+      ? seededFlowchart({ x: 1000, y: 60 })
+      : opts.withFrames
+        ? seededFlowchart({ x: 1500, y: 0 })
+        : emptyFlowchart({ x: 1500, y: 0 }),
     whiteboard: opts.empty ? emptyWhiteboard() : seededWhiteboard(),
+  }),
+
+  // A document as a HOSTILE author would post it. save_diagram takes whatever JSON a
+  // client sends and parseDiagramDocument coerces nothing, so every one of these
+  // fields arrives at the renderers verbatim. Diagrams get shared and made public, so
+  // this is markup one user hands to another user's browser.
+  //
+  // Payloads set window.__xss rather than calling alert(), because a real alert()
+  // would block the page and be indistinguishable from a hang.
+  hostile: () => ({
+    ...baseDocument('unified'),
+    shapes: [
+      // Rich text is v-html'd by ShapeView — the most direct path.
+      rect('h1', 120, 140, 260, 160, {
+        text: { content: 'plain fallback', html: '<p>rich <img src=x onerror="window.__xss=1"> text</p>', style: {} },
+      }),
+      // Colours and geometry are interpolated into SVG attributes by useThumbnail,
+      // whose output the home and trash tiles inject with v-html.
+      // The breakout injects an <img onerror>, not a <script>: markup set through
+      // innerHTML never runs its script tags, but it DOES fire image error handlers,
+      // so a payload that only used <script> would pass against vulnerable code.
+      rect('h2', 420, 140, 200, 120, { fill: BREAKOUT, text: { content: 'bad fill', style: {} } }),
+      rect('h3', 660, 140, 200, 120, { x: BREAKOUT, text: { content: 'bad geometry', style: {} } }),
+    ],
+    whiteboard: {
+      ...emptyWhiteboard(),
+      strokes: [{ id: 'hw1', points: [{ x: BREAKOUT, y: 0 }, { x: 200, y: 200 }], color: BREAKOUT, width: 3, kind: 'pen' }],
+      stickyNotes: [{ id: 'hw2', x: 700, y: 400, w: 180, h: 180, color: BREAKOUT, text: 'bad sticky' }],
+    },
+    mindmap: { ...seededMindmap({ x: 0, y: 900 }) },
+    flowchart: emptyFlowchart({ x: 1500, y: 0 }),
   }),
 }
