@@ -33,10 +33,17 @@ export function useAutosave(store, diagramResource) {
   )
 
   const stopConnectivity = watchConnectivity(session)
+  const stopPageHide = watchPageHide(session)
   onUnmounted(() => {
     stopWatch()
     stopRestore()
     stopConnectivity()
+    stopPageHide()
+    // Persist the pending edit BEFORE the timers are cancelled: teardown used to
+    // clear the local-save timer without flushing, so any change since the last
+    // debounce (≥400ms of drawing, then navigating away) was lost with no recovery.
+    session.persistPending()
+    session.flushNow()
     session.teardown()
   })
 
@@ -80,6 +87,14 @@ function createSaveSession(store, diagramResource, status, frozen) {
     clearTimeout(session.debounceTimer)
     clearTimeout(session.offlineTimer)
     clearTimeout(session.localTimer)
+  }
+  // Write the in-memory pending document to IndexedDB right now. Called before the
+  // timers are cancelled on unmount and on tab-close, so the edits made since the
+  // last debounce survive to be recovered on reopen. No-op when nothing is pending.
+  session.persistPending = () => {
+    if (session.pendingDocument && session.diagramName()) {
+      putLocalDoc(session.diagramName(), session.pendingDocument, session.revision())
+    }
   }
   return session
 }
@@ -191,4 +206,17 @@ function watchConnectivity(session) {
   const onReconnect = () => session.flushNow()
   window.addEventListener('online', onReconnect)
   return () => window.removeEventListener('online', onReconnect)
+}
+
+// Persist unsaved edits when the tab is hidden or closed. `pagehide` fires in the
+// cases `beforeunload` misses (mobile, bfcache) and is the reliable last-moment
+// hook: write the pending document to IndexedDB (recoverable on reopen) and make a
+// best-effort server flush. Returns a disposer that detaches on unmount.
+function watchPageHide(session) {
+  const onHide = () => {
+    session.persistPending()
+    session.flushNow()
+  }
+  window.addEventListener('pagehide', onHide)
+  return () => window.removeEventListener('pagehide', onHide)
 }

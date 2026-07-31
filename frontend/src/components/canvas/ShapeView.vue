@@ -6,6 +6,7 @@ import { computed, ref } from 'vue'
 import { useTextEditing, shapeTextArea, textStyleCss } from '@/composables/useTextEditing.js'
 import { useAutoFitText } from '@/composables/useAutoFitText.js'
 import { sanitizeRichText } from '@/utils/sanitizeHtml.js'
+import { safeHref } from '@/utils/safeUrl.js'
 
 const props = defineProps({
   shape: { type: Object, required: true },
@@ -25,6 +26,11 @@ const isEditingThis = computed(() => editing?.editingShapeId?.value === props.sh
 // markup is sanitised first. A shape whose html sanitises away to nothing falls
 // through to the plain-text branch below, which is why this stays falsy-or-markup.
 const richHtml = computed(() => sanitizeRichText(props.shape.text?.html) || null)
+
+// The link comes from the untrusted document, so only render the anchor for a
+// safe scheme — a crafted `javascript:` link would otherwise execute in an SVG
+// anchor when the badge is clicked on a shared/public diagram.
+const safeLink = computed(() => safeHref(props.shape.link))
 const textArea = computed(() => shapeTextArea(props.shape))
 const richStyle = computed(() => {
   const text = props.shape.text || {}
@@ -251,15 +257,15 @@ useAutoFitText(richEl, () => ({
     <!-- Hyperlink badge (spec 6.5): opens the shape's link in a new tab. Sits at
          the top-right corner; click is isolated so it never moves/deselects. -->
     <a
-      v-if="shape.link"
-      :href="shape.link"
+      v-if="safeLink"
+      :href="safeLink"
       target="_blank"
       rel="noopener noreferrer"
       style="cursor: pointer"
       @pointerdown.stop
       @click.stop
     >
-      <title>{{ shape.link }}</title>
+      <title>{{ safeLink }}</title>
       <circle :cx="shape.x + shape.w - 13" :cy="shape.y + 13" r="9" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1" />
       <text
         :x="shape.x + shape.w - 13"

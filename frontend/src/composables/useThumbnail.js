@@ -100,7 +100,7 @@ export function safeColor(value, fallback = 'none') {
 }
 
 // Numbers likewise: geometry attributes must never carry arbitrary text.
-function num(value, fallback = 0) {
+export function num(value, fallback = 0) {
   const n = Number(value)
   return Number.isFinite(n) ? n : fallback
 }

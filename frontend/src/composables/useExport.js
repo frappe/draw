@@ -6,7 +6,7 @@
 // jspdf dependency when present, else falls back to a print window.
 
 import { toast } from 'frappe-ui'
-import { documentToSvg } from '@/composables/useThumbnail.js'
+import { documentToSvg, safeColor, num } from '@/composables/useThumbnail.js'
 import { axisAlignedBBox } from '@/diagram/geometry.js'
 import { outlineMarkdown } from '@/diagram/convert.js'
 
@@ -150,14 +150,19 @@ function buildSvg(store, background) {
 
 // Add width/height to the opening <svg> tag (documentToSvg omits them).
 function withExplicitSize(markup, width, height) {
-  return markup.replace(/<svg /, `<svg width="${width}" height="${height}" `)
+  // num()/safeColor() guard the canvas fields: they come from the untrusted
+  // document (a shared/public diagram), and these markup strings are fed to
+  // printWindow.document.write and written .svg files, where an injected
+  // <script> would execute. The raster (<img>) path can't execute script, but
+  // these paths must be treated as HTML-injection sinks.
+  return markup.replace(/<svg /, `<svg width="${num(width)}" height="${num(height)}" `)
 }
 
 // Splice an opaque background rect just after the opening <svg> tag so it sits
 // beneath every shape and connector. x/y default to 0 (full-canvas export); a
 // cropped selection export passes its bbox origin so the rect covers the crop.
 function insertBackgroundRect(markup, fill, { x = 0, y = 0, width, height }) {
-  const rect = `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${fill}"/>`
+  const rect = `<rect x="${num(x)}" y="${num(y)}" width="${num(width)}" height="${num(height)}" fill="${safeColor(fill)}"/>`
   return markup.replace(/(<svg[^>]*>)/, `$1${rect}`)
 }
 
@@ -292,7 +297,7 @@ function exportPdfWithPrintWindow(markup, width, height) {
 function printDocument(markup, width, height) {
   return (
     '<!doctype html><html><head><meta charset="utf-8"><title>Diagram</title>' +
-    `<style>@page{size:${width}px ${height}px;margin:0}` +
+    `<style>@page{size:${num(width)}px ${num(height)}px;margin:0}` +
     'html,body{margin:0;padding:0}svg{display:block;width:100%;height:auto}</style>' +
     `</head><body>${markup}</body></html>`
   )

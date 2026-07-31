@@ -146,7 +146,7 @@ def _room_secret(name: str, purpose: str, access: str) -> str:
 # --- writes ------------------------------------------------------------------
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def save_diagram(name: str, document: str, revision: int) -> dict:
 	"""Persist a diagram document, guarding against a stale (conflicting) write.
 
@@ -159,7 +159,9 @@ def save_diagram(name: str, document: str, revision: int) -> dict:
 
 	diagram.document = _normalize_document(document)
 	diagram.save()
-	frappe.db.commit()
+	# No explicit commit: this is a POST, so the framework commits the transaction at
+	# the end of a successful request. A manual commit here previously made a GET
+	# (which the framework rolls back) durable anyway — a CSRF write vector.
 	return {"name": diagram.name, "revision": diagram.revision, "modified": str(diagram.modified)}
 
 
@@ -194,7 +196,7 @@ def _get_writable_diagram(name: str) -> "frappe.model.document.Document":
 	return diagram
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def save_thumbnail(name: str, thumbnail: str) -> dict:
 	"""Attach a freshly rendered thumbnail (a data URL) to the diagram.
 
@@ -204,7 +206,8 @@ def save_thumbnail(name: str, thumbnail: str) -> dict:
 	diagram = _get_writable_diagram(name)
 	file_doc = _save_thumbnail_file(diagram, thumbnail)
 	diagram.db_set("thumbnail", file_doc.file_url, update_modified=False)
-	frappe.db.commit()
+	# POST-only endpoint: the framework commits on a successful request. See the note
+	# in save_diagram — the removed manual commit was a CSRF-via-GET write vector.
 	return {"thumbnail": file_doc.file_url}
 
 
