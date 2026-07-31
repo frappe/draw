@@ -17,7 +17,7 @@ import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { simplifyStroke } from '@/diagram/strokeSimplify.js'
 import {
   strokeAt, lineAt, tableAt, tableCellAt,
-  whiteboardObjectBoxes, translateWhiteboardObject, clearVote,
+  whiteboardObjectBoxes, whiteboardObjectsInZOrder, translateWhiteboardObject, clearVote,
 } from '@/diagram/whiteboardModel.js'
 import { eraseInkAt, eraseObjectsAt, sweepPoints } from '@/diagram/eraser.js'
 import { rectsIntersect } from '@/diagram/geometry.js'
@@ -309,8 +309,8 @@ function currentAuthor() {
   return (typeof window !== 'undefined' && window.full_name) || ''
 }
 
-// Select tool: pick the topmost object under the cursor. Lines and tables sit
-// above strokes in the pick order; sticky/frame selection is handled by their
+// Select tool: pick the topmost object under the cursor (by zIndex, the order the
+// canvas paints); sticky/frame selection is handled by their
 // own pointerdown in the layer. An additive click toggles membership; a plain
 // click single-selects; an empty press starts a marquee (spec — multi-select).
 function selectAt(context, store, ui) {
@@ -331,15 +331,23 @@ function selectAt(context, store, ui) {
   ui[SELECT_FN[hit.kind]](hit.id)
 }
 
-// Topmost whiteboard object under the point, or null. Tables > lines > strokes.
+// Topmost whiteboard object under the point, or null. Highest zIndex wins, so a
+// click picks whatever the canvas paints on top — the pick order used to be a
+// fixed tables > lines > strokes, which Arrange could not change (#27). Sticky
+// notes select through their own pointerdown, so they stay out of this.
 function whiteboardHitAt(model, point) {
-  const table = tableAt(model, point)
-  if (table) return { kind: 'table', id: table.id }
-  const line = lineAt(model, point, ERASER_TOLERANCE)
-  if (line) return { kind: 'line', id: line.id }
-  const stroke = strokeAt(model, point, ERASER_TOLERANCE)
-  if (stroke) return { kind: 'stroke', id: stroke.id }
-  return null
+  let hit = null
+  for (const { kind, id, object } of whiteboardObjectsInZOrder(model)) {
+    if (hitsObject(kind, object, point)) hit = { kind, id }
+  }
+  return hit
+}
+
+function hitsObject(kind, object, point) {
+  if (kind === 'table') return Boolean(tableAt({ tables: [object] }, point))
+  if (kind === 'line') return Boolean(lineAt({ lines: [object] }, point, ERASER_TOLERANCE))
+  if (kind === 'stroke') return Boolean(strokeAt({ strokes: [object] }, point, ERASER_TOLERANCE))
+  return false
 }
 
 // Rubber-band marquee on empty canvas. A plain press clears the selection first;

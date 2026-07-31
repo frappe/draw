@@ -36,6 +36,8 @@ import {
   setTableCell,
   applyVote,
   clearVote,
+  whiteboardObjectsInZOrder,
+  maxWhiteboardZIndex,
 } from '@/diagram/whiteboardModel.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 
@@ -312,7 +314,9 @@ function attachWhiteboard(store, state, history) {
   store.addStroke = (points, partial = {}) => {
     if (!state.whiteboard) return null
     let id = null
-    history.commit('Draw', () => (id = addStroke(state.whiteboard, points, partial)))
+    history.commit('Draw', () =>
+      (id = addStroke(state.whiteboard, points, { zIndex: nextZIndex(state), ...partial })),
+    )
     return id
   }
   store.updateStroke = (id, patch) =>
@@ -330,7 +334,9 @@ function attachWhiteboard(store, state, history) {
   store.addStickyNote = (x, y, partial = {}) => {
     if (!state.whiteboard) return null
     let id = null
-    history.commit('Add sticky', () => (id = addStickyNote(state.whiteboard, x, y, partial)))
+    history.commit('Add sticky', () =>
+      (id = addStickyNote(state.whiteboard, x, y, { zIndex: nextZIndex(state), ...partial })),
+    )
     return id
   }
   store.updateStickyNote = (id, patch) =>
@@ -393,7 +399,9 @@ function attachWhiteboardLines(store, state, history) {
   store.addLine = (x1, y1, x2, y2, partial = {}) => {
     if (!state.whiteboard) return null
     let id = null
-    history.commit('Add line', () => (id = addLine(state.whiteboard, x1, y1, x2, y2, partial)))
+    history.commit('Add line', () =>
+      (id = addLine(state.whiteboard, x1, y1, x2, y2, { zIndex: nextZIndex(state), ...partial })),
+    )
     return id
   }
   store.updateLine = (id, patch) =>
@@ -415,7 +423,9 @@ function attachWhiteboardTables(store, state, history) {
   store.addTable = (x, y, partial = {}) => {
     if (!state.whiteboard) return null
     let id = null
-    history.commit('Add table', () => (id = addTable(state.whiteboard, x, y, partial)))
+    history.commit('Add table', () =>
+      (id = addTable(state.whiteboard, x, y, { zIndex: nextZIndex(state), ...partial })),
+    )
     return id
   }
   store.updateTable = (id, patch) =>
@@ -466,9 +476,25 @@ function maxZIndex(shapes) {
   return shapes.reduce((max, shape) => Math.max(max, shape.zIndex || 0), 0)
 }
 
+// Shapes and whiteboard objects share one stacking scale (#27), so "on top"
+// means above BOTH pools — otherwise an image added after a freehand stroke
+// still lands underneath it.
+function nextZIndex(state) {
+  return Math.max(maxZIndex(state.shapes), maxWhiteboardZIndex(state.whiteboard)) + 1
+}
+
+// Every object that carries a zIndex, as a flat list — the pool the Arrange
+// actions reorder and the renderers paint in order.
+function stackedObjects(state) {
+  return [
+    ...state.shapes.map((shape) => ({ id: shape.id, object: shape })),
+    ...whiteboardObjectsInZOrder(state.whiteboard || {}),
+  ]
+}
+
 function attachShapeMutations(store, state, history) {
   store.addShape = (partial) => {
-    const shape = createShape({ zIndex: maxZIndex(state.shapes) + 1, ...partial }, state.themePreset)
+    const shape = createShape({ zIndex: nextZIndex(state), ...partial }, state.themePreset)
     history.commit('Add shape', () => state.shapes.push(shape))
     return shape.id
   }
@@ -541,7 +567,7 @@ function duplicateInternal(store, state, history, ids) {
 
 function duplicateShapes(store, state, ids, newIds) {
   const idMap = {}
-  let zIndex = maxZIndex(state.shapes)
+  let zIndex = nextZIndex(state) - 1
   for (const id of ids) {
     const source = store.shapeById(id)
     if (!source) continue
@@ -659,17 +685,19 @@ function attachOrdering(store, state, history) {
 
 function reorder(state, history, label, ids, scoreFn) {
   history.commit(label, () => {
-    for (const shape of state.shapes) {
-      if (ids.includes(shape.id)) shape.zIndex = scoreFn(shape)
+    for (const { id, object } of stackedObjects(state)) {
+      if (ids.includes(id)) object.zIndex = scoreFn(object)
     }
     repackZIndex(state)
   })
 }
 
-// Normalise zIndex to a dense 1..n ordering after a move.
+// Normalise zIndex to a dense 1..n ordering after a move, across shapes AND
+// whiteboard objects — they stack against each other, so re-packing one pool on
+// its own would just recreate the overlap the move was meant to resolve.
 function repackZIndex(state) {
-  const ordered = [...state.shapes].sort((a, b) => a.zIndex - b.zIndex)
-  ordered.forEach((shape, index) => (shape.zIndex = index + 1))
+  const ordered = stackedObjects(state).sort((a, b) => (a.object.zIndex || 0) - (b.object.zIndex || 0))
+  ordered.forEach(({ object }, index) => (object.zIndex = index + 1))
 }
 
 function attachGrouping(store, state, history) {

@@ -18,6 +18,7 @@ export function makeStroke(points, partial = {}) {
     color: partial.color || '#1F2933',
     width: partial.width || 3,
     kind: partial.kind || 'pen',
+    zIndex: partial.zIndex || 0,
   }
 }
 
@@ -33,6 +34,7 @@ export function makeStickyNote(x, y, partial = {}) {
     color: partial.color || '#FFE8A3',
     // Who created it, shown as an author chip (spec — Whimsical-style).
     author: partial.author || '',
+    zIndex: partial.zIndex || 0,
   }
 }
 
@@ -45,6 +47,7 @@ export function makeLine(x1, y1, x2, y2, partial = {}) {
     width: partial.width || 2,
     start: partial.start || 'none',
     end: partial.end || 'arrow',
+    zIndex: partial.zIndex || 0,
   }
 }
 
@@ -60,6 +63,7 @@ export function makeTable(x, y, partial = {}) {
     cellH: partial.cellH || 40,
     color: partial.color || '#171717',
     cells: partial.cells || {},
+    zIndex: partial.zIndex || 0,
   }
 }
 
@@ -79,6 +83,40 @@ export function isWhiteboardEmpty(model, shapes = []) {
     !(model.tables || []).length &&
     !shapes.length
   )
+}
+
+// --- Stacking order (#27) -----------------------------------------------------
+// Whiteboard objects share ONE zIndex scale with the shared shapes[], so an image
+// added after a freehand stroke sits above it and Arrange can move either past the
+// other. The kinds are listed in the order boards used to paint them, which is the
+// tie-break for documents saved before objects carried a zIndex (see
+// `backfillWhiteboardZIndex` in schema.js).
+export const WHITEBOARD_KINDS = ['stroke', 'line', 'table', 'sticky']
+
+const WB_LIST = {
+  stroke: (model) => model.strokes || [],
+  line: (model) => model.lines || [],
+  table: (model) => model.tables || [],
+  sticky: (model) => model.stickyNotes || [],
+}
+
+// Every whiteboard object as { kind, id, object }, in painting order (ascending
+// zIndex). One source of truth for the canvas, export and thumbnail renderers.
+export function whiteboardObjectsInZOrder(model) {
+  const out = []
+  for (const kind of WHITEBOARD_KINDS) {
+    for (const object of WB_LIST[kind](model)) out.push({ kind, id: object.id, object })
+  }
+  return out.sort((a, b) => (a.object.zIndex || 0) - (b.object.zIndex || 0))
+}
+
+export function maxWhiteboardZIndex(model) {
+  if (!model) return 0
+  let max = 0
+  for (const kind of WHITEBOARD_KINDS) {
+    for (const object of WB_LIST[kind](model)) max = Math.max(max, object.zIndex || 0)
+  }
+  return max
 }
 
 // --- Per-object votes (T3): a chat-reaction-style up/down tally attached to any

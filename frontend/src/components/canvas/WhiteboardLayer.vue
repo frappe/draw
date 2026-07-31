@@ -2,10 +2,10 @@
 // Whiteboard render layer (spec diagram-types Part C). The single render-to-SVG
 // path for the type (Part G8): canvas, export, thumbnail and viewer all draw the
 // same elements. Lives inside the canvas viewport <g>, so every coordinate is in
-// canvas units (Part G4). Renders, bottom→top: shared connectors + base shapes,
-// freehand strokes (pen/highlighter, optionally sketch-roughened), the live
-// in-progress stroke, sticky notes (draggable/resizable, auto-contrast, link),
-// and the transient laser trail (never persisted/exported, spec C5/C10/G8).
+// canvas units (Part G4). Renders, bottom→top: shared connectors, then every
+// base shape and board object (strokes, lines, tables, sticky notes) in one
+// zIndex-ordered pass, then the transient in-progress stroke/line, vote badges
+// and laser trail (never persisted/exported, spec C5/C10/G8).
 //
 // This component also OWNS instantiating the whiteboard surface-interaction
 // composable: it only mounts when the active type is whiteboard, has the store/
@@ -21,7 +21,11 @@ import { useWhiteboardUi, LASER_FADE_MS } from '@/composables/useWhiteboardUi.js
 import { roughenSegment } from '@/diagram/sketch.js'
 import { pointsToPath } from '@/diagram/svgPath.js'
 import { HIGHLIGHTER_OPACITY } from '@/diagram/whiteboardColors.js'
-import { whiteboardObjectBoxes, isWhiteboardEmpty } from '@/diagram/whiteboardModel.js'
+import {
+  whiteboardObjectBoxes,
+  whiteboardObjectsInZOrder,
+  isWhiteboardEmpty,
+} from '@/diagram/whiteboardModel.js'
 import ConnectorView from './ConnectorView.vue'
 import ShapeView from './ShapeView.vue'
 import WhiteboardStickyNote from './WhiteboardStickyNote.vue'
@@ -37,9 +41,20 @@ const editorUi = useEditorUi()
 const ui = useWhiteboardUi()
 useWhiteboardInteraction(store, editorUi)
 
-const orderedShapes = computed(() =>
-  [...store.state.shapes].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)),
-)
+// Shapes and board objects paint as ONE z-ordered list (#27): a fixed
+// shapes-then-strokes-then-stickies order put every newly inserted image behind
+// existing freehand drawing and made Arrange look inert. Both pools share the
+// zIndex scale, so a single sorted pass is all the ordering there is.
+const orderedObjects = computed(() => [
+  ...store.state.shapes
+    .filter((shape) => !shape.hidden) // spec 7.4: hidden shapes leave the render list
+    .map((shape) => ({ kind: 'shape', key: shape.id, object: shape })),
+  ...whiteboardObjectsInZOrder(props.whiteboard).map((o) => ({
+    kind: o.kind,
+    key: `${o.kind}:${o.id}`,
+    object: o.object,
+  })),
+].sort((a, b) => (a.object.zIndex || 0) - (b.object.zIndex || 0)))
 
 // SVG path `d` for a stroke. Highlighter and pen share the geometry; sketch mode
 // roughens each segment into a hand-drawn wobble (spec C4). Width is in canvas
@@ -135,21 +150,47 @@ const laserDots = computed(() => {
       :key="connector.id"
       :connector="connector"
     />
-    <ShapeView v-for="shape in orderedShapes" :key="shape.id" :shape="shape" />
+    <!-- Base shapes and board objects in one z-ordered pass, so anything added
+         later sits on top and Arrange moves an object past any other (#27). -->
+    <template v-for="item in orderedObjects" :key="item.key">
+      <ShapeView v-if="item.kind === 'shape'" :shape="item.object" />
 
-    <!-- Committed freehand strokes. -->
-    <path
-      v-for="stroke in whiteboard.strokes"
-      :key="stroke.id"
-      :d="strokePath(stroke)"
-      fill="none"
-      :stroke="stroke.color"
-      :stroke-width="stroke.width"
-      :stroke-opacity="strokeOpacity(stroke)"
-      :stroke-linecap="stroke.kind === 'highlighter' ? 'butt' : 'round'"
-      stroke-linejoin="round"
-      :style="isSelectedStroke(stroke.id) ? 'outline: none; filter: drop-shadow(0 0 2px #006EDB)' : null"
-    />
+      <!-- Committed freehand stroke. -->
+      <path
+        v-else-if="item.kind === 'stroke'"
+        :d="strokePath(item.object)"
+        fill="none"
+        :stroke="item.object.color"
+        :stroke-width="item.object.width"
+        :stroke-opacity="strokeOpacity(item.object)"
+        :stroke-linecap="item.object.kind === 'highlighter' ? 'butt' : 'round'"
+        stroke-linejoin="round"
+        :style="isSelectedStroke(item.object.id) ? 'outline: none; filter: drop-shadow(0 0 2px #006EDB)' : null"
+      />
+
+      <!-- Straight line with endpoints (none/arrow/dot). -->
+      <WhiteboardLine
+        v-else-if="item.kind === 'line'"
+        :line="item.object"
+        :selected="isSelected('line', item.object.id)"
+      />
+
+      <!-- Table (grid + per-cell text + inline editor). -->
+      <WhiteboardTable
+        v-else-if="item.kind === 'table'"
+        :table="item.object"
+        :selected="isSelected('table', item.object.id)"
+      />
+
+      <!-- Sticky note (owns its drag/resize/edit/link). Matched by kind, not by a
+           bare v-else: a kind added to WHITEBOARD_KINDS without a branch here
+           would otherwise render as a sticky note with the wrong props. -->
+      <WhiteboardStickyNote
+        v-else-if="item.kind === 'sticky'"
+        :note="item.object"
+        :sketch="whiteboard.sketchStyle"
+      />
+    </template>
 
     <!-- Live stroke being drawn (before RDP simplify + commit). -->
     <path
@@ -163,32 +204,8 @@ const laserDots = computed(() => {
       stroke-linejoin="round"
     />
 
-    <!-- Straight lines with endpoints (none/arrow/dot). -->
-    <WhiteboardLine
-      v-for="line in whiteboard.lines || []"
-      :key="line.id"
-      :line="line"
-      :selected="isSelected('line', line.id)"
-    />
-
     <!-- Live line being dragged (before commit). -->
     <WhiteboardLine v-if="liveLine" :line="liveLine" />
-
-    <!-- Tables (grid + per-cell text + inline editor). -->
-    <WhiteboardTable
-      v-for="table in whiteboard.tables || []"
-      :key="table.id"
-      :table="table"
-      :selected="isSelected('table', table.id)"
-    />
-
-    <!-- Sticky notes (each owns its drag/resize/edit/link). -->
-    <WhiteboardStickyNote
-      v-for="note in whiteboard.stickyNotes"
-      :key="note.id"
-      :note="note"
-      :sketch="whiteboard.sketchStyle"
-    />
 
     <!-- Per-object vote badges (T3): a small pill tallying 👍/👎, top-right of the
          object. Non-interactive — votes are cast from the object's edit menu. -->

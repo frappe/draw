@@ -12,6 +12,7 @@ import { nodeSize as flowchartNodeSize } from '@/diagram/flowchartModel.js'
 import { nodeShape } from '@/diagram/flowchartShapes.js'
 import { routeEdge, routeOffsets, flowchartContentBounds } from '@/diagram/flowchartLayout.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
+import { whiteboardObjectsInZOrder } from '@/diagram/whiteboardModel.js'
 import { pointsToPath } from '@/diagram/svgPath.js'
 import { contrastInk, HIGHLIGHTER_OPACITY } from '@/diagram/whiteboardColors.js'
 
@@ -370,21 +371,29 @@ function whiteboardBody(doc) {
   const model = doc.whiteboard
   const bounds = whiteboardContentBounds(model, doc.shapes || [])
   const connectors = (doc.connectors || []).map((c) => connectorBody(c, doc.shapes || [])).join('')
-  const shapes = (doc.shapes || [])
-    .filter((s) => !s.hidden)
-    .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
-    .map((s) => shapeBody(s) + shapeText(s))
-    .join('')
-  const strokes = (model.strokes || []).map(whiteboardStroke).join('')
-  const stickies = (model.stickyNotes || []).map(whiteboardSticky).join('')
-  // Lines and tables used to be omitted entirely here, so a board holding either
+  // Shapes and board objects share one stacking scale (#27), so the export paints
+  // them in a single zIndex-ordered pass — the same order the canvas draws. Lines
+  // and tables used to be omitted entirely here, so a board holding either
   // exported and thumbnailed as though that content did not exist.
-  const lines = (model.lines || []).map(whiteboardLine).join('')
-  const tables = (model.tables || []).map(whiteboardTable).join('')
+  const objects = [
+    ...(doc.shapes || []).filter((s) => !s.hidden).map((s) => ({ kind: 'shape', object: s })),
+    ...whiteboardObjectsInZOrder(model),
+  ]
+    .sort((a, b) => (a.object.zIndex || 0) - (b.object.zIndex || 0))
+    .map(({ kind, object }) => WB_BODY[kind](object))
+    .join('')
   return {
     viewBox: `${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}`,
-    body: connectors + shapes + tables + lines + strokes + stickies,
+    body: connectors + objects,
   }
+}
+
+const WB_BODY = {
+  shape: (s) => shapeBody(s) + shapeText(s),
+  stroke: whiteboardStroke,
+  line: whiteboardLine,
+  table: whiteboardTable,
+  sticky: whiteboardSticky,
 }
 
 function whiteboardStroke(stroke) {

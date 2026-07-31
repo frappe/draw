@@ -80,6 +80,14 @@ const isWhiteboard = computed(() => activeType.value === 'whiteboard')
 const isUnified = computed(() => isUnifiedDocument(store.state))
 const showBlockLayer = computed(() => !rendersOwnLayer.value || isUnified.value)
 
+// When the whiteboard layer is on screen it paints the shapes itself, interleaved
+// with the board objects by zIndex (#27). The block layer must not paint them a
+// second time: two copies of every shape means duplicate pointer targets, and the
+// block copy sits under all board content whatever its zIndex says.
+const whiteboardOwnsShapes = computed(
+  () => (isWhiteboard.value || isUnified.value) && Boolean(store.state.whiteboard),
+)
+
 const mindmapLayout = computed(() =>
   (isMindmap.value || isUnified.value) && store.state.mindmap ? layoutMindMap(store.state.mindmap) : null,
 )
@@ -333,6 +341,10 @@ const themeStyle = computed(() => themeVarStyle(store.state.themePreset))
 const orderedShapes = computed(() =>
   [...store.state.shapes].filter(isVisible).sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)),
 )
+
+// Empty while the whiteboard layer owns the shapes — it paints them interleaved
+// with the board objects, so painting them here too would duplicate them (#27).
+const blockLayerShapes = computed(() => (whiteboardOwnsShapes.value ? [] : orderedShapes.value))
 
 // Block has no own-layer empty prompt (whiteboard/mind-map/flowchart do), so show
 // a faint centred hint on a blank block canvas, consistent with the others.
@@ -810,7 +822,7 @@ const surfaceCursor = computed(() => {
             :connector="connector"
           />
 
-          <ShapeView v-for="shape in orderedShapes" :key="shape.id" :shape="shape" />
+          <ShapeView v-for="shape in blockLayerShapes" :key="shape.id" :shape="shape" />
 
           <SmartGuidesLayer />
           <HoverArrows />
