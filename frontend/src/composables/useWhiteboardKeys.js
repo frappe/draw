@@ -3,16 +3,19 @@
 // no text field is focused and no Cmd/Ctrl shortcut already matched, so these
 // keys are safe to treat as bare (the text-edit guard lives in useKeyboard).
 //
-// - number keys 1-9 pick a palette color while pen/highlighter/sticky is active
-//   (pen/highlighter set the pen color, sticky sets the sticky color) (W4).
 // - tool letters: V select, P pen, H highlighter, E eraser, T text, S sticky,
 //   L laser, N line, G table (grid).
 // - Tab drops an adjacent sticky after the selected one and selects it (W4).
 // - Delete/Backspace removes the selected stroke/sticky/line/table (one undoable
 //   unit, W3/G6). Returns true when consumed (useKeyboard then preventDefaults).
+//
+// Number keys are deliberately NOT bound. 1-9 used to pick a palette colour here
+// while the block keyboard used the same keys to recolour a selected shape; the two
+// meanings could not both hold on the unified canvas, and keyboard colour-picking
+// was dropped everywhere rather than made conditional. Colours are chosen from the
+// palette, which is always visible.
 
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
-import { PEN_COLORS, STICKY_COLORS } from '@/diagram/whiteboardColors.js'
 import { stickyNoteById } from '@/diagram/whiteboardModel.js'
 
 const TOOL_KEYS = {
@@ -22,30 +25,9 @@ const TOOL_KEYS = {
 
 export function whiteboardKeydown(event, store, editorUi) {
   if (event.altKey) return false
-  if (pickColor(event, editorUi, useWhiteboardUi())) return true
   if (pickTool(event, editorUi)) return true
   if (event.key === 'Tab') return dropAdjacentSticky(store, useWhiteboardUi())
   if (event.key === 'Delete' || event.key === 'Backspace') return deleteSelected(store, useWhiteboardUi())
-  return false
-}
-
-// 1-9 select a palette color for the active drawing tool (spec W4).
-function pickColor(event, editorUi, ui) {
-  const index = '123456789'.indexOf(event.key)
-  if (index === -1) return false
-  const tool = editorUi.state.tool
-  // Palettes have fewer than 9 entries; ignore keys past the end of the active
-  // one rather than setting an undefined (off-palette) color.
-  if (tool === 'pen' || tool === 'highlighter') {
-    if (index >= PEN_COLORS.length) return false
-    ui.state.penColor = PEN_COLORS[index]
-    return true
-  }
-  if (tool === 'sticky') {
-    if (index >= STICKY_COLORS.length) return false
-    ui.state.stickyColor = STICKY_COLORS[index]
-    return true
-  }
   return false
 }
 

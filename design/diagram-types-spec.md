@@ -198,7 +198,7 @@ Large, freely auto-expanding; fit-to-view, 100%, small **minimap**.
 - **Text** — double-click anywhere creates a text box (headline interaction).
 - **Freehand pen** — smoothed vector strokes; Espresso color + thickness; **highlighter** variant.
 - **Eraser** — deletes whole strokes (path hit-test).
-- **Sticky notes** — Espresso colors, auto-contrast text; resizable/draggable; Tab drops adjacent note; number keys 1–9 pick colors.
+- **Sticky notes** — Espresso colors, auto-contrast text; resizable/draggable; Tab drops adjacent note. Colors are picked from the palette; there is no number-key shortcut (removed — the block keyboard used 1–9 to recolor a shape, and both meanings cannot hold on the unified canvas).
 - **Shapes & connectors** — full base set.
 - **Hyperlinks** — any object links to a URL or another Frappe Draw diagram.
 
@@ -289,7 +289,9 @@ Existing v1 diagrams have **no `diagramType`** → default missing to `"block"` 
 Single screen↔canvas transform; route every new interaction through it (pen, laser, sticky, double-click-create, drag-to-empty, hit-test, alignment). Distances in canvas units. Test at 10%, 100%, 400% zoom and after panning.
 
 ### G5. Keyboard handling mode-aware + text-edit-guarded
-Branch on active mode; ignore creation/navigation shortcuts when a text field has focus. Guard: arrows (nudge in block vs navigate in mindmap), Tab/Enter (preventDefault), letter keys (flowchart, only when node selected & not editing), number keys (whiteboard colors, not while editing), double-click empty (shape vs textbox), Delete/Backspace (route by mode).
+Branch on active mode; ignore creation/navigation shortcuts when a text field has focus. Guard: arrows (nudge in block vs navigate in mindmap), Tab/Enter (preventDefault), letter keys (flowchart, only when node selected & not editing), double-click empty (shape vs textbox), Delete/Backspace (route by mode). Number keys are unbound in every mode.
+
+On the **unified canvas** the owner is resolved from the selection, not the document type (there is no `unified` mode strategy — it falls back to block). Order: a selected mind-map or flowchart node owns the keys first, so its letters and Tab keep working; the whiteboard's tool letters and Tab-drops-adjacent-note are offered only after nobody else claims the key. Delete/Backspace on whiteboard objects is handled ahead of mode dispatch, since the whiteboard is never the owner there.
 
 ### G6. Undo/redo on semantic model ops — layout derived
 Push document mutations, never layout positions. Recompute layout after undo/redo. Tidy up, insert-reflow, paste-to-tree, delete-subtree each one undoable unit.

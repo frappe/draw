@@ -11,18 +11,19 @@ import { flowchartKeydown } from '@/composables/useFlowchartKeys.js'
 import { whiteboardKeydown, deleteWhiteboardSelection } from '@/composables/useWhiteboardKeys.js'
 import { toggleShortcutsHelp } from '@/composables/useShortcutsHelp.js'
 import { mindmapUi } from '@/stores/mindmapUi.js'
+import { isUnifiedDocument } from '@/diagram/schema.js'
 import { isEditingText } from '@/utils/dom.js'
 
 const ARROW_DELTAS = {
   ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
 }
 
-// Block-mode quick fills: number keys 1-9 set the fill of the selected shapes
-// (the whiteboard has its own 1-9 palette in useWhiteboardKeys) — spec 9.5.
-const NUMBER_COLORS = [
-  '#EFF6FF', '#F4FFF6', '#FDFAED', '#FCEAF5', '#F3F3F3',
-  '#FDECEC', '#E7F8FB', '#1F2933', '#FFFFFF',
-]
+// Number keys are deliberately unbound. 1-9 used to set the fill of the selected
+// block shapes, while the whiteboard handler used the SAME keys for its pen/sticky
+// palette. On the unified canvas, where both kinds of object live on one surface,
+// the two meanings could not both hold — so keyboard colour-picking was removed
+// everywhere rather than made to depend on what happened to be selected. Colour is
+// chosen from the palette, which is on screen either way.
 
 // Per-mode keyboard handlers (spec diagram-types Part G5), keyed by the
 // strategy's keyboardMode. Each handler is (event, store, editorUi) and returns
@@ -113,6 +114,19 @@ function handleKeydown(event, store, editorUi, clipboard, transform) {
     event.preventDefault()
     return
   }
+  // The whiteboard's own keys on a unified document: the tool letters (P pen, S
+  // sticky, E eraser…) and Tab to drop the next sticky beside the selected one.
+  //
+  // Deliberately AFTER the owner dispatch above, not before. A unified document's
+  // owner is block, or whichever mind-map / flowchart node is selected, and those
+  // must win: the flowchart uses letter keys of its own, and Tab grows a mind map.
+  // So the whiteboard only gets the key once nobody else has claimed it — which is
+  // why Tab chains stickies when a sticky is selected and adds a child node when a
+  // node is, with no collision between them.
+  if (isUnifiedDocument(store.state) && whiteboardKeydown(event, store, editorUi) === true) {
+    event.preventDefault()
+    return
+  }
   // The block type keeps the shared shape shortcuts (delete/escape/nudge). Other
   // types delegate fully to their per-mode handler above (and its no-op stub).
   if (modeKeyboardFor(store, editorUi) !== null) return
@@ -180,19 +194,7 @@ function handlePlainKey(event, store, editorUi, transform) {
   if (event.key === 'Delete' || event.key === 'Backspace') {
     return runAction(() => store.removeSelectionOrIds())
   }
-  if (applyNumberColor(event, store)) return true
   return handleArrow(event, transform)
-}
-
-// 1-9 recolour the fill of the selected block shapes (no-op without a shape
-// selection, so the key isn't swallowed).
-function applyNumberColor(event, store) {
-  const index = '123456789'.indexOf(event.key)
-  if (index === -1) return false
-  const ids = store.state.selection.filter((id) => store.shapeById(id))
-  if (!ids.length) return false
-  store.updateShapes(ids, { fill: NUMBER_COLORS[index] })
-  return true
 }
 
 // Arrow keys nudge the selection; Shift makes the step larger (§7.5).

@@ -1,7 +1,9 @@
 // Whiteboard color palettes (Espresso only — CONVENTIONS cardinal rule 1). The
 // pen/highlighter swatches and the sticky-note swatches both draw from these
-// curated Espresso values. Number keys 1-9 pick by index (spec C3/W4), so order
-// is stable and meaningful.
+// curated Espresso values. Order is the on-screen swatch order, so it stays stable
+// and meaningful — but nothing addresses these by index any more: keyboard
+// colour-picking (1-9) was removed, because the block keyboard used the same keys to
+// recolour a shape and both meanings cannot hold on the unified canvas.
 
 // Pen + highlighter ink colors (ink-dark first so the default reads well).
 export const PEN_COLORS = [

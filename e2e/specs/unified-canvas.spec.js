@@ -111,6 +111,46 @@ test.describe('unified canvas: whiteboard tools', () => {
       .toBeGreaterThan(0)
   })
 
+  // The whiteboard's tool letters had no effect on a unified document: the shared
+  // dispatcher resolves the owning keyboard from the document type, and a unified
+  // document resolves to block. Asserted through a real stroke rather than on the
+  // toolbar's armed state, so it proves the letter selected a tool that then WORKS.
+  test('a tool letter picks a whiteboard tool', async ({ page, diagram }) => {
+    const name = await diagram.open('unified', { empty: true })
+
+    await clickEmptyCanvas(page) // focus the canvas, select nothing
+    await page.keyboard.press('p')
+    await dragOnCanvas(page, { x: 300, y: 260 }, { x: 640, y: 420 }, 14)
+
+    await expect
+      .poll(async () => (await diagram.saved(name)).whiteboard.strokes.length, {
+        message: 'pressing P did not arm the pen on a unified document',
+        timeout: 20_000,
+      })
+      .toBeGreaterThan(0)
+  })
+
+  // Tab chains sticky notes, but ONLY when a sticky is selected — a mind-map node
+  // selection keeps Tab for adding a child (covered in unified-objects.spec.js). The
+  // two used to be unable to coexist on one surface; the dispatcher resolves it by
+  // offering Tab to the whiteboard last.
+  test('Tab drops the next sticky beside the selected one', async ({ page, diagram }) => {
+    const name = await diagram.open('unified', {})
+    const sticky = page.getByText('note', { exact: true }).first()
+    const box = await sticky.boundingBox()
+    if (!box) throw new Error('the seeded sticky note is not rendered')
+
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    await page.keyboard.press('Tab')
+
+    await expect
+      .poll(async () => (await diagram.saved(name)).whiteboard.stickyNotes.length, {
+        message: 'Tab did not chain a second sticky note on a unified document',
+        timeout: 20_000,
+      })
+      .toBe(2)
+  })
+
   test('a sticky note can be placed', async ({ page, diagram }) => {
     const name = await diagram.open('unified', { empty: true })
 
