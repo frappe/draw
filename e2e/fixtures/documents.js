@@ -92,6 +92,19 @@ export function seededFlowchart(origin = { x: 0, y: 0 }) {
   }
 }
 
+// A board carrying a LINE and a TABLE as well as ink. Both were omitted from the
+// export path entirely until #40, so they need their own seeded content — the
+// default board has neither, and a spec using it cannot notice their absence.
+export function whiteboardWithObjects() {
+  return {
+    ...seededWhiteboard(),
+    lines: [{ id: 'wl1', x1: 300, y1: 500, x2: 620, y2: 500, color: '#AA0011', width: 3, start: 'none', end: 'arrow' }],
+    tables: [
+      { id: 'wt1', x: 300, y: 560, rows: 2, cols: 2, cellW: 120, cellH: 40, color: '#00AA55', cells: { '0,0': 'CELL-TEXT' } },
+    ],
+  }
+}
+
 export function seededWhiteboard() {
   return {
     strokes: [
@@ -144,7 +157,11 @@ export const documents = {
 
   whiteboard: (opts = {}) => ({
     ...baseDocument('whiteboard'),
-    whiteboard: opts.empty ? emptyWhiteboard() : seededWhiteboard(),
+    whiteboard: opts.empty
+      ? emptyWhiteboard()
+      : opts.objects
+        ? whiteboardWithObjects()
+        : seededWhiteboard(),
   }),
 
   // The unified canvas holds every sub-model at once. Frame origins are kept

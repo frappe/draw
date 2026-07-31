@@ -100,6 +100,7 @@ const accessLevel = computed({
             </div>
             <select
               v-model="inviteRole"
+              aria-label="Access level for the person being added"
               class="h-9 rounded-md border border-outline-gray-2 bg-surface-base px-2 text-sm text-ink-gray-8 outline-none"
             >
               <option value="view">Can view</option>
@@ -126,6 +127,7 @@ const accessLevel = computed({
               </div>
               <select
                 :value="m.level || (m.can_edit ? 'edit' : 'view')"
+                :aria-label="`Access level for ${m.user}`"
                 class="h-8 rounded-md border border-outline-gray-2 bg-surface-base px-2 text-[13px] text-ink-gray-8 outline-none"
                 @change="share.setMemberRole(m.user, $event.target.value)"
               >
@@ -152,6 +154,7 @@ const accessLevel = computed({
             <LucideIcon :name="share.isPublic.value ? 'globe' : 'lock'" class="h-4 w-4 text-ink-gray-6" />
             <select
               v-model="accessLevel"
+              aria-label="General access"
               class="h-9 flex-1 rounded-md border border-outline-gray-2 bg-surface-base px-2 text-sm text-ink-gray-8 outline-none"
             >
               <option value="restricted">Restricted — only people added</option>

@@ -4,6 +4,17 @@
 // it afterwards — so specs never leak diagrams into the library and never depend on
 // each other's state.
 //
+// ⚠ THE DOCUMENT IS TITLED AFTER THE TEST, and the editor renders that title in its
+// header — so every word of a test's own name is text on the page. Text- and
+// role-name locators are substring matches by default, which has bitten this suite
+// twice, once in each direction:
+//   - a FALSE PASS: `getByText(/editing/i)` in the in-frame test matched the title of
+//     a test named "…enters in-frame editing", so it passed while the app did nothing.
+//   - a FALSE FAILURE: `getByRole('button', {name: 'Export'})` matched the title
+//     button in every export test whose name contained "export".
+// So: prefer a stable selector (role + `exact: true`, a data attribute, an icon path)
+// over matching prose, and never assert on text that could echo the test name.
+//
 //   test('...', async ({ page, diagram }) => {
 //     await diagram.open('unified')                    // seeded default
 //     await diagram.open('mindmap', { empty: true })   // no root node

@@ -95,8 +95,15 @@ def search_users(txt: str = "") -> list:
 
 
 @frappe.whitelist()
-def set_public(name: str, enabled) -> None:
+def set_public(name: str, enabled: int) -> None:
 	"""Toggle "anyone in this site can view" via the diagram's is_public flag
-	(honoured by draw.api.permission.query_conditions)."""
+	(honoured by draw.api.permission.query_conditions).
+
+	`enabled` MUST carry a type annotation. Frappe enforces that every argument of a
+	whitelisted function is annotated and answers 417 FrappeTypeError otherwise — so
+	without one this endpoint failed on every HTTP call while working perfectly when
+	called in-process, which is exactly how the Python tests missed it. cint() still
+	does the coercion, so a JSON number, a numeric string and a bool all work.
+	"""
 	_check_can_share(name)
 	frappe.db.set_value("Draw Diagram", name, "is_public", 1 if cint(enabled) else 0)
