@@ -12,7 +12,7 @@
 import { onBeforeUnmount } from 'vue'
 import { HANDWRITTEN_FONT } from '@/composables/useTextEditing.js'
 import { contrastInk } from '@/diagram/whiteboardColors.js'
-import { registerModeInteraction, useModeInteraction } from '@/composables/useModeInteraction.js'
+import { registerModeInteraction, unregisterModeInteraction, useModeInteraction } from '@/composables/useModeInteraction.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { simplifyStroke } from '@/diagram/strokeSimplify.js'
 import {
@@ -48,7 +48,9 @@ export function useWhiteboardInteraction(store, editorUi) {
     onDoubleClick: (event, context) => onDoubleClick(context, store),
   }
   registerModeInteraction(interactionRef, 'whiteboard', handlers)
-  onBeforeUnmount(() => registerModeInteraction(interactionRef, 'whiteboard', null))
+  // Ownership-checked, for the same reason as the flowchart layer: a whiteboard
+  // layer can be remounted while another instance holds this key.
+  onBeforeUnmount(() => unregisterModeInteraction(interactionRef, 'whiteboard', handlers))
 
   return { ui }
 }

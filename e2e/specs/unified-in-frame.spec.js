@@ -87,25 +87,15 @@ test.describe('unified canvas: mind-map operations inside a frame', () => {
 })
 
 test.describe('unified canvas: flowchart operations inside a frame', () => {
-  // KNOWN BROKEN — a real regression, not a flaky test. Kept as fixme so it is on the
-  // record and turns green the moment someone fixes it, rather than being deleted.
-  //
-  // The identical drag passes on a standalone flowchart document
-  // (legacy-types.spec.js "a node can be moved and the move persists"), and fails
-  // here inside a focused frame on a unified document: the node does not move in the
-  // persisted document at all. Ruled out already:
-  //   - Not the view reframing after focus mode is entered. The box below is polled
-  //     until it stops moving and re-read immediately before the drag.
-  //   - Not the surface-interaction registry picking the wrong layer. In flowchart
-  //     focus mode WhiteboardLayer is unmounted (its v-if needs isWhiteboard ||
-  //     isUnified, and isUnified is false once focusedFrame is set), so the flowchart
-  //     is the sole registrant and resolveModeHandlers returns it regardless of tool.
-  //   - Not a frame-origin coordinate offset. In focus mode FlowchartLayer renders
-  //     through the isFlowchart branch at model coordinates with no origin translate,
-  //     which the ruler in the failure screenshot confirms.
-  // Next place to look: whether the drag gesture's hit test runs against the node at
-  // all in this mode (a marquee starting instead would look exactly like this).
-  test.fixme('a node can be moved and the move persists', async ({ page, diagram }) => {
+  // Regression guard for a register/unregister race in the interaction registry.
+  // Entering a flowchart frame swaps the frame's read-only FlowchartLayer for the
+  // focus-mode one, and Vue mounts the incoming component before unmounting the
+  // outgoing one. Both use the layer key 'flowchart', so the outgoing unmount hook
+  // deleted the entry the incoming instance had just registered — the registry ended
+  // up empty, delegatesSurface() went false, and every surface event fell through to
+  // the block handling. The node did not move at all, not even on screen, so it read
+  // as "frames are render-only" rather than a dead seam.
+  test('a node can be moved and the move persists', async ({ page, diagram }) => {
     const name = await diagram.open('unified', { framesInView: true })
     await enterFlowchartNode(page, 'Do work')
     const before = (await diagram.saved(name)).flowchart.nodes.find((n) => n.id === 'f2')

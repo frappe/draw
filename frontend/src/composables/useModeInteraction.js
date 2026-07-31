@@ -69,6 +69,24 @@ export function registerModeInteraction(registryRef, layerKey, handlers) {
   registryRef.value = next
 }
 
+// Detach on unmount, but ONLY if the entry under this key is still the one this
+// instance installed.
+//
+// Two components can hold the same layer key across one render. Entering a
+// flowchart frame on the unified canvas swaps the frame's read-only FlowchartLayer
+// for the focus-mode one, and Vue mounts the incoming component before unmounting
+// the outgoing one — so a blind `delete registry[key]` in the outgoing unmount hook
+// removed the handlers the incoming instance had just registered. The registry ended
+// up EMPTY, delegatesSurface() went false because activeModeHandlers() was null, and
+// every surface event fell through to the shared block handling: inside a focused
+// flowchart frame the nodes would not drag at all (they did not even move on screen,
+// so it read as a rendering-only frame rather than a dead interaction seam).
+export function unregisterModeInteraction(registryRef, layerKey, handlers) {
+  if (!registryRef) return
+  if (registryRef.value[layerKey] !== handlers) return
+  registerModeInteraction(registryRef, layerKey, null)
+}
+
 // Resolve which registered layer owns surface events for the active tool. Pure so
 // it is unit-testable. Returns the handler object or null.
 //   • no registrants        → null (shared block/mindmap fallback handles it)
