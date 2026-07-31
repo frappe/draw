@@ -33,3 +33,29 @@ export function safeHref(url) {
   if (HAS_SCHEME.test(cleaned)) return SAFE_SCHEME.test(cleaned) ? cleaned : null
   return cleaned
 }
+
+// The safe form of a document image `src`, or null to render nothing. An uploaded
+// image is a same-origin site path (/files/…), so allow same-origin paths/URLs and
+// inline `data:image/…` only. An external URL is blocked: rendered in an <image> it
+// silently fetches from that host every time a shared diagram opens (a tracking /
+// deanonymization vector), and it is never how Draw stores an uploaded image.
+// SVG loaded via <image>/data: runs in the browser's static mode (no script, no
+// sub-fetches), so a data:image/svg payload can't execute.
+export function safeImageSrc(src) {
+  if (typeof src !== 'string') return null
+  const cleaned = stripControlChars(src).trim()
+  if (!cleaned) return null
+  if (/^data:image\//i.test(cleaned)) return cleaned
+  // Same-origin relative path (Frappe file_url), but not a protocol-relative //host.
+  if (cleaned.startsWith('/') && !cleaned.startsWith('//')) return cleaned
+  // Absolute or protocol-relative: allow only when it resolves to this origin.
+  if (HAS_SCHEME.test(cleaned) || cleaned.startsWith('//')) {
+    if (typeof window === 'undefined' || !window.location) return null
+    try {
+      return new URL(cleaned, window.location.href).origin === window.location.origin ? cleaned : null
+    } catch {
+      return null
+    }
+  }
+  return null
+}

@@ -1,5 +1,9 @@
+// @vitest-environment jsdom
+//
+// jsdom so safeImageSrc can resolve absolute URLs against a real window.location
+// (default origin http://localhost:3000). safeHref needs no DOM.
 import { describe, it, expect } from 'vitest'
-import { safeHref } from './safeUrl.js'
+import { safeHref, safeImageSrc } from './safeUrl.js'
 
 // safeHref gates untrusted link targets from the document (a shared/public diagram
 // can carry any string). The security property: no `javascript:`/`data:` URL may
@@ -43,5 +47,27 @@ describe('safeHref', () => {
     expect(safeHref(null)).toBeNull()
     expect(safeHref(undefined)).toBeNull()
     expect(safeHref(42)).toBeNull()
+  })
+})
+
+describe('safeImageSrc', () => {
+  it('keeps same-origin uploaded images (relative path or same-origin URL) and data: images', () => {
+    expect(safeImageSrc('/files/pic.png')).toBe('/files/pic.png')
+    expect(safeImageSrc('/private/files/pic.png')).toBe('/private/files/pic.png')
+    expect(safeImageSrc(`${window.location.origin}/files/pic.png`)).toBe(`${window.location.origin}/files/pic.png`)
+    expect(safeImageSrc('data:image/png;base64,iVBORw0KGgo=')).toBe('data:image/png;base64,iVBORw0KGgo=')
+  })
+
+  it('blocks images loaded from an external host (the tracking vector)', () => {
+    expect(safeImageSrc('https://evil.example/track.gif')).toBeNull()
+    expect(safeImageSrc('http://evil.example/track.gif')).toBeNull()
+    expect(safeImageSrc('//evil.example/track.gif')).toBeNull()
+  })
+
+  it('blocks a non-image data: URI and junk input', () => {
+    expect(safeImageSrc('data:text/html,<script>alert(1)</script>')).toBeNull()
+    expect(safeImageSrc('javascript:alert(1)')).toBeNull()
+    expect(safeImageSrc('')).toBeNull()
+    expect(safeImageSrc(null)).toBeNull()
   })
 })
