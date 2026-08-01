@@ -28,7 +28,7 @@ const kind = computed(() => selected.value?.kind)
 const line = computed(() => (kind.value === 'line' ? lineById(store.state.whiteboard, selected.value.id) : null))
 const table = computed(() => (kind.value === 'table' ? tableById(store.state.whiteboard, selected.value.id) : null))
 const label = computed(() => ({ line: 'Line', table: 'Table' })[kind.value] || 'Options')
-const icon = computed(() => ({ line: 'minus', table: 'grid' })[kind.value] || 'edit-2')
+const icon = computed(() => ({ line: 'minus', table: 'table' })[kind.value] || 'edit-2')
 
 // Show for a multi-selection, or a lone non-sticky object (a lone sticky uses its
 // own floating toolbar). A lone object also gets up/down vote; strokes get just
