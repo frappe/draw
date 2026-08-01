@@ -153,22 +153,42 @@ def _room_secret(name: str, purpose: str, access: str) -> str:
 
 
 @frappe.whitelist(methods=["POST"])
-def save_diagram(name: str, document: str, revision: int) -> dict:
+def save_diagram(name: str, document: str, revision: int, crdt_state: str | None = None) -> dict:
 	"""Persist a diagram document, guarding against a stale (conflicting) write.
 
 	If the stored revision is newer than the one the client last saw, the save
 	is rejected so the editor can freeze with a "changed elsewhere" prompt
 	(SPEC §8 two-tab / concurrent-edit conflict).
+
+	`crdt_state` is the base64 Yjs update binary for the same edits. Stored beside
+	`document` so the offline cache and the server share one CRDT lineage — the
+	editor seeds its Yjs doc from it on open, so a cached copy merges rather than
+	clobbering a newer server document. Optional: a client without collaboration
+	active omits it, and the stored value is left untouched.
 	"""
 	diagram = _get_writable_diagram(name)
 	_assert_fresh_revision(diagram, revision)
 
 	diagram.document = _normalize_document(document)
+	if crdt_state is not None:
+		diagram.crdt_state = _validate_crdt_state(crdt_state)
 	diagram.save()
 	# No explicit commit: this is a POST, so the framework commits the transaction at
 	# the end of a successful request. A manual commit here previously made a GET
 	# (which the framework rolls back) durable anyway — a CSRF write vector.
 	return {"name": diagram.name, "revision": diagram.revision, "modified": str(diagram.modified)}
+
+
+# The Yjs update grows with the document but stays far under this; the cap only
+# stops a crafted client from parking an arbitrarily large blob on the row.
+_MAX_CRDT_STATE_CHARS = 12 * 1024 * 1024
+
+
+def _validate_crdt_state(crdt_state: str) -> str:
+	"""Bound the client-supplied CRDT binary. Type is enforced by the annotation."""
+	if len(crdt_state) > _MAX_CRDT_STATE_CHARS:
+		frappe.throw(_("Collaboration state is too large"), frappe.ValidationError)
+	return crdt_state
 
 
 def _assert_fresh_revision(diagram: "frappe.model.document.Document", revision: int) -> None:

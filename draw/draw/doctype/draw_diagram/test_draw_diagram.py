@@ -269,6 +269,54 @@ class TestDrawDiagram(IntegrationTestCase):
 		# Re-using the now-stale revision is the conflict case.
 		self.assertRaises(StaleRevisionError, save_diagram, doc.name, body, stale_rev)
 
+	# ----- collaborative CRDT state (Writer-style shared lineage) -----
+
+	def test_save_diagram_persists_crdt_state(self):
+		# The client sends the Yjs update binary (base64) beside the JSON so the offline
+		# cache and the server share one CRDT lineage; it is stored on the row.
+		import base64
+
+		from draw.api.diagram import save_diagram
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		rev = frappe.db.get_value("Draw Diagram", doc.name, "revision")
+		crdt = base64.b64encode(b"yjs-update-binary").decode()
+
+		save_diagram(doc.name, json.dumps({"schemaVersion": 1, "diagramType": "block"}), rev, crdt_state=crdt)
+
+		self.assertEqual(frappe.db.get_value("Draw Diagram", doc.name, "crdt_state"), crdt)
+
+	def test_save_diagram_leaves_crdt_state_untouched_when_omitted(self):
+		# A save before collaboration has synced omits crdt_state; that must NOT wipe a
+		# previously stored binary (the client sends null, the endpoint leaves it).
+		import base64
+
+		from draw.api.diagram import save_diagram
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		crdt = base64.b64encode(b"already-stored").decode()
+		frappe.db.set_value("Draw Diagram", doc.name, "crdt_state", crdt)
+		rev = frappe.db.get_value("Draw Diagram", doc.name, "revision")
+
+		save_diagram(doc.name, json.dumps({"schemaVersion": 1, "diagramType": "block"}), rev)  # no crdt_state
+
+		self.assertEqual(frappe.db.get_value("Draw Diagram", doc.name, "crdt_state"), crdt)
+
+	def test_save_diagram_rejects_an_oversized_crdt_state(self):
+		from draw.api.diagram import _MAX_CRDT_STATE_CHARS, save_diagram
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		rev = frappe.db.get_value("Draw Diagram", doc.name, "revision")
+
+		self.assertRaises(
+			frappe.ValidationError,
+			save_diagram,
+			doc.name,
+			json.dumps({"schemaVersion": 1}),
+			rev,
+			"x" * (_MAX_CRDT_STATE_CHARS + 1),
+		)
+
 	# ----- save_thumbnail file lifecycle (A3) -----
 
 	def test_save_thumbnail_replaces_the_previous_file(self):

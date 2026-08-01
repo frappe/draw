@@ -94,10 +94,12 @@ provideModeInteraction()
 // consistent everywhere; data-theme is already applied on <html> at boot.
 const { settings: appSettings, toggleDarkMode } = useAppSettings()
 const dark = computed(() => appSettings.darkMode)
-const autosave = useAutosave(store, diagram)
-const thumbnail = useThumbnail(store, diagram)
 // Real-time co-editing (Yjs + y-webrtc) + live cursors, keyed by the diagram name.
-const collab = useCollaboration(store, editorUi, props.name)
+// Created before autosave so its CRDT snapshot rides along with each save, keeping
+// the offline cache and the server one lineage (crdt_state on Draw Diagram).
+const collab = useCollaboration(store, editorUi, props.name, () => diagram.doc?.crdt_state || null)
+const autosave = useAutosave(store, diagram, collab.snapshot)
+const thumbnail = useThumbnail(store, diagram)
 useKeyboard(store, editorUi)
 useClipboard(store)
 

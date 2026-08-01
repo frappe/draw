@@ -25,6 +25,7 @@ import { call } from 'frappe-ui'
 import * as Y from 'yjs'
 import { WebrtcProvider } from 'y-webrtc'
 import { IndexeddbPersistence } from 'y-indexeddb'
+import { fromBase64, toBase64 } from 'lib0/buffer'
 
 // Matches Frappe Writer/Drive so it uses the same signaling + TURN infrastructure.
 const REALTIME_CONFIG = {
@@ -50,9 +51,13 @@ const ROOM_POLL_MS = 60_000
 const META_KEYS = ['canvas', 'themePreset', 'diagramType', 'mindmap', 'flowchart', 'whiteboard']
 const CURSOR_COLORS = ['#6846E3', '#0A84FF', '#16A34A', '#D97706', '#DB2777', '#0E7490', '#7C3AED']
 
-export function useCollaboration(store, editorUi, name) {
+// `getServerCrdt` returns the base64 CRDT binary stored on the server document
+// (draw_diagram.crdt_state), or null. It is what makes the offline cache and the
+// server one CRDT lineage: on open the doc is seeded from it, so a cached copy
+// MERGES with — rather than clobbers — a newer server document.
+export function useCollaboration(store, editorUi, name, getServerCrdt = () => null) {
   const collaborators = ref([]) // remote peers: { id, name, color, cursor:{x,y} }
-  if (!name) return { collaborators, setCursor() {}, destroy() {} }
+  if (!name) return { collaborators, setCursor() {}, snapshot: () => null, destroy() {} }
 
   const doc = new Y.Doc()
   let persistence = null
@@ -61,6 +66,11 @@ export function useCollaboration(store, editorUi, name) {
   let poll = null
   let destroyed = false
   let syncGeneration = 0
+  // Gate remote application until the initial cache+server sync has resolved.
+  // y-indexeddb applies its cached updates during load, firing the observer with a
+  // non-'local' origin; applying that before we've folded in the server binary and
+  // decided how to hydrate the store would show a half-reconciled document.
+  let ready = false
 
   const yShapes = doc.getMap('shapes')
   const yConnectors = doc.getMap('connectors')
@@ -98,6 +108,26 @@ export function useCollaboration(store, editorUi, name) {
     for (const id of [...ymap.keys()]) if (!ids.has(id)) ymap.delete(id)
   }
 
+  // Add-only merge of the store into Yjs — set changed/new items, NEVER delete.
+  // Used once at the initial sync: edits the user made before collaboration
+  // resolved live only in the store (the doc did not track them yet), so fold them
+  // into the reconciled doc rather than letting applyFromYjs overwrite them away.
+  // Meta keys only fill a gap, so the server/peer value is never clobbered.
+  function mergeStoreIntoYjs() {
+    if (applyingRemote || !room) return
+    doc.transact(() => {
+      for (const key of ['shapes', 'connectors', 'sections']) {
+        for (const item of store.state[key] || []) {
+          const json = JSON.stringify(item)
+          if (maps[key].get(item.id) !== json) maps[key].set(item.id, json)
+        }
+      }
+      for (const key of META_KEYS) {
+        if (!yMeta.has(key)) yMeta.set(key, JSON.stringify(store.state[key] ?? null))
+      }
+    }, 'local')
+  }
+
   // ---- Yjs -> store (remote edits) -----------------------------------------
   function applyFromYjs() {
     applyingRemote = true
@@ -122,6 +152,25 @@ export function useCollaboration(store, editorUi, name) {
     state[key] = items
   }
 
+  // Merge the server's stored CRDT binary into the doc, tagged 'server' so the
+  // local watcher never echoes it back as a fresh edit. Malformed base64 is
+  // ignored — the store still holds the server JSON, so nothing is lost.
+  function applyServerCrdt(base64) {
+    try {
+      Y.applyUpdate(doc, fromBase64(base64), 'server')
+    } catch (error) {
+      console.warn('Collaboration: ignoring unreadable server CRDT', error)
+    }
+  }
+
+  // The reconciled doc as a base64 CRDT update, for the server to store beside the
+  // JSON (autosave). Null until the initial sync has resolved, so a save can never
+  // overwrite the stored CRDT with a half-loaded (or empty) state.
+  function snapshot() {
+    if (!ready) return null
+    return toBase64(Y.encodeStateAsUpdate(doc))
+  }
+
   const debouncedPush = debounce(pushToYjs, 150)
 
   // React to any local document change.
@@ -133,7 +182,7 @@ export function useCollaboration(store, editorUi, name) {
 
   // React to any remote document change (only when it originated remotely).
   const observer = (events, transaction) => {
-    if (transaction.origin === 'local') return
+    if (transaction.origin === 'local' || !ready) return
     applyFromYjs()
   }
   yShapes.observe(observer)
@@ -174,12 +223,32 @@ export function useCollaboration(store, editorUi, name) {
 
   function openRoom(session) {
     room = session.room
+    ready = false
     persistence = new IndexeddbPersistence(session.room, doc)
-    // First sync: adopt the shared state if peers already have one, else seed ours.
+    // First sync (spec 11.1, the way Frappe Writer does it): the offline cache has
+    // just been loaded into the doc. Fold the server's CRDT binary in on top — the
+    // two share one lineage, so Yjs MERGES them (commutatively) instead of one
+    // clobbering the other, and a newer server edit or an offline edit both survive.
+    // Then hydrate the store from the reconciled doc.
+    //
+    // A document with no stored CRDT yet (saved before this shipped, or one whose
+    // doc has not loaded) has no lineage to merge against: trust the freshly loaded
+    // server JSON already in the store and seed the doc from it, ignoring any cache
+    // from before this lineage existed. The first save then stamps crdt_state, so
+    // every later open takes the merge path.
     persistence.once('synced', () => {
       if (destroyed) return
-      if (yShapes.size || yConnectors.size || yMeta.size) applyFromYjs()
-      else pushToYjs()
+      const serverCrdt = getServerCrdt()
+      if (serverCrdt) {
+        applyServerCrdt(serverCrdt)
+        // Fold in any edits made before this sync resolved (they live only in the
+        // store so far), then hydrate the store from the reconciled union.
+        mergeStoreIntoYjs()
+        applyFromYjs()
+      } else {
+        pushToYjs()
+      }
+      ready = true
     })
     try {
       provider = new WebrtcProvider(session.room, doc, {
@@ -237,7 +306,7 @@ export function useCollaboration(store, editorUi, name) {
   syncRoom()
   poll = setInterval(syncRoom, ROOM_POLL_MS)
 
-  return { collaborators, setCursor, destroy }
+  return { collaborators, setCursor, snapshot, destroy }
 }
 
 function currentUser() {

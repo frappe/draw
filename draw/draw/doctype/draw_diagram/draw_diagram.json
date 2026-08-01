@@ -21,6 +21,7 @@
   "trashed_on",
   "section_break_document",
   "document",
+  "crdt_state",
   "thumbnail"
  ],
  "fields": [
@@ -114,10 +115,19 @@
    "label": "Document"
   },
   {
-   "description": "Entire diagram as versioned JSON (single source of truth).",
+   "description": "Entire diagram as versioned JSON — the source of truth for render, thumbnail and export.",
    "fieldname": "document",
    "fieldtype": "JSON",
    "label": "Document"
+  },
+  {
+   "description": "The collaborative Yjs document as a base64 update binary. Kept ALONGSIDE `document` so the offline (IndexedDB) cache and the server share one CRDT lineage: on open the editor seeds its Yjs doc from this, so a cached copy merges rather than clobbering a newer server document. Derived from the same edits as `document`; render/export never read it.",
+   "fieldname": "crdt_state",
+   "fieldtype": "Long Text",
+   "label": "CRDT State",
+   "hidden": 1,
+   "no_copy": 1,
+   "read_only": 1
   },
   {
    "fieldname": "thumbnail",

@@ -12,10 +12,14 @@ const DEBOUNCE_MS = 1500
 const OFFLINE_FREEZE_MS = 5000
 const LOCAL_DEBOUNCE_MS = 400 // persist to IndexedDB sooner than the server save
 
-export function useAutosave(store, diagramResource) {
+export function useAutosave(store, diagramResource, getCrdtState = () => null) {
   const status = ref('saved')
   const frozen = ref(null)
   const session = createSaveSession(store, diagramResource, status, frozen)
+  // Persist the collaborative CRDT binary beside the JSON so the offline cache and
+  // the server share one lineage (see useCollaboration). A getter, so the doc's
+  // latest state is read at save time, not captured once.
+  session.getCrdtState = getCrdtState
 
   const stopWatch = watch(
     () => store.getDocument(),
@@ -157,11 +161,17 @@ export async function flush(session, saver, diagramResource, status, frozen) {
 }
 
 function saveDocument(saver, session, diagramResource, document) {
-  return saver.submit({
+  const payload = {
     name: session.diagramName(),
     document: JSON.stringify(document),
     revision: session.revision(),
-  })
+  }
+  // Only send the CRDT binary once collaboration has resolved its initial sync
+  // (the getter returns null until then), so a half-loaded state can't overwrite
+  // the stored one; a null just leaves the server's crdt_state untouched.
+  const crdtState = session.getCrdtState?.()
+  if (crdtState) payload.crdt_state = crdtState
+  return saver.submit(payload)
 }
 
 // Clear the pending buffer only if nothing newer arrived mid-flight; refresh the

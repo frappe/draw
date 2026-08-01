@@ -276,4 +276,85 @@ describe('useCollaboration', () => {
     expect(api.call).not.toHaveBeenCalled()
     collab.setCursor({ x: 1, y: 1 })
   })
+
+  // ---- CRDT lineage: offline cache ⨝ server (the way Frappe Writer does it) ----
+  // The clobber this replaces: on open, the offline IndexedDB cache used to be
+  // adopted wholesale over the freshly loaded server document. Now the doc is seeded
+  // from the server's stored CRDT binary and the cache MERGES on top — a shared
+  // lineage, so both a newer server edit and an offline edit survive.
+
+  it('folds the server CRDT into the offline cache on open — both survive, no clobber', async () => {
+    const Yreal = await vi.importActual('yjs')
+    const { toBase64 } = await import('lib0/buffer')
+    // A server document lineage carrying one shape, as base64 (what crdt_state holds).
+    const serverDoc = new Yreal.Doc()
+    serverDoc.getMap('shapes').set('s-server', JSON.stringify({ id: 's-server', type: 'rectangle' }))
+    const serverCrdt = toBase64(Yreal.encodeStateAsUpdate(serverDoc))
+
+    sessions = [() => Promise.resolve({ room: 'room-a', password: 'pw-a' })]
+    const store = makeStore()
+    const collab = useCollaboration(store, {}, 'diagram-1', () => serverCrdt)
+    await flush()
+
+    const doc = created.docs[0]
+    // What y-indexeddb loads into the doc before 'synced': a cached offline edit.
+    doc.transact(() => doc.getMap('shapes').set('s-cache', JSON.stringify({ id: 's-cache', type: 'ellipse' })))
+
+    created.persistences[0].emitSynced()
+    await nextTick()
+
+    // Both the server shape and the offline shape are present — a merge, not a replace.
+    expect([...doc.getMap('shapes').keys()].sort()).toEqual(['s-cache', 's-server'])
+    expect(store.state.shapes.map((s) => s.id).sort()).toEqual(['s-cache', 's-server'])
+    collab.destroy()
+  })
+
+  it('preserves an edit made before the sync resolved (a store-only edit is not lost)', async () => {
+    const Yreal = await vi.importActual('yjs')
+    const { toBase64 } = await import('lib0/buffer')
+    const serverDoc = new Yreal.Doc()
+    serverDoc.getMap('shapes').set('s-server', JSON.stringify({ id: 's-server', type: 'rectangle' }))
+    const serverCrdt = toBase64(Yreal.encodeStateAsUpdate(serverDoc))
+
+    sessions = [() => Promise.resolve({ room: 'room-a', password: 'pw-a' })]
+    const store = makeStore()
+    const collab = useCollaboration(store, {}, 'diagram-1', () => serverCrdt)
+    await flush()
+
+    // An edit the user made before collaboration synced — only in the store so far
+    // (its debounced push to the doc has not fired yet).
+    store.state.shapes = [{ id: 's-local', type: 'ellipse' }]
+
+    created.persistences[0].emitSynced()
+    await nextTick()
+
+    // The local edit is folded into the reconciled union, not overwritten by it.
+    expect(store.state.shapes.map((s) => s.id).sort()).toEqual(['s-local', 's-server'])
+    collab.destroy()
+  })
+
+  it('snapshot() is null before the initial sync, then returns the reconciled doc as base64', async () => {
+    sessions = [() => Promise.resolve({ room: 'room-a', password: 'pw-a' })]
+    const store = makeStore()
+    store.state.shapes = [{ id: 's1', type: 'rectangle' }]
+    const collab = useCollaboration(store, {}, 'diagram-1', () => null)
+    await flush()
+
+    // Before sync resolves, snapshot must be null so a save can't overwrite the
+    // stored crdt_state with a half-loaded state.
+    expect(collab.snapshot()).toBeNull()
+
+    created.persistences[0].emitSynced() // no server CRDT → legacy path seeds from the store
+    await nextTick()
+
+    const base64 = collab.snapshot()
+    expect(typeof base64).toBe('string')
+    // It round-trips: applied to a fresh doc it reproduces the shape.
+    const Yreal = await vi.importActual('yjs')
+    const { fromBase64 } = await import('lib0/buffer')
+    const check = new Yreal.Doc()
+    Yreal.applyUpdate(check, fromBase64(base64))
+    expect([...check.getMap('shapes').keys()]).toEqual(['s1'])
+    collab.destroy()
+  })
 })
