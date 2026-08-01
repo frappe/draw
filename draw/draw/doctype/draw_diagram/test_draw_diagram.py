@@ -249,6 +249,41 @@ class TestDrawDiagram(IntegrationTestCase):
 		finally:
 			frappe.set_user("Administrator")
 
+	# ----- cross-user isolation (GitHub #73) -----
+
+	def test_a_private_diagram_stays_invisible_to_another_user(self):
+		# The reported symptom: "someone creates a diagram and other users see it."
+		# A private diagram must NOT appear in another Draw user's list, and no collab
+		# room may be issued to someone who cannot even read it. This pins the isolation
+		# so a real leak (vs. shared-account testing) would fail here.
+		owner = self._user("draw-owner-iso@example.com")
+		other = self._user("draw-other-iso@example.com")
+		for u in (owner, other):
+			frappe.get_doc("User", u).add_roles("Draw User")
+
+		doc = frappe.get_doc(
+			{
+				"doctype": "Draw Diagram",
+				"title": "Owner Private",
+				"diagram_type": "block",
+				"owner": owner,
+				"document": json.dumps({"schemaVersion": 1, "diagramType": "block"}),
+			}
+		).insert(ignore_permissions=True)
+		self.addCleanup(lambda: frappe.delete_doc("Draw Diagram", doc.name, force=True, ignore_permissions=True))
+
+		frappe.set_user(other)
+		try:
+			visible = [d.name for d in frappe.get_list("Draw Diagram", filters={"is_trashed": 0})]
+			self.assertNotIn(doc.name, visible, "another user's private diagram leaked into the list")
+
+			from draw.api.diagram import get_collab_room
+
+			# Not readable → not even the existence of a collab room is disclosed.
+			self.assertRaises(frappe.PermissionError, get_collab_room, doc.name)
+		finally:
+			frappe.set_user("Administrator")
+
 	# ----- unique slug naming (A4) -----
 
 	def test_duplicate_titles_get_sequential_slugs(self):
