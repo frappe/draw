@@ -1,8 +1,10 @@
-// Sharing (spec §9) — deliberately simple: one "Turn on sharing" toggle that
-// flips Draw Diagram.is_public, and a one-click copy of the view-only link. No
-// edit/collab roles, no embed. Prefers a backend whitelisted method when present,
-// else falls back to the document resource's setValue so this works before the
-// backend lands it.
+// Sharing (spec §9). Two independent surfaces:
+//   - per-user access: addMember / setMemberRole / removeMember at a level of
+//     'view' | 'comment' | 'edit', via draw.api.share.* (DocShare-backed);
+//   - a public "anyone with the link" toggle that flips Draw Diagram.is_public,
+//     plus a one-click copy of the link.
+// The public toggle prefers a backend whitelisted method when present, else falls
+// back to the document resource's setValue so it works before the backend lands it.
 
 import { ref, computed } from 'vue'
 import { call, toast } from 'frappe-ui'

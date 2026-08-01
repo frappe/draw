@@ -249,6 +249,64 @@ class TestDrawDiagram(IntegrationTestCase):
 		finally:
 			frappe.set_user("Administrator")
 
+	# ----- save_diagram stale-revision conflict (D6) -----
+
+	def test_save_diagram_rejects_a_stale_revision(self):
+		# A concurrent/other-tab save advances the stored revision; a save that still
+		# carries the older one must be rejected as a conflict. It is raised as a
+		# dedicated StaleRevisionError so the client can detect it by exc_type rather
+		# than by matching the translated "changed elsewhere" string (finding D6).
+		from draw.api.diagram import StaleRevisionError, save_diagram
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		stale_rev = frappe.db.get_value("Draw Diagram", doc.name, "revision")  # 1 after insert
+		body = json.dumps({"schemaVersion": 1, "diagramType": "block", "shapes": [{"id": "s1"}]})
+
+		# Saving at the current revision is accepted and advances it past `stale_rev`.
+		result = save_diagram(doc.name, body, stale_rev)
+		self.assertGreater(result["revision"], stale_rev)
+
+		# Re-using the now-stale revision is the conflict case.
+		self.assertRaises(StaleRevisionError, save_diagram, doc.name, body, stale_rev)
+
+	# ----- save_thumbnail file lifecycle (A3) -----
+
+	def test_save_thumbnail_replaces_the_previous_file(self):
+		# The client re-renders the thumbnail up to once every 30s, each a NEW private
+		# File. Without cleanup those File rows and blobs grow unbounded over a diagram's
+		# life (finding A3); a save must delete the File it replaces, leaving exactly one.
+		import base64
+
+		from draw.api.diagram import save_thumbnail
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+
+		def data_url(payload):
+			# Distinct payloads so the two Files get distinct urls (Frappe dedups by
+			# content hash). The endpoint only requires valid base64, not a real image.
+			return "data:image/png;base64," + base64.b64encode(payload).decode()
+
+		first = save_thumbnail(doc.name, data_url(b"thumb-one"))["thumbnail"]
+		second = save_thumbnail(doc.name, data_url(b"thumb-two"))["thumbnail"]
+		self.assertNotEqual(first, second)
+
+		attached = frappe.get_all(
+			"File",
+			filters={"attached_to_doctype": "Draw Diagram", "attached_to_name": doc.name},
+			pluck="file_url",
+		)
+		self.assertEqual(attached, [second], "the replaced thumbnail File must be deleted, not orphaned")
+		self.assertEqual(frappe.db.get_value("Draw Diagram", doc.name, "thumbnail"), second)
+
+	def test_save_thumbnail_rejects_an_undecodable_payload(self):
+		# base64 decode uses validate=True; a malformed data URL is a 400, not a 500.
+		from draw.api.diagram import save_thumbnail
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		self.assertRaises(
+			frappe.ValidationError, save_thumbnail, doc.name, "data:image/png;base64,!!!not-base64!!!"
+		)
+
 	# ----- whitelisted API contract -----
 
 	def test_every_whitelisted_endpoint_annotates_all_arguments(self):

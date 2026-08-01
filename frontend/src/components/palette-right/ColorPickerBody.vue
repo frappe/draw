@@ -4,7 +4,7 @@
 // plus recent + quick swatches. Works in HSV internally and commits hex
 // (6-digit when opaque, 8-digit #RRGGBBAA otherwise). Rendered directly wherever
 // the full picker should be inline, or inside ColorPicker's popover.
-import { reactive, computed, watch } from 'vue'
+import { reactive, computed, watch, onBeforeUnmount } from 'vue'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { recentColors, pushRecentColor } from '@/composables/useRecentColors.js'
 import { SWATCH_PALETTE } from '@/diagram/palette.js'
@@ -91,6 +91,7 @@ async function pickEyedropper() {
   }
 }
 
+let releaseDrag = null
 function startDrag(event, handler) {
   event.preventDefault()
   const element = event.currentTarget
@@ -99,11 +100,18 @@ function startDrag(event, handler) {
   const stop = () => {
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', stop)
+    window.removeEventListener('pointercancel', stop)
+    releaseDrag = null
     pushRecentColor(currentHex.value)
   }
+  releaseDrag = stop
   window.addEventListener('pointermove', move)
   window.addEventListener('pointerup', stop)
+  // A pointercancel (a touch scroll claiming the gesture) or an unmount mid-drag
+  // (the popover closing) would otherwise leak these window listeners.
+  window.addEventListener('pointercancel', stop)
 }
+onBeforeUnmount(() => releaseDrag?.())
 
 // --- colour math (pure) ----------------------------------------------------
 function clamp01(value) {

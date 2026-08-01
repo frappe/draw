@@ -18,3 +18,12 @@ export function requestFlowchartEdit(id) {
 export function endFlowchartEdit(id) {
   if (!id || flowchartUi.editingId === id) flowchartUi.editingId = null
 }
+
+// Clear the transient editing state when a document loads or is swapped in place.
+// editingId is a node id, and node ids are per-document counters that repeat
+// across documents, so a leftover editingId would otherwise re-open the inline
+// editor on whichever node happens to share that id in the new document. Mirrors
+// resetMindmapUi; called from EditorShell at the same two points.
+export function resetFlowchartUi() {
+  flowchartUi.editingId = null
+}

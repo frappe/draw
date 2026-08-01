@@ -407,6 +407,7 @@ export function startGroupMove(event, store, editorUi, ui) {
   const up = () => {
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', up)
+    window.removeEventListener('pointercancel', up)
     if (!lastDx && !lastDy) return // a click, not a drag → keep the group selected
     // Undo the live preview, then commit the whole move once for clean undo.
     for (const item of items) translateWhiteboardObject(model, item.kind, item.id, -lastDx, -lastDy)
@@ -416,6 +417,10 @@ export function startGroupMove(event, store, editorUi, ui) {
   }
   window.addEventListener('pointermove', move)
   window.addEventListener('pointerup', up)
+  // A pointercancel mid-move (a touch scroll claiming the gesture) otherwise leaks
+  // these window listeners AND leaves the group shifted by the live preview with no
+  // history commit. Finish as if released so the move lands as one undoable step.
+  window.addEventListener('pointercancel', up)
 }
 
 // Double-click inside a table edits the cell under the cursor; anywhere else it

@@ -5,7 +5,7 @@
 import { computed } from 'vue'
 import PaletteSection from './PaletteSection.vue'
 import ActionTile from './ActionTile.vue'
-import { axisAlignedBBox } from '@/diagram/geometry.js'
+import { axisAlignedBBox, unionBounds } from '@/diagram/geometry.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 
 const store = useDiagramStore()
@@ -29,12 +29,9 @@ function flipShape(shape, axis, center) {
 
 // Center of the axis-aligned box enclosing the whole selection.
 function selectionCenter() {
-  const boxes = shapes.value.map(axisAlignedBBox)
-  const minX = Math.min(...boxes.map((b) => b.x))
-  const maxX = Math.max(...boxes.map((b) => b.x + b.w))
-  const minY = Math.min(...boxes.map((b) => b.y))
-  const maxY = Math.max(...boxes.map((b) => b.y + b.h))
-  return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }
+  const bounds = unionBounds(shapes.value.map(axisAlignedBBox))
+  if (!bounds) return { x: 0, y: 0 }
+  return { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h / 2 }
 }
 </script>
 

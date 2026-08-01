@@ -6,7 +6,7 @@ import { computed, ref } from 'vue'
 import { useTextEditing, shapeTextArea, textStyleCss } from '@/composables/useTextEditing.js'
 import { useAutoFitText } from '@/composables/useAutoFitText.js'
 import { sanitizeRichText } from '@/utils/sanitizeHtml.js'
-import { safeHref } from '@/utils/safeUrl.js'
+import { safeHref, safeImageSrc } from '@/utils/safeUrl.js'
 
 const props = defineProps({
   shape: { type: Object, required: true },
@@ -31,6 +31,10 @@ const richHtml = computed(() => sanitizeRichText(props.shape.text?.html) || null
 // safe scheme — a crafted `javascript:` link would otherwise execute in an SVG
 // anchor when the badge is clicked on a shared/public diagram.
 const safeLink = computed(() => safeHref(props.shape.link))
+
+// Image sources come from the untrusted document; only render same-origin/data:
+// images so a crafted external URL can't phone home when a shared diagram opens.
+const safeSrc = computed(() => safeImageSrc(props.shape.src))
 const textArea = computed(() => shapeTextArea(props.shape))
 const richStyle = computed(() => {
   const text = props.shape.text || {}
@@ -232,8 +236,8 @@ useAutoFitText(richEl, () => ({
       :stroke-dasharray="dashArray"
     />
     <image
-      v-else-if="shape.type === 'image'"
-      :href="shape.src"
+      v-else-if="shape.type === 'image' && safeSrc"
+      :href="safeSrc"
       :x="shape.x"
       :y="shape.y"
       :width="shape.w"

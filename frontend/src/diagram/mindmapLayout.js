@@ -7,6 +7,7 @@
 
 import { childrenOf, nodeById, subtreeIds, rootNodes, treeOrigin } from './mindmapModel.js'
 import { wrapLineCount, charsPerLine } from './textMetrics.js'
+import { unionBounds } from './geometry.js'
 
 const H_GAP = 70 // horizontal gap between depth columns
 const V_GAP = 18 // vertical gap between sibling subtrees
@@ -261,12 +262,13 @@ function normalise(positions, anchor) {
   }
 }
 
-// Min/max extent of a non-empty list of boxes.
+// Min/max extent of a non-empty list of boxes, in the {minX,minY,maxX,maxY} shape
+// this module's placement math reads. Delegates to unionBounds so the no-spread
+// stability fix (B7 — Math.min/max(...array) overflows the argument limit on a huge
+// map) lives in one place; callers here always pass a non-empty list.
 function bounds(boxes) {
-  return {
-    minX: Math.min(...boxes.map((b) => b.x)),
-    minY: Math.min(...boxes.map((b) => b.y)),
-    maxX: Math.max(...boxes.map((b) => b.x + b.w)),
-    maxY: Math.max(...boxes.map((b) => b.y + b.h)),
-  }
+  const b = unionBounds(boxes)
+  return b
+    ? { minX: b.x, minY: b.y, maxX: b.x + b.w, maxY: b.y + b.h }
+    : { minX: 0, minY: 0, maxX: 0, maxY: 0 }
 }

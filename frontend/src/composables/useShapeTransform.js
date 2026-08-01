@@ -41,18 +41,29 @@ function commitGeometry(store, label, finals) {
 }
 
 // Attach window pointer listeners; each event is converted to a logical point
-// via toLogical, then onMove runs until release, then onEnd. Returns a cleanup.
+// via toLogical, then onMove runs until release, then onEnd. Returns a teardown
+// that detaches the listeners without running onEnd.
 function runDrag(toLogical, onMove, onEnd) {
   function handleMove(event) {
     onMove(event, toLogical(event))
   }
-  function handleUp(event) {
+  function teardown() {
     window.removeEventListener('pointermove', handleMove)
     window.removeEventListener('pointerup', handleUp)
+    window.removeEventListener('pointercancel', handleUp)
+  }
+  function handleUp(event) {
+    teardown()
     onEnd(event, toLogical(event))
   }
   window.addEventListener('pointermove', handleMove)
   window.addEventListener('pointerup', handleUp)
+  // A pointercancel mid-transform (a touch scroll claiming the gesture) otherwise
+  // leaks these window listeners AND leaves the live shape geometry mutated by
+  // onMove but never committed by onEnd — a change that can't be undone. Ending on
+  // cancel commits the last position as one history step, like a normal release.
+  window.addEventListener('pointercancel', handleUp)
+  return teardown
 }
 
 // Drag the selection body to translate every selected shape together.

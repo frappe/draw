@@ -248,6 +248,32 @@ describe('no persisted value can escape its SVG attribute', () => {
   })
 })
 
+describe('table dimensions from an untrusted document (D5)', () => {
+  it('clamps an absurd row/col count so the render cannot hang', () => {
+    // rows/cols come from the untrusted document and drive a nested loop, so a
+    // shared/public diagram with rows:1e9 would otherwise loop ~1e18 times and hang
+    // every viewer's browser on the tile/thumbnail/export render. Cells are clamped
+    // to MAX_TABLE_DIM (200) per axis, so at most 200*200 cell rects are emitted.
+    const doc = { ...unifiedDocument(), diagramType: 'whiteboard', mindmap: null, flowchart: null }
+    doc.whiteboard.tables = [
+      { id: 'wt-huge', x: 0, y: 0, rows: 1e9, cols: 1e9, cellW: 40, cellH: 20, color: '#00AA55', cells: {} },
+    ]
+
+    const svg = documentToSvg(doc)
+    const cells = (svg.match(/stroke="#00AA55"/g) || []).length
+    expect(cells, 'the table loop was not clamped').toBe(200 * 200)
+  })
+
+  it('still renders a normal small table in full', () => {
+    // The clamp must not shrink a legitimate table: 2x2 = 4 cells.
+    const doc = { ...unifiedDocument(), diagramType: 'whiteboard', mindmap: null, flowchart: null }
+    doc.whiteboard.tables = [
+      { id: 'wt', x: 0, y: 0, rows: 2, cols: 2, cellW: 40, cellH: 20, color: '#00AA55', cells: {} },
+    ]
+    expect((documentToSvg(doc).match(/stroke="#00AA55"/g) || []).length).toBe(4)
+  })
+})
+
 describe('isDocumentEmpty', () => {
   it('does not call a unified document with only ink empty', () => {
     const doc = unifiedDocument()

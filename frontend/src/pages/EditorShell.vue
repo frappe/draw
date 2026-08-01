@@ -11,6 +11,7 @@ import { createDiagramStore, provideDiagramStore } from '@/stores/useDiagramStor
 import { createEditorUi, provideEditorUi } from '@/stores/useEditorUi.js'
 import { provideModeStrategy, getModeStrategy } from '@/stores/useModeStrategy.js'
 import { resetMindmapUi } from '@/stores/mindmapUi.js'
+import { resetFlowchartUi } from '@/stores/flowchartUi.js'
 import { provideModeInteraction } from '@/composables/useModeInteraction.js'
 import { useKeyboard, keyboardOwner } from '@/composables/useKeyboard.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
@@ -44,8 +45,12 @@ const whiteboardUi = useWhiteboardUi()
 // editorUi is created per editor, but mindmapUi is a module singleton whose fields
 // all hold node ids — and node ids are per-document counters, so they repeat across
 // maps. Clear it as each document loads, or leftovers (a branch focus, a half-armed
-// cross-link) silently re-attach to whichever node shares that id here.
+// cross-link) silently re-attach to whichever node shares that id here. The
+// flowchart and whiteboard editor-UI singletons hold the same kind of per-document
+// id state and are cleared for the same reason.
 resetMindmapUi()
+resetFlowchartUi()
+whiteboardUi.reset()
 provideDiagramStore(store)
 provideEditorUi(editorUi)
 
@@ -113,6 +118,8 @@ watch(
   (raw) => {
     if (raw) {
       resetMindmapUi()
+      resetFlowchartUi()
+      whiteboardUi.reset()
       store.loadDocument(parseDiagramDocument(raw))
     }
   },

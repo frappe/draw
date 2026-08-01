@@ -41,6 +41,13 @@ describe('readJson', () => {
     expect(readJson('k', 'fallback')).toBe('fallback')
   })
 
+  it('preserves a falsy stored value (0, false, "") rather than the fallback', () => {
+    for (const value of [0, false, '']) {
+      writeJson('k', value)
+      expect(readJson('k', 'fallback')).toBe(value)
+    }
+  })
+
   it('returns the fallback when localStorage itself throws (private mode)', () => {
     stub({
       getItem: () => {

@@ -26,10 +26,14 @@ function runDrag(toLogical, onMove, onEnd) {
   function handleUp() {
     window.removeEventListener('pointermove', handleMove)
     window.removeEventListener('pointerup', handleUp)
+    window.removeEventListener('pointercancel', handleUp)
     onEnd()
   }
   window.addEventListener('pointermove', handleMove)
   window.addEventListener('pointerup', handleUp)
+  // Also finish on pointercancel (a touch scroll claiming the gesture): otherwise
+  // these window listeners leak and the live marquee rect is never cleared.
+  window.addEventListener('pointercancel', handleUp)
 }
 
 // Normalise the drag into a positive-size rect in logical units.

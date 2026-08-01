@@ -1,3 +1,7 @@
+// @vitest-environment jsdom
+//
+// jsdom so watchConnectivity can attach a real 'online' listener to window; the
+// flush() tests below need no DOM and run identically under it.
 import { describe, it, expect, vi } from 'vitest'
 import { ref } from 'vue'
 
@@ -12,7 +16,7 @@ vi.mock('@/utils/localCache.js', () => ({
   clearLocalDoc: () => Promise.resolve(),
 }))
 
-const { flush } = await import('./useAutosave.js')
+const { flush, watchConnectivity } = await import('./useAutosave.js')
 
 // Regression tests for the save-coalescing order in flush().
 //
@@ -137,5 +141,62 @@ describe('flush', () => {
     await h.session.flushNow()
 
     expect(h.calls).toEqual([])
+  })
+})
+
+// Regression tests for the offline-freeze recovery (finding D3).
+//
+// An offline save failure freezes the editor after ~5s. The 'online' handler exists
+// to lift that freeze and flush — but flush() early-returns while frozen, so without
+// clearing the freeze first the handler was dead code for exactly the case it exists
+// for, and the editor stayed frozen until a manual reload. A stale-revision freeze is
+// deliberately left in place, since that genuinely needs a reload.
+function reconnectHarness(frozenReason) {
+  const frozen = ref(frozenReason ? 'a freeze message' : null)
+  const session = {
+    frozenReason,
+    frozen,
+    flushNow: vi.fn(),
+    clearFrozen: vi.fn(() => {
+      frozen.value = null
+      session.frozenReason = null
+    }),
+  }
+  return { session, frozen }
+}
+
+describe('watchConnectivity', () => {
+  it('lifts an offline freeze on reconnect, then flushes', () => {
+    const { session, frozen } = reconnectHarness('offline')
+    const dispose = watchConnectivity(session)
+
+    window.dispatchEvent(new Event('online'))
+
+    expect(session.clearFrozen, 'the offline freeze was never lifted').toHaveBeenCalled()
+    expect(frozen.value).toBeNull()
+    expect(session.flushNow).toHaveBeenCalled()
+    dispose()
+  })
+
+  it('leaves a stale-revision freeze in place on reconnect', () => {
+    const { session, frozen } = reconnectHarness('stale')
+    const dispose = watchConnectivity(session)
+
+    window.dispatchEvent(new Event('online'))
+
+    // A stale conflict needs a reload; reconnecting must not silently resume saving.
+    expect(session.clearFrozen).not.toHaveBeenCalled()
+    expect(frozen.value).toBe('a freeze message')
+    dispose()
+  })
+
+  it('detaches the listener when disposed', () => {
+    const { session } = reconnectHarness('offline')
+    const dispose = watchConnectivity(session)
+    dispose()
+
+    window.dispatchEvent(new Event('online'))
+
+    expect(session.flushNow).not.toHaveBeenCalled()
   })
 })

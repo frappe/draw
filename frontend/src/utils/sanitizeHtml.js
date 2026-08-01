@@ -47,6 +47,13 @@ const STYLE_ALLOW = {
 
 if (purify?.isSupported) {
   purify.addHook('afterSanitizeAttributes', (node) => {
+    // A link that opens a new tab (`target`) without `rel` lets the opened page
+    // reach back through `window.opener` (reverse tabnabbing). The document is
+    // untrusted, so force a safe rel whenever a target is present rather than
+    // trusting whatever rel the markup carried.
+    if (node.tagName === 'A' && node.getAttribute?.('target')) {
+      node.setAttribute('rel', 'noopener noreferrer')
+    }
     const style = node.getAttribute?.('style')
     if (!style) return
     const kept = []

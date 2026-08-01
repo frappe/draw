@@ -7,7 +7,7 @@
 
 import { toast } from 'frappe-ui'
 import { documentToSvg, safeColor, num } from '@/composables/useThumbnail.js'
-import { axisAlignedBBox } from '@/diagram/geometry.js'
+import { axisAlignedBBox, maxOf, minOf } from '@/diagram/geometry.js'
 import { outlineMarkdown } from '@/diagram/convert.js'
 
 // "No color" canvas (background === null) exports transparent for PNG/SVG/PDF;
@@ -80,9 +80,9 @@ function selectionBounds(shapes, connectors, allShapes) {
   }
   if (!xs.length) return { x: 0, y: 0, w: 0, h: 0 }
   const pad = 16
-  const minX = Math.min(...xs)
-  const minY = Math.min(...ys)
-  return { x: minX - pad, y: minY - pad, w: Math.max(...xs) - minX + pad * 2, h: Math.max(...ys) - minY + pad * 2 }
+  const minX = minOf(xs)
+  const minY = minOf(ys)
+  return { x: minX - pad, y: minY - pad, w: maxOf(xs) - minX + pad * 2, h: maxOf(ys) - minY + pad * 2 }
 }
 
 function endpointXY(endpoint, allShapes) {
