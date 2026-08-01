@@ -6,7 +6,6 @@
 import { computed } from 'vue'
 import { Dropdown, toast } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
-import { documentToSvg, isDocumentEmpty } from '@/composables/useThumbnail.js'
 import { typeIcon, typeLabel } from '@/data/diagramTypes.js'
 
 const props = defineProps({
@@ -18,11 +17,10 @@ const props = defineProps({
 })
 const emit = defineEmits(['open', 'toggle-select', 'toggle-pin', 'rename', 'duplicate', 'delete', 'move', 'show-info'])
 
-const previewSvg = computed(() => {
-  const document = props.diagram.document
-  if (!document || isDocumentEmpty(document)) return null
-  return documentToSvg(document)
-})
+// The saved raster thumbnail (Attach Image url), rendered directly instead of
+// rebuilding an SVG from the full document on every home load (#20). Absent for a
+// brand-new diagram that has not saved a thumbnail yet — the type icon fills in.
+const thumbnailUrl = computed(() => props.diagram.thumbnail || null)
 
 const icon = computed(() => typeIcon(props.diagram.diagram_type))
 const typeName = computed(() => typeLabel(props.diagram.diagram_type))
@@ -189,7 +187,14 @@ function onDragStart(event) {
         class="flex h-[120px] items-center justify-center border-b border-outline-gray-1 p-2"
         style="background-color: #ffffff"
       >
-        <div v-if="previewSvg" class="h-full w-full [&>svg]:h-full [&>svg]:w-full" v-html="previewSvg" />
+        <img
+          v-if="thumbnailUrl"
+          :src="thumbnailUrl"
+          alt=""
+          loading="lazy"
+          decoding="async"
+          class="h-full w-full object-contain"
+        />
         <LucideIcon v-else :name="icon" class="h-7 w-7 text-ink-gray-3" />
       </div>
     </button>

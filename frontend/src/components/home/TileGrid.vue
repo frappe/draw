@@ -8,7 +8,7 @@
 // action bar on selection. Creation is the top-right CTA only (no inline tile).
 // At most MAX_PINNED diagrams can be pinned.
 import { computed, onMounted, reactive, ref, watchEffect } from 'vue'
-import { createListResource, Dialog, Button, FormControl, Dropdown, TextInput, Tooltip } from 'frappe-ui'
+import { createListResource, call, Dialog, Button, FormControl, Dropdown, TextInput, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import DiagramCollection from './DiagramCollection.vue'
 import FolderItem from './FolderItem.vue'
@@ -27,7 +27,10 @@ const RECENT_LIMIT = 24
 
 const enriched = createListResource({
   doctype: 'Draw Diagram',
-  fields: ['name', 'title', 'creation', 'modified', 'folder', 'diagram_type', 'is_pinned', 'owner', 'document'],
+  // No `document` here: it is the whole serialized canvas per diagram and was the
+  // heaviest part of the home payload. Tiles render the stored `thumbnail` raster
+  // instead, and duplicate fetches the document on demand (#20).
+  fields: ['name', 'title', 'creation', 'modified', 'folder', 'diagram_type', 'is_pinned', 'owner', 'thumbnail'],
   filters: { is_trashed: 0 },
   orderBy: 'modified desc',
   pageLength: 500,
@@ -258,7 +261,10 @@ async function saveEditor() {
 }
 
 async function duplicate(diagram) {
-  const document = diagram.document || createDiagramDocument()
+  // The list no longer carries `document` (#20), so fetch the source canvas on
+  // demand (permission-checked) only when the user actually duplicates.
+  const source = await call('draw.api.diagram.get_diagram', { name: diagram.name })
+  const document = source?.document || createDiagramDocument()
   await enriched.insert.submit({ title: `${diagram.title} copy`, folder: diagram.folder || null, document })
   refresh()
 }
