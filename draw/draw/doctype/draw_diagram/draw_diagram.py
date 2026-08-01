@@ -51,9 +51,18 @@ def slugify(text):
 
 
 def unique_diagram_name(base):
-	candidate = base
-	suffix = 2
-	while frappe.db.exists("Draw Diagram", candidate):
-		candidate = f"{base}-{suffix}"
-		suffix += 1
-	return candidate
+	# `base`, else the lowest free `base-2`, `base-3`… (a deleted suffix is reused).
+	# One query fetches the numbered siblings instead of probing each candidate in
+	# sequence, so creating the Nth same-titled diagram is a single round-trip, not N.
+	if not frappe.db.exists("Draw Diagram", base):
+		return base
+	prefix = f"{base}-"
+	taken = set()
+	for name in frappe.get_all("Draw Diagram", filters={"name": ["like", f"{prefix}%"]}, pluck="name"):
+		suffix = name[len(prefix) :]
+		if suffix.isdigit():
+			taken.add(int(suffix))
+	nxt = 2
+	while nxt in taken:
+		nxt += 1
+	return f"{prefix}{nxt}"

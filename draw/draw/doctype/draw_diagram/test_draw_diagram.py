@@ -9,11 +9,11 @@ import frappe
 
 
 class TestDrawDiagram(IntegrationTestCase):
-	def _make(self, diagram_type, doc_json):
+	def _make(self, diagram_type, doc_json, title=None):
 		doc = frappe.get_doc(
 			{
 				"doctype": "Draw Diagram",
-				"title": f"Test {diagram_type}",
+				"title": title or f"Test {diagram_type}",
 				"diagram_type": diagram_type,
 				"document": json.dumps(doc_json),
 			}
@@ -248,6 +248,27 @@ class TestDrawDiagram(IntegrationTestCase):
 			self.assertFalse(frappe.has_permission("Draw Diagram", "read", doc=doc.name))
 		finally:
 			frappe.set_user("Administrator")
+
+	# ----- unique slug naming (A4) -----
+
+	def test_duplicate_titles_get_sequential_slugs(self):
+		# The URL slug is derived from the title; same-titled diagrams de-dup with a
+		# -2/-3 suffix. (A4 collapsed the per-candidate probe into one query but must
+		# keep this exact user-visible sequence.)
+		body = {"schemaVersion": 1, "diagramType": "block"}
+		names = [self._make("block", body, title="Shared Title").name for _ in range(3)]
+		self.assertEqual(names, ["shared-title", "shared-title-2", "shared-title-3"])
+
+	def test_unique_slug_reuses_the_lowest_free_suffix(self):
+		# A freed-up suffix in the middle is reused, not skipped — the long-standing
+		# behaviour of the sequential probe, preserved by the single-query rewrite.
+		from draw.draw.doctype.draw_diagram.draw_diagram import unique_diagram_name
+
+		body = {"schemaVersion": 1, "diagramType": "block"}
+		self._make("block", body, title="Gap Title")  # -> gap-title
+		self._make("block", body, title="Gap Title 3")  # -> gap-title-3 (sibling at 3)
+		# 2 is free between them; the next same-title diagram must fill it, not jump to 4.
+		self.assertEqual(unique_diagram_name("gap-title"), "gap-title-2")
 
 	# ----- share target validation (A6) -----
 
