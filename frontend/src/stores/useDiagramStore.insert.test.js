@@ -67,6 +67,14 @@ describe('insertMindmapStarter places a new frame in the visible rect', () => {
     expect(store.state.mindmap.origin).toEqual(defaultOrigin)
   })
 
+  it('seeds a single empty root — no children, no default text (#80)', () => {
+    const store = unified()
+    store.insertMindmapStarter()
+    expect(store.state.mindmap.nodes.length).toBe(1)
+    expect(store.state.mindmap.nodes[0].parentId).toBeFalsy() // a root, not a child
+    expect(store.state.mindmap.nodes[0].text).toBe('') // greyed placeholder, no real text
+  })
+
   // #48: a repeat insert used to graft "New idea" onto the existing root, so the
   // second Add mind map edited the first map instead of making one of its own.
   it('adds a SECOND independent tree, leaving the first one alone', () => {
@@ -79,7 +87,7 @@ describe('insertMindmapStarter places a new frame in the visible rect', () => {
 
     const after = trees(store.state)
     expect(after.length).toBe(2)
-    expect(store.state.mindmap.nodes.length).toBe(6) // two roots + two branches each
+    expect(store.state.mindmap.nodes.length).toBe(2) // two roots, no default branches (#80)
     // The first tree keeps its nodes AND its place on the canvas.
     expect(after[0]).toEqual(before[0])
     expect(store.state.mindmap.origin).toEqual(placed)
@@ -109,7 +117,7 @@ describe('insertMindmapStarter places a new frame in the visible rect', () => {
 })
 
 describe('insertFlowchartStarter places a new frame in the visible rect', () => {
-  it('centres the two seeded nodes in the view', () => {
+  it('centres the seeded node in the view', () => {
     const store = unified()
     const view = viewAround(-800, 3200)
 
@@ -127,6 +135,13 @@ describe('insertFlowchartStarter places a new frame in the visible rect', () => 
     expect(store.state.flowchart.origin).toEqual(defaultOrigin)
   })
 
+  it('seeds a single node with no edge (#80)', () => {
+    const store = unified()
+    store.insertFlowchartStarter()
+    expect(store.state.flowchart.nodes.length).toBe(1)
+    expect(store.state.flowchart.edges.length).toBe(0)
+  })
+
   // #48: a repeat insert used to append a step to the last node and wire an edge
   // to it, extending the chart already there instead of starting a new one.
   it('adds a SECOND independent chart, unconnected to the first', () => {
@@ -138,13 +153,13 @@ describe('insertFlowchartStarter places a new frame in the visible rect', () => 
     store.insertFlowchartStarter(viewAround(0, 0))
 
     const fc = store.state.flowchart
-    expect(fc.nodes.length).toBe(4)
-    expect(fc.edges.length).toBe(2) // one per chart, none between them
-    // The first chart's nodes are untouched, and the frame stays where it was.
-    expect(fc.nodes.slice(0, 2)).toEqual(before)
+    expect(fc.nodes.length).toBe(2) // one node per chart (#80)
+    expect(fc.edges.length).toBe(0) // single-node starters wire no edges
+    // The first chart's node is untouched, and the frame stays where it was.
+    expect(fc.nodes.slice(0, 1)).toEqual(before)
     expect(fc.origin).toEqual(placed)
     // The new chart sits below the old one, not on top of it.
-    const added = fc.nodes.slice(2)
+    const added = fc.nodes.slice(1)
     expect(Math.min(...added.map((n) => n.y))).toBeGreaterThan(Math.max(...before.map((n) => n.y)))
   })
 })

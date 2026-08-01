@@ -232,7 +232,7 @@ describe('deleting one of several mind maps', () => {
 
     deleteTrees(store, mindmapUi.confirmDelete.trees)
     expect(rootNodes(store.state.mindmap).map((n) => n.id)).toEqual([first])
-    expect(store.state.mindmap.nodes).toHaveLength(3)
+    expect(store.state.mindmap.nodes).toHaveLength(1) // one map remains, a single-node starter (#80)
   })
 
   it('still clears the whole map when it holds only one', () => {

@@ -240,9 +240,10 @@ function attachMindMap(store, state, history) {
       const m = state.mindmap
       if (!m) return
       const first = !m.nodes.length
-      const root = addTree(m, 'Central idea')
-      addChild(m, root, 'Idea 1', 'right')
-      addChild(m, root, 'Idea 2', 'left')
+      // Start with a single empty root — no default children, no default text.
+      // An empty node renders a greyed "New idea" placeholder (MindMapNodeLayer),
+      // so the user names it instead of clearing seeded text (#80).
+      const root = addTree(m, '')
       if (!view) return
       if (first) {
         m.origin = frameOriginInView(layoutMindMap(m).bbox, view, otherFrameRect(state, 'mindmap'))
@@ -343,9 +344,9 @@ function attachFlowchart(store, state, history) {
       const bounds = first ? null : flowchartContentBounds(m)
       const x = bounds ? bounds.x : 0
       const y = bounds ? bounds.y + bounds.h + FRAME_GAP : 0
-      const a = addFlowchartNode(m, 'terminator', 'Start', x, y)
-      const b = addFlowchartNode(m, 'process', 'Step', x, y + 150)
-      addFlowchartEdge(m, a, b)
+      // Start with a single node — no second step, no edge (#80). Flowchart nodes
+      // have no placeholder render, so the lone start node keeps a short label.
+      addFlowchartNode(m, 'terminator', 'Start', x, y)
       if (first && view) {
         m.origin = frameOriginInView(flowchartContentBounds(m), view, otherFrameRect(state, 'flowchart'))
       }
