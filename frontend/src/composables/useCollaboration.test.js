@@ -333,6 +333,43 @@ describe('useCollaboration', () => {
     collab.destroy()
   })
 
+  it('honours a pre-sync delete without resurrecting it, and keeps an offline-only shape', async () => {
+    const Yreal = await vi.importActual('yjs')
+    const { toBase64 } = await import('lib0/buffer')
+    // Server lineage carries two shapes; the loaded server document lists the same two.
+    const serverDoc = new Yreal.Doc()
+    serverDoc.getMap('shapes').set('s-server', JSON.stringify({ id: 's-server', type: 'rectangle' }))
+    serverDoc.getMap('shapes').set('s-del', JSON.stringify({ id: 's-del', type: 'rectangle' }))
+    const serverCrdt = toBase64(Yreal.encodeStateAsUpdate(serverDoc))
+    const serverDocument = {
+      canvas: { width: 1280, height: 720 },
+      shapes: [{ id: 's-server' }, { id: 's-del' }],
+      connectors: [],
+      sections: [],
+    }
+
+    sessions = [() => Promise.resolve({ room: 'room-a', password: 'pw-a' })]
+    const store = makeStore()
+    // The store was hydrated from the server document, then the user DELETED s-del in
+    // the ~1-2s before collaboration synced (so it is gone from the store only).
+    store.state.shapes = [{ id: 's-server' }]
+    const collab = useCollaboration(store, {}, 'diagram-1', () => serverCrdt, () => serverDocument)
+    await flush()
+
+    const doc = created.docs[0]
+    // A shape y-indexeddb loaded from the offline cache — never in the server document.
+    doc.transact(() => doc.getMap('shapes').set('s-cache', JSON.stringify({ id: 's-cache', type: 'ellipse' })))
+
+    created.persistences[0].emitSynced()
+    await nextTick()
+
+    // s-del does NOT reappear (the pre-sync delete is honoured); s-server is kept; and
+    // the offline-only s-cache still survives (add-only merge for cache items).
+    expect([...doc.getMap('shapes').keys()].sort()).toEqual(['s-cache', 's-server'])
+    expect(store.state.shapes.map((s) => s.id).sort()).toEqual(['s-cache', 's-server'])
+    collab.destroy()
+  })
+
   it('snapshot() is null before the initial sync, then returns the reconciled doc as base64', async () => {
     sessions = [() => Promise.resolve({ room: 'room-a', password: 'pw-a' })]
     const store = makeStore()

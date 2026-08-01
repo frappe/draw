@@ -26,6 +26,7 @@ import * as Y from 'yjs'
 import { WebrtcProvider } from 'y-webrtc'
 import { IndexeddbPersistence } from 'y-indexeddb'
 import { fromBase64, toBase64 } from 'lib0/buffer'
+import { parseDiagramDocument } from '@/diagram/schema.js'
 
 // Matches Frappe Writer/Drive so it uses the same signaling + TURN infrastructure.
 const REALTIME_CONFIG = {
@@ -55,7 +56,10 @@ const CURSOR_COLORS = ['#6846E3', '#0A84FF', '#16A34A', '#D97706', '#DB2777', '#
 // (draw_diagram.crdt_state), or null. It is what makes the offline cache and the
 // server one CRDT lineage: on open the doc is seeded from it, so a cached copy
 // MERGES with — rather than clobbers — a newer server document.
-export function useCollaboration(store, editorUi, name, getServerCrdt = () => null) {
+// `getServerDoc` returns the loaded server document (the raw JSON the store was
+// hydrated from), used at the first sync to tell a pre-sync DELETE apart from an
+// offline-cache addition (see applyPreSyncDeletes).
+export function useCollaboration(store, editorUi, name, getServerCrdt = () => null, getServerDoc = () => null) {
   const collaborators = ref([]) // remote peers: { id, name, color, cursor:{x,y} }
   if (!name) return { collaborators, setCursor() {}, snapshot: () => null, destroy() {} }
 
@@ -124,6 +128,31 @@ export function useCollaboration(store, editorUi, name, getServerCrdt = () => nu
       }
       for (const key of META_KEYS) {
         if (!yMeta.has(key)) yMeta.set(key, JSON.stringify(store.state[key] ?? null))
+      }
+    }, 'local')
+  }
+
+  // The delete half of the initial merge, kept apart from the add-only merge above.
+  // An object the user deleted in the ~1-2s before the first sync left the store but
+  // not the seeded doc, so mergeStoreIntoYjs + applyFromYjs alone would resurrect it.
+  // Remove from the doc any object that WAS in the loaded server document but is no
+  // longer in the store — that is exactly a pre-sync deletion. An object that lives
+  // only in the offline cache (never in the server document) is NOT in this set, so
+  // offline-only additions still survive the merge.
+  function applyPreSyncDeletes() {
+    if (applyingRemote || !room) return
+    let server
+    try {
+      server = parseDiagramDocument(getServerDoc())
+    } catch (error) {
+      return // Unparseable server doc: skip deletes rather than guess (adds still merged).
+    }
+    doc.transact(() => {
+      for (const key of ['shapes', 'connectors', 'sections']) {
+        const present = new Set((store.state[key] || []).map((item) => item.id))
+        for (const item of server[key] || []) {
+          if (!present.has(item.id) && maps[key].has(item.id)) maps[key].delete(item.id)
+        }
       }
     }, 'local')
   }
@@ -242,8 +271,10 @@ export function useCollaboration(store, editorUi, name, getServerCrdt = () => nu
       if (serverCrdt) {
         applyServerCrdt(serverCrdt)
         // Fold in any edits made before this sync resolved (they live only in the
-        // store so far), then hydrate the store from the reconciled union.
+        // store so far): add-only first, then honour any pre-sync deletes, then
+        // hydrate the store from the reconciled union.
         mergeStoreIntoYjs()
+        applyPreSyncDeletes()
         applyFromYjs()
       } else {
         pushToYjs()

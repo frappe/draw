@@ -97,7 +97,13 @@ const dark = computed(() => appSettings.darkMode)
 // Real-time co-editing (Yjs + y-webrtc) + live cursors, keyed by the diagram name.
 // Created before autosave so its CRDT snapshot rides along with each save, keeping
 // the offline cache and the server one lineage (crdt_state on Draw Diagram).
-const collab = useCollaboration(store, editorUi, props.name, () => diagram.doc?.crdt_state || null)
+const collab = useCollaboration(
+  store,
+  editorUi,
+  props.name,
+  () => diagram.doc?.crdt_state || null,
+  () => diagram.doc?.document || null,
+)
 const autosave = useAutosave(store, diagram, collab.snapshot)
 const thumbnail = useThumbnail(store, diagram)
 useKeyboard(store, editorUi)
