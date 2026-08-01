@@ -27,6 +27,7 @@ const editedShape = computed(() => {
 
 // Drag a top-ruler marker to set the edited shape's left/right text inset. Maps
 // the pointer's window x into canvas units via the surface rect + viewport.
+let releaseDrag = null
 function startMarkerDrag(event, side) {
   const shape = editedShape.value
   if (!shape) return
@@ -48,9 +49,15 @@ function startMarkerDrag(event, side) {
   const up = () => {
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', up)
+    window.removeEventListener('pointercancel', up)
+    releaseDrag = null
   }
+  releaseDrag = up
   window.addEventListener('pointermove', move)
   window.addEventListener('pointerup', up)
+  // A pointercancel (a touch scroll claiming the gesture) or an unmount mid-drag
+  // would otherwise leak these window listeners.
+  window.addEventListener('pointercancel', up)
 }
 
 // Show while editing any text: shared text boxes/shapes (block + whiteboard) or a
@@ -147,6 +154,7 @@ watch(
 )
 onBeforeUnmount(() => {
   if (raf) cancelAnimationFrame(raf)
+  releaseDrag?.()
 })
 </script>
 
