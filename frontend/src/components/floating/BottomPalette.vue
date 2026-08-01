@@ -10,7 +10,6 @@ import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { isUnifiedDocument } from '@/diagram/schema.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
-import { recentShapes, pushRecentShape } from '@/composables/useRecentShapes.js'
 import { startPaletteDrag } from '@/composables/useShapeCreation.js'
 import { collapseAll } from '@/diagram/mindmapOperations.js'
 import { autoNumberFlow, isFlowNumbered } from '@/diagram/flowchartModel.js'
@@ -105,16 +104,12 @@ const filteredDiagrams = computed(() => {
   if (!isUnified.value) return []
   return query.value ? DIAGRAMS.filter((d) => d.label.toLowerCase().includes(query.value)) : DIAGRAMS
 })
-
-// Recently-used shapes/lines, shown as a row at the top of the popover (2.3).
-const byType = computed(() => Object.fromEntries([...SHAPES, ...LINES].map((s) => [s.type, s])))
-const recentShapeDefs = computed(() =>
-  recentShapes.value.map((type) => byType.value[type]).filter(Boolean),
-)
+// Mind map and flowchart are shown as their own separate sections (#79).
+const filteredMindmap = computed(() => filteredDiagrams.value.filter((d) => d.key === 'mindmap'))
+const filteredFlowchart = computed(() => filteredDiagrams.value.filter((d) => d.key === 'flowchart'))
 
 function arm(type, close) {
   editorUi.setDrawShape(type)
-  pushRecentShape(type)
   shapeQuery.value = ''
   close?.()
 }
@@ -129,7 +124,6 @@ function isArmed(type) {
 // leaves the tool ready — the same end state as clicking the tile.
 function startTileDrag(event, type) {
   startPaletteDrag(event, type, editorUi)
-  pushRecentShape(type)
 }
 
 // Close the popover only once the drag is over. Closing it on dragstart would
@@ -210,25 +204,6 @@ function setGuides(state) {
               placeholder="Search shapes…"
               class="mb-2 h-7 w-full rounded-md border border-outline-gray-2 bg-surface-base px-2 text-xs text-ink-gray-8 outline-none placeholder:text-ink-gray-4 focus:border-outline-gray-3"
             />
-            <!-- Recently used (hidden while searching). -->
-            <template v-if="!query && recentShapeDefs.length">
-              <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Recent</div>
-              <div class="mb-2 grid grid-cols-4 gap-1">
-                <Tooltip v-for="s in recentShapeDefs" :key="`r-${s.type}`" :text="s.label">
-                  <button
-                    class="flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-gray-2"
-                    :class="isArmed(s.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
-                    draggable="true"
-                    @click="arm(s.type, togglePopover)"
-                    @dragstart="startTileDrag($event, s.type)"
-                    @dragend="endTileDrag(togglePopover)"
-                  >
-                    <LucideIcon :name="s.icon" class="h-[18px] w-[18px]" :class="s.type === 'diamond' ? 'rotate-45' : ''" />
-                  </button>
-                </Tooltip>
-              </div>
-              <div class="mb-2 h-px bg-surface-gray-3" />
-            </template>
             <div v-if="filteredShapes.length" class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Shapes</div>
             <div v-if="filteredShapes.length" class="grid grid-cols-4 gap-1">
               <Tooltip v-for="s in filteredShapes" :key="s.type" :text="s.label">
@@ -260,10 +235,22 @@ function setGuides(state) {
                 </button>
               </Tooltip>
             </div>
-            <!-- Auto-layout frames (#44): the old Insert menu, folded in here. -->
-            <div v-if="filteredDiagrams.length" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Mind map &amp; flowchart</div>
-            <div v-if="filteredDiagrams.length" class="grid grid-cols-4 gap-1">
-              <Tooltip v-for="d in filteredDiagrams" :key="d.key" :text="d.label">
+            <!-- Auto-layout frames (#44): the old Insert menu, folded in here.
+                 Mind map and flowchart are separate sections (#79). -->
+            <div v-if="filteredMindmap.length" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Mind map</div>
+            <div v-if="filteredMindmap.length" class="grid grid-cols-4 gap-1">
+              <Tooltip v-for="d in filteredMindmap" :key="d.key" :text="d.label">
+                <button
+                  class="flex h-9 w-9 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2"
+                  @click="insertDiagram(d, togglePopover)"
+                >
+                  <LucideIcon :name="d.icon" class="h-[18px] w-[18px]" />
+                </button>
+              </Tooltip>
+            </div>
+            <div v-if="filteredFlowchart.length" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Flowchart</div>
+            <div v-if="filteredFlowchart.length" class="grid grid-cols-4 gap-1">
+              <Tooltip v-for="d in filteredFlowchart" :key="d.key" :text="d.label">
                 <button
                   class="flex h-9 w-9 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2"
                   @click="insertDiagram(d, togglePopover)"
