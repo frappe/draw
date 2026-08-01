@@ -249,6 +249,61 @@ class TestDrawDiagram(IntegrationTestCase):
 		finally:
 			frappe.set_user("Administrator")
 
+	# ----- share target validation (A6) -----
+
+	def test_share_rejects_an_unknown_user(self):
+		# `user` is a free-form string from the client; a share row for a login that
+		# does not exist is dead weight (and hides typos). It must be rejected.
+		from draw.api.share import share_diagram
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		self.assertRaises(
+			frappe.ValidationError, share_diagram, doc.name, "draw-nobody@example.com", "view"
+		)
+
+	def test_share_rejects_a_disabled_user(self):
+		# A disabled user can never open the diagram, so a share grant is meaningless
+		# — reject it the same as an unknown user.
+		from draw.api.share import share_diagram
+
+		user = self._user("draw-disabled@example.com")
+		frappe.db.set_value("User", user, "enabled", 0)
+		self.addCleanup(lambda: frappe.db.set_value("User", user, "enabled", 1))
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		self.assertRaises(frappe.ValidationError, share_diagram, doc.name, user, "view")
+
+	def test_share_rejects_administrator_and_guest(self):
+		from draw.api.share import share_diagram
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		self.assertRaises(frappe.ValidationError, share_diagram, doc.name, "Administrator", "view")
+		self.assertRaises(frappe.ValidationError, share_diagram, doc.name, "Guest", "view")
+
+	# ----- user search hardening (A7) -----
+
+	def test_search_users_ignores_a_too_short_query(self):
+		# Empty / single-char queries must not enumerate the whole user table.
+		from draw.api.share import search_users
+
+		self.assertEqual(search_users(""), [])
+		self.assertEqual(search_users("a"), [])
+		self.assertEqual(search_users("  "), [])  # whitespace only
+
+	def test_search_users_escapes_like_wildcards(self):
+		# A query of pure wildcards must be treated literally, not as "match everyone".
+		from draw.api.share import search_users
+
+		user = self._user("draw-searchable@example.com")
+		frappe.db.set_value("User", user, "full_name", "Draw Searchable")
+		self.addCleanup(lambda: frappe.db.set_value("User", user, "full_name", None))
+
+		# A real 2-char substring finds the user (search still works).
+		self.assertIn(user, [u["name"] for u in search_users("searchable")])
+		# "%%" escaped matches only names literally containing "%%" — so our user
+		# (and normal users) are excluded; unescaped it would match every enabled user.
+		self.assertNotIn(user, [u["name"] for u in search_users("%%")])
+
 	# ----- save_diagram stale-revision conflict (D6) -----
 
 	def test_save_diagram_rejects_a_stale_revision(self):

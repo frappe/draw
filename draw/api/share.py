@@ -22,11 +22,22 @@ def _check_can_share(name: str) -> None:
 		frappe.throw(_("You are not permitted to share this diagram."), frappe.PermissionError)
 
 
+def _validate_share_target(user: str) -> None:
+	"""The share target must be a real, enabled user — the same set the invite box
+	(`search_users`) offers. Guest/Administrator and disabled/unknown users are
+	rejected so a share row can't be created for a login that can never use it."""
+	if user in ("Administrator", "Guest"):
+		frappe.throw(_("Cannot share with this user."))
+	if not frappe.db.get_value("User", user, "enabled"):
+		frappe.throw(_("Unknown or disabled user: {0}").format(user))
+
+
 @frappe.whitelist()
 def share_diagram(name: str, user: str, level: str = "view") -> list:
 	"""Share a diagram with a user at view / comment / edit level (idempotent —
 	re-sharing updates the level). Returns the current share list."""
 	_check_can_share(name)
+	_validate_share_target(user)
 	flags = LEVEL_FLAGS.get(level)
 	if not flags:
 		frappe.throw(_("Unknown access level: {0}").format(level))
@@ -79,11 +90,24 @@ def get_diagram_shares(name: str) -> list:
 	return shares
 
 
+_MIN_SEARCH_LEN = 2
+
+
+def _escape_like(txt: str) -> str:
+	"""Escape LIKE wildcards so a query of "%" or "_" can't match every user.
+	Backslash first, then the two metacharacters (MariaDB's default escape char)."""
+	return txt.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 @frappe.whitelist()
 def search_users(txt: str = "") -> list:
 	"""Enabled users matching `txt` (name or full name), for the invite box.
-	Excludes Guest/Administrator."""
-	like = f"%{txt or ''}%"
+	Excludes Guest/Administrator. A short query returns nothing so the endpoint
+	can't be used to enumerate the whole user table one letter at a time."""
+	txt = (txt or "").strip()
+	if len(txt) < _MIN_SEARCH_LEN:
+		return []
+	like = f"%{_escape_like(txt)}%"
 	return frappe.get_all(
 		"User",
 		filters={"enabled": 1, "name": ["not in", ("Administrator", "Guest")]},
