@@ -67,7 +67,7 @@ vi.mock('vue', async () => {
   return { ...actual, onBeforeUnmount: () => {} }
 })
 
-const { useCollaboration } = await import('./useCollaboration.js')
+const { useCollaboration, userColorFor } = await import('./useCollaboration.js')
 
 const POLL_MS = 60_000
 
@@ -122,6 +122,21 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
+})
+
+describe('userColorFor (cursor colour keyed on user id, not name)', () => {
+  it('is deterministic and returns a palette hex colour', () => {
+    expect(userColorFor('alice@example.com')).toBe(userColorFor('alice@example.com'))
+    expect(userColorFor('alice@example.com')).toMatch(/^#[0-9A-F]{6}$/i)
+  })
+
+  it('spreads distinct user ids across more than one colour', () => {
+    // Two people named "Guest" with different ids must be able to differ — the
+    // whole point of colouring by id. A spread across many ids proves it isn't
+    // collapsing everyone to one colour the way name-hashing a shared name did.
+    const ids = ['u1@x', 'u2@x', 'u3@x', 'u4@x', 'u5@x', 'u6@x', 'u7@x', 'u8@x']
+    expect(new Set(ids.map(userColorFor)).size).toBeGreaterThan(1)
+  })
 })
 
 describe('useCollaboration', () => {

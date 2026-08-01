@@ -340,12 +340,21 @@ export function useCollaboration(store, editorUi, name, getServerCrdt = () => nu
   return { collaborators, setCursor, snapshot, destroy }
 }
 
-function currentUser() {
-  const name = (typeof window !== 'undefined' && window.full_name) || 'Guest'
-  // Stable colour per name so a person keeps the same cursor colour.
+// Stable cursor colour for a user, keyed on a value passed in (their user id).
+// Keying on the id rather than the display name is what stops two people who
+// happen to share a name (e.g. two "Guest"s) from also sharing a cursor colour.
+export function userColorFor(key) {
   let hash = 0
-  for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0
-  return { name, color: CURSOR_COLORS[hash % CURSOR_COLORS.length] }
+  for (const ch of String(key || '')) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0
+  return CURSOR_COLORS[hash % CURSOR_COLORS.length]
+}
+
+function currentUser() {
+  const win = typeof window !== 'undefined' ? window : {}
+  // Display the full name, but colour by the stable, unique user id (boot injects
+  // both; see www/draw.py). Fall back to the name only when no id is present.
+  const name = win.full_name || 'Guest'
+  return { name, color: userColorFor(win.user_id || name) }
 }
 
 function debounce(fn, ms) {
