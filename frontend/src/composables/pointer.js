@@ -36,8 +36,14 @@ export function runMarqueeDrag({ start, rect, viewport, onUpdate, onDone }) {
   const up = () => {
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', up)
+    window.removeEventListener('pointercancel', up)
     onDone()
   }
   window.addEventListener('pointermove', move)
   window.addEventListener('pointerup', up)
+  // A pointercancel (the browser claiming the gesture — a touch scroll/zoom, or the
+  // pointer leaving on some platforms) otherwise never removes these window
+  // listeners and never runs onDone, leaking a listener per cancelled drag and
+  // stranding the live marquee box. Finish the drag as if released.
+  window.addEventListener('pointercancel', up)
 }
