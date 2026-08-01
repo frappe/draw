@@ -5,7 +5,7 @@
 // the content it groups. Title bar drags it; double-click the title to rename;
 // a resize handle + delete button show when selected. Edits go through the store
 // (one undoable unit each); drag deltas divide by zoom (Part G4).
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { SECTION_HEADER_H } from '@/diagram/sections.js'
@@ -33,6 +33,7 @@ onMounted(() => {
   if (field.value) field.value.textContent = props.section.title || ''
 })
 
+let releaseGesture = null
 function startGesture(event, apply) {
   event.stopPropagation()
   if (editorUi.state.tool !== 'select') return
@@ -47,10 +48,17 @@ function startGesture(event, apply) {
   const up = () => {
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', up)
+    window.removeEventListener('pointercancel', up)
+    releaseGesture = null
   }
+  releaseGesture = up
   window.addEventListener('pointermove', move)
   window.addEventListener('pointerup', up)
+  // A pointercancel (a touch scroll claiming the gesture) or an unmount mid-drag
+  // would otherwise leak these window listeners; end the gesture in both cases.
+  window.addEventListener('pointercancel', up)
 }
+onBeforeUnmount(() => releaseGesture?.())
 function startMove(event) {
   startGesture(event, (o, dx, dy) => store.updateSection(props.section.id, { x: o.x + dx, y: o.y + dy }))
 }

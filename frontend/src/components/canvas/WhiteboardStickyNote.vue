@@ -8,7 +8,7 @@
 // - an optional hyperlink (URL or another Frappe Draw diagram) that navigates on
 //   click while the select tool is active (spec W6).
 // All edits go through the store (one undoable unit each, Part G6).
-import { computed, ref, watch, onMounted, nextTick } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
@@ -107,6 +107,7 @@ const sketchOutline = computed(() =>
 
 // A drag gesture shared by move (whole note) and resize (corner). The delta is
 // converted from screen pixels to canvas units by dividing by the live zoom.
+let releaseGesture = null
 function startGesture(event, apply) {
   event.stopPropagation()
   if (editorUi.state.tool !== 'select') return
@@ -121,10 +122,17 @@ function startGesture(event, apply) {
   const up = () => {
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', up)
+    window.removeEventListener('pointercancel', up)
+    releaseGesture = null
   }
+  releaseGesture = up
   window.addEventListener('pointermove', move)
   window.addEventListener('pointerup', up)
+  // A pointercancel (a touch scroll claiming the gesture) or an unmount mid-drag
+  // would otherwise leak these window listeners; end the gesture in both cases.
+  window.addEventListener('pointercancel', up)
 }
+onBeforeUnmount(() => releaseGesture?.())
 
 function startMove(event) {
   // Additive click toggles this note's membership without starting a drag.
