@@ -71,6 +71,20 @@ function createWhiteboardUi() {
   }
   attachSelection(api, state)
   attachLaser(api, laserTrail, laserClock)
+
+  // Clear the document-scoped transient state when a document loads or swaps in
+  // place, KEEPING the tool preferences (pen colour/width, eraser mode, …). The
+  // selection and editingCell are keyed by object ids that repeat across
+  // documents, so a leftover would reattach to a same-id object in the next one
+  // (and drop its editor chrome onto it). Mirrors resetMindmapUi / resetFlowchartUi.
+  api.reset = () => {
+    api.clearSelection() // selection + selected + editingCell
+    api.clearLaser()
+    state.marquee = null
+    state.stickyEditRequest = null
+    liveStroke.value = null
+    liveLine.value = null
+  }
   return api
 }
 

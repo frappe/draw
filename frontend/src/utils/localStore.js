@@ -9,7 +9,13 @@
 
 export function readJson(key, fallback) {
   try {
-    return JSON.parse(localStorage.getItem(key)) || fallback
+    const raw = localStorage.getItem(key)
+    if (raw === null) return fallback // missing key
+    const value = JSON.parse(raw)
+    // Stored JSON null reads as "nothing meaningful", like a missing key. But a
+    // stored 0 / false / "" is a real value and must survive: the old
+    // `JSON.parse(...) || fallback` discarded all of those falsy values too.
+    return value === null ? fallback : value
   } catch {
     return fallback
   }

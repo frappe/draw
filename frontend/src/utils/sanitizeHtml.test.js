@@ -48,6 +48,19 @@ describe('sanitizeRichText', () => {
     expect(sanitizeRichText('<a href="https://frappe.io">x</a>')).toContain('https://frappe.io')
   })
 
+  it('forces a safe rel on a link that opens a new tab (reverse tabnabbing)', () => {
+    // A target without rel lets the opened page reach window.opener.
+    const clean = sanitizeRichText('<a href="https://frappe.io" target="_blank">x</a>')
+    expect(clean).toContain('target="_blank"')
+    expect(clean).toContain('rel="noopener noreferrer"')
+  })
+
+  it('overrides an unsafe rel supplied in the markup when target is present', () => {
+    const clean = sanitizeRichText('<a href="https://frappe.io" target="_blank" rel="opener">x</a>')
+    expect(clean).not.toContain('rel="opener"')
+    expect(clean).toContain('rel="noopener noreferrer"')
+  })
+
   it('drops a style that would fetch a remote address', () => {
     // No script, but it makes the viewer's browser call out to the author's server
     // the moment a shared diagram renders, which nothing in our editor needs.
