@@ -8,7 +8,7 @@ import { computed, inject } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useShapeTransform } from '@/composables/useShapeTransform.js'
-import { shapeCenter } from '@/diagram/geometry.js'
+import { shapeCenter, unionBounds } from '@/diagram/geometry.js'
 
 const HANDLE = 12
 const ROTATION_ARM = 28
@@ -65,12 +65,7 @@ function boxOf(shape) {
 }
 
 function unionBox(shapes) {
-  if (!shapes.length) return null
-  const xs = shapes.flatMap((s) => [s.x, s.x + s.w])
-  const ys = shapes.flatMap((s) => [s.y, s.y + s.h])
-  const x = Math.min(...xs)
-  const y = Math.min(...ys)
-  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y }
+  return unionBounds(shapes.map(boxOf))
 }
 
 function handlePosition(name) {

@@ -9,7 +9,7 @@
 // snapDelta(); the layer renders `guides`.
 
 import { ref, computed } from 'vue'
-import { axisAlignedBBox } from '@/diagram/geometry.js'
+import { axisAlignedBBox, unionBounds } from '@/diagram/geometry.js'
 import { nodeSize as flowchartNodeSize } from '@/diagram/flowchartModel.js'
 
 // How close (in logical units) edges/centers must be to snap, and how long a
@@ -125,11 +125,7 @@ function shiftedBBox(store, id, originals, delta) {
 }
 
 function unionBox(boxes) {
-  const minX = Math.min(...boxes.map((b) => b.x))
-  const minY = Math.min(...boxes.map((b) => b.y))
-  const maxX = Math.max(...boxes.map((b) => b.x + b.w))
-  const maxY = Math.max(...boxes.map((b) => b.y + b.h))
-  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY }
+  return unionBounds(boxes)
 }
 
 // Candidate alignment positions on each axis: every static shape's edges and

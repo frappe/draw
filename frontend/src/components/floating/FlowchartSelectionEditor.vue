@@ -9,6 +9,7 @@ import LucideIcon from '@/icons/LucideIcon.vue'
 import SwatchGrid from '@/components/floating/SwatchGrid.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
+import { unionBounds } from '@/diagram/geometry.js'
 import { SWATCH_PALETTE } from '@/diagram/palette.js'
 import {
   NODE_TYPES,
@@ -47,15 +48,7 @@ function nodeBox(n) {
 }
 
 // Combined bounding box of all selected nodes, so the toolbar sits above the group.
-const box = computed(() => {
-  if (!nodes.value.length) return null
-  const boxes = nodes.value.map(nodeBox)
-  const x = Math.min(...boxes.map((b) => b.x))
-  const y = Math.min(...boxes.map((b) => b.y))
-  const right = Math.max(...boxes.map((b) => b.x + b.w))
-  const bottom = Math.max(...boxes.map((b) => b.y + b.h))
-  return { x, y, w: right - x, h: bottom - y }
-})
+const box = computed(() => unionBounds(nodes.value.map(nodeBox)))
 
 const style = useCanvasToolbarStyle(box)
 

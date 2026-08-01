@@ -12,6 +12,7 @@ import { nodeSize as flowchartNodeSize } from '@/diagram/flowchartModel.js'
 import { nodeShape } from '@/diagram/flowchartShapes.js'
 import { routeEdge, routeOffsets, flowchartContentBounds } from '@/diagram/flowchartLayout.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
+import { unionBounds } from '@/diagram/geometry.js'
 import { whiteboardObjectsInZOrder } from '@/diagram/whiteboardModel.js'
 import { pointsToPath } from '@/diagram/svgPath.js'
 import { contrastInk, HIGHLIGHTER_OPACITY } from '@/diagram/whiteboardColors.js'
@@ -218,13 +219,9 @@ function parseViewBox(viewBox) {
 // Smallest box covering every layer that has content, with a little breathing room so
 // frame edges aren't flush against the crop.
 function unionViewBox(boxes, pad = 40) {
-  const present = boxes.filter((b) => b && b.w > 0 && b.h > 0)
-  if (!present.length) return '0 0 1 1'
-  const minX = Math.min(...present.map((b) => b.x))
-  const minY = Math.min(...present.map((b) => b.y))
-  const maxX = Math.max(...present.map((b) => b.x + b.w))
-  const maxY = Math.max(...present.map((b) => b.y + b.h))
-  return `${minX - pad} ${minY - pad} ${maxX - minX + pad * 2} ${maxY - minY + pad * 2}`
+  const bounds = unionBounds(boxes.filter((b) => b && b.w > 0 && b.h > 0))
+  if (!bounds) return '0 0 1 1'
+  return `${bounds.x - pad} ${bounds.y - pad} ${bounds.w + pad * 2} ${bounds.h + pad * 2}`
 }
 
 function blockBody(doc) {

@@ -7,7 +7,7 @@
 import { computed } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
-import { axisAlignedBBox } from '@/diagram/geometry.js'
+import { axisAlignedBBox, maxOf, minOf } from '@/diagram/geometry.js'
 import { isVisible } from '@/diagram/shapeFlags.js'
 import { layoutMindMap } from '@/diagram/mindmapLayout.js'
 import { resolveNodeColor, nodeFill } from '@/diagram/mindmapColors.js'
@@ -164,9 +164,9 @@ const frame = computed(() => {
     ys.push(it.y, it.y + it.h)
   }
   if (!xs.length) return { x: 0, y: 0, w: 1, h: 1 }
-  const minX = Math.min(...xs)
-  const minY = Math.min(...ys)
-  return { x: minX - PAD, y: minY - PAD, w: Math.max(1, Math.max(...xs) - minX + PAD * 2), h: Math.max(1, Math.max(...ys) - minY + PAD * 2) }
+  const minX = minOf(xs)
+  const minY = minOf(ys)
+  return { x: minX - PAD, y: minY - PAD, w: Math.max(1, maxOf(xs) - minX + PAD * 2), h: Math.max(1, maxOf(ys) - minY + PAD * 2) }
 })
 
 // Fit/pan/drag mechanics (shared with WhiteboardMinimap). This navigator crops

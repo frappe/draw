@@ -15,6 +15,7 @@ import {
   outgoingEdges,
   incomingEdges,
 } from './flowchartModel.js'
+import { maxOf } from './geometry.js'
 
 const PAD = 60 // content-bounds margin
 const LEVEL_GAP = 96 // gap between successive levels (down in TB, right in LR)
@@ -274,7 +275,7 @@ function assignLevels(model, order) {
   for (const id of order) {
     const parents = incomingEdges(model, id).map((edge) => edge.from.nodeId)
     const parentLevels = parents.map((p) => level[p]).filter((value) => value !== undefined)
-    level[id] = parentLevels.length ? Math.max(...parentLevels) + 1 : 0
+    level[id] = parentLevels.length ? maxOf(parentLevels) + 1 : 0
   }
   return level
 }
@@ -297,7 +298,7 @@ function positionByLevels(model, levels) {
     const dim = (s) => (direction === 'LR' ? s.h : s.w)
     const extents = nodes.map((node, i) => Math.max(dim(sizes[i]), incomingLabelWidth(model, node.id)))
     const crossTotal = extents.reduce((sum, e) => sum + e, 0) + (nodes.length - 1) * SIBLING_GAP
-    const deepest = Math.max(...sizes.map((s) => (direction === 'LR' ? s.w : s.h)))
+    const deepest = maxOf(sizes.map((s) => (direction === 'LR' ? s.w : s.h)))
     let cross = PAD - crossTotal / 2 + crossCenter(model, direction)
     nodes.forEach((node, index) => {
       // Centre the node within its (possibly wider) label slot.

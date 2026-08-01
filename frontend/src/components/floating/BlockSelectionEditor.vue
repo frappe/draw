@@ -8,7 +8,7 @@ import { computed } from 'vue'
 import { Popover, Tooltip, Select } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
-import { anchorPoint } from '@/diagram/geometry.js'
+import { anchorPoint, unionBounds } from '@/diagram/geometry.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
 import { activeEditor, richCommands, isMarkActive } from '@/composables/useRichText.js'
 import FillBorderSection from '@/components/palette-right/FillBorderSection.vue'
@@ -53,10 +53,7 @@ function resolveEndpoint(endpoint) {
 // Selection bounding box in canvas coords (shapes: x/y/w/h; connector: endpoints).
 const box = computed(() => {
   if (hasShapes.value) {
-    const xs = shapes.value.flatMap((s) => [s.x, s.x + s.w])
-    const ys = shapes.value.flatMap((s) => [s.y, s.y + s.h])
-    const x = Math.min(...xs), y = Math.min(...ys)
-    return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y }
+    return unionBounds(shapes.value.map((s) => ({ x: s.x, y: s.y, w: s.w, h: s.h })))
   }
   if (connector.value) {
     // Resolve each endpoint to a concrete point: attached ends carry

@@ -7,6 +7,7 @@
 
 import { childrenOf, nodeById, subtreeIds } from './mindmapModel.js'
 import { wrapLineCount, charsPerLine } from './textMetrics.js'
+import { unionBounds } from './geometry.js'
 
 const H_GAP = 70 // horizontal gap between depth columns
 const V_GAP = 18 // vertical gap between sibling subtrees
@@ -191,15 +192,11 @@ function edgePoint(box, side) {
 // Shift all positions so the content's top-left is at (0,0) plus a margin, and
 // report the bounding-box size for fit-to-view.
 function normalise(positions) {
-  const boxes = Object.values(positions)
-  if (!boxes.length) return { positions, bbox: { w: 0, h: 0 } }
-  const minX = Math.min(...boxes.map((b) => b.x))
-  const minY = Math.min(...boxes.map((b) => b.y))
-  const maxX = Math.max(...boxes.map((b) => b.x + b.w))
-  const maxY = Math.max(...boxes.map((b) => b.y + b.h))
+  const bounds = unionBounds(Object.values(positions))
+  if (!bounds) return { positions, bbox: { w: 0, h: 0 } }
   const shifted = {}
   for (const [id, box] of Object.entries(positions)) {
-    shifted[id] = { ...box, x: box.x - minX + PAD, y: box.y - minY + PAD }
+    shifted[id] = { ...box, x: box.x - bounds.x + PAD, y: box.y - bounds.y + PAD }
   }
-  return { positions: shifted, bbox: { w: maxX - minX + PAD * 2, h: maxY - minY + PAD * 2 } }
+  return { positions: shifted, bbox: { w: bounds.w + PAD * 2, h: bounds.h + PAD * 2 } }
 }

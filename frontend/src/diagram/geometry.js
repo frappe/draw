@@ -85,6 +85,40 @@ export function rectsIntersect(a, b) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
 }
 
+// Union of a list of {x,y,w,h} boxes, as one {x,y,w,h} box, or null when empty.
+// Computed with a loop rather than Math.min/max(...spread): spreading a large
+// coordinate array — select-all of tens of thousands of objects, or fit-to-view on
+// a huge map — exceeds the argument-count limit and throws RangeError.
+export function unionBounds(boxes) {
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  for (const box of boxes) {
+    if (box.x < minX) minX = box.x
+    if (box.y < minY) minY = box.y
+    if (box.x + box.w > maxX) maxX = box.x + box.w
+    if (box.y + box.h > maxY) maxY = box.y + box.h
+  }
+  if (minX === Infinity) return null
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY }
+}
+
+// Largest value in `values`, or `fallback` when empty. A loop, not
+// Math.max(...values), for the same unbounded-spread reason as unionBounds.
+export function maxOf(values, fallback = 0) {
+  let max = -Infinity
+  for (const value of values) if (value > max) max = value
+  return max === -Infinity ? fallback : max
+}
+
+// Smallest value in `values`, or `fallback` when empty (loop, not spread).
+export function minOf(values, fallback = 0) {
+  let min = Infinity
+  for (const value of values) if (value < min) min = value
+  return min === Infinity ? fallback : min
+}
+
 // Perpendicular distance from `point` to the segment a→b, clamped to the segment
 // (so a point past an endpoint measures to that endpoint, not the infinite line).
 // Shared by stroke simplification, stroke/line hit-testing and flowchart edge

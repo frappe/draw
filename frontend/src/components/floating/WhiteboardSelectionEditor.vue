@@ -12,6 +12,7 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { lineById, tableById, whiteboardObjectBoxes, voteFor } from '@/diagram/whiteboardModel.js'
+import { unionBounds } from '@/diagram/geometry.js'
 import LineOptions from './LineOptions.vue'
 import TableOptions from './TableOptions.vue'
 import VoteButtons from './VoteButtons.vue'
@@ -40,10 +41,7 @@ const box = computed(() => {
   const boxes = whiteboardObjectBoxes(store.state.whiteboard)
     .filter((o) => keys.has(`${o.kind}:${o.id}`))
     .map((o) => o.box)
-  if (!boxes.length) return null
-  const x = Math.min(...boxes.map((b) => b.x))
-  const y = Math.min(...boxes.map((b) => b.y))
-  return { x, y, w: Math.max(...boxes.map((b) => b.x + b.w)) - x, h: Math.max(...boxes.map((b) => b.y + b.h)) - y }
+  return unionBounds(boxes)
 })
 
 const style = useCanvasToolbarStyle(box)

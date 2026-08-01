@@ -5,7 +5,7 @@
 // axis-aligned bounding boxes so rotated shapes spread by their extent (§7.6).
 
 import { computed } from 'vue'
-import { axisAlignedBBox } from '@/diagram/geometry.js'
+import { axisAlignedBBox, maxOf, minOf } from '@/diagram/geometry.js'
 
 export function useDistribute(store) {
   const shapes = computed(() => store.selectedShapes)
@@ -76,7 +76,7 @@ export function useDistribute(store) {
   function dominantAxis() {
     const xs = shapes.value.map((shape) => axisAlignedBBox(shape).x)
     const ys = shapes.value.map((shape) => axisAlignedBBox(shape).y)
-    return Math.max(...xs) - Math.min(...xs) >= Math.max(...ys) - Math.min(...ys) ? 'x' : 'y'
+    return maxOf(xs) - minOf(xs) >= maxOf(ys) - minOf(ys) ? 'x' : 'y'
   }
 
   // Lay the selection out on a tidy grid (Efficient Elements "arrange in grid"):
@@ -88,10 +88,10 @@ export function useDistribute(store) {
     if (items.length < 2) return
     const boxes = items.map((shape) => axisAlignedBBox(shape))
     const cols = Math.ceil(Math.sqrt(items.length))
-    const cellW = Math.max(...boxes.map((box) => box.w)) + GRID_GAP
-    const cellH = Math.max(...boxes.map((box) => box.h)) + GRID_GAP
-    const originX = Math.min(...boxes.map((box) => box.x))
-    const originY = Math.min(...boxes.map((box) => box.y))
+    const cellW = maxOf(boxes.map((box) => box.w)) + GRID_GAP
+    const cellH = maxOf(boxes.map((box) => box.h)) + GRID_GAP
+    const originX = minOf(boxes.map((box) => box.x))
+    const originY = minOf(boxes.map((box) => box.y))
     store.commit('Arrange in grid', () => {
       items.forEach((shape, index) => {
         placeStart(shape, 'x', originX + (index % cols) * cellW)

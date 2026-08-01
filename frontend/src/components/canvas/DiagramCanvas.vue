@@ -13,7 +13,7 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import { themeVarStyle } from '@/diagram/theme.js'
-import { axisAlignedBBox, anchorPoint, pointInShape } from '@/diagram/geometry.js'
+import { axisAlignedBBox, anchorPoint, pointInShape, unionBounds } from '@/diagram/geometry.js'
 import { isVisible, isInteractable } from '@/diagram/shapeFlags.js'
 import { layoutMindMap, offsetPositions } from '@/diagram/mindmapLayout.js'
 import { flowchartContentBounds } from '@/diagram/flowchartLayout.js'
@@ -391,12 +391,7 @@ const blockFitBounds = computed(() => {
     ...store.state.shapes.filter(isVisible).map(axisAlignedBBox),
     ...(store.state.sections || []).map((s) => ({ x: s.x, y: s.y, w: s.w, h: s.h })),
   ]
-  if (!boxes.length) return null
-  const minX = Math.min(...boxes.map((b) => b.x))
-  const minY = Math.min(...boxes.map((b) => b.y))
-  const maxX = Math.max(...boxes.map((b) => b.x + b.w))
-  const maxY = Math.max(...boxes.map((b) => b.y + b.h))
-  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY }
+  return unionBounds(boxes)
 })
 const fitBounds = computed(() => (rendersOwnLayer.value ? ownLayerBounds.value : blockFitBounds.value))
 

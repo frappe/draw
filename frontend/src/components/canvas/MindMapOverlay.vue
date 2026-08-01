@@ -16,6 +16,7 @@ import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
 import { layoutMindMap } from '@/diagram/mindmapLayout.js'
 import { isRoot } from '@/diagram/mindmapModel.js'
+import { unionBounds } from '@/diagram/geometry.js'
 import { resolveNodeColor, nodeFill } from '@/diagram/mindmapColors.js'
 import { SWATCH_PALETTE } from '@/diagram/palette.js'
 import { deleteNodes, clearMindmap } from '@/diagram/mindmapOperations.js'
@@ -88,12 +89,7 @@ const canDelete = computed(() => selectedNodes.value.some((n) => !isRoot(model.v
 // is selected), so the toolbar hovers above the whole group.
 const box = computed(() => {
   const boxes = selectedNodes.value.map((n) => layout.value.positions[n.id]).filter(Boolean)
-  if (!boxes.length) return null
-  const x = Math.min(...boxes.map((b) => b.x))
-  const y = Math.min(...boxes.map((b) => b.y))
-  const right = Math.max(...boxes.map((b) => b.x + b.w))
-  const bottom = Math.max(...boxes.map((b) => b.y + b.h))
-  return { x, y, w: right - x, h: bottom - y }
+  return unionBounds(boxes)
 })
 
 // Toolbar screen position: above the (combined) box, horizontally centred on it
