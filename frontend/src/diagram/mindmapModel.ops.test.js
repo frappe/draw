@@ -12,6 +12,7 @@ import {
   setAllCollapsed,
   isDescendant,
   subtreeIds,
+  descendantCount,
   addCrosslink,
   removeCrosslink,
   refreshDepths,
@@ -114,5 +115,45 @@ describe('mindmapModel — M2-M5 operations', () => {
     reparent(model, a, b)
     refreshDepths(model)
     expect(nodeById(model, deep).depth).toBe(4)
+  })
+})
+
+// E1/E2: the whole-tree walks are iterative + index-backed, so they stay correct
+// and can't stack-overflow on a very deep (untrusted) document.
+describe('mindmapModel — subtree walks are iterative + O(n)', () => {
+  // Model built by hand so a huge one is cheap to construct (addChild itself scans).
+  function chain(depth) {
+    const nodes = [{ id: 'n0', parentId: null, order: 0, depth: 0, text: '' }]
+    for (let i = 1; i < depth; i += 1) {
+      nodes.push({ id: `n${i}`, parentId: `n${i - 1}`, order: 0, depth: 0, text: '' })
+    }
+    return { rootId: 'n0', nodes, crosslinks: [], layout: 'balanced', origin: { x: 0, y: 0 } }
+  }
+
+  it('subtreeIds is pre-order and returns [id] for a leaf/unknown id', () => {
+    const model = createMindMap()
+    const a = addChild(model, model.rootId)
+    const a1 = addChild(model, a)
+    const a2 = addChild(model, a)
+    expect(subtreeIds(model, a)).toEqual([a, a1, a2])
+    expect(subtreeIds(model, a1)).toEqual([a1])
+    expect(subtreeIds(model, 'ghost')).toEqual(['ghost'])
+  })
+
+  it('descendantCount counts the whole subtree, excluding the node itself', () => {
+    const model = createMindMap()
+    const a = addChild(model, model.rootId)
+    addChild(model, a)
+    addChild(model, addChild(model, a))
+    expect(descendantCount(model, a)).toBe(3)
+    expect(descendantCount(model, model.rootId)).toBe(4)
+  })
+
+  it('handles a 20k-deep chain without a stack overflow', () => {
+    const model = chain(20_000) // well past the JS recursion limit the old code hit
+    expect(subtreeIds(model, 'n0')).toHaveLength(20_000)
+    expect(descendantCount(model, 'n0')).toBe(19_999)
+    refreshDepths(model)
+    expect(nodeById(model, 'n19999').depth).toBe(19_999)
   })
 })

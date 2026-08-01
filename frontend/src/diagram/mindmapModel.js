@@ -91,6 +91,22 @@ export function childrenOf(model, parentId) {
     .sort((a, b) => a.order - b.order)
 }
 
+// One-pass parentId -> ordered-children index. Whole-tree walks build this once
+// (O(n)) and iterate it, instead of calling childrenOf (an O(n) scan) per node —
+// which made those walks O(n²) (E2). Paired with iterative traversal it also
+// removes the per-node recursion that could stack-overflow on a deep, untrusted
+// document (E1).
+function childrenIndex(model) {
+  const index = new Map()
+  for (const node of model.nodes) {
+    const siblings = index.get(node.parentId)
+    if (siblings) siblings.push(node)
+    else index.set(node.parentId, [node])
+  }
+  for (const siblings of index.values()) siblings.sort((a, b) => a.order - b.order)
+  return index
+}
+
 // A root is any node without a parent — every tree on the map has one (#48), not
 // just the one model.rootId points at.
 export function isRoot(model, id) {
@@ -142,10 +158,16 @@ export function renumberChildren(model, parentId) {
 
 // Count of all descendants of a node (used for collapse badges later).
 export function descendantCount(model, id) {
-  return childrenOf(model, id).reduce(
-    (total, child) => total + 1 + descendantCount(model, child.id),
-    0,
-  )
+  const index = childrenIndex(model)
+  let count = 0
+  const stack = [...(index.get(id) || [])]
+  while (stack.length) {
+    const node = stack.pop()
+    count += 1
+    const children = index.get(node.id)
+    if (children) for (const child of children) stack.push(child)
+  }
+  return count
 }
 
 // The parent node of `id`, or null for the root / unknown ids.
@@ -154,10 +176,19 @@ export function parentOf(model, id) {
   return node && node.parentId ? nodeById(model, node.parentId) : null
 }
 
-// Ids of a node and every descendant (the whole subtree, pre-order).
+// Ids of a node and every descendant (the whole subtree, pre-order). Returns
+// just [id] for an id with no children (including an unknown one).
 export function subtreeIds(model, id) {
-  const ids = [id]
-  for (const child of childrenOf(model, id)) ids.push(...subtreeIds(model, child.id))
+  const index = childrenIndex(model)
+  const ids = []
+  const stack = [id]
+  while (stack.length) {
+    const current = stack.pop()
+    ids.push(current)
+    const children = index.get(current)
+    // Push in reverse so the first child is processed next (pre-order, in order).
+    if (children) for (let i = children.length - 1; i >= 0; i -= 1) stack.push(children[i].id)
+  }
   return ids
 }
 
@@ -249,14 +280,16 @@ function reattach(model, node, newParentId, order) {
   refreshDepths(model)
 }
 
-// Recompute every node's depth from each root down (cheap, O(n)).
+// Recompute every node's depth from each root down (O(n), iterative).
 export function refreshDepths(model) {
-  const setDepth = (id, depth) => {
-    const node = nodeById(model, id)
-    if (node) node.depth = depth
-    for (const child of childrenOf(model, id)) setDepth(child.id, depth + 1)
+  const index = childrenIndex(model)
+  const stack = rootNodes(model).map((root) => [root, 0])
+  while (stack.length) {
+    const [node, depth] = stack.pop()
+    node.depth = depth
+    const children = index.get(node.id)
+    if (children) for (const child of children) stack.push([child, depth + 1])
   }
-  for (const root of rootNodes(model)) setDepth(root.id, 0)
 }
 
 // Toggle a node's collapsed flag (collapsed subtrees occupy zero layout space).
