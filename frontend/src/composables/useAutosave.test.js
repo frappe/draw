@@ -142,6 +142,29 @@ describe('flush', () => {
 
     expect(h.calls).toEqual([])
   })
+
+  // The collaborative CRDT binary rides along with the JSON so the offline cache and
+  // the server share one lineage (see useCollaboration). The getter returns null
+  // until collaboration has synced, and a null must not send the key at all.
+  it('includes crdt_state in the save when the collaboration snapshot is available', async () => {
+    const h = harness()
+    h.session.getCrdtState = () => 'BASE64-CRDT'
+    h.session.pendingDocument = { shapes: ['a'] }
+
+    await h.session.flushNow()
+
+    expect(h.saver.submit.mock.calls[0][0].crdt_state).toBe('BASE64-CRDT')
+  })
+
+  it('omits crdt_state entirely when the snapshot is null (pre-sync)', async () => {
+    const h = harness()
+    h.session.getCrdtState = () => null
+    h.session.pendingDocument = { shapes: ['a'] }
+
+    await h.session.flushNow()
+
+    expect(h.saver.submit.mock.calls[0][0]).not.toHaveProperty('crdt_state')
+  })
 })
 
 // Regression tests for the offline-freeze recovery (finding D3).
