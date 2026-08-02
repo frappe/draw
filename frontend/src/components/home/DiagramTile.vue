@@ -18,10 +18,18 @@ const props = defineProps({
 })
 const emit = defineEmits(['open', 'toggle-select', 'toggle-pin', 'rename', 'duplicate', 'delete', 'move', 'show-info'])
 
-const previewSvg = computed(() => {
+// A non-empty diagram ALWAYS shows a preview: the saved raster thumbnail when we
+// have one (cheap), otherwise a live SVG rendered from the document. Only a truly
+// blank canvas shows neither — it gets the "empty" text placeholder instead of a
+// misleading preview or icon.
+const thumbnailUrl = computed(() => props.diagram.thumbnail || null)
+const isEmpty = computed(() => {
   const document = props.diagram.document
-  if (!document || isDocumentEmpty(document)) return null
-  return documentToSvg(document)
+  return !document || isDocumentEmpty(document)
+})
+const previewSvg = computed(() => {
+  if (thumbnailUrl.value || isEmpty.value) return null
+  return documentToSvg(props.diagram.document)
 })
 
 const icon = computed(() => typeIcon(props.diagram.diagram_type))
@@ -189,8 +197,16 @@ function onDragStart(event) {
         class="flex h-[120px] items-center justify-center border-b border-outline-gray-1 p-2"
         style="background-color: #ffffff"
       >
-        <div v-if="previewSvg" class="h-full w-full [&>svg]:h-full [&>svg]:w-full" v-html="previewSvg" />
-        <LucideIcon v-else :name="icon" class="h-7 w-7 text-ink-gray-3" />
+        <img
+          v-if="thumbnailUrl"
+          :src="thumbnailUrl"
+          alt=""
+          loading="lazy"
+          decoding="async"
+          class="h-full w-full object-contain"
+        />
+        <div v-else-if="previewSvg" class="h-full w-full [&>svg]:h-full [&>svg]:w-full" v-html="previewSvg" />
+        <span v-else class="text-[11px] text-ink-gray-4">Blank canvas</span>
       </div>
     </button>
 

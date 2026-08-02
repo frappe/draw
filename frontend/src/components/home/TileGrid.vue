@@ -27,7 +27,9 @@ const RECENT_LIMIT = 24
 
 const enriched = createListResource({
   doctype: 'Draw Diagram',
-  fields: ['name', 'title', 'creation', 'modified', 'folder', 'diagram_type', 'is_pinned', 'owner', 'document'],
+  // `thumbnail` is the saved raster preview shown on tiles; `document` stays for the
+  // live-SVG fallback when a (non-empty) diagram has no thumbnail yet, and for duplicate.
+  fields: ['name', 'title', 'creation', 'modified', 'folder', 'diagram_type', 'is_pinned', 'owner', 'document', 'thumbnail'],
   filters: { is_trashed: 0 },
   orderBy: 'modified desc',
   pageLength: 500,
