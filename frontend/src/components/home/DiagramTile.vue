@@ -22,11 +22,14 @@ const emit = defineEmits(['open', 'toggle-select', 'toggle-pin', 'rename', 'dupl
 // have one (cheap), otherwise a live SVG rendered from the document. Only a truly
 // blank canvas shows neither — it gets the "empty" text placeholder instead of a
 // misleading preview or icon.
-const thumbnailUrl = computed(() => props.diagram.thumbnail || null)
 const isEmpty = computed(() => {
   const document = props.diagram.document
   return !document || isDocumentEmpty(document)
 })
+// A saved-once-but-emptied diagram still carries a (blank white) raster thumbnail,
+// so gate the thumbnail on the doc actually having content — otherwise the blank
+// raster wins and the "Diagram is blank" placeholder never shows (#93).
+const thumbnailUrl = computed(() => (isEmpty.value ? null : props.diagram.thumbnail || null))
 const previewSvg = computed(() => {
   if (thumbnailUrl.value || isEmpty.value) return null
   return documentToSvg(props.diagram.document)
@@ -206,7 +209,7 @@ function onDragStart(event) {
           class="h-full w-full object-contain"
         />
         <div v-else-if="previewSvg" class="h-full w-full [&>svg]:h-full [&>svg]:w-full" v-html="previewSvg" />
-        <span v-else class="text-[11px] text-ink-gray-4">Blank canvas</span>
+        <span v-else class="text-[11px] italic text-ink-gray-4">Diagram is blank</span>
       </div>
     </button>
 
