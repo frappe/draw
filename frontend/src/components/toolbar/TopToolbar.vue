@@ -2,11 +2,9 @@
 // Top bar (48px). Drive/Writer style: NO back button — a breadcrumb instead.
 // Left: the violet logomark + "Frappe Draw" (→ Home) / optional folder / the
 // editable diagram title as the last crumb + save indicator. Right: Export,
-// Share, Print, presence. Chrome only — frappe-ui + its tokens; the breadcrumb
+// Share, presence. Chrome only — frappe-ui + its tokens; the breadcrumb
 // styling mirrors frappe-ui's Breadcrumbs (text-lg, ink-gray ladder).
 import { useRouter } from 'vue-router'
-import { Button, Tooltip } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import Logomark from '@/components/Logomark.vue'
 import TitleEditor from './TitleEditor.vue'
 import SaveIndicator from './SaveIndicator.vue'
@@ -36,9 +34,6 @@ function goFolder() {
   else goHome()
 }
 
-function print() {
-  window.print()
-}
 </script>
 
 <template>
@@ -78,12 +73,6 @@ function print() {
       <ExportMenu />
       <DriveMenu />
       <ShareMenu />
-
-      <Tooltip text="Print">
-        <Button variant="outline" aria-label="Print" @click="print">
-          <LucideIcon name="printer" class="h-4 w-4" />
-        </Button>
-      </Tooltip>
 
       <div class="h-5 w-px bg-surface-gray-3" />
 

@@ -20,7 +20,8 @@ export function useExport(store, getTitle) {
   const fileName = () => sanitizeFileName((getTitle && getTitle()) || 'diagram')
 
   return {
-    exportPng: (scale = 2) => guard(() => exportRaster(store, 'png', scale, fileName(), '#FFFFFF')),
+    exportPng: (scale = 2, transparent = false) =>
+      guard(() => exportRaster(store, 'png', scale, fileName(), transparent ? 'transparent' : '#FFFFFF')),
     exportPngTransparent: () => guard(() => exportRaster(store, 'png', 2, fileName(), 'transparent')),
     exportPngWhite: () => guard(() => exportRaster(store, 'png', 2, fileName(), '#FFFFFF')),
     exportJpeg: () => guard(() => exportRaster(store, 'jpeg', 1, fileName())),
