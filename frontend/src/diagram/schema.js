@@ -7,8 +7,12 @@ import { DEFAULT_PRESET_NAME, findPreset } from './canvasPresets.js'
 import { createEmptyMindMap } from './mindmapModel.js'
 import { createFlowchart } from './flowchartModel.js'
 import { createWhiteboard, WHITEBOARD_KINDS } from './whiteboardModel.js'
+import { flattenSubmodels } from './freeFloating.js'
 
-export const SCHEMA_VERSION = 1
+// v2 (free-floating, #122): the unified canvas no longer keeps mind-map/flowchart
+// as framed sub-models — they flatten into the shared shapes[]/connectors[] on
+// load. v1 docs migrate lazily on first open. See freeFloating.js.
+export const SCHEMA_VERSION = 2
 
 // The diagram type selects the active mode module (spec diagram-types §0).
 // `block` is the original editor; the others are layered on the same engine.
@@ -98,18 +102,33 @@ function migrateDocument(document) {
   if (document.mindmap === undefined) document.mindmap = null
   if (document.flowchart === undefined) document.flowchart = null
   if (document.whiteboard === undefined) document.whiteboard = null
-  // A unified document must carry every sub-model — backfill any that a document
-  // saved before this sub-model existed is missing, so all tools stay available.
-  if (isUnifiedDocument(document)) {
-    if (!document.mindmap) document.mindmap = createEmptyMindMap()
-    if (!document.flowchart) document.flowchart = createFlowchart()
-    if (!document.whiteboard) document.whiteboard = createWhiteboard()
+
+  // Free-floating (#122, v2): on the unified canvas, flatten the framed mind-map
+  // / flowchart sub-models into the shared shapes[]/connectors[] — every node
+  // becomes an ordinary canvas object (tagged with its role). Lazy (on load) +
+  // idempotent (already-empty sub-models are a no-op, so a re-migrated doc is
+  // unchanged). Legacy single-type mind-map/flowchart docs are deliberately LEFT
+  // on their original render path: their block layer is hidden (they render their
+  // own layer), so flattening would blank the canvas. flattenSubmodels returns a
+  // new doc; `migrated` points at it.
+  const migrated = isUnifiedDocument(document)
+    ? flattenSubmodels(document, document.themePreset)
+    : document
+
+  // A unified document must carry every sub-model — the flatten nulls them, and a
+  // doc saved before a sub-model existed lacks it; interaction/collab still probe
+  // for them until later phases, so keep empty ones present.
+  if (isUnifiedDocument(migrated)) {
+    if (!migrated.mindmap) migrated.mindmap = createEmptyMindMap()
+    if (!migrated.flowchart) migrated.flowchart = createFlowchart()
+    if (!migrated.whiteboard) migrated.whiteboard = createWhiteboard()
     // Backfill frame origins on docs saved before the frame model existed.
-    if (!document.mindmap.origin) document.mindmap.origin = { x: 0, y: 0 }
-    if (!document.flowchart.origin) document.flowchart.origin = { x: 0, y: 0 }
+    if (!migrated.mindmap.origin) migrated.mindmap.origin = { x: 0, y: 0 }
+    if (!migrated.flowchart.origin) migrated.flowchart.origin = { x: 0, y: 0 }
   }
-  backfillWhiteboardZIndex(document)
-  return document
+  backfillWhiteboardZIndex(migrated)
+  migrated.schemaVersion = SCHEMA_VERSION
+  return migrated
 }
 
 // Whiteboard objects gained a zIndex when stacking became document-wide (#27).

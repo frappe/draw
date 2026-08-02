@@ -163,12 +163,15 @@ describe('safeColor', () => {
     expect(svg).not.toContain('alert(1)')
   })
 
-  it('gives an edge-labelled flowchart more margin so the label is not cropped', () => {
-    const plain = unifiedDocument()
-    const labelled = unifiedDocument()
-    labelled.flowchart.edges[0].label = 'a long branch label'
-    const boxOf = (d) => documentToSvg(d).match(/viewBox="([^"]+)"/)[1].split(' ').map(Number)
-    expect(boxOf(labelled)[2]).toBeGreaterThan(boxOf(plain)[2])
+  // Free-floating (#122, v2): a unified doc's flowchart flattens into tagged
+  // shapes on the render path, so a node draws as a translate-wrapped glyph in the
+  // shared layer (not via the now-empty sub-model), and its label still renders.
+  it('flattens a unified flowchart into tagged shape glyphs on render', () => {
+    const svg = documentToSvg(unifiedDocument())
+    // f1 (terminator) at flowchart origin (1500,0) + node (0,0) → translate(1500 0).
+    expect(svg).toMatch(/<g transform="translate\(1500 0\)"><rect/)
+    expect(svg).toContain('FLOW-START')
+    expect(svg).toContain('MINDMAP-ROOT')
   })
 
   it('keeps an injected colour out of the rendered markup', () => {

@@ -52,3 +52,68 @@ describe('schema diagramType', () => {
     expect(parsed.mindmap.nodes).toEqual([])
   })
 })
+
+// Free-floating (#122): on load, a unified doc's framed mind-map/flowchart flatten
+// into the shared shapes[]/connectors[]. Legacy single-type docs are left alone.
+describe('schema v2 free-floating migration', () => {
+  function v1UnifiedWithContent() {
+    return {
+      schemaVersion: 1,
+      diagramType: 'unified',
+      themePreset: 'ocean',
+      canvas: { sizePreset: 'Widescreen 16:9', width: 1280, height: 720, background: null },
+      shapes: [],
+      connectors: [],
+      sections: [],
+      mindmap: {
+        rootId: 'm1', layout: 'balanced', origin: { x: 0, y: 0 }, crosslinks: [],
+        nodes: [
+          { id: 'm1', parentId: null, text: 'Root', depth: 0, order: 0 },
+          { id: 'm2', parentId: 'm1', text: 'Child', depth: 1, order: 0, side: 'right' },
+        ],
+      },
+      flowchart: {
+        direction: 'TB', origin: { x: 0, y: 0 },
+        nodes: [{ id: 'f1', nodeType: 'process', text: 'Step', x: 10, y: 20, w: 160, h: 72, branches: [] }],
+        edges: [],
+      },
+      whiteboard: null,
+    }
+  }
+
+  it('flattens a unified doc mind-map + flowchart into tagged shapes on load', () => {
+    const parsed = parseDiagramDocument(v1UnifiedWithContent())
+    expect(parsed.schemaVersion).toBe(2)
+    const roles = parsed.shapes.map((s) => s.role)
+    expect(roles).toContain('mindmap-node')
+    expect(roles).toContain('flowchart-node')
+    // The parent→child branch became a connector bound to the shapes.
+    expect(parsed.connectors.some((c) => c.role === 'mindmap-branch')).toBe(true)
+    // The sub-models are emptied (their content now lives in the shared arrays).
+    expect(parsed.mindmap.nodes).toEqual([])
+    expect(parsed.flowchart.nodes).toEqual([])
+  })
+
+  it('leaves a legacy single-type mind-map document on its sub-model path', () => {
+    const legacy = {
+      schemaVersion: 1, diagramType: 'mindmap',
+      canvas: { sizePreset: 'Widescreen 16:9', width: 1280, height: 720, background: null },
+      shapes: [], connectors: [],
+      mindmap: {
+        rootId: 'm1', layout: 'balanced', origin: { x: 0, y: 0 }, crosslinks: [],
+        nodes: [{ id: 'm1', parentId: null, text: 'Root', depth: 0, order: 0 }],
+      },
+      flowchart: null, whiteboard: null,
+    }
+    const parsed = parseDiagramDocument(legacy)
+    expect(parsed.mindmap.nodes).toHaveLength(1) // untouched — would blank its canvas
+    expect(parsed.shapes.some((s) => s.role === 'mindmap-node')).toBe(false)
+  })
+
+  it('is idempotent — re-parsing a flattened doc keeps the same tagged shapes', () => {
+    const once = parseDiagramDocument(v1UnifiedWithContent())
+    const roleShapes = once.shapes.filter((s) => s.role).length
+    const twice = parseDiagramDocument(once)
+    expect(twice.shapes.filter((s) => s.role).length).toBe(roleShapes)
+  })
+})
