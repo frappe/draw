@@ -106,6 +106,33 @@ function originOf(model) {
   const o = model.origin || { x: 0, y: 0 }
   return [o.x || 0, o.y || 0]
 }
+// Shared connectors[] as overview links (center-to-center, like the sub-model
+// link builders). Attached ends resolve to their shape's centre; a connector to
+// a missing/absent shape is dropped rather than drawn as a dangling line. This is
+// how migrated mind-map branches / flowchart edges (free-floating #122) show in
+// the overview once they live in connectors[]; it also surfaces plain block
+// connectors, which the minimap did not draw before.
+function connectorLinks(connectors, shapes) {
+  const byId = Object.fromEntries(shapes.map((s) => [s.id, s]))
+  return (connectors || [])
+    .map((c) => {
+      const a = connectorEnd(c.from, byId)
+      const b = connectorEnd(c.to, byId)
+      if (!a || !b) return null
+      return { id: `c-${c.id}`, x1: a.x, y1: a.y, x2: b.x, y2: b.y, color: c.style?.color || '#94A3B8' }
+    })
+    .filter(Boolean)
+}
+function connectorEnd(endpoint, byId) {
+  if (endpoint?.shapeId) {
+    const shape = byId[endpoint.shapeId]
+    if (!shape) return null
+    const b = axisAlignedBBox(shape)
+    return { x: b.x + b.w / 2, y: b.y + b.h / 2 }
+  }
+  if (Number.isFinite(endpoint?.x) && Number.isFinite(endpoint?.y)) return { x: endpoint.x, y: endpoint.y }
+  return null
+}
 
 // Simplified content shapes in canvas units. Each carries its real fill, an
 // optional stroke, and a `kind` the template renders — so the overview looks like
@@ -134,14 +161,14 @@ const links = computed(() => {
   const preset = store.state.themePreset
   const { mindmap: mm, flowchart: fc } = store.state
   if (isUnifiedDocument(store.state)) {
-    const out = []
+    const out = connectorLinks(store.state.connectors, store.state.shapes)
     if (mm?.nodes?.length) out.push(...mindmapLinks(mm, preset, ...originOf(mm)))
     if (fc?.nodes?.length) out.push(...flowchartLinks(fc, ...originOf(fc)))
     return out
   }
   if (type.value === 'mindmap' && mm) return mindmapLinks(mm, preset)
   if (type.value === 'flowchart' && fc) return flowchartLinks(fc)
-  return []
+  return connectorLinks(store.state.connectors, store.state.shapes)
 })
 
 // Bounding frame over the content, with padding. The block canvas is infinite
