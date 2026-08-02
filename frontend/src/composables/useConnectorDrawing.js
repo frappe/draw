@@ -6,8 +6,8 @@
 
 import { reactive, computed } from 'vue'
 import { ANCHOR_NAMES, anchorPoint } from '@/diagram/geometry.js'
+import { CONNECTOR_SPECS, CONNECTOR_TYPES } from '@/diagram/connectorSpecs.js'
 
-const CONNECTOR_TYPES = ['straight', 'curved', 'elbow']
 const SNAP_RADIUS = 26
 const FIXED_ANGLES = [0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330]
 
@@ -90,7 +90,11 @@ export function useConnectorDrawing(store, editorUi) {
     draft.active = false
     draft.hoverShapeId = null
     if (distance(draft.start.point, draft.end.point) < 6) return null
-    const id = store.addConnector({ type: draft.type, from, to })
+    // Map the armed palette type ('line' / 'connector-arrow' / …) to the stored
+    // connector geometry + arrowheads, so Line/Arrow commit correctly through the
+    // anchor-aware path too (#138) — not just elbow/curved.
+    const spec = CONNECTOR_SPECS[draft.type] || CONNECTOR_SPECS.straight
+    const id = store.addConnector({ type: spec.type, arrowheads: { ...spec.arrowheads }, from, to })
     editorUi.setTool('select')
     store.select(id)
     return id

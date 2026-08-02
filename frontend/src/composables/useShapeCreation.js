@@ -17,23 +17,12 @@
 import { ref } from 'vue'
 import { useTextEditing } from '@/composables/useTextEditing.js'
 import { useEdgeAutoPan } from '@/composables/useEdgeAutoPan.js'
+import { CONNECTOR_SPECS, CONNECTOR_TYPES } from '@/diagram/connectorSpecs.js'
 
 export const DATA_TRANSFER_KEY = 'application/x-frappe-draw-tool'
 
-// Connector draw tools → geometry + default endpoints. 'line' is a plain
-// straight segment with no arrowheads; 'connector-arrow' adds an end arrow.
-// elbow/curved keep the end arrow. The user changes endpoints afterwards in the
-// right palette. The arrow connector is namespaced because 'arrow' is already a
-// SHAPE type (the block arrow polygon): sharing the id made every block arrow
-// commit as a connector line instead.
-const CONNECTOR_SPECS = {
-  line: { type: 'straight', arrowheads: { start: 'none', end: 'none' } },
-  'connector-arrow': { type: 'straight', arrowheads: { start: 'none', end: 'arrow' } },
-  straight: { type: 'straight', arrowheads: { start: 'none', end: 'arrow' } },
-  elbow: { type: 'elbow', arrowheads: { start: 'none', end: 'arrow' } },
-  curved: { type: 'curved', arrowheads: { start: 'none', end: 'arrow' } },
-}
-const CONNECTOR_TYPES = Object.keys(CONNECTOR_SPECS)
+// Connector specs (which armed types are connectors + their arrowheads) live in a
+// shared module so the snap-to-anchor draw path agrees on the full set (#138).
 const DEFAULT_SIZE = { w: 180, h: 96 }
 const MIN_SIZE = 24
 
