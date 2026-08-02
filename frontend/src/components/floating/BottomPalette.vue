@@ -1,7 +1,11 @@
 <script setup>
-// Floating bottom-center palette (spec §7.1, README 4c): pointer modes (select /
-// hand), per-type creation + map tools, and the guides toggle. Zoom + fit live
-// in the separate bottom-left ViewportControls. Wired to editorUi + the viewport.
+// Floating bottom-center palette. On the create canvas (block / unified) the big
+// circular "+" is the centrepiece: it opens ONE catalog of everything you can add
+// — shapes, lines, pen, text, sticky, image, table, a mind map, and every
+// flowchart shape — clubbed into labelled sections (#90). The live annotation
+// tools that you toggle between while sketching (highlighter / eraser / laser) and
+// the guides control stay on the bar so switching them never needs a menu. Legacy
+// single-type docs keep their own map/tool actions. Wired to editorUi + viewport.
 import { computed, ref } from 'vue'
 import { Tooltip, Popover } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
@@ -13,8 +17,10 @@ import { useImageInsert } from '@/composables/useImageInsert.js'
 import { startPaletteDrag } from '@/composables/useShapeCreation.js'
 import { collapseAll } from '@/diagram/mindmapOperations.js'
 import { autoNumberFlow, isFlowNumbered } from '@/diagram/flowchartModel.js'
+import { NODE_TYPES, NODE_TYPE_META, NODE_TYPE_ICONS } from '@/diagram/flowchartModel.js'
 import { tidyLayout, toggleDirection } from '@/diagram/flowchartLayout.js'
 import WhiteboardTools from './WhiteboardTools.vue'
+import GuidesMenu from './GuidesMenu.vue'
 
 const editorUi = useEditorUi()
 const viewport = editorUi.viewport
@@ -22,18 +28,16 @@ const modeStrategy = useModeStrategy()
 const store = useDiagramStore()
 const imageInsert = useImageInsert(store)
 
-// Block diagrams create from here (no left palette). A categorised popover of
-// shapes + a connectors popover + a text tool, each arming draw mode.
 const isBlock = computed(() => modeStrategy?.value?.type === 'block')
 const isWhiteboard = computed(() => modeStrategy?.value?.type === 'whiteboard')
 const isMindmap = computed(() => modeStrategy?.value?.type === 'mindmap')
 const isFlowchart = computed(() => modeStrategy?.value?.type === 'flowchart')
 
-// The unified canvas exposes BOTH the block creation tools and the whiteboard
-// annotation tools on one palette (detected from the doc, not the strategy, which
-// falls back to block). The whiteboard group hides the tools block already owns
-// (text/line/image) to avoid duplicates + tool-name collisions.
+// The unified canvas exposes the full creation catalog (block + whiteboard). It's
+// detected from the doc, not the strategy (which falls back to block).
 const isUnified = computed(() => isUnifiedDocument(store.state))
+// The "create canvas" = block or unified: the layout with the centred "+" catalog.
+const isCreateCanvas = computed(() => isBlock.value || isUnified.value)
 
 // Map-wide flowchart actions (per-node editing lives in the floating toolbar).
 const flowDirection = computed(() => store.state.flowchart?.direction || 'TB')
@@ -63,8 +67,7 @@ const SHAPES = [
   { type: 'cylinder', icon: 'database', label: 'Cylinder' },
   { type: 'callout', icon: 'message-square', label: 'Callout' },
 ]
-// Lines/connectors now live inside the Shapes popover (no separate menu). A
-// plain Line has no arrowheads; Arrow ends in an arrow; elbow/curved too. The
+// A plain Line has no arrowheads; Arrow ends in an arrow; elbow/curved too. The
 // arrow connector's id is namespaced so it never collides with the 'arrow'
 // block-arrow SHAPE above (they'd both key `byType` and the draw tool).
 const LINES = [
@@ -73,40 +76,45 @@ const LINES = [
   { type: 'elbow', icon: 'corner-down-right', label: 'Elbow connector' },
   { type: 'curved', icon: 'git-commit', label: 'Curved connector' },
 ]
-// Auto-layout frames (canvas unification): a starter mind map or flowchart
-// dropped on the unified canvas. They have no single-click tool since they
-// lay themselves out — you add them like a shape/template — so they sit in the
-// Shapes popover's last section instead of a separate Insert menu (#44).
-//
-// A new frame lands in the visible viewport rather than at the canvas origin, so
-// it appears where the user is working instead of somewhere they have to pan off
-// and find (#30). Insert has no pointer position of its own, so the store places
-// the frame within the rect on screen.
-const DIAGRAMS = [
-  { key: 'mindmap', icon: 'git-fork', label: 'Mind map', insert: () => store.insertMindmapStarter(viewport.visibleRect()) },
-  { key: 'flowchart', icon: 'workflow', label: 'Flowchart', insert: () => store.insertFlowchartStarter(viewport.visibleRect()) },
+// Everything else you place once, folded into the catalog (#90). `surface` tools
+// (pen / sticky / table) draw onto the whiteboard layer, so they only apply to the
+// unified canvas; text + image are block-owned and work on any create canvas.
+const CREATE_TOOLS = [
+  { key: 'pen', icon: 'pen-line', label: 'Pen', surface: true },
+  { key: 'text', icon: 'type', label: 'Text', surface: false },
+  { key: 'sticky', icon: 'sticky-note', label: 'Sticky note', surface: true },
+  { key: 'image', icon: 'image', label: 'Image', surface: false },
+  { key: 'table', icon: 'table', label: 'Table', surface: true },
 ]
-function insertDiagram(diagram, close) {
-  diagram.insert()
-  shapeQuery.value = ''
-  close?.()
-}
-// Filter shapes + lines by a search query (spec 2.1). Empty query shows all.
+// Every flowchart node type (#86): the catalog can seed a chart with any shape,
+// not just the Start terminator. Reuses the on-canvas picker's icon vocabulary.
+const FLOWCHART_NODES = NODE_TYPES.map((type) => ({
+  type,
+  label: NODE_TYPE_META[type].label,
+  icon: NODE_TYPE_ICONS[type],
+}))
+
+// Filter the catalog by a search query (spec 2.1). Empty query shows all.
 const shapeQuery = ref('')
 const query = computed(() => shapeQuery.value.trim().toLowerCase())
-const filteredShapes = computed(() =>
-  query.value ? SHAPES.filter((s) => s.label.toLowerCase().includes(query.value)) : SHAPES,
+function matches(list) {
+  return query.value ? list.filter((item) => item.label.toLowerCase().includes(query.value)) : list
+}
+const filteredShapes = computed(() => matches(SHAPES))
+const filteredLines = computed(() => matches(LINES))
+const filteredTools = computed(() => matches(CREATE_TOOLS.filter((t) => !t.surface || isUnified.value)))
+// Mind map + flowchart frames are unified-only (they lay themselves out inside a
+// frame on the shared canvas).
+const filteredFlowchartNodes = computed(() => (isUnified.value ? matches(FLOWCHART_NODES) : []))
+const showMindmap = computed(() => isUnified.value && (!query.value || 'mind map'.includes(query.value)))
+const hasNoMatches = computed(
+  () =>
+    !filteredShapes.value.length &&
+    !filteredLines.value.length &&
+    !filteredTools.value.length &&
+    !filteredFlowchartNodes.value.length &&
+    !showMindmap.value,
 )
-const filteredLines = computed(() =>
-  query.value ? LINES.filter((l) => l.label.toLowerCase().includes(query.value)) : LINES,
-)
-const filteredDiagrams = computed(() => {
-  if (!isUnified.value) return []
-  return query.value ? DIAGRAMS.filter((d) => d.label.toLowerCase().includes(query.value)) : DIAGRAMS
-})
-// Mind map and flowchart are shown as their own separate sections (#79).
-const filteredMindmap = computed(() => filteredDiagrams.value.filter((d) => d.key === 'mindmap'))
-const filteredFlowchart = computed(() => filteredDiagrams.value.filter((d) => d.key === 'flowchart'))
 
 function arm(type, close) {
   editorUi.setDrawShape(type)
@@ -117,59 +125,64 @@ function isArmed(type) {
   return editorUi.state.tool === 'draw' && editorUi.state.drawShapeType === type
 }
 
-// Drag a tile onto the canvas to place that shape where you drop it. The canvas
-// drop handler (DiagramCanvas -> useShapeCreation.onCanvasDrop) has always been
-// live; nothing produced the payload until now, so the gesture did nothing.
-// startPaletteDrag also arms draw mode, so a drag released outside the canvas
-// leaves the tool ready — the same end state as clicking the tile.
+// The catalog tools resolve to three kinds of action: image opens a file picker,
+// text arms block draw-text, and the surface tools arm a whiteboard mode.
+function runCreateTool(tool, close) {
+  if (tool.key === 'image') imageInsert.pick()
+  else if (tool.key === 'text') editorUi.setDrawShape('text')
+  else editorUi.setTool(tool.key)
+  shapeQuery.value = ''
+  close?.()
+}
+function isCreateToolActive(tool) {
+  if (tool.key === 'text') return isArmed('text')
+  if (tool.key === 'image') return false
+  return editorUi.state.tool === tool.key
+}
+
+function insertMindmap(close) {
+  store.insertMindmapStarter(viewport.visibleRect())
+  shapeQuery.value = ''
+  close?.()
+}
+function insertFlowchartNode(type, close) {
+  store.insertFlowchartStarter(viewport.visibleRect(), type)
+  shapeQuery.value = ''
+  close?.()
+}
+
+// Drag a tile onto the canvas to place that shape where you drop it (shapes +
+// lines only — the other tools arm a mode rather than drop a fixed shape).
 function startTileDrag(event, type) {
   startPaletteDrag(event, type, editorUi)
 }
-
-// Close the popover only once the drag is over. Closing it on dragstart would
-// unmount the element being dragged, which cancels the drag in some browsers.
+// Close the popover only once the drag is over — closing on dragstart would
+// unmount the dragged element and cancel the drag in some browsers.
 function endTileDrag(close) {
   shapeQuery.value = ''
   close?.()
 }
 
-// Just the two universal pointer modes. The generic "Draw" plus was removed: it
-// duplicated the zoom-in "+" and is redundant with the left palette (block) and
-// the per-type surface tools below (whiteboard).
 const modes = [
   { tool: 'select', icon: 'mouse-pointer', label: 'Select' },
   { tool: 'hand', icon: 'hand', label: 'Hand' },
 ]
 
-// Mode-specific tool seam (spec diagram-types C6): the active strategy may
-// declare extra pointer modes (whiteboard pen/highlighter/eraser/text/sticky/
-// laser). They render as additional buttons that set editorUi.state.tool; the
-// type's mode-interaction composable acts on the selected tool.
+// Mode-specific tool seam (spec diagram-types C6): a strategy may declare extra
+// pointer modes. None today beyond whiteboard's, which render via WhiteboardTools.
 const surfaceTools = computed(() => modeStrategy?.value?.surfaceTools || [])
+
+// On the unified bar WhiteboardTools shows ONLY the live annotation modes — pen,
+// sticky, table, text, line and image have moved into the "+" catalog, leaving
+// highlighter / eraser / laser (+ the active tool's options disclosure).
+const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'table']
 
 const buttonBase =
   'flex h-[34px] w-[34px] items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2'
-
 function toggleClass(active) {
   return active ? 'bg-surface-gray-2 text-ink-gray-9' : ''
 }
-
-// Dotted guides: a popover menu with the three states (S7), the current one
-// marked selected — instead of cycling on click (which wasn't discoverable).
-const guidesState = computed(() => {
-  if (!editorUi.state.gridVisible) return 'no'
-  return editorUi.state.gridDensity === 'sparse' ? 'rare' : 'dense'
-})
-const GUIDE_OPTIONS = [
-  { key: 'no', label: 'No guides', icon: 'square' },
-  { key: 'rare', label: 'Rare guides', icon: 'more-horizontal' },
-  { key: 'dense', label: 'Dense guides', icon: 'grid' },
-]
-function setGuides(state) {
-  editorUi.state.gridVisible = state !== 'no'
-  if (state === 'rare') editorUi.setGridDensity('sparse')
-  if (state === 'dense') editorUi.setGridDensity('dense')
-}
+const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-gray-2'
 </script>
 
 <template>
@@ -177,27 +190,30 @@ function setGuides(state) {
     data-palette
     class="absolute bottom-[18px] left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-[10px] border border-outline-gray-1 bg-surface-base p-[5px] shadow-lg"
   >
-    <Tooltip v-for="mode in modes" :key="mode.tool" :text="mode.label">
-      <button
-        :class="[buttonBase, toggleClass(editorUi.state.tool === mode.tool)]"
-        @click="editorUi.setTool(mode.tool)"
-      >
-        <LucideIcon :name="mode.icon" class="h-4 w-4" />
-      </button>
-    </Tooltip>
+    <!-- CREATE CANVAS (block / unified): pointer modes + guides on the left, the
+         big "+" catalog centred, live annotation tools on the right. Equal-weight
+         side clusters keep the "+" in the middle (#90). -->
+    <template v-if="isCreateCanvas">
+      <div class="flex flex-1 basis-0 items-center justify-end gap-1">
+        <Tooltip v-for="mode in modes" :key="mode.tool" :text="mode.label">
+          <button
+            :class="[buttonBase, toggleClass(editorUi.state.tool === mode.tool)]"
+            @click="editorUi.setTool(mode.tool)"
+          >
+            <LucideIcon :name="mode.icon" class="h-4 w-4" />
+          </button>
+        </Tooltip>
+        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+        <GuidesMenu />
+      </div>
 
-    <!-- Block creation tools: Shapes + Connectors popovers + Text. Shown for block
-         AND the unified canvas. -->
-    <template v-if="isBlock || isUnified">
-      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+      <!-- The primary "add" action: a larger, solid, circular "+" (#83). -->
       <Popover>
         <template #target="{ togglePopover }">
-          <Tooltip text="Add shape">
-            <!-- The primary "add" action stands out from the flat tool buttons: a
-                 larger, solid, circular + button (frappe-ui solid styling) — #83. -->
+          <Tooltip text="Add">
             <button
-              class="mx-0.5 flex h-[38px] w-[38px] items-center justify-center rounded-full bg-surface-gray-10 text-ink-base shadow-sm transition-colors hover:bg-surface-gray-9 active:bg-surface-gray-8"
-              aria-label="Add shape"
+              class="mx-1 flex h-[38px] w-[38px] items-center justify-center rounded-full bg-surface-gray-10 text-ink-base shadow-sm transition-colors hover:bg-surface-gray-9 active:bg-surface-gray-8"
+              aria-label="Add"
               @click="togglePopover()"
             >
               <LucideIcon name="plus" class="h-5 w-5" />
@@ -205,19 +221,20 @@ function setGuides(state) {
           </Tooltip>
         </template>
         <template #body-main="{ togglePopover }">
-          <div class="w-[176px] p-2">
+          <!-- Six-across catalog: wider than tall, everything visible at a glance. -->
+          <div class="w-[256px] p-2">
             <input
               v-model="shapeQuery"
               type="text"
-              placeholder="Search shapes…"
+              placeholder="Search…"
               class="mb-2 h-7 w-full rounded-md border border-outline-gray-2 bg-surface-base px-2 text-xs text-ink-gray-8 outline-none placeholder:text-ink-gray-4 focus:border-outline-gray-3"
             />
+
             <div v-if="filteredShapes.length" class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Shapes</div>
-            <div v-if="filteredShapes.length" class="grid grid-cols-4 gap-1">
+            <div v-if="filteredShapes.length" class="grid grid-cols-6 gap-1">
               <Tooltip v-for="s in filteredShapes" :key="s.type" :text="s.label">
                 <button
-                  class="flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-gray-2"
-                  :class="isArmed(s.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
+                  :class="[tileBase, isArmed(s.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
                   draggable="true"
                   @click="arm(s.type, togglePopover)"
                   @dragstart="startTileDrag($event, s.type)"
@@ -227,13 +244,12 @@ function setGuides(state) {
                 </button>
               </Tooltip>
             </div>
-            <!-- Lines + connectors group (labelled, C1). -->
+
             <div v-if="filteredLines.length" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Lines &amp; connectors</div>
-            <div v-if="filteredLines.length" class="grid grid-cols-4 gap-1">
+            <div v-if="filteredLines.length" class="grid grid-cols-6 gap-1">
               <Tooltip v-for="con in filteredLines" :key="con.type" :text="con.label">
                 <button
-                  class="flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-gray-2"
-                  :class="isArmed(con.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
+                  :class="[tileBase, isArmed(con.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
                   draggable="true"
                   @click="arm(con.type, togglePopover)"
                   @dragstart="startTileDrag($event, con.type)"
@@ -243,128 +259,108 @@ function setGuides(state) {
                 </button>
               </Tooltip>
             </div>
-            <!-- Auto-layout frames (#44): the old Insert menu, folded in here.
-                 Mind map and flowchart are separate sections (#79). -->
-            <div v-if="filteredMindmap.length" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Mind map</div>
-            <div v-if="filteredMindmap.length" class="grid grid-cols-4 gap-1">
-              <Tooltip v-for="d in filteredMindmap" :key="d.key" :text="d.label">
+
+            <div v-if="filteredTools.length" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Draw &amp; insert</div>
+            <div v-if="filteredTools.length" class="grid grid-cols-6 gap-1">
+              <Tooltip v-for="t in filteredTools" :key="t.key" :text="t.label">
                 <button
-                  class="flex h-9 w-9 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2"
-                  @click="insertDiagram(d, togglePopover)"
+                  :class="[tileBase, isCreateToolActive(t) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
+                  @click="runCreateTool(t, togglePopover)"
                 >
-                  <LucideIcon :name="d.icon" class="h-[18px] w-[18px]" />
+                  <LucideIcon :name="t.icon" class="h-[18px] w-[18px]" />
                 </button>
               </Tooltip>
             </div>
-            <div v-if="filteredFlowchart.length" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Flowchart</div>
-            <div v-if="filteredFlowchart.length" class="grid grid-cols-4 gap-1">
-              <Tooltip v-for="d in filteredFlowchart" :key="d.key" :text="d.label">
-                <button
-                  class="flex h-9 w-9 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2"
-                  @click="insertDiagram(d, togglePopover)"
-                >
-                  <LucideIcon :name="d.icon" class="h-[18px] w-[18px]" />
+
+            <div v-if="showMindmap" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Mind map</div>
+            <div v-if="showMindmap" class="grid grid-cols-6 gap-1">
+              <Tooltip text="Mind map">
+                <button :class="[tileBase, 'text-ink-gray-7']" @click="insertMindmap(togglePopover)">
+                  <LucideIcon name="git-fork" class="h-[18px] w-[18px]" />
                 </button>
               </Tooltip>
             </div>
-            <p
-              v-if="!filteredShapes.length && !filteredLines.length && !filteredDiagrams.length"
-              class="px-1 py-2 text-center text-xs text-ink-gray-4"
-            >
-              No matches
-            </p>
+
+            <div v-if="filteredFlowchartNodes.length" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Flowchart</div>
+            <div v-if="filteredFlowchartNodes.length" class="grid grid-cols-6 gap-1">
+              <Tooltip v-for="n in filteredFlowchartNodes" :key="n.type" :text="n.label">
+                <button :class="[tileBase, 'text-ink-gray-7']" @click="insertFlowchartNode(n.type, togglePopover)">
+                  <LucideIcon :name="n.icon" class="h-[18px] w-[18px]" />
+                </button>
+              </Tooltip>
+            </div>
+
+            <p v-if="hasNoMatches" class="px-1 py-2 text-center text-xs text-ink-gray-4">No matches</p>
           </div>
         </template>
       </Popover>
-      <Tooltip text="Text">
-        <button :class="[buttonBase, toggleClass(isArmed('text'))]" @click="arm('text')">
-          <LucideIcon name="type" class="h-4 w-4" />
-        </button>
-      </Tooltip>
-      <Tooltip text="Insert image">
-        <button :class="buttonBase" @click="imageInsert.pick()">
-          <LucideIcon name="image" class="h-4 w-4" />
-        </button>
-      </Tooltip>
+
+      <div class="flex flex-1 basis-0 items-center justify-start gap-1">
+        <!-- Live annotation tools (unified only): highlighter / eraser / laser +
+             the active tool's options. The catalog owns pen/sticky/table/text/
+             line/image, so they're excluded here. -->
+        <WhiteboardTools v-if="isUnified" :exclude="unifiedWhiteboardExclude" />
+      </div>
     </template>
 
-    <!-- Mind map: map-wide actions (per-node editing is in the floating toolbar). -->
-    <template v-if="isMindmap">
-      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-      <!-- Chevrons meeting in the middle = collapse; chevrons splitting apart =
-           expand — the clearest read of "fold everything in / open it all up". -->
-      <Tooltip text="Collapse all">
-        <button :class="buttonBase" @click="collapseAll(store, true)"><LucideIcon name="chevrons-down-up" class="h-4 w-4" /></button>
-      </Tooltip>
-      <Tooltip text="Expand all">
-        <button :class="buttonBase" @click="collapseAll(store, false)"><LucideIcon name="chevrons-up-down" class="h-4 w-4" /></button>
-      </Tooltip>
-    </template>
-
-    <!-- Flowchart: map-wide layout actions (per-node editing is in the floating toolbar). -->
-    <template v-if="isFlowchart">
-      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-      <Tooltip text="Tidy up">
-        <button :class="buttonBase" @click="flowTidy"><LucideIcon name="grid" class="h-4 w-4" /></button>
-      </Tooltip>
-      <!-- Label + icon show the TARGET direction (what clicking switches to), not
-           the current one (P8). -->
-      <Tooltip :text="flowDirection === 'TB' ? 'Switch to left → right' : 'Switch to top → bottom'">
-        <button :class="buttonBase" @click="flowFlip"><LucideIcon :name="flowDirection === 'TB' ? 'arrow-right' : 'arrow-down'" class="h-4 w-4" /></button>
-      </Tooltip>
-      <Tooltip :text="flowNumbered ? 'Clear numbers' : 'Number steps'">
-        <button :class="[buttonBase, toggleClass(flowNumbered)]" @click="flowNumber"><LucideIcon name="list" class="h-4 w-4" /></button>
-      </Tooltip>
-    </template>
-
-    <!-- Whiteboard tools: full set for a whiteboard doc; on the unified canvas the
-         block-owned tools (text/line/image) are hidden to avoid duplicates. -->
-    <WhiteboardTools
-      v-if="isWhiteboard || isUnified"
-      :exclude="isUnified ? ['text', 'line', 'image'] : []"
-    />
-
-    <!-- Any other type that declares extra surface tools (seam; none today). -->
-    <template v-else-if="surfaceTools.length">
-      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-      <Tooltip v-for="modeTool in surfaceTools" :key="modeTool.tool" :text="modeTool.label">
+    <!-- LEGACY single-type docs (mind map / flowchart / whiteboard): their own
+         pointer modes + map/tool actions + guides, unchanged. -->
+    <template v-else>
+      <Tooltip v-for="mode in modes" :key="mode.tool" :text="mode.label">
         <button
-          :class="[buttonBase, toggleClass(editorUi.state.tool === modeTool.tool)]"
-          @click="editorUi.setTool(modeTool.tool)"
+          :class="[buttonBase, toggleClass(editorUi.state.tool === mode.tool)]"
+          @click="editorUi.setTool(mode.tool)"
         >
-          <LucideIcon :name="modeTool.icon" class="h-4 w-4" />
+          <LucideIcon :name="mode.icon" class="h-4 w-4" />
         </button>
       </Tooltip>
-    </template>
 
-    <!-- Guides: a popover menu (No / Rare / Dense); hidden on the whiteboard (Q4). -->
-    <template v-if="!isWhiteboard">
-      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-      <Popover>
-        <template #target="{ togglePopover }">
-          <Tooltip text="Guides">
-            <button :class="[buttonBase, toggleClass(guidesState !== 'no')]" @click="togglePopover()">
-              <LucideIcon :name="guidesState === 'rare' ? 'more-horizontal' : 'grid'" class="h-4 w-4" />
-            </button>
-          </Tooltip>
-        </template>
-        <template #body-main="{ togglePopover }">
-          <div class="w-40 p-1">
-            <button
-              v-for="opt in GUIDE_OPTIONS"
-              :key="opt.key"
-              class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-surface-gray-2"
-              :class="guidesState === opt.key ? 'text-ink-gray-9' : 'text-ink-gray-7'"
-              @click="setGuides(opt.key); togglePopover()"
-            >
-              <LucideIcon :name="opt.icon" class="h-4 w-4 text-ink-gray-6" />
-              {{ opt.label }}
-              <LucideIcon v-if="guidesState === opt.key" name="check" class="ml-auto h-4 w-4 text-ink-gray-9" />
-            </button>
-          </div>
-        </template>
-      </Popover>
-    </template>
+      <!-- Mind map: map-wide actions (per-node editing is in the floating toolbar). -->
+      <template v-if="isMindmap">
+        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+        <Tooltip text="Collapse all">
+          <button :class="buttonBase" @click="collapseAll(store, true)"><LucideIcon name="chevrons-down-up" class="h-4 w-4" /></button>
+        </Tooltip>
+        <Tooltip text="Expand all">
+          <button :class="buttonBase" @click="collapseAll(store, false)"><LucideIcon name="chevrons-up-down" class="h-4 w-4" /></button>
+        </Tooltip>
+      </template>
 
+      <!-- Flowchart: map-wide layout actions. -->
+      <template v-if="isFlowchart">
+        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+        <Tooltip text="Tidy up">
+          <button :class="buttonBase" @click="flowTidy"><LucideIcon name="grid" class="h-4 w-4" /></button>
+        </Tooltip>
+        <Tooltip :text="flowDirection === 'TB' ? 'Switch to left → right' : 'Switch to top → bottom'">
+          <button :class="buttonBase" @click="flowFlip"><LucideIcon :name="flowDirection === 'TB' ? 'arrow-right' : 'arrow-down'" class="h-4 w-4" /></button>
+        </Tooltip>
+        <Tooltip :text="flowNumbered ? 'Clear numbers' : 'Number steps'">
+          <button :class="[buttonBase, toggleClass(flowNumbered)]" @click="flowNumber"><LucideIcon name="list" class="h-4 w-4" /></button>
+        </Tooltip>
+      </template>
+
+      <!-- Whiteboard tools: full set for a whiteboard doc. -->
+      <WhiteboardTools v-if="isWhiteboard" :exclude="[]" />
+
+      <!-- Any other type declaring extra surface tools (seam; none today). -->
+      <template v-else-if="surfaceTools.length">
+        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+        <Tooltip v-for="modeTool in surfaceTools" :key="modeTool.tool" :text="modeTool.label">
+          <button
+            :class="[buttonBase, toggleClass(editorUi.state.tool === modeTool.tool)]"
+            @click="editorUi.setTool(modeTool.tool)"
+          >
+            <LucideIcon :name="modeTool.icon" class="h-4 w-4" />
+          </button>
+        </Tooltip>
+      </template>
+
+      <!-- Guides: hidden on the whiteboard (Q4). -->
+      <template v-if="!isWhiteboard">
+        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+        <GuidesMenu />
+      </template>
+    </template>
   </div>
 </template>

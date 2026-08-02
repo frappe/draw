@@ -336,7 +336,7 @@ function attachFlowchart(store, state, history) {
   //
   // `view` places the FIRST chart in that logical on-screen rect (#30); it carries
   // the frame origin, which later charts must not move.
-  store.insertFlowchartStarter = (view = null) =>
+  store.insertFlowchartStarter = (view = null, nodeType = 'terminator') =>
     history.commit('Insert flowchart', () => {
       const m = state.flowchart
       if (!m) return
@@ -344,9 +344,10 @@ function attachFlowchart(store, state, history) {
       const bounds = first ? null : flowchartContentBounds(m)
       const x = bounds ? bounds.x : 0
       const y = bounds ? bounds.y + bounds.h + FRAME_GAP : 0
-      // Start with a single node — no second step, no edge (#80). Flowchart nodes
-      // have no placeholder render, so the lone start node keeps a short label.
-      addFlowchartNode(m, 'terminator', 'Start', x, y)
+      // Start with a single node of the chosen type — no second step, no edge
+      // (#80). Empty text falls back to the type's default label (addFlowchartNode).
+      // The palette exposes every node type (#86), so any of them can seed a chart.
+      addFlowchartNode(m, nodeType, '', x, y)
       if (first && view) {
         m.origin = frameOriginInView(flowchartContentBounds(m), view, otherFrameRect(state, 'flowchart'))
       }

@@ -142,6 +142,19 @@ describe('insertFlowchartStarter places a new frame in the visible rect', () => 
     expect(store.state.flowchart.edges.length).toBe(0)
   })
 
+  // #86: the palette can seed a chart with ANY node type, not just the terminator.
+  it('seeds the requested node type (defaulting to terminator)', () => {
+    const store = unified()
+    store.insertFlowchartStarter()
+    expect(store.state.flowchart.nodes[0].nodeType).toBe('terminator')
+
+    store.insertFlowchartStarter(null, 'decision')
+    const added = store.state.flowchart.nodes.at(-1)
+    expect(added.nodeType).toBe('decision')
+    // Empty text falls back to the type's default label.
+    expect(added.text).toBe('Decision?')
+  })
+
   // #48: a repeat insert used to append a step to the last node and wire an edge
   // to it, extending the chart already there instead of starting a new one.
   it('adds a SECOND independent chart, unconnected to the first', () => {

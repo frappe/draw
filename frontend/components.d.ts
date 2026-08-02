@@ -37,6 +37,7 @@ declare module 'vue' {
     FlowchartSelectionEditor: typeof import('./src/components/floating/FlowchartSelectionEditor.vue')['default']
     FolderItem: typeof import('./src/components/home/FolderItem.vue')['default']
     GridLayer: typeof import('./src/components/canvas/GridLayer.vue')['default']
+    GuidesMenu: typeof import('./src/components/floating/GuidesMenu.vue')['default']
     HoverArrows: typeof import('./src/components/canvas/HoverArrows.vue')['default']
     LineOptions: typeof import('./src/components/floating/LineOptions.vue')['default']
     LinkSection: typeof import('./src/components/palette-right/LinkSection.vue')['default']

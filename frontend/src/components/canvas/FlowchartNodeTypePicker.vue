@@ -4,29 +4,14 @@
 // node connected one level down. Rendered inside a <foreignObject> in the canvas
 // layer so it tracks the viewport transform (Part G4). frappe-ui chrome tokens.
 import LucideIcon from '@/icons/LucideIcon.vue'
-import { NODE_TYPES, NODE_TYPE_META } from '@/diagram/flowchartModel.js'
+import { NODE_TYPES, NODE_TYPE_META, NODE_TYPE_ICONS } from '@/diagram/flowchartModel.js'
 
 defineEmits(['choose', 'close'])
-
-// Curated icon per node type for the picker rows.
-const ICONS = {
-  terminator: 'circle-play',
-  process: 'square',
-  decision: 'git-branch',
-  inputOutput: 'log-in',
-  document: 'file-text',
-  database: 'database',
-  predefinedProcess: 'columns-2',
-  manualInput: 'type',
-  preparation: 'hexagon',
-  offPageRef: 'pentagon',
-  connector: 'circle',
-}
 
 const options = NODE_TYPES.map((type) => ({
   type,
   label: NODE_TYPE_META[type].label,
-  icon: ICONS[type],
+  icon: NODE_TYPE_ICONS[type],
 }))
 </script>
 
