@@ -192,8 +192,16 @@ function setGuides(state) {
       <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
       <Popover>
         <template #target="{ togglePopover }">
-          <Tooltip text="Shapes">
-            <button :class="buttonBase" @click="togglePopover()"><LucideIcon name="shapes" class="h-4 w-4" /></button>
+          <Tooltip text="Add shape">
+            <!-- The primary "add" action stands out from the flat tool buttons: a
+                 larger, solid, circular + button (frappe-ui solid styling) — #83. -->
+            <button
+              class="mx-0.5 flex h-[38px] w-[38px] items-center justify-center rounded-full bg-surface-gray-10 text-ink-base shadow-sm transition-colors hover:bg-surface-gray-9 active:bg-surface-gray-8"
+              aria-label="Add shape"
+              @click="togglePopover()"
+            >
+              <LucideIcon name="plus" class="h-5 w-5" />
+            </button>
           </Tooltip>
         </template>
         <template #body-main="{ togglePopover }">
