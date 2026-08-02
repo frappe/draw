@@ -7,7 +7,6 @@ import { computed } from 'vue'
 import { Dropdown, toast } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { documentToSvg, isDocumentEmpty } from '@/composables/useThumbnail.js'
-import { typeIcon, typeLabel } from '@/data/diagramTypes.js'
 
 const props = defineProps({
   diagram: { type: Object, required: true },
@@ -35,8 +34,9 @@ const previewSvg = computed(() => {
   return documentToSvg(props.diagram.document)
 })
 
-const icon = computed(() => typeIcon(props.diagram.diagram_type))
-const typeName = computed(() => typeLabel(props.diagram.diagram_type))
+// One neutral glyph for every diagram — types aren't a user-facing concept
+// anymore, so rows no longer show a per-type icon (#114).
+const icon = 'shapes'
 const isPinned = computed(() => Boolean(props.diagram.is_pinned))
 const createdLabel = computed(() => relativeTime(props.diagram.creation))
 const editedLabel = computed(() => relativeTime(props.diagram.modified))

@@ -14,7 +14,7 @@ import DiagramCollection from './DiagramCollection.vue'
 import FolderItem from './FolderItem.vue'
 import { folders, moveDiagramToFolder, deleteFolder, toggleFolderPin } from '@/data/folders.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
-import { DIAGRAM_TYPES, typeLabel } from '@/data/diagramTypes.js'
+import { typeLabel } from '@/data/diagramTypes.js'
 
 const props = defineProps({
   mode: { type: String, default: 'home' }, // 'home' | 'recent' | 'all'
@@ -41,10 +41,11 @@ const rows = computed(() => enriched.data || [])
 const pinnedTotal = computed(() => rows.value.filter((d) => d.is_pinned).length)
 const pinLimitReached = computed(() => pinnedTotal.value >= MAX_PINNED)
 
-// --- view / search / type filter / sort -----------------------------------
+// --- view / search / sort --------------------------------------------------
+// No type filter: new diagrams are all one unified type, so "types" aren't a
+// user-facing concept anymore (#114).
 const view = ref('list')
 const query = ref('')
-const typeFilter = ref('all')
 const sortKey = ref('modified')
 
 function matchesQuery(diagram) {
@@ -60,12 +61,6 @@ const SORTS = [
 ]
 const sortLabel = computed(() => SORTS.find((s) => s.key === sortKey.value)?.label || 'Sort')
 const sortOptions = computed(() => SORTS.map((s) => ({ label: s.label, onClick: () => (sortKey.value = s.key) })))
-
-const typeOptions = computed(() => [
-  { label: 'All types', onClick: () => (typeFilter.value = 'all') },
-  ...DIAGRAM_TYPES.map((t) => ({ label: t.label, icon: t.icon, onClick: () => (typeFilter.value = t.value) })),
-])
-const typeFilterLabel = computed(() => (typeFilter.value === 'all' ? 'All types' : typeLabel(typeFilter.value)))
 
 function ts(value) {
   return value ? new Date(value.replace(' ', 'T')).getTime() : 0
@@ -83,11 +78,8 @@ function bySort(a, b) {
 function byNewest(a, b) {
   return ts(b.modified) - ts(a.modified)
 }
-function matchesType(diagram) {
-  return typeFilter.value === 'all' || (diagram.diagram_type || 'block') === typeFilter.value
-}
 
-const visibleRows = computed(() => rows.value.filter((d) => matchesType(d) && matchesQuery(d)))
+const visibleRows = computed(() => rows.value.filter((d) => matchesQuery(d)))
 
 // Home root: pinned group + loose files + folder tiles. Inside a folder: that
 // folder's files. Pinned items show only in the Pinned group.
@@ -361,17 +353,12 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
         <TextInput v-model="query" type="text" placeholder="Find a diagram" class="max-w-md flex-1">
           <template #prefix><LucideIcon name="search" class="h-3.5 w-3.5 text-ink-gray-5" /></template>
         </TextInput>
-        <Dropdown :options="typeOptions" placement="bottom-start">
-          <Button variant="subtle">
-            <template #prefix><LucideIcon name="filter" class="h-4 w-4" /></template>
-            {{ typeFilterLabel }}
-          </Button>
-        </Dropdown>
         <Dropdown :options="sortOptions" placement="bottom-start">
-          <Button variant="subtle">
-            <template #prefix><LucideIcon name="bar-chart-2" class="h-4 w-4 rotate-90" /></template>
-            {{ sortLabel }}
-          </Button>
+          <Tooltip :text="`Sort: ${sortLabel}`">
+            <Button variant="subtle" :aria-label="`Sort: ${sortLabel}`">
+              <LucideIcon name="arrow-up-down" class="h-4 w-4" />
+            </Button>
+          </Tooltip>
         </Dropdown>
       </template>
 
