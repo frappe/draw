@@ -1,0 +1,326 @@
+// Free-floating migration engine (issue #122, phase 1).
+//
+// The mind map and flowchart currently live as FRAMED sub-models on the document
+// (`document.mindmap` / `document.flowchart`), each with its own node/edge lists
+// and a frame `origin`. That second coordinate space + special-cased node
+// handling is the source of a whole class of interaction bugs (#96/#100/#120/#121)
+// and clobbers on concurrent edits (the sub-models sit in one coarse `meta` blob).
+//
+// The target model dissolves the frames: every mind-map / flowchart NODE becomes
+// an ordinary canvas shape in `shapes[]` (tagged with a `role` so we still know
+// what it is), and every LINK becomes an ordinary connector in `connectors[]`
+// (endpoints bound to the shapes by id, exactly like the #138 anchor system).
+// Positions are baked into canvas coordinates so there is no origin left to
+// convert. Once flattened, selection / marquee / drag / delete / text-edit all
+// come free from the shared shape machinery.
+//
+// THIS MODULE IS THE PURE, DETERMINISTIC CONVERTER ONLY. Phase 1 lands it fully
+// unit-tested but does NOT wire it into the live load/render/save path — the
+// renderer cannot yet draw tagged flowchart glyphs, so activating it now would be
+// a visible change. Phase 2 flips the switch (schema bump + render + interaction)
+// on top of this proven core. Keeping the engine separable is what lets phase 1
+// be genuinely no-visible-change while still being real, reviewable progress.
+
+import { rootNodes, childrenOf, subtreeIds, nodeById } from './mindmapModel.js'
+import { layoutMindMap, offsetPositions } from './mindmapLayout.js'
+import { resolveNodeColor, nodeFill, readableInk } from './mindmapColors.js'
+import { nodeSize } from './flowchartModel.js'
+
+// The schema version that first emits free-floating documents. Phase 1 keeps the
+// live SCHEMA_VERSION at 1 (see schema.js) — this constant is the target phase 2
+// adopts when it wires the migration into `migrateDocument`.
+export const SCHEMA_VERSION_FREEFLOATING = 2
+
+// `role` tags on migrated objects. A shape/connector with no role is a plain
+// block object (unchanged). These let the renderer and interaction layers keep
+// treating mind-map / flowchart objects specially where geometry demands it
+// (glyphs, branch colour, orthogonal routing) while they live in the shared
+// arrays.
+export const ROLE = {
+  mindmapNode: 'mindmap-node',
+  mindmapBranch: 'mindmap-branch',
+  mindmapCrosslink: 'mindmap-crosslink',
+  flowchartNode: 'flowchart-node',
+  flowchartEdge: 'flowchart-edge',
+}
+
+export function isMindmapShape(shape) {
+  return shape?.role === ROLE.mindmapNode
+}
+
+export function isFlowchartShape(shape) {
+  return shape?.role === ROLE.flowchartNode
+}
+
+// Flowchart node types that ShapeView cannot draw yet get a nearest-neighbour
+// fallback `type`, so a migrated shape is renderable even before phase 2 teaches
+// the renderer the real glyph. The authoritative shape stays in
+// `shape.flowchart.nodeType`; this is only the degrade path.
+const FLOWCHART_FALLBACK_TYPE = {
+  terminator: 'rounded',
+  process: 'rounded',
+  decision: 'diamond',
+  inputOutput: 'rectangle',
+  document: 'rectangle',
+  database: 'cylinder',
+  predefinedProcess: 'rectangle',
+  manualInput: 'rectangle',
+  preparation: 'hexagon',
+  offPageRef: 'pentagon',
+  connector: 'ellipse',
+}
+
+const NEUTRAL_BORDER = { color: '#525252', width: 1.5, dash: 'solid' }
+
+// A private JSON clone — the migration must never mutate the source document (it
+// runs on a live in-memory doc during load). structuredClone is not guaranteed in
+// every test/runtime, and the models are plain JSON, so this is enough.
+function clone(value) {
+  return JSON.parse(JSON.stringify(value))
+}
+
+function textBlock(content, color) {
+  return {
+    content: content || '',
+    align: 'center',
+    valign: 'middle',
+    style: { size: 16, bold: false, italic: false, underline: false, color },
+  }
+}
+
+// --- mind map ---------------------------------------------------------------
+
+// Bake absolute canvas positions for EVERY node, ignoring collapse. Free-floating
+// has no collapse concept (every object is always visible; folding becomes an
+// explicit action in a later phase), so a collapsed subtree must still get real
+// positions or its nodes would migrate stacked on top of each other. We lay the
+// tree out fully expanded, then shift by the frame origin. The original
+// `collapsed` flag is preserved in each node's tag for a future fold action.
+function bakeMindmapPositions(model) {
+  const expanded = clone(model)
+  for (const node of expanded.nodes) node.collapsed = false
+  const laid = layoutMindMap(expanded)
+  return offsetPositions(laid.positions, model.origin)
+}
+
+// The anchor pair for a parent→child branch, derived from the baked geometry:
+// the child leaves whichever side of the parent it sits on. Layout-driven rather
+// than reading node.side, so it is correct for every tree shape.
+function branchAnchors(parentBox, childBox) {
+  const parentCenter = parentBox.x + parentBox.w / 2
+  const childCenter = childBox.x + childBox.w / 2
+  return childCenter >= parentCenter
+    ? { from: 'right', to: 'left' }
+    : { from: 'left', to: 'right' }
+}
+
+// Convert a mind-map sub-model into tagged shapes + connectors. Node ids are
+// reused verbatim as shape ids (they are globally unique, prefix 'n…') so
+// connectors and any future references keep pointing at the same objects.
+function flattenMindmap(model, themePreset, startZ) {
+  const shapes = []
+  const connectors = []
+  if (!model || !model.nodes?.length) return { shapes, connectors, nextZ: startZ }
+
+  const boxes = bakeMindmapPositions(model)
+  let z = startZ
+
+  // One shape per node. A node with no baked box (should not happen once fully
+  // expanded, but stays defensive) is skipped for geometry yet still recorded at
+  // its parent's spot so nothing is silently lost.
+  for (const node of model.nodes) {
+    const box = boxes[node.id]
+    const color = resolveNodeColor(model, node, themePreset)
+    const isRoot = !node.parentId
+    const fill = nodeFill(color)
+    z += 1
+    shapes.push({
+      id: node.id,
+      type: 'rounded',
+      x: Math.round(box?.x ?? 0),
+      y: Math.round(box?.y ?? 0),
+      w: Math.round(box?.w ?? 160),
+      h: Math.round(box?.h ?? 48),
+      rotation: 0,
+      opacity: 1,
+      zIndex: z,
+      fill,
+      border: { color, width: isRoot ? 2 : 1.5, dash: 'solid' },
+      text: textBlock(node.text, readableInk(fill)),
+      role: ROLE.mindmapNode,
+      mindmap: {
+        parentId: node.parentId || null,
+        order: node.order,
+        depth: node.depth,
+        collapsed: !!node.collapsed,
+        side: node.side || null,
+        color: node.color || null,
+        marker: node.marker || { icon: null, colorDot: null },
+        isRoot,
+      },
+    })
+  }
+
+  // Parent→child edges become curved connectors bound to the two shapes.
+  for (const node of model.nodes) {
+    if (!node.parentId) continue
+    const parentBox = boxes[node.parentId]
+    const childBox = boxes[node.id]
+    const anchors =
+      parentBox && childBox ? branchAnchors(parentBox, childBox) : { from: 'right', to: 'left' }
+    connectors.push({
+      id: `mmb-${node.parentId}-${node.id}`,
+      type: 'curved',
+      from: { shapeId: node.parentId, anchor: anchors.from },
+      to: { shapeId: node.id, anchor: anchors.to },
+      arrowheads: { start: 'none', end: 'none' },
+      style: { color: resolveNodeColor(model, node, themePreset), width: 2, dash: 'solid' },
+      label: '',
+      role: ROLE.mindmapBranch,
+      mindmap: { parentId: node.parentId, childId: node.id },
+    })
+  }
+
+  // Cross-links (non-tree dotted associations, #… mind-map cross-link) become
+  // dashed connectors carrying their label.
+  for (const link of model.crosslinks || []) {
+    if (!nodeById(model, link.fromId) || !nodeById(model, link.toId)) continue
+    connectors.push({
+      id: `mmx-${link.id}`,
+      type: 'curved',
+      from: { shapeId: link.fromId, anchor: 'right' },
+      to: { shapeId: link.toId, anchor: 'left' },
+      arrowheads: { start: 'none', end: 'arrow' },
+      style: { color: '#8A8A8A', width: 1.5, dash: 'dashed' },
+      label: link.label || '',
+      role: ROLE.mindmapCrosslink,
+      mindmap: { crosslinkId: link.id },
+    })
+  }
+
+  return { shapes, connectors, nextZ: z }
+}
+
+// --- flowchart --------------------------------------------------------------
+
+// Which side of a node an edge should leave / enter, from the two node centres.
+// Flowchart edges route orthogonally, so we pick the dominant axis: mostly-below
+// → bottom/top, mostly-right → right/left. The exact port is preserved in the
+// connector tag for phase-2 routing; this only seeds a sensible anchor.
+function edgeAnchors(fromBox, toBox) {
+  const dx = toBox.x + toBox.w / 2 - (fromBox.x + fromBox.w / 2)
+  const dy = toBox.y + toBox.h / 2 - (fromBox.y + fromBox.h / 2)
+  if (Math.abs(dy) >= Math.abs(dx)) {
+    return dy >= 0 ? { from: 'bottom', to: 'top' } : { from: 'top', to: 'bottom' }
+  }
+  return dx >= 0 ? { from: 'right', to: 'left' } : { from: 'left', to: 'right' }
+}
+
+// Convert a flowchart sub-model into tagged shapes + connectors. Flowchart nodes
+// already store x/y (manual placement is allowed), so positions are simply
+// shifted by the frame origin — no layout run needed. Node ids ('f…') are reused
+// as shape ids; edge ports/kind/label are preserved so decision branches survive.
+function flattenFlowchart(model, startZ) {
+  const shapes = []
+  const connectors = []
+  if (!model || !model.nodes?.length) return { shapes, connectors, nextZ: startZ }
+
+  const ox = Number.isFinite(model.origin?.x) ? model.origin.x : 0
+  const oy = Number.isFinite(model.origin?.y) ? model.origin.y : 0
+  const boxes = {}
+  let z = startZ
+
+  for (const node of model.nodes) {
+    const size = nodeSize(node)
+    const box = { x: node.x + ox, y: node.y + oy, w: size.w, h: size.h }
+    boxes[node.id] = box
+    z += 1
+    shapes.push({
+      id: node.id,
+      type: FLOWCHART_FALLBACK_TYPE[node.nodeType] || 'rectangle',
+      x: Math.round(box.x),
+      y: Math.round(box.y),
+      w: Math.round(box.w),
+      h: Math.round(box.h),
+      rotation: 0,
+      opacity: 1,
+      zIndex: z,
+      fill: node.fill || 'none',
+      border: node.border || { ...NEUTRAL_BORDER },
+      text: textBlock(node.text, '#1F2933'),
+      role: ROLE.flowchartNode,
+      flowchart: {
+        nodeType: node.nodeType,
+        branches: clone(node.branches || []),
+        manuallyPositioned: !!node.manuallyPositioned,
+      },
+    })
+  }
+
+  for (const edge of model.edges || []) {
+    const fromBox = boxes[edge.from?.nodeId]
+    const toBox = boxes[edge.to?.nodeId]
+    if (!fromBox || !toBox) continue // no dangling routes (spec B11)
+    const anchors = edgeAnchors(fromBox, toBox)
+    connectors.push({
+      id: `fce-${edge.id}`,
+      type: 'elbow',
+      from: { shapeId: edge.from.nodeId, anchor: anchors.from },
+      to: { shapeId: edge.to.nodeId, anchor: anchors.to },
+      arrowheads: { start: 'none', end: 'arrow' },
+      style: { color: '#525252', width: 1.5, dash: 'solid' },
+      label: edge.label || '',
+      role: ROLE.flowchartEdge,
+      flowchart: {
+        fromPort: edge.from?.port || 'out',
+        toPort: edge.to?.port || 'in',
+        kind: edge.kind || 'flow',
+      },
+    })
+  }
+
+  return { shapes, connectors, nextZ: z }
+}
+
+// --- document-level migration ----------------------------------------------
+
+// The current top of the shape stack, so migrated nodes paint above existing
+// block shapes rather than under them.
+function topZ(shapes) {
+  return (shapes || []).reduce((max, shape) => Math.max(max, shape.zIndex || 0), 0)
+}
+
+// Flatten a document's mind-map and flowchart sub-models into the shared
+// `shapes[]` / `connectors[]` arrays and drop the sub-models. Returns a NEW
+// document (the input is never mutated); idempotent on an already-flattened doc
+// (no sub-models → nothing to do). `themePreset` drives mind-map branch colour so
+// the baked fills match what the map renders today.
+export function flattenSubmodels(document, themePreset) {
+  if (!document) return document
+  const hasMindmap = document.mindmap && document.mindmap.nodes?.length
+  const hasFlowchart = document.flowchart && document.flowchart.nodes?.length
+  const next = clone(document)
+  next.shapes = Array.isArray(next.shapes) ? next.shapes : []
+  next.connectors = Array.isArray(next.connectors) ? next.connectors : []
+
+  let z = topZ(next.shapes)
+  if (hasMindmap) {
+    const mm = flattenMindmap(document.mindmap, themePreset, z)
+    next.shapes.push(...mm.shapes)
+    next.connectors.push(...mm.connectors)
+    z = mm.nextZ
+  }
+  if (hasFlowchart) {
+    const fc = flattenFlowchart(document.flowchart, z)
+    next.shapes.push(...fc.shapes)
+    next.connectors.push(...fc.connectors)
+    z = fc.nextZ
+  }
+
+  // The sub-models are dissolved: their content now lives in the shared arrays.
+  // A unified doc keeps the keys as null (its render/interaction still probe for
+  // them); dropping to null is what lets `META_KEYS` shed them from collab later.
+  next.mindmap = null
+  next.flowchart = null
+  return next
+}
