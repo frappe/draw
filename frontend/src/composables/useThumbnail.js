@@ -41,12 +41,34 @@ function shapeBody(s) {
   const { x, y, w, h } = box(s)
   const stroke = `stroke="${safeColor(s.border?.color)}" stroke-width="${num(s.border?.width)}"`
   const fill = `fill="${safeColor(s.fill)}" fill-opacity="${num(s.opacity, 1)}"`
+  // Migrated flowchart node (free-floating #122): draw its exact glyph via the
+  // shared nodeShape geometry, matching ShapeView on the live canvas, so export
+  // and thumbnails don't degrade a stadium / parallelogram / document to a rect.
+  if (s.flowchart?.nodeType) return flowchartGlyphBody(s, fill, stroke)
   if (s.type === 'ellipse') {
     return `<ellipse cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2}" ry="${h / 2}" ${fill} ${stroke}/>`
   }
   if (s.type === 'triangle') return `<polygon points="${trianglePoints({ x, y, w, h })}" ${fill} ${stroke}/>`
   if (s.type === 'diamond') return `<polygon points="${diamondPoints({ x, y, w, h })}" ${fill} ${stroke}/>`
   return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" ${fill} ${stroke}/>`
+}
+
+// nodeShape geometry is local to the node box (0,0 at top-left), so the glyph is
+// drawn inside a translate group — the same approach ShapeView uses.
+function flowchartGlyphBody(s, fill, stroke) {
+  const { x, y, w, h } = box(s)
+  const glyph = nodeShape(s.flowchart.nodeType, w, h)
+  let inner
+  if (glyph.kind === 'ellipse') {
+    inner = `<ellipse cx="${w / 2}" cy="${h / 2}" rx="${w / 2}" ry="${h / 2}" ${fill} ${stroke}/>`
+  } else if (glyph.kind === 'polygon') {
+    inner = `<polygon points="${glyph.points}" ${fill} ${stroke}/>`
+  } else if (glyph.kind === 'path') {
+    inner = `<path d="${glyph.d}" ${fill} ${stroke}/>`
+  } else {
+    inner = `<rect x="0" y="0" width="${w}" height="${h}" rx="${num(glyph.rx, 8)}" ${fill} ${stroke}/>`
+  }
+  return `<g transform="translate(${x} ${y})">${inner}</g>`
 }
 
 function shapeText(s) {

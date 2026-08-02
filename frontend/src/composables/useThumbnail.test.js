@@ -176,6 +176,35 @@ describe('safeColor', () => {
     doc.whiteboard.lines[0].color = '" onload="alert(1)'
     expect(documentToSvg(doc)).not.toContain('onload')
   })
+
+  // Free-floating (#122): a migrated flowchart node lives in shapes[] tagged with
+  // its nodeType. Export/thumbnails must draw the real glyph, not a plain rect.
+  it('renders a migrated flowchart node with its exact glyph', () => {
+    const doc = {
+      schemaVersion: 2,
+      diagramType: 'unified',
+      themePreset: 'ocean',
+      canvas: { width: 1280, height: 720, background: 'none' },
+      sections: [],
+      connectors: [],
+      shapes: [
+        {
+          id: 'f1', type: 'rectangle', x: 200, y: 150, w: 160, h: 84,
+          rotation: 0, opacity: 1, zIndex: 1, fill: 'none',
+          border: { color: '#525252', width: 1.5 },
+          text: { content: 'Doc', style: {} },
+          role: 'flowchart-node',
+          flowchart: { nodeType: 'document', branches: [], manuallyPositioned: false },
+        },
+      ],
+      mindmap: null, flowchart: null, whiteboard: null,
+    }
+    const svg = documentToSvg(doc)
+    // 'document' is a path glyph drawn in a translate group at the node origin —
+    // a plain rect (the pre-#122 fallback) would have no translated <path>.
+    expect(svg).toMatch(/translate\(200 150\)"><path d=/)
+    expect(svg).toContain('Doc')
+  })
 })
 
 // The markup this file builds is injected with v-html by the home and trash tiles
