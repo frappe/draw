@@ -9,8 +9,11 @@ import { createHistory } from '@/stores/history.js'
 import { clone } from '@/utils/clone.js'
 import { findThemePreset, DEFAULT_THEME_PRESET } from '@/diagram/theme.js'
 import { createDiagramDocument, SCHEMA_VERSION, DEFAULT_DIAGRAM_TYPE } from '@/diagram/schema.js'
-import { addChild, addSibling, addRootNode, addTree, nodeById } from '@/diagram/mindmapModel.js'
+import { addChild, addSibling, addRootNode, addTree, nodeById, subtreeIds } from '@/diagram/mindmapModel.js'
 import { layoutMindMap, mindmapTreeRects } from '@/diagram/mindmapLayout.js'
+import { isMindmapShape } from '@/diagram/freeFloating.js'
+import { mindmapModelFromShapes } from '@/diagram/freeFloatingGraph.js'
+import { buildMindmapChild, buildMindmapSibling } from '@/diagram/freeFloatingOps.js'
 import {
   addFlowchartNode,
   addFlowchartEdge,
@@ -198,7 +201,22 @@ function frameOriginInView(bbox, view, avoid = null) {
 // helpers inside commit() so each is one undoable unit (Part G6); layout is
 // derived from the model, never stored. No-ops for non-mindmap diagrams.
 function attachMindMap(store, state, history) {
+  // Add a child as a free-floating tagged shape + branch connector (free-floating
+  // #122), one undoable unit. Used when the parent is a migrated mind-map SHAPE.
+  const addChildShape = (parentShapeId, side) => {
+    const built = buildMindmapChild(state.shapes, parentShapeId, state.themePreset, side)
+    if (!built) return null
+    built.shape.zIndex = nextZIndex(state)
+    history.commit('Add child', () => {
+      state.shapes.push(built.shape)
+      state.connectors.push(built.connector)
+    })
+    return built.shape.id
+  }
+  // Representation-aware: a migrated node is a tagged shape (add child as a shape);
+  // a freshly-inserted / legacy node lives in the sub-model (add child there).
   store.addChildNode = (parentId, side = null) => {
+    if (isMindmapShape(state.shapes.find((s) => s.id === parentId))) return addChildShape(parentId, side)
     if (!state.mindmap) return null
     let id = null
     history.commit('Add child', () => (id = addChild(state.mindmap, parentId, '', side)))
@@ -212,6 +230,16 @@ function attachMindMap(store, state, history) {
     return id
   }
   store.addSiblingNode = (nodeId) => {
+    if (isMindmapShape(state.shapes.find((s) => s.id === nodeId))) {
+      const built = buildMindmapSibling(state.shapes, nodeId, state.themePreset)
+      if (!built) return null
+      built.shape.zIndex = nextZIndex(state)
+      history.commit('Add sibling', () => {
+        state.shapes.push(built.shape)
+        state.connectors.push(built.connector)
+      })
+      return built.shape.id
+    }
     if (!state.mindmap) return null
     let id = null
     history.commit('Add sibling', () => (id = addSibling(state.mindmap, nodeId)))
@@ -222,6 +250,22 @@ function attachMindMap(store, state, history) {
       const node = state.mindmap?.nodes.find((n) => n.id === id)
       if (node) applyPatch(node, patch)
     })
+  // Delete migrated mind-map SHAPES and their whole subtrees (free-floating #122):
+  // reconstruct the tree from the tags, expand each id to its descendants, then drop
+  // those shapes and any connector touching them — one undoable unit, no dangling
+  // branches. Ids that are not mind-map shapes expand to just themselves.
+  store.deleteMindmapSubtrees = (ids) => {
+    const model = mindmapModelFromShapes(state.shapes)
+    const remove = new Set()
+    for (const id of ids || []) for (const sid of subtreeIds(model, id)) remove.add(sid)
+    if (!remove.size) return
+    history.commit('Delete', () => {
+      state.shapes = state.shapes.filter((s) => !remove.has(s.id))
+      state.connectors = state.connectors.filter(
+        (c) => !remove.has(c.from?.shapeId) && !remove.has(c.to?.shapeId),
+      )
+    })
+  }
   // Templates/Insert (canvas unification): drop a starter mind map on the canvas
   // as one undoable unit — always a NEW independent tree (root + two branches).
   //

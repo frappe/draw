@@ -11,6 +11,7 @@ import { navigate } from '@/diagram/mindmapNavigation.js'
 import { isRoot, rootNodes } from '@/diagram/mindmapModel.js'
 import { deleteNodes, promoteNode, reorderNode, unlinkNodes } from '@/diagram/mindmapOperations.js'
 import { selectedNodeId, selectNode, beginEdit, mindmapUi } from '@/stores/mindmapUi.js'
+import { isMindmapShape } from '@/diagram/freeFloating.js'
 
 const ARROW_DIRECTIONS = {
   ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
@@ -19,7 +20,14 @@ const ARROW_DIRECTIONS = {
 // Returns true when it consumed the key (the dispatcher then preventDefaults).
 export function mindmapKeydown(event, store) {
   const model = store.state.mindmap
-  if (!model || mindmapUi.editingId !== null) return false
+  if (mindmapUi.editingId !== null) return false
+  // Free-floating (#122): if the selection is migrated mind-map SHAPES, the growth
+  // keys operate on shapes + connectors, not the (empty) sub-model below.
+  const freeIds = (store.state.selection || []).filter((sid) =>
+    isMindmapShape(store.state.shapes?.find((s) => s.id === sid)),
+  )
+  if (freeIds.length) return freeFloatingMindmapKey(event, store, freeIds)
+  if (!model) return false
   const id = selectedNodeId(store)
   if (event.key === 'Tab') return handleTab(store, id, event)
   if (event.key === 'Enter') return addSiblingAndEdit(store, id)
@@ -125,6 +133,29 @@ function enterEdit(store, id) {
   if (!id) return true
   selectNode(store, id)
   beginEdit(id)
+  return true
+}
+
+// A migrated free-floating node (free-floating #122) is a block shape, so only the
+// growth keys have a mind-map meaning here (Tab=child, Enter=sibling, Delete=remove
+// the subtree). The new node is selected, not put into the mind-map inline editor
+// (it has none) — text edit is via double-click (the block editor). Other keys are
+// consumed as a no-op: while a node owns the keyboard the block handler is
+// suppressed anyway (useKeyboard line ~133), so arrow-nudging a node is not wanted.
+function freeFloatingMindmapKey(event, store, ids) {
+  const id = ids.length === 1 ? ids[0] : null
+  if (event.key === 'Tab' && !event.shiftKey && id) return select(store, store.addChildNode(id))
+  if (event.key === 'Enter' && id) return select(store, store.addSiblingNode(id))
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    store.deleteMindmapSubtrees(ids)
+    selectNode(store, null)
+    return true
+  }
+  return true
+}
+
+function select(store, id) {
+  if (id) selectNode(store, id)
   return true
 }
 

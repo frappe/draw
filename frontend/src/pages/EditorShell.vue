@@ -6,6 +6,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { loadDiagram } from '@/data/diagrams.js'
 import { parseDiagramDocument, isUnifiedDocument } from '@/diagram/schema.js'
+import { isMindmapShape, isFlowchartShape } from '@/diagram/freeFloating.js'
 import { createDiagramStore, provideDiagramStore } from '@/stores/useDiagramStore.js'
 import { createEditorUi, provideEditorUi } from '@/stores/useEditorUi.js'
 import { provideModeStrategy, getModeStrategy } from '@/stores/useModeStrategy.js'
@@ -78,6 +79,14 @@ provideModeStrategy(modeStrategy)
 const chromeType = computed(() => {
   if (!isUnifiedDocument(store.state)) return modeStrategy.value.type
   if (whiteboardUi.state.selection.length) return 'whiteboard'
+  // A migrated free-floating mind-map / flowchart node (#122) is a block shape: it
+  // OWNS the mind-map/flowchart keyboard (Tab grows it), but its selection chrome is
+  // the BLOCK editor, which actually edits the shape. The framed MindMapOverlay /
+  // FlowchartOverlay read the now-empty sub-model (and would show its blank prompt),
+  // so they must not mount for a migrated node.
+  const selected = store.state.selection?.[0]
+  const shape = selected && store.state.shapes?.find((s) => s.id === selected)
+  if (isMindmapShape(shape) || isFlowchartShape(shape)) return 'block'
   return keyboardOwner(store) || 'block'
 })
 

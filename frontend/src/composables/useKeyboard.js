@@ -12,6 +12,7 @@ import { whiteboardKeydown, deleteWhiteboardSelection } from '@/composables/useW
 import { toggleShortcutsHelp } from '@/composables/useShortcutsHelp.js'
 import { mindmapUi } from '@/stores/mindmapUi.js'
 import { isUnifiedDocument } from '@/diagram/schema.js'
+import { isMindmapShape, isFlowchartShape } from '@/diagram/freeFloating.js'
 import { isEditingText } from '@/utils/dom.js'
 
 const ARROW_DELTAS = {
@@ -154,8 +155,14 @@ export function keyboardOwner(store) {
 function selectedNodeOwner(store) {
   const id = (store.state.selection || [])[0]
   if (!id) return null
+  // Freshly-inserted / legacy content still lives in the sub-model.
   if (store.state.mindmap?.nodes?.some((node) => node.id === id)) return 'mindmap'
   if (store.state.flowchart?.nodes?.some((node) => node.id === id)) return 'flowchart'
+  // Free-floating (#122): a migrated node is a role-tagged shape, so ownership
+  // follows the selected shape's role, not sub-model membership (now empty).
+  const shape = store.state.shapes?.find((s) => s.id === id)
+  if (isMindmapShape(shape)) return 'mindmap'
+  if (isFlowchartShape(shape)) return 'flowchart'
   return null
 }
 
