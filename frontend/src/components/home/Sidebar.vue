@@ -8,7 +8,6 @@ import { ref, computed, onMounted } from 'vue'
 import { Sidebar, SidebarItem, Dropdown, Dialog, Button, FormControl, toast } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import Logomark from '@/components/Logomark.vue'
-import SettingsDialog from '@/components/home/SettingsDialog.vue'
 import { folders, renameFolder, deleteFolder } from '@/data/folders.js'
 import { logout } from '@/data/session.js'
 
@@ -18,7 +17,6 @@ const props = defineProps({
 const emit = defineEmits(['navigate'])
 
 const collapsed = ref(false)
-const showSettings = ref(false)
 
 onMounted(() => folders.fetch())
 
@@ -35,14 +33,11 @@ async function signOut() {
   }
 }
 
-// Header dropdown (Settings + Log out), matching Drive's header menu.
+// Header dropdown (Log out), matching Drive's header menu.
 const header = computed(() => ({
   title: 'Frappe Draw',
   subtitle: fullName.value,
-  menuItems: [
-    { label: 'Settings', icon: 'settings', onClick: () => (showSettings.value = true) },
-    { label: 'Log out', icon: 'log-out', onClick: signOut },
-  ],
+  menuItems: [{ label: 'Log out', icon: 'log-out', onClick: signOut }],
 }))
 
 const NAV = [
@@ -135,8 +130,6 @@ function onItemClick(item) {
       </SidebarItem>
     </template>
   </Sidebar>
-
-  <SettingsDialog v-model="showSettings" />
 
   <Dialog v-model="dialog.open" :options="{ title: 'Rename folder' }">
     <template #body-content>

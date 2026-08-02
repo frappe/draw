@@ -2,8 +2,8 @@
 // Top bar (48px). Drive/Writer style: NO back button — a breadcrumb instead.
 // Left: the violet logomark + "Frappe Draw" (→ Home) / optional folder / the
 // editable diagram title as the last crumb + save indicator. Right: Export,
-// Share, Print, dark-mode, presence. Chrome only — frappe-ui + its tokens; the
-// breadcrumb styling mirrors frappe-ui's Breadcrumbs (text-lg, ink-gray ladder).
+// Share, Print, presence. Chrome only — frappe-ui + its tokens; the breadcrumb
+// styling mirrors frappe-ui's Breadcrumbs (text-lg, ink-gray ladder).
 import { useRouter } from 'vue-router'
 import { Button, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
@@ -18,11 +18,10 @@ import PresenceAvatars from './PresenceAvatars.vue'
 const props = defineProps({
   title: { type: String, default: 'Untitled diagram' },
   saveStatus: { type: String, default: 'saved' },
-  dark: { type: Boolean, default: false },
   folder: { type: String, default: '' },
   folderId: { type: String, default: '' },
 })
-const emit = defineEmits(['update:title', 'toggle-dark'])
+const emit = defineEmits(['update:title'])
 
 const router = useRouter()
 
@@ -87,12 +86,6 @@ function print() {
       </Tooltip>
 
       <div class="h-5 w-px bg-surface-gray-3" />
-
-      <Tooltip :text="dark ? 'Light mode' : 'Dark mode'">
-        <Button variant="outline" :aria-label="dark ? 'Switch to light mode' : 'Switch to dark mode'" @click="emit('toggle-dark')">
-          <LucideIcon :name="dark ? 'sun' : 'moon'" class="h-4 w-4" />
-        </Button>
-      </Tooltip>
 
       <PresenceAvatars />
     </div>

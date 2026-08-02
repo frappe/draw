@@ -19,7 +19,6 @@ import { useClipboard } from '@/composables/useClipboard.js'
 import { useAutosave } from '@/composables/useAutosave.js'
 import { useThumbnail } from '@/composables/useThumbnail.js'
 import { useCollaboration } from '@/composables/useCollaboration.js'
-import { useAppSettings } from '@/composables/useAppSettings.js'
 import TopToolbar from '@/components/toolbar/TopToolbar.vue'
 import DiagramCanvas from '@/components/canvas/DiagramCanvas.vue'
 import Minimap from '@/components/canvas/Minimap.vue'
@@ -89,11 +88,6 @@ const chromeType = computed(() => {
 // here so it lives for the editor's lifetime regardless of which type loads.
 provideModeInteraction()
 
-// Dark mode is an app-wide, persisted setting (also toggled from the home
-// sidebar). The editor's moon button flips the same source so the choice is
-// consistent everywhere; data-theme is already applied on <html> at boot.
-const { settings: appSettings, toggleDarkMode } = useAppSettings()
-const dark = computed(() => appSettings.darkMode)
 // Real-time co-editing (Yjs + y-webrtc) + live cursors, keyed by the diagram name.
 // Created before autosave so its CRDT snapshot rides along with each save, keeping
 // the offline cache and the server one lineage (crdt_state on Draw Diagram).
@@ -165,18 +159,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div
-    class="flex h-screen flex-col bg-surface-base text-ink-gray-9"
-    :data-theme="dark ? 'dark' : null"
-  >
+  <div class="flex h-screen flex-col bg-surface-base text-ink-gray-9">
     <TopToolbar
       :title="diagram.doc?.title || 'Untitled diagram'"
       :save-status="autosave.status.value"
-      :dark="dark"
       :folder="folderName"
       :folder-id="diagram.doc?.folder || ''"
       @update:title="rename"
-      @toggle-dark="toggleDarkMode"
     />
 
     <div class="flex min-h-0 flex-1">
