@@ -28,7 +28,7 @@ const MIN_SIZE = 24
 
 export function useShapeCreation(store, editorUi) {
   const preview = ref(null)
-  const drag = { active: false, start: { x: 0, y: 0 } }
+  const drag = { active: false, start: { x: 0, y: 0 }, square: false }
   const edgePan = useEdgeAutoPan(editorUi.viewport)
 
   function logicalPoint(event) {
@@ -56,6 +56,7 @@ export function useShapeCreation(store, editorUi) {
 
   function onCanvasPointerMove(event) {
     if (!drag.active) return
+    drag.square = event.shiftKey
     updateDraft(drag, preview, editorUi.state.drawShapeType, logicalPoint(event))
     edgePan.track(event.clientX, event.clientY)
   }
@@ -63,6 +64,7 @@ export function useShapeCreation(store, editorUi) {
   function onCanvasPointerUp(event) {
     edgePan.stop()
     if (!drag.active) return
+    drag.square = event.shiftKey
     finishDraft(drag, preview, store, editorUi, logicalPoint(event))
   }
 
@@ -118,23 +120,34 @@ function beginDraft(drag, preview, type, point) {
 function updateDraft(drag, preview, type, point) {
   preview.value = isConnectorType(type)
     ? { line: true, x1: drag.start.x, y1: drag.start.y, x2: point.x, y2: point.y }
-    : { box: true, type, ...boxBetween(drag.start, point) }
+    : { box: true, type, ...boxBetween(drag.start, point, drag.square) }
 }
 
-// A normalised rectangle spanning the two pointer corners.
-function boxBetween(start, end) {
+// A normalised rectangle spanning the two pointer corners. With `square` (Shift
+// held while drawing), the sides are locked equal — side = max(|dx|, |dy|) —
+// anchored at the start corner and grown in the drag direction, so a rectangle
+// draws a square and an ellipse a circle. Connectors never pass square, so a
+// held Shift leaves lines free to point anywhere.
+function boxBetween(start, end, square = false) {
+  let ex = end.x
+  let ey = end.y
+  if (square) {
+    const side = Math.max(Math.abs(end.x - start.x), Math.abs(end.y - start.y))
+    ex = start.x + (end.x < start.x ? -side : side)
+    ey = start.y + (end.y < start.y ? -side : side)
+  }
   return {
-    x: Math.min(start.x, end.x),
-    y: Math.min(start.y, end.y),
-    w: Math.abs(end.x - start.x),
-    h: Math.abs(end.y - start.y),
+    x: Math.min(start.x, ex),
+    y: Math.min(start.y, ey),
+    w: Math.abs(ex - start.x),
+    h: Math.abs(ey - start.y),
   }
 }
 
 function finishDraft(drag, preview, store, editorUi, end) {
   const type = editorUi.state.drawShapeType
   if (isConnectorType(type)) commitConnector(store, type, drag.start, end)
-  else commitShape(store, type, drag.start, end)
+  else commitShape(store, type, drag.start, end, drag.square)
   drag.active = false
   preview.value = null
   editorUi.setTool('select')
@@ -142,8 +155,8 @@ function finishDraft(drag, preview, store, editorUi, end) {
 
 // A bare click (no real drag) yields a default-sized shape centred on the click.
 // A text box opens straight into edit mode so the caret is ready to type.
-function commitShape(store, type, start, end) {
-  const box = boxBetween(start, end)
+function commitShape(store, type, start, end, square) {
+  const box = boxBetween(start, end, square)
   const sized = box.w < MIN_SIZE || box.h < MIN_SIZE ? centeredDefaultBox(start) : box
   const id = store.addShape({ type, ...sized })
   store.select(id)
