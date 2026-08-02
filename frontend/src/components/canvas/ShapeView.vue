@@ -7,6 +7,7 @@ import { useTextEditing, shapeTextArea, textStyleCss } from '@/composables/useTe
 import { useAutoFitText } from '@/composables/useAutoFitText.js'
 import { sanitizeRichText } from '@/utils/sanitizeHtml.js'
 import { safeHref, safeImageSrc } from '@/utils/safeUrl.js'
+import { nodeShape } from '@/diagram/flowchartShapes.js'
 
 const props = defineProps({
   shape: { type: Object, required: true },
@@ -135,6 +136,17 @@ const calloutPath = computed(() => {
 const fill = computed(() => props.shape.fill || 'none')
 const textStyle = computed(() => props.shape.text?.style || {})
 
+// A migrated flowchart node (free-floating refactor #122) carries its original
+// node type in `flowchart.nodeType`. Draw the exact flowchart glyph — stadium /
+// parallelogram / document / cylinder / … — via the same geometry FlowchartLayer
+// uses, so a flattened flowchart is pixel-identical to the framed one. Geometry
+// is local to the node box, so the template renders it inside a translate group.
+// Plain block shapes have no flowchart tag and fall through to the type branches.
+const flowchartGlyph = computed(() => {
+  const nodeType = props.shape.flowchart?.nodeType
+  return nodeType ? nodeShape(nodeType, props.shape.w, props.shape.h) : null
+})
+
 // Shrink-to-fit the rich text when the shape opts in (spec 6.4). Declared last so
 // the inputs getter can reference the computeds above without hitting the TDZ.
 useAutoFitText(richEl, () => ({
@@ -148,8 +160,56 @@ useAutoFitText(richEl, () => ({
 
 <template>
   <g :transform="transform" :data-shape-id="shape.id">
+    <!-- Migrated flowchart node: render its exact glyph (see flowchartGlyph). The
+         node box geometry is local, so translate into place; the shared text /
+         link blocks below still draw in absolute coords. -->
+    <g v-if="flowchartGlyph" :transform="`translate(${shape.x} ${shape.y})`">
+      <rect
+        v-if="flowchartGlyph.kind === 'rect'"
+        x="0"
+        y="0"
+        :width="shape.w"
+        :height="shape.h"
+        :rx="flowchartGlyph.rx"
+        :fill="fill"
+        :fill-opacity="shape.opacity"
+        :stroke="border.color"
+        :stroke-width="border.width"
+        :stroke-dasharray="dashArray"
+      />
+      <ellipse
+        v-else-if="flowchartGlyph.kind === 'ellipse'"
+        :cx="shape.w / 2"
+        :cy="shape.h / 2"
+        :rx="shape.w / 2"
+        :ry="shape.h / 2"
+        :fill="fill"
+        :fill-opacity="shape.opacity"
+        :stroke="border.color"
+        :stroke-width="border.width"
+        :stroke-dasharray="dashArray"
+      />
+      <polygon
+        v-else-if="flowchartGlyph.kind === 'polygon'"
+        :points="flowchartGlyph.points"
+        :fill="fill"
+        :fill-opacity="shape.opacity"
+        :stroke="border.color"
+        :stroke-width="border.width"
+        :stroke-dasharray="dashArray"
+      />
+      <path
+        v-else-if="flowchartGlyph.kind === 'path'"
+        :d="flowchartGlyph.d"
+        :fill="fill"
+        :fill-opacity="shape.opacity"
+        :stroke="border.color"
+        :stroke-width="border.width"
+        :stroke-dasharray="dashArray"
+      />
+    </g>
     <rect
-      v-if="shape.type === 'rectangle' || shape.type === 'square' || shape.type === 'rounded'"
+      v-else-if="shape.type === 'rectangle' || shape.type === 'square' || shape.type === 'rounded'"
       :x="shape.x"
       :y="shape.y"
       :width="shape.w"
