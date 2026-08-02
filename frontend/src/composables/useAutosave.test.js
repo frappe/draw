@@ -16,7 +16,7 @@ vi.mock('@/utils/localCache.js', () => ({
   clearLocalDoc: () => Promise.resolve(),
 }))
 
-const { flush, watchConnectivity } = await import('./useAutosave.js')
+const { flush, watchConnectivity, watchBeforeUnload } = await import('./useAutosave.js')
 
 // Regression tests for the save-coalescing order in flush().
 //
@@ -221,5 +221,36 @@ describe('watchConnectivity', () => {
     window.dispatchEvent(new Event('online'))
 
     expect(session.flushNow).not.toHaveBeenCalled()
+  })
+})
+
+describe('watchBeforeUnload', () => {
+  // Dispatch a cancelable beforeunload and report whether the handler tried to
+  // block the navigation (which triggers the browser's "Leave site?" prompt).
+  function fires(status, frozen) {
+    const dispose = watchBeforeUnload(ref(status), ref(frozen))
+    const event = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(event)
+    dispose()
+    return event.defaultPrevented
+  }
+
+  it('warns only when a save is failing (error) or frozen (offline/stale)', () => {
+    expect(fires('error', null)).toBe(true)
+    expect(fires('saved', "You're offline — reconnect to keep editing.")).toBe(true)
+    expect(fires('saved', 'This diagram was changed elsewhere — reload.')).toBe(true)
+  })
+
+  it('stays silent during normal editing (saved / saving)', () => {
+    expect(fires('saved', null)).toBe(false)
+    expect(fires('saving', null)).toBe(false)
+  })
+
+  it('detaches the listener when disposed', () => {
+    const dispose = watchBeforeUnload(ref('error'), ref(null))
+    dispose()
+    const event = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(false)
   })
 })

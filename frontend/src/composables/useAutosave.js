@@ -38,11 +38,13 @@ export function useAutosave(store, diagramResource, getCrdtState = () => null) {
 
   const stopConnectivity = watchConnectivity(session)
   const stopPageHide = watchPageHide(session)
+  const stopBeforeUnload = watchBeforeUnload(status, frozen)
   onUnmounted(() => {
     stopWatch()
     stopRestore()
     stopConnectivity()
     stopPageHide()
+    stopBeforeUnload()
     // Persist the pending edit BEFORE the timers are cancelled: teardown used to
     // clear the local-save timer without flushing, so any change since the last
     // debounce (≥400ms of drawing, then navigating away) was lost with no recovery.
@@ -253,4 +255,19 @@ function watchPageHide(session) {
   }
   window.addEventListener('pagehide', onHide)
   return () => window.removeEventListener('pagehide', onHide)
+}
+
+// Warn before the tab closes ONLY when a save is genuinely failing — offline,
+// stale-frozen, or errored — so recent edits that never reached the server aren't
+// lost silently. Normal editing stays nag-free: the debounced save + IndexedDB
+// recovery cover it, and a prompt on every close would be noise. When it does
+// fire, the browser shows its own generic "Leave site?" prompt.
+export function watchBeforeUnload(status, frozen) {
+  const onBeforeUnload = (event) => {
+    if (!frozen.value && status.value !== 'error') return
+    event.preventDefault()
+    event.returnValue = '' // some browsers require a set returnValue to prompt
+  }
+  window.addEventListener('beforeunload', onBeforeUnload)
+  return () => window.removeEventListener('beforeunload', onBeforeUnload)
 }
