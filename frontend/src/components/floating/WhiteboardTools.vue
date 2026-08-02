@@ -38,7 +38,7 @@ const TOOLS = [
   { tool: 'sticky', icon: 'sticky-note', label: 'Sticky note' },
   { tool: 'line', icon: 'minus', label: 'Line' },
   { tool: 'table', icon: 'table', label: 'Table' },
-  { tool: 'laser', icon: 'zap', label: 'Laser pointer' },
+  { tool: 'laser', icon: 'circle-dot', label: 'Laser pointer' },
 ]
 // Tools that expose options in the disclosure popover.
 const OPTION_TOOLS = ['pen', 'highlighter', 'eraser', 'sticky', 'line', 'table']
