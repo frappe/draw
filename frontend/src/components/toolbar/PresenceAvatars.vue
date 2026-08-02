@@ -1,14 +1,16 @@
 <script setup>
-// Presence avatar stack in the toolbar (spec 11.3): the current user plus any
-// live co-viewers (Frappe realtime). A deterministic colour per user keeps
-// avatars recognisable; overflow collapses into a "+N" chip.
+// Presence avatar stack in the toolbar (spec 11.3): the OTHER live co-viewers
+// (Frappe realtime) — not yourself. You don't need to see your own avatar, and
+// showing nothing when you're alone keeps the bar clean (#109). usePresence is
+// still called so peers see you. A deterministic colour per user keeps avatars
+// recognisable; overflow collapses into a "+N" chip.
 import { computed } from 'vue'
 import { Tooltip } from 'frappe-ui'
 import { useRoute } from 'vue-router'
 import { usePresence, initialsOf } from '@/composables/usePresence.js'
 
 const route = useRoute()
-const { me, peers } = usePresence(route.params.name)
+const { peers } = usePresence(route.params.name)
 
 const MAX = 4
 const palette = ['#6846E3', '#0A84FF', '#16A34A', '#D97706', '#DB2777', '#0E7490']
@@ -19,20 +21,16 @@ function colorFor(key) {
   return palette[hash % palette.length]
 }
 
-// Me first, then peers. The tooltip shows each viewer's identity (login/email,
-// or "Guest"); cap the visible avatars and show a "+N" overflow chip.
-const avatars = computed(() => {
-  const all = [
-    { id: me.id, tip: `${me.identity} (you)`, initials: me.initials },
-    ...peers.value.map((p) => ({ id: p.id, tip: p.identity, initials: initialsOf(p.identity) })),
-  ]
-  return all.slice(0, MAX)
-})
-const overflow = computed(() => Math.max(0, 1 + peers.value.length - MAX))
+// Peers only (never me). Tooltip shows each viewer's identity; cap the visible
+// avatars and show a "+N" overflow chip.
+const avatars = computed(() =>
+  peers.value.slice(0, MAX).map((p) => ({ id: p.id, tip: p.identity, initials: initialsOf(p.identity) })),
+)
+const overflow = computed(() => Math.max(0, peers.value.length - MAX))
 </script>
 
 <template>
-  <div class="flex items-center -space-x-1.5">
+  <div v-if="peers.length" class="flex items-center -space-x-1.5">
     <Tooltip v-for="a in avatars" :key="a.id" :text="a.tip">
       <div
         class="flex h-7 w-7 select-none items-center justify-center rounded-full text-xs font-semibold text-white ring-2 ring-surface-base"

@@ -20,7 +20,6 @@ import { autoNumberFlow, isFlowNumbered } from '@/diagram/flowchartModel.js'
 import { NODE_TYPES, NODE_TYPE_META, NODE_TYPE_ICONS } from '@/diagram/flowchartModel.js'
 import { tidyLayout, toggleDirection } from '@/diagram/flowchartLayout.js'
 import WhiteboardTools from './WhiteboardTools.vue'
-import GuidesMenu from './GuidesMenu.vue'
 
 const editorUi = useEditorUi()
 const viewport = editorUi.viewport
@@ -203,8 +202,6 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
             <LucideIcon :name="mode.icon" class="h-4 w-4" />
           </button>
         </Tooltip>
-        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-        <GuidesMenu />
       </div>
 
       <!-- The primary "add" action: a larger, solid, circular "+" (#83). -->
@@ -354,12 +351,6 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
             <LucideIcon :name="modeTool.icon" class="h-4 w-4" />
           </button>
         </Tooltip>
-      </template>
-
-      <!-- Guides: hidden on the whiteboard (Q4). -->
-      <template v-if="!isWhiteboard">
-        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-        <GuidesMenu />
       </template>
     </template>
   </div>

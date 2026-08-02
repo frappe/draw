@@ -7,9 +7,16 @@ import { computed, ref, nextTick } from 'vue'
 import { Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
+import { useModeStrategy } from '@/stores/useModeStrategy.js'
+import GuidesMenu from './GuidesMenu.vue'
 
 const editorUi = useEditorUi()
 const viewport = editorUi.viewport
+const modeStrategy = useModeStrategy()
+
+// Guides live here now (next to fit-to-view) rather than in the create palette
+// (#95). Still hidden on the whiteboard, where a dotted grid isn't wanted (Q4).
+const isWhiteboard = computed(() => modeStrategy?.value?.type === 'whiteboard')
 
 const buttonBase =
   'flex h-[34px] w-[34px] items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2'
@@ -74,5 +81,9 @@ const zoomPercent = computed(() => editorUi.zoomPercent)
         <LucideIcon name="maximize" class="h-4 w-4" />
       </button>
     </Tooltip>
+    <template v-if="!isWhiteboard">
+      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+      <GuidesMenu />
+    </template>
   </div>
 </template>
