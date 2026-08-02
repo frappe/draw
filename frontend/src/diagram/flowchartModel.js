@@ -44,23 +44,6 @@ export const NODE_TYPE_META = {
   connector: { label: 'Junction', text: 'Junction', w: 72, h: 72 },
 }
 
-// Curated lucide icon per node type — shared by the on-canvas add-node picker
-// (FlowchartNodeTypePicker) and the bottom-palette Flowchart section so both read
-// the same visual vocabulary from one place.
-export const NODE_TYPE_ICONS = {
-  terminator: 'circle-play',
-  process: 'square',
-  decision: 'git-branch',
-  inputOutput: 'log-in',
-  document: 'file-text',
-  database: 'database',
-  predefinedProcess: 'columns-2',
-  manualInput: 'type',
-  preparation: 'hexagon',
-  offPageRef: 'pentagon',
-  connector: 'circle',
-}
-
 export function defaultNodeText(nodeType) {
   return NODE_TYPE_META[nodeType]?.text ?? ''
 }

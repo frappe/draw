@@ -3,15 +3,14 @@
 // clicked or a connector is dragged to empty canvas; choosing a type creates that
 // node connected one level down. Rendered inside a <foreignObject> in the canvas
 // layer so it tracks the viewport transform (Part G4). frappe-ui chrome tokens.
-import LucideIcon from '@/icons/LucideIcon.vue'
-import { NODE_TYPES, NODE_TYPE_META, NODE_TYPE_ICONS } from '@/diagram/flowchartModel.js'
+import ShapeGlyph from '@/components/floating/ShapeGlyph.vue'
+import { NODE_TYPES, NODE_TYPE_META } from '@/diagram/flowchartModel.js'
 
 defineEmits(['choose', 'close'])
 
 const options = NODE_TYPES.map((type) => ({
   type,
   label: NODE_TYPE_META[type].label,
-  icon: NODE_TYPE_ICONS[type],
 }))
 </script>
 
@@ -33,7 +32,7 @@ const options = NODE_TYPES.map((type) => ({
         class="flex items-center gap-2 truncate rounded-md px-2 py-1.5 text-left text-[13px] text-ink-gray-8 hover:bg-surface-gray-2"
         @click="$emit('choose', option.type)"
       >
-        <LucideIcon :name="option.icon" class="h-4 w-4 flex-none text-ink-gray-6" />
+        <ShapeGlyph family="flowchart" :type="option.type" class="h-4 w-4 flex-none text-ink-gray-6" />
         <span class="truncate">{{ option.label }}</span>
       </button>
     </div>

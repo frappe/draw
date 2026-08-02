@@ -17,9 +17,10 @@ import { useImageInsert } from '@/composables/useImageInsert.js'
 import { startPaletteDrag } from '@/composables/useShapeCreation.js'
 import { collapseAll } from '@/diagram/mindmapOperations.js'
 import { autoNumberFlow, isFlowNumbered } from '@/diagram/flowchartModel.js'
-import { NODE_TYPES, NODE_TYPE_META, NODE_TYPE_ICONS } from '@/diagram/flowchartModel.js'
+import { NODE_TYPES, NODE_TYPE_META } from '@/diagram/flowchartModel.js'
 import { tidyLayout, toggleDirection } from '@/diagram/flowchartLayout.js'
 import WhiteboardTools from './WhiteboardTools.vue'
+import ShapeGlyph from './ShapeGlyph.vue'
 
 const editorUi = useEditorUi()
 const viewport = editorUi.viewport
@@ -53,18 +54,18 @@ function flowNumber() {
   store.updateFlowchartModel('Number steps', (m) => autoNumberFlow(m))
 }
 
+// Curated set (#131): rectangle, square, rounded rectangle, ellipse, triangle,
+// diamond, hexagon, block arrow. Dropped cylinder / callout / star / pentagon.
+// Icons are drawn by ShapeGlyph so each tile is the actual shape it inserts.
 const SHAPES = [
-  { type: 'rectangle', icon: 'square', label: 'Rectangle' },
-  { type: 'rounded', icon: 'square', label: 'Rounded rectangle' },
-  { type: 'ellipse', icon: 'circle', label: 'Ellipse' },
-  { type: 'triangle', icon: 'triangle', label: 'Triangle' },
-  { type: 'diamond', icon: 'square', label: 'Diamond' },
-  { type: 'pentagon', icon: 'hexagon', label: 'Pentagon' },
-  { type: 'hexagon', icon: 'hexagon', label: 'Hexagon' },
-  { type: 'star', icon: 'star', label: 'Star' },
-  { type: 'arrow', icon: 'arrow-right', label: 'Block arrow' },
-  { type: 'cylinder', icon: 'database', label: 'Cylinder' },
-  { type: 'callout', icon: 'message-square', label: 'Callout' },
+  { type: 'rectangle', label: 'Rectangle' },
+  { type: 'square', label: 'Square' },
+  { type: 'rounded', label: 'Rounded rectangle' },
+  { type: 'ellipse', label: 'Ellipse' },
+  { type: 'triangle', label: 'Triangle' },
+  { type: 'diamond', label: 'Diamond' },
+  { type: 'hexagon', label: 'Hexagon' },
+  { type: 'arrow', label: 'Block arrow' },
 ]
 // A plain Line has no arrowheads; Arrow ends in an arrow; elbow/curved too. The
 // arrow connector's id is namespaced so it never collides with the 'arrow'
@@ -86,11 +87,10 @@ const CREATE_TOOLS = [
   { key: 'table', icon: 'table', label: 'Table', surface: true },
 ]
 // Every flowchart node type (#86): the catalog can seed a chart with any shape,
-// not just the Start terminator. Reuses the on-canvas picker's icon vocabulary.
+// not just the Start terminator. ShapeGlyph draws each tile as the real node shape.
 const FLOWCHART_NODES = NODE_TYPES.map((type) => ({
   type,
   label: NODE_TYPE_META[type].label,
-  icon: NODE_TYPE_ICONS[type],
 }))
 
 // Filter the catalog by a search query (spec 2.1). Empty query shows all.
@@ -237,7 +237,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
                   @dragstart="startTileDrag($event, s.type)"
                   @dragend="endTileDrag(togglePopover)"
                 >
-                  <LucideIcon :name="s.icon" class="h-[18px] w-[18px]" :class="s.type === 'diamond' ? 'rotate-45' : ''" />
+                  <ShapeGlyph family="block" :type="s.type" class="h-[18px] w-[18px]" />
                 </button>
               </Tooltip>
             </div>
@@ -273,7 +273,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
             <div v-if="showMindmap" class="grid grid-cols-6 gap-1">
               <Tooltip text="Mind map">
                 <button :class="[tileBase, 'text-ink-gray-7']" @click="insertMindmap(togglePopover)">
-                  <LucideIcon name="git-fork" class="h-[18px] w-[18px]" />
+                  <ShapeGlyph family="mindmap" class="h-[18px] w-[18px]" />
                 </button>
               </Tooltip>
             </div>
@@ -282,7 +282,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
             <div v-if="filteredFlowchartNodes.length" class="grid grid-cols-6 gap-1">
               <Tooltip v-for="n in filteredFlowchartNodes" :key="n.type" :text="n.label">
                 <button :class="[tileBase, 'text-ink-gray-7']" @click="insertFlowchartNode(n.type, togglePopover)">
-                  <LucideIcon :name="n.icon" class="h-[18px] w-[18px]" />
+                  <ShapeGlyph family="flowchart" :type="n.type" class="h-[18px] w-[18px]" />
                 </button>
               </Tooltip>
             </div>
