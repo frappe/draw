@@ -15,7 +15,7 @@ const props = defineProps({
   selectionActive: { type: Boolean, default: false },
   pinLimitReached: { type: Boolean, default: false },
 })
-const emit = defineEmits(['open', 'toggle-select', 'toggle-pin', 'rename', 'duplicate', 'delete', 'move', 'show-info'])
+const emit = defineEmits(['open', 'toggle-select', 'toggle-pin', 'rename', 'duplicate', 'delete', 'show-info'])
 
 // A non-empty diagram ALWAYS shows a preview: the saved raster thumbnail when we
 // have one (cheap), otherwise a live SVG rendered from the document. Only a truly
@@ -59,7 +59,6 @@ const menuItems = computed(() => [
     onClick: togglePin,
   },
   { label: 'Copy link', icon: 'link', onClick: copyLink },
-  { label: 'Move to…', icon: 'folder', onClick: () => emit('move', props.diagram) },
   { label: 'Show info', icon: 'file-text', onClick: () => emit('show-info', props.diagram) },
   { label: 'Rename', icon: 'edit-2', onClick: () => emit('rename', props.diagram) },
   { label: 'Duplicate', icon: 'copy', onClick: () => emit('duplicate', props.diagram) },
@@ -100,10 +99,6 @@ const TIME_UNITS = [
   [Infinity, 86400, 'd'],
 ]
 
-function onDragStart(event) {
-  event.dataTransfer.setData('text/diagram-name', props.diagram.name)
-  event.dataTransfer.effectAllowed = 'move'
-}
 </script>
 
 <template>
@@ -111,10 +106,7 @@ function onDragStart(event) {
   <div
     v-if="view === 'list'"
     class="group relative flex items-center gap-3 rounded-lg border px-3 py-1.5"
-    :class="selected ? 'border-outline-blue-2 bg-surface-blue-1' : 'border-outline-gray-1 bg-surface-base hover:bg-surface-gray-1'"
-    draggable="true"
-    @dragstart="onDragStart"
-  >
+    :class="selected ? 'border-outline-blue-2 bg-surface-blue-1' : 'border-outline-gray-1 bg-surface-base hover:bg-surface-gray-1'"  >
     <!-- List-view select checkbox is always visible (Drive-style, I2). -->
     <button
       class="flex h-[18px] w-[18px] flex-none items-center justify-center rounded-[5px] border"
@@ -162,10 +154,7 @@ function onDragStart(event) {
   <div
     v-else
     class="group relative overflow-hidden rounded-xl border text-left transition-shadow"
-    :class="selected ? 'border-outline-blue-3 ring-1 ring-outline-blue-2' : 'border-outline-gray-1'"
-    draggable="true"
-    @dragstart="onDragStart"
-  >
+    :class="selected ? 'border-outline-blue-3 ring-1 ring-outline-blue-2' : 'border-outline-gray-1'"  >
     <button
       class="absolute left-2 top-2 z-10 flex h-[20px] w-[20px] items-center justify-center rounded-[6px] border shadow-sm transition-opacity"
       :class="[

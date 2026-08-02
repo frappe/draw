@@ -1,26 +1,20 @@
 <script setup>
 // Home diagram browser (spec §2). Modes chosen from the sidebar:
-//   home   — a file-explorer: Pinned (root only) + loose files + folder tiles;
-//            opening a folder drills in (HomeShell tracks the path + breadcrumb)
+//   home   — Pinned group + the rest of the diagrams (flat, no folders)
 //   recent — a flat list of the most-recently-edited diagrams
 //   all    — a flat list of every diagram
-// Toolbar offers a type filter, sort, and tile/list toggle, becoming a bulk-
-// action bar on selection. Creation is the top-right CTA only (no inline tile).
-// At most MAX_PINNED diagrams can be pinned.
+// Toolbar offers search + sort + a tile/list toggle, becoming a bulk-action bar
+// on selection. Creation is the top-right CTA only. At most MAX_PINNED pinned.
 import { computed, onMounted, reactive, ref, watchEffect } from 'vue'
 import { createListResource, Dialog, Button, FormControl, Dropdown, TextInput, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import DiagramCollection from './DiagramCollection.vue'
-import FolderItem from './FolderItem.vue'
-import { folders, moveDiagramToFolder, deleteFolder, toggleFolderPin } from '@/data/folders.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
-import { typeLabel } from '@/data/diagramTypes.js'
 
 const props = defineProps({
   mode: { type: String, default: 'home' }, // 'home' | 'recent' | 'all'
-  folder: { type: Object, default: null }, // the open folder when drilled in (home)
 })
-const emit = defineEmits(['create', 'open', 'open-folder', 'changed'])
+const emit = defineEmits(['create', 'open', 'changed'])
 
 const MAX_PINNED = 5
 const RECENT_LIMIT = 24
@@ -29,7 +23,7 @@ const enriched = createListResource({
   doctype: 'Draw Diagram',
   // `thumbnail` is the saved raster preview shown on tiles; `document` stays for the
   // live-SVG fallback when a (non-empty) diagram has no thumbnail yet, and for duplicate.
-  fields: ['name', 'title', 'creation', 'modified', 'folder', 'diagram_type', 'is_pinned', 'owner', 'document', 'thumbnail'],
+  fields: ['name', 'title', 'creation', 'modified', 'diagram_type', 'is_pinned', 'owner', 'document', 'thumbnail'],
   filters: { is_trashed: 0 },
   orderBy: 'modified desc',
   pageLength: 500,
@@ -42,8 +36,6 @@ const pinnedTotal = computed(() => rows.value.filter((d) => d.is_pinned).length)
 const pinLimitReached = computed(() => pinnedTotal.value >= MAX_PINNED)
 
 // --- view / search / sort --------------------------------------------------
-// No type filter: new diagrams are all one unified type, so "types" aren't a
-// user-facing concept anymore (#114).
 const view = ref('list')
 const query = ref('')
 const sortKey = ref('modified')
@@ -81,99 +73,44 @@ function byNewest(a, b) {
 
 const visibleRows = computed(() => rows.value.filter((d) => matchesQuery(d)))
 
-// Home root: pinned group + loose files + folder tiles. Inside a folder: that
-// folder's files. Pinned items show only in the Pinned group.
+// Home: a Pinned group, then every other diagram (flat — no folders, #115).
 const pinned = computed(() => visibleRows.value.filter((d) => d.is_pinned).sort(bySort))
-
-// Files shown depend on location: a folder's own diagrams, else the unfiled,
-// non-pinned diagrams at the root.
-const files = computed(() =>
-  props.folder
-    ? visibleRows.value.filter((d) => d.folder === props.folder.name).sort(bySort)
-    : visibleRows.value.filter((d) => !d.is_pinned && !d.folder).sort(bySort),
-)
-
-// Sub-folders of the current location (top-level when at the root).
-const parentFolderName = computed(() => props.folder?.name || null)
-function folderItemCount(folderName) {
-  const subs = (folders.data || []).filter((f) => f.parent_folder === folderName).length
-  return subs + rows.value.filter((d) => d.folder === folderName).length
-}
-// Unpinned folders at the current level. Pinned folders (any level) are lifted
-// into the root Pinned section instead, mirroring pinned diagrams.
-const folderTiles = computed(() =>
-  (folders.data || [])
-    .filter((f) => (f.parent_folder || null) === parentFolderName.value && !f.is_pinned)
-    .map((folder) => ({ folder, count: folderItemCount(folder.name) })),
-)
-const pinnedFolderTiles = computed(() =>
-  (folders.data || [])
-    .filter((f) => f.is_pinned)
-    .map((folder) => ({ folder, count: folderItemCount(folder.name) })),
-)
-// The root shows a titled "Pinned" section whenever anything (diagram or folder)
-// is pinned; the remaining folders + files then get their own titled section.
-const hasPinnedSection = computed(() => !props.folder && (pinned.value.length > 0 || pinnedFolderTiles.value.length > 0))
-const folderGridClass = computed(() =>
-  view.value === 'tile' ? 'mb-[18px] grid gap-[18px]' : 'mb-1.5 flex flex-col gap-1.5',
-)
+const files = computed(() => visibleRows.value.filter((d) => !d.is_pinned).sort(bySort))
+const hasPinnedSection = computed(() => pinned.value.length > 0)
 
 // Recent + All are flat across the whole (filtered) library.
 const recentList = computed(() => [...visibleRows.value].sort(byNewest).slice(0, RECENT_LIMIT))
 const allFlat = computed(() => [...visibleRows.value].sort(bySort))
 
 // --- selection + bulk delete ----------------------------------------------
-// Diagrams and folders select in parallel sets (they delete via different paths:
-// diagrams trash, folders delete). The bulk bar + Delete act on both (H2).
 const selected = reactive(new Set())
-const selectedFolders = reactive(new Set())
-const selectedCount = computed(() => selected.size + selectedFolders.size)
+const selectedCount = computed(() => selected.size)
 function toggleSelect(name) {
   if (selected.has(name)) selected.delete(name)
   else selected.add(name)
 }
-function toggleSelectFolder(name) {
-  if (selectedFolders.has(name)) selectedFolders.delete(name)
-  else selectedFolders.add(name)
-}
 function clearSelection() {
   selected.clear()
-  selectedFolders.clear()
 }
 
-// The diagrams selectable in the current view (folders excluded), so Select all
-// grabs exactly what's on screen.
+// The diagrams selectable in the current view, so Select all grabs what's on screen.
 const currentDiagrams = computed(() => {
   if (props.mode === 'recent') return recentList.value
   if (props.mode === 'all') return allFlat.value
   return [...pinned.value, ...files.value]
 })
-// The folders on screen in the current view (only the home/folder view renders
-// folders), so Select all grabs folders + pinned items too, not just files.
-const currentFolders = computed(() => {
-  if (props.mode !== 'home') return []
-  const names = folderTiles.value.map((g) => g.folder.name)
-  if (!props.folder) names.push(...pinnedFolderTiles.value.map((g) => g.folder.name))
-  return names
-})
-// Current view shows nothing (a search/type filter excluded everything — the
-// truly-empty home renders HomeShell's EmptyState instead of this grid).
-const nothingHere = computed(() => {
-  if (props.mode === 'home') return !pinned.value.length && !files.value.length && !folderTiles.value.length
-  return !currentDiagrams.value.length
-})
-const hasActiveFilter = computed(() => Boolean(query.value.trim()) || typeFilter.value !== 'all')
+// Current view shows nothing (a search excluded everything — the truly-empty home
+// renders HomeShell's EmptyState instead of this grid).
+const nothingHere = computed(() => !currentDiagrams.value.length)
+const hasActiveFilter = computed(() => Boolean(query.value.trim()))
 const allSelected = computed(() => {
   const diagrams = currentDiagrams.value
-  const folderNames = currentFolders.value
-  if (!diagrams.length && !folderNames.length) return false
-  return diagrams.every((d) => selected.has(d.name)) && folderNames.every((n) => selectedFolders.has(n))
+  return diagrams.length > 0 && diagrams.every((d) => selected.has(d.name))
 })
 // Some-but-not-all selected → the master checkbox shows Gmail's indeterminate dash.
 const someSelected = computed(() => selectedCount.value > 0 && !allSelected.value)
 function selectAll() {
   currentDiagrams.value.forEach((d) => selected.add(d.name))
-  currentFolders.value.forEach((name) => selectedFolders.add(name))
 }
 // Gmail behaviour: any selection → click clears; nothing selected → select all.
 function toggleSelectAll() {
@@ -187,41 +124,31 @@ watchEffect(() => {
   if (masterCheckbox.value) masterCheckbox.value.indeterminate = someSelected.value
 })
 
-const confirmDelete = reactive({ open: false, names: [], folders: [] })
-function askDelete(names, folderNames = []) {
+const confirmDelete = reactive({ open: false, names: [] })
+function askDelete(names) {
   confirmDelete.names = names
-  confirmDelete.folders = folderNames
   confirmDelete.open = true
 }
 const confirmMessage = computed(() => {
   const n = confirmDelete.names.length
-  const f = confirmDelete.folders.length
-  const parts = []
-  if (n) parts.push(`move ${n} diagram${n === 1 ? '' : 's'} to Trash`)
-  if (f) parts.push(`delete ${f} folder${f === 1 ? '' : 's'}`)
-  const tail = f ? ' Folders are removed; the diagrams inside keep their data.' : ` You can restore ${n === 1 ? 'it' : 'them'} from Trash.`
-  return `${parts.join(' and ').replace(/^./, (c) => c.toUpperCase())}?${tail}`
+  return `Move ${n} diagram${n === 1 ? '' : 's'} to Trash? You can restore ${n === 1 ? 'it' : 'them'} from Trash.`
 })
 async function performDelete() {
   try {
     for (const name of confirmDelete.names) {
       await enriched.setValue.submit({ name, is_trashed: 1, trashed_on: frappeNow() })
     }
-    for (const folderName of confirmDelete.folders) {
-      await deleteFolder(folderName)
-    }
   } finally {
     // Always dismiss the dialog and reset — even if a delete errors — so the
     // popup can never get "stuck" open.
     confirmDelete.open = false
     confirmDelete.names = []
-    confirmDelete.folders = []
     clearSelection()
     refresh()
   }
 }
 function deleteSelected() {
-  askDelete([...selected], [...selectedFolders])
+  askDelete([...selected])
 }
 function trash(diagram) {
   askDelete([diagram.name])
@@ -232,13 +159,6 @@ async function togglePin(diagram) {
   if (!diagram.is_pinned && pinLimitReached.value) return
   await enriched.setValue.submit({ name: diagram.name, is_pinned: diagram.is_pinned ? 0 : 1 })
   refresh()
-}
-
-// Pin / unpin a folder — it moves in/out of the root Pinned section.
-async function togglePinFolder(name) {
-  const folder = (folders.data || []).find((f) => f.name === name)
-  if (!folder) return
-  await toggleFolderPin(name, !folder.is_pinned)
 }
 
 const editor = reactive({ open: false, value: '', name: null })
@@ -253,30 +173,7 @@ async function saveEditor() {
 
 async function duplicate(diagram) {
   const document = diagram.document || createDiagramDocument()
-  await enriched.insert.submit({ title: `${diagram.title} copy`, folder: diagram.folder || null, document })
-  refresh()
-}
-
-async function dropOnFolder(folderName, diagramName) {
-  await moveDiagramToFolder(enriched, diagramName, folderName)
-  refresh()
-}
-
-// --- move to folder (I5) ---------------------------------------------------
-const moveTarget = reactive({ open: false, diagram: null })
-function startMove(diagram) {
-  Object.assign(moveTarget, { open: true, diagram })
-}
-// Destinations: every folder + a "Home" (root) option; the current folder is
-// marked so it's clear where the diagram already lives.
-const moveDestinations = computed(() => [
-  { name: null, label: 'Home (no folder)' },
-  ...(folders.data || []).map((f) => ({ name: f.name, label: f.folder_name || f.name })),
-])
-async function moveTo(folderName) {
-  if (moveTarget.diagram) await moveDiagramToFolder(enriched, moveTarget.diagram.name, folderName)
-  moveTarget.open = false
-  moveTarget.diagram = null
+  await enriched.insert.submit({ title: `${diagram.title} copy`, document })
   refresh()
 }
 
@@ -288,12 +185,9 @@ function startInfo(diagram) {
 const infoRows = computed(() => {
   const d = info.diagram
   if (!d) return []
-  const folderName = (folders.data || []).find((f) => f.name === d.folder)?.folder_name
   return [
     ['Name', d.title],
-    ['Type', typeLabel(d.diagram_type)],
     ['Owner', d.owner || '—'],
-    ['Location', folderName || 'Home'],
     ['Created', d.creation ? d.creation.slice(0, 16).replace(' ', ' · ') : '—'],
     ['Last edited', d.modified ? d.modified.slice(0, 16).replace(' ', ' · ') : '—'],
   ]
@@ -314,16 +208,14 @@ const collectionHandlers = {
   rename: startRename,
   duplicate,
   delete: trash,
-  move: startMove,
   'show-info': startInfo,
 }
-const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
 </script>
 
 <template>
   <div>
-    <!-- Toolbar: a Find bar + filter/sort/new-folder, or a bulk-action bar when
-         diagrams are selected; the view toggle sits at the far right. -->
+    <!-- Toolbar: a Find bar + sort, or a bulk-action bar when diagrams are
+         selected; the view toggle sits at the far right. -->
     <div class="mb-5 flex h-9 items-center gap-2">
       <!-- In list view the master checkbox lives in the table header (left of
            Name); in tile view there's no header row, so it sits here. -->
@@ -402,74 +294,20 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       <span class="w-7 flex-none" />
     </div>
 
-    <!-- HOME: a file explorer — a titled Pinned section (root only, folders +
-         diagrams) then a titled "Files & folders" section; inside a folder just
-         its sub-folders + files. -->
+    <!-- HOME: a titled Pinned group (when anything is pinned), then the rest. -->
     <template v-if="mode === 'home'">
       <template v-if="hasPinnedSection">
         <div class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-gray-5">Pinned</div>
-        <div v-if="pinnedFolderTiles.length" :class="folderGridClass" :style="view === 'tile' ? TILE_COLS : ''">
-          <FolderItem
-            v-for="group in pinnedFolderTiles"
-            :key="group.folder.name"
-            :folder="group.folder"
-            :count="group.count"
-            :selected="selectedFolders.has(group.folder.name)"
-            :view="view"
-            :pinned="true"
-            @open="emit('open-folder', group.folder)"
-            @toggle-select="toggleSelectFolder"
-            @toggle-pin="togglePinFolder"
-            @drop-diagram="dropOnFolder(group.folder.name, $event)"
-          />
-        </div>
-        <DiagramCollection v-if="pinned.length" :diagrams="pinned" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
+        <DiagramCollection :diagrams="pinned" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
         <div class="my-3 h-px bg-surface-gray-2" />
-        <div class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-gray-5">Files &amp; folders</div>
+        <div class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-gray-5">Diagrams</div>
       </template>
 
-      <!-- Unpinned folders. -->
-      <div v-if="folderTiles.length" :class="folderGridClass" :style="view === 'tile' ? TILE_COLS : ''">
-        <FolderItem
-          v-for="group in folderTiles"
-          :key="group.folder.name"
-          :folder="group.folder"
-          :count="group.count"
-          :selected="selectedFolders.has(group.folder.name)"
-          :view="view"
-          :pinned="false"
-          @open="emit('open-folder', group.folder)"
-          @toggle-select="toggleSelectFolder"
-          @toggle-pin="togglePinFolder"
-          @drop-diagram="dropOnFolder(group.folder.name, $event)"
-        />
-      </div>
-
-      <!-- Loose diagrams. -->
       <DiagramCollection v-if="files.length" :diagrams="files" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
-
-      <p v-if="folder && !files.length && !folderTiles.length" class="py-10 text-center text-[13px] text-ink-gray-5">
-        This folder is empty.
-      </p>
     </template>
 
-    <!-- Nothing matches the current search / type filter. -->
-    <div v-if="nothingHere && (mode !== 'home' || !folder)" class="flex flex-col items-center gap-3 py-20 text-center">
-      <div class="flex h-12 w-12 items-center justify-center rounded-full bg-surface-gray-2">
-        <LucideIcon :name="hasActiveFilter ? 'search' : 'feather'" class="h-5 w-5 text-ink-gray-5" />
-      </div>
-      <div>
-        <p class="text-[14px] font-semibold text-ink-gray-8">
-          {{ hasActiveFilter ? 'No diagrams match' : 'Nothing here yet' }}
-        </p>
-        <p class="mt-0.5 text-[12px] text-ink-gray-5">
-          {{ hasActiveFilter ? 'Try a different search or filter.' : 'Create a diagram to get started.' }}
-        </p>
-      </div>
-    </div>
-
     <!-- RECENT / ALL: a single flat list. (Only these modes — home renders its
-         own explorer above; v-else-if keeps it from double-rendering there.) -->
+         own grouped view above; v-else-if keeps it from double-rendering there.) -->
     <DiagramCollection
       v-else-if="mode !== 'home'"
       :diagrams="mode === 'recent' ? recentList : allFlat"
@@ -478,6 +316,21 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       :pin-limit-reached="pinLimitReached"
       v-on="collectionHandlers"
     />
+
+    <!-- Nothing matches the current search. -->
+    <div v-if="nothingHere" class="flex flex-col items-center gap-3 py-20 text-center">
+      <div class="flex h-12 w-12 items-center justify-center rounded-full bg-surface-gray-2">
+        <LucideIcon :name="hasActiveFilter ? 'search' : 'feather'" class="h-5 w-5 text-ink-gray-5" />
+      </div>
+      <div>
+        <p class="text-[14px] font-semibold text-ink-gray-8">
+          {{ hasActiveFilter ? 'No diagrams match' : 'Nothing here yet' }}
+        </p>
+        <p class="mt-0.5 text-[12px] text-ink-gray-5">
+          {{ hasActiveFilter ? 'Try a different search.' : 'Create a diagram to get started.' }}
+        </p>
+      </div>
+    </div>
 
     <!-- Quiet end-of-page marker (only when the view actually has content). -->
     <div v-if="!nothingHere" class="mt-16 flex flex-col items-center gap-2 py-10 text-center">
@@ -504,26 +357,6 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
       </template>
     </Dialog>
 
-    <!-- Move to folder (I5). -->
-    <Dialog v-model="moveTarget.open" :options="{ title: 'Move to…' }">
-      <template #body-content>
-        <div class="flex flex-col gap-1">
-          <button
-            v-for="dest in moveDestinations"
-            :key="dest.name || 'root'"
-            class="flex items-center gap-2 rounded-md px-2 py-2 text-left text-[13px] hover:bg-surface-gray-2"
-            :class="(moveTarget.diagram?.folder || null) === dest.name ? 'text-ink-gray-5' : 'text-ink-gray-8'"
-            :disabled="(moveTarget.diagram?.folder || null) === dest.name"
-            @click="moveTo(dest.name)"
-          >
-            <LucideIcon :name="dest.name ? 'folder' : 'house'" class="h-4 w-4 text-ink-gray-6" />
-            {{ dest.label }}
-            <span v-if="(moveTarget.diagram?.folder || null) === dest.name" class="ml-auto text-[11px]">Current</span>
-          </button>
-        </div>
-      </template>
-    </Dialog>
-
     <!-- Show info (I5): read-only metadata. -->
     <Dialog v-model="info.open" :options="{ title: 'Diagram info' }">
       <template #body-content>
@@ -535,6 +368,5 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
         </dl>
       </template>
     </Dialog>
-
   </div>
 </template>

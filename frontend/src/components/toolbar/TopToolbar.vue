@@ -13,11 +13,9 @@ import ShareMenu from './ShareMenu.vue'
 import DriveMenu from './DriveMenu.vue'
 import PresenceAvatars from './PresenceAvatars.vue'
 
-const props = defineProps({
+defineProps({
   title: { type: String, default: 'Untitled diagram' },
   saveStatus: { type: String, default: 'saved' },
-  folder: { type: String, default: '' },
-  folderId: { type: String, default: '' },
 })
 const emit = defineEmits(['update:title'])
 
@@ -26,14 +24,6 @@ const router = useRouter()
 function goHome() {
   router.push({ name: 'Home' })
 }
-
-// Clicking the folder crumb returns Home with that folder open (K2/K3), so the
-// user lands back where the diagram lives rather than at the root.
-function goFolder() {
-  if (props.folderId) router.push({ name: 'Home', query: { folder: props.folderId } })
-  else goHome()
-}
-
 </script>
 
 <template>
@@ -51,18 +41,6 @@ function goFolder() {
     </button>
 
     <span class="mx-0.5 text-base text-ink-gray-4" aria-hidden="true">/</span>
-
-    <!-- Folder crumb — click to jump back into the folder the diagram lives in. -->
-    <template v-if="folder">
-      <button
-        class="max-w-[160px] truncate rounded px-1 py-1 text-lg font-medium text-ink-gray-5 hover:bg-surface-gray-2 hover:text-ink-gray-7"
-        :title="`Open ${folder}`"
-        @click="goFolder"
-      >
-        {{ folder }}
-      </button>
-      <span class="mx-0.5 text-base text-ink-gray-4" aria-hidden="true">/</span>
-    </template>
 
     <!-- Current diagram — the editable last crumb. -->
     <TitleEditor :title="title" @update:title="emit('update:title', $event)" />

@@ -5,7 +5,6 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { loadDiagram } from '@/data/diagrams.js'
-import { folders } from '@/data/folders.js'
 import { parseDiagramDocument, isUnifiedDocument } from '@/diagram/schema.js'
 import { createDiagramStore, provideDiagramStore } from '@/stores/useDiagramStore.js'
 import { createEditorUi, provideEditorUi } from '@/stores/useEditorUi.js'
@@ -134,20 +133,11 @@ function rename(title) {
   diagram.setValue.submit({ title })
 }
 
-// Folder name for the breadcrumb (the diagram's folder is stored by id). Fetched
-// lazily; empty when the diagram sits at the root.
-const folderName = computed(() => {
-  const id = diagram.doc?.folder
-  if (!id) return ''
-  return (folders.data || []).find((f) => f.name === id)?.folder_name || ''
-})
-
 // Consume the ?new=1 flag once TitleEditor (a child, mounted first) has read it,
 // so a later refresh of this URL won't re-open the title editor.
 const route = useRoute()
 const router = useRouter()
 onMounted(() => {
-  if (!folders.data) folders.fetch()
   // Consume the ?new flag (title auto-select) so a later refresh of this URL
   // won't re-open the title editor.
   if (route.query.new) {
@@ -163,8 +153,6 @@ onMounted(() => {
     <TopToolbar
       :title="diagram.doc?.title || 'Untitled diagram'"
       :save-status="autosave.status.value"
-      :folder="folderName"
-      :folder-id="diagram.doc?.folder || ''"
       @update:title="rename"
     />
 
