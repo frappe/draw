@@ -13,7 +13,7 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { CHALK_COLORS, STICKY_COLORS, PEN_WIDTHS } from '@/diagram/whiteboardColors.js'
 import { ERASER_SIZES } from '@/diagram/eraser.js'
-import { isWhiteboardEmpty } from '@/diagram/whiteboardModel.js'
+import { visibleWhiteboardTools } from './whiteboardTools.js'
 import LineOptions from './LineOptions.vue'
 import TableOptions from './TableOptions.vue'
 import { useImageInsert } from '@/composables/useImageInsert.js'
@@ -30,16 +30,6 @@ const store = useDiagramStore()
 const ui = useWhiteboardUi()
 const imageInsert = useImageInsert(store)
 
-const TOOLS = [
-  { tool: 'pen', icon: 'pen-line', label: 'Pen' },
-  { tool: 'highlighter', icon: 'highlighter', label: 'Highlighter' },
-  { tool: 'eraser', icon: 'eraser', label: 'Eraser' },
-  { tool: 'text', icon: 'type', label: 'Text' },
-  { tool: 'sticky', icon: 'sticky-note', label: 'Sticky note' },
-  { tool: 'line', icon: 'minus', label: 'Line' },
-  { tool: 'table', icon: 'table', label: 'Table' },
-  { tool: 'laser', icon: 'circle-dot', label: 'Laser pointer' },
-]
 // Tools that expose options in the disclosure popover.
 const OPTION_TOOLS = ['pen', 'highlighter', 'eraser', 'sticky', 'line', 'table']
 
@@ -52,19 +42,7 @@ const ERASER_MODES = [
 ]
 
 const activeTool = computed(() => editorUi.state.tool)
-// The eraser is only useful once there's something to erase — hide it until the
-// board has content (keep it while it's the active tool so it can't vanish
-// mid-erase). Object mode erases shapes and stickies too, not just ink, so the
-// whole-board emptiness test is the right gate.
-const hasContent = computed(() => {
-  const model = store.state.whiteboard
-  return Boolean(model) && !isWhiteboardEmpty(model, store.state.shapes)
-})
-const visibleTools = computed(() =>
-  TOOLS.filter((t) => !props.exclude.includes(t.tool)).filter(
-    (t) => t.tool !== 'eraser' || hasContent.value || activeTool.value === 'eraser',
-  ),
-)
+const visibleTools = computed(() => visibleWhiteboardTools(props.exclude))
 const showImageInsert = computed(() => !props.exclude.includes('image'))
 const activeHasOptions = computed(() => OPTION_TOOLS.includes(activeTool.value))
 const optionsLabel = computed(() => `${capitalize(activeTool.value)} options`)
