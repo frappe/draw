@@ -128,6 +128,16 @@ export function incomingEdges(model, nodeId) {
   return model.edges.filter((edge) => edge.to.nodeId === nodeId)
 }
 
+// The first decision branch of `node` with no outgoing edge yet (so repeated adds
+// fill Yes, then No, …), falling back to the first branch once all are taken. Null
+// for a non-decision node — it extends from the single 'out' port. Shared by the
+// sub-model keyboard path and the free-floating add-node op so both agree.
+export function pickFreeBranch(node, model) {
+  if (node.nodeType !== 'decision' || !node.branches?.length) return null
+  const used = new Set(outgoingEdges(model, node.id).map((edge) => edge.from.port))
+  return node.branches.find((branch) => !used.has(branch.port)) || node.branches[0]
+}
+
 // Add a node; returns its id. Caller supplies position (auto-place lives in the
 // layout module + interaction). A blank text means "use the type's default".
 export function addFlowchartNode(model, nodeType, text = '', x = 0, y = 0) {

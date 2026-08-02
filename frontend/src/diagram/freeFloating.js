@@ -56,7 +56,7 @@ export function isFlowchartShape(shape) {
 // fallback `type`, so a migrated shape is renderable even before phase 2 teaches
 // the renderer the real glyph. The authoritative shape stays in
 // `shape.flowchart.nodeType`; this is only the degrade path.
-const FLOWCHART_FALLBACK_TYPE = {
+export const FLOWCHART_FALLBACK_TYPE = {
   terminator: 'rounded',
   process: 'rounded',
   decision: 'diamond',
@@ -207,13 +207,57 @@ function flattenMindmap(model, themePreset, startZ) {
 // Flowchart edges route orthogonally, so we pick the dominant axis: mostly-below
 // → bottom/top, mostly-right → right/left. The exact port is preserved in the
 // connector tag for phase-2 routing; this only seeds a sensible anchor.
-function edgeAnchors(fromBox, toBox) {
+export function edgeAnchors(fromBox, toBox) {
   const dx = toBox.x + toBox.w / 2 - (fromBox.x + fromBox.w / 2)
   const dy = toBox.y + toBox.h / 2 - (fromBox.y + fromBox.h / 2)
   if (Math.abs(dy) >= Math.abs(dx)) {
     return dy >= 0 ? { from: 'bottom', to: 'top' } : { from: 'top', to: 'bottom' }
   }
   return dx >= 0 ? { from: 'right', to: 'left' } : { from: 'left', to: 'right' }
+}
+
+// Build a tagged flowchart-node shape for a flowchart node at an absolute box.
+// Shared by the migration (flattenFlowchart) and the free-floating add-node op
+// (freeFloatingOps.buildFlowchartChild) so a node created on the flattened canvas
+// is byte-identical to a migrated one. The caller assigns zIndex.
+export function flowchartNodeShape(node, box) {
+  return {
+    id: node.id,
+    type: FLOWCHART_FALLBACK_TYPE[node.nodeType] || 'rectangle',
+    x: Math.round(box.x),
+    y: Math.round(box.y),
+    w: Math.round(box.w),
+    h: Math.round(box.h),
+    rotation: 0,
+    opacity: 1,
+    zIndex: 0,
+    fill: node.fill || 'none',
+    border: node.border || { ...NEUTRAL_BORDER },
+    text: textBlock(node.text, '#1F2933'),
+    role: ROLE.flowchartNode,
+    flowchart: {
+      nodeType: node.nodeType,
+      branches: clone(node.branches || []),
+      manuallyPositioned: !!node.manuallyPositioned,
+    },
+  }
+}
+
+// Build a tagged flowchart-edge connector between two shapes, bound by shape id +
+// anchor (the #138 anchor system). Shared by the migration and the add-node op so
+// a created edge matches a migrated one; the caller supplies a unique id.
+export function flowchartEdgeConnector(id, fromId, toId, anchors, { fromPort = 'out', toPort = 'in', kind = 'flow', label = '' } = {}) {
+  return {
+    id,
+    type: 'elbow',
+    from: { shapeId: fromId, anchor: anchors.from },
+    to: { shapeId: toId, anchor: anchors.to },
+    arrowheads: { start: 'none', end: 'arrow' },
+    style: { color: '#525252', width: 1.5, dash: 'solid' },
+    label,
+    role: ROLE.flowchartEdge,
+    flowchart: { fromPort, toPort, kind },
+  }
 }
 
 // Convert a flowchart sub-model into tagged shapes + connectors. Flowchart nodes
@@ -235,26 +279,9 @@ function flattenFlowchart(model, startZ) {
     const box = { x: node.x + ox, y: node.y + oy, w: size.w, h: size.h }
     boxes[node.id] = box
     z += 1
-    shapes.push({
-      id: node.id,
-      type: FLOWCHART_FALLBACK_TYPE[node.nodeType] || 'rectangle',
-      x: Math.round(box.x),
-      y: Math.round(box.y),
-      w: Math.round(box.w),
-      h: Math.round(box.h),
-      rotation: 0,
-      opacity: 1,
-      zIndex: z,
-      fill: node.fill || 'none',
-      border: node.border || { ...NEUTRAL_BORDER },
-      text: textBlock(node.text, '#1F2933'),
-      role: ROLE.flowchartNode,
-      flowchart: {
-        nodeType: node.nodeType,
-        branches: clone(node.branches || []),
-        manuallyPositioned: !!node.manuallyPositioned,
-      },
-    })
+    const shape = flowchartNodeShape(node, box)
+    shape.zIndex = z
+    shapes.push(shape)
   }
 
   for (const edge of model.edges || []) {
@@ -262,21 +289,14 @@ function flattenFlowchart(model, startZ) {
     const toBox = boxes[edge.to?.nodeId]
     if (!fromBox || !toBox) continue // no dangling routes (spec B11)
     const anchors = edgeAnchors(fromBox, toBox)
-    connectors.push({
-      id: `fce-${edge.id}`,
-      type: 'elbow',
-      from: { shapeId: edge.from.nodeId, anchor: anchors.from },
-      to: { shapeId: edge.to.nodeId, anchor: anchors.to },
-      arrowheads: { start: 'none', end: 'arrow' },
-      style: { color: '#525252', width: 1.5, dash: 'solid' },
-      label: edge.label || '',
-      role: ROLE.flowchartEdge,
-      flowchart: {
+    connectors.push(
+      flowchartEdgeConnector(`fce-${edge.id}`, edge.from.nodeId, edge.to.nodeId, anchors, {
         fromPort: edge.from?.port || 'out',
         toPort: edge.to?.port || 'in',
         kind: edge.kind || 'flow',
-      },
-    })
+        label: edge.label || '',
+      }),
+    )
   }
 
   return { shapes, connectors, nextZ: z }

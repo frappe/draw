@@ -6,9 +6,11 @@
 // the returned objects in one commit().
 
 import { createShape, createConnector, nextId } from './factories.js'
-import { mindmapModelFromShapes } from './freeFloatingGraph.js'
+import { mindmapModelFromShapes, flowchartModelFromShapes } from './freeFloatingGraph.js'
 import { resolveNodeColor, nodeFill, readableInk } from './mindmapColors.js'
-import { ROLE } from './freeFloating.js'
+import { makeFlowchartNode, defaultNodeText, nodeSize, pickFreeBranch } from './flowchartModel.js'
+import { placeChild } from './flowchartLayout.js'
+import { ROLE, flowchartNodeShape, flowchartEdgeConnector, edgeAnchors } from './freeFloating.js'
 
 // Default box of a fresh (empty-text) mind-map node — matches mindmapLayout's
 // MIN_W and one-line height, so it looks right before an explicit Tidy re-flow.
@@ -105,4 +107,42 @@ export function buildMindmapSibling(shapes, nodeShapeId, themePreset) {
   if (!node) return null
   if (!node.parentId) return buildMindmapChild(shapes, nodeShapeId, themePreset)
   return buildMindmapChild(shapes, node.parentId, themePreset, node.side)
+}
+
+// --- flowchart --------------------------------------------------------------
+
+// Build the tagged shape + edge connector for a new flowchart node connected one
+// level down from `parentShapeId`. Reconstructs the flowchart model from the tagged
+// shapes/connectors so the existing pure placement (placeChild, decision branch
+// fan-out) runs, then returns a shape + connector identical to a migrated one.
+// Returns null when the parent is not a flowchart shape. The caller assigns zIndex
+// and commits both objects as one undoable unit.
+export function buildFlowchartChild(shapes, connectors, parentShapeId, nodeType) {
+  const parentShape = (shapes || []).find((s) => s.id === parentShapeId && s.role === ROLE.flowchartNode)
+  if (!parentShape) return null
+  const model = flowchartModelFromShapes(shapes, connectors)
+  const parentNode = model.nodes.find((n) => n.id === parentShapeId)
+  if (!parentNode) return null
+
+  const draft = makeFlowchartNode(nodeType, defaultNodeText(nodeType), 0, 0)
+  // Extend a decision node through a free branch port (Yes/No/…), carrying its label
+  // onto the edge and fanning the child into that branch's lane — so the new edge
+  // isn't an unlabelled centre 'out' (matches the sub-model + "+"-handle paths).
+  const branch = pickFreeBranch(parentNode, model)
+  const branchCount = parentNode.nodeType === 'decision' ? parentNode.branches.length : 1
+  const branchIndex = branch ? parentNode.branches.findIndex((b) => b.port === branch.port) : null
+  const size = nodeSize(draft)
+  const pos = placeChild(model, parentShapeId, { ...draft, ...size }, branchIndex, branchCount)
+  const childBox = { x: pos.x, y: pos.y, w: size.w, h: size.h }
+
+  const shape = flowchartNodeShape(draft, childBox)
+  const parentBox = { x: parentShape.x, y: parentShape.y, w: parentShape.w, h: parentShape.h }
+  const anchors = edgeAnchors(parentBox, childBox)
+  const connector = flowchartEdgeConnector(`fce-${parentShapeId}-${draft.id}`, parentShapeId, draft.id, anchors, {
+    fromPort: branch ? branch.port : 'out',
+    toPort: 'in',
+    kind: 'flow',
+    label: branch ? branch.label : '',
+  })
+  return { shape, connector }
 }

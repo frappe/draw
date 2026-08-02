@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { buildMindmapChild, buildMindmapSibling } from './freeFloatingOps.js'
+import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild } from './freeFloatingOps.js'
 import { flattenSubmodels, ROLE } from './freeFloating.js'
 import { createMindMap, addChild } from './mindmapModel.js'
+import { createFlowchart, addFlowchartNode } from './flowchartModel.js'
 
 // A migrated single-root mind map's shapes[] (root only), to grow from.
 function rootShapes() {
@@ -73,5 +74,60 @@ describe('buildMindmapSibling', () => {
     const { shapes, rootId } = rootShapes()
     const { shape } = buildMindmapSibling(shapes, rootId, 'ocean')
     expect(shape.mindmap.parentId).toBe(rootId)
+  })
+})
+
+// A migrated single-node flowchart's shapes[]/connectors[], to grow from.
+function flowchartShapes(nodeType = 'terminator') {
+  const model = createFlowchart()
+  const startId = addFlowchartNode(model, nodeType, 'Start', 100, 100)
+  const doc = flattenSubmodels({
+    schemaVersion: 2, diagramType: 'unified',
+    canvas: { width: 1920, height: 1080, background: null },
+    shapes: [], connectors: [], sections: [],
+    mindmap: null, flowchart: model, whiteboard: null,
+  })
+  return { shapes: doc.shapes, connectors: doc.connectors, startId }
+}
+
+describe('buildFlowchartChild', () => {
+  it('builds a tagged child shape + edge connector bound to the parent', () => {
+    const { shapes, connectors, startId } = flowchartShapes()
+    const { shape, connector } = buildFlowchartChild(shapes, connectors, startId, 'process')
+    expect(shape.role).toBe(ROLE.flowchartNode)
+    expect(shape.flowchart.nodeType).toBe('process')
+    expect(connector.role).toBe(ROLE.flowchartEdge)
+    expect(connector.from.shapeId).toBe(startId)
+    expect(connector.to.shapeId).toBe(shape.id)
+    expect(connector.flowchart.fromPort).toBe('out')
+  })
+
+  it('places the child one level down from the parent (TB)', () => {
+    const { shapes, connectors, startId } = flowchartShapes()
+    const parent = shapes.find((s) => s.id === startId)
+    const { shape } = buildFlowchartChild(shapes, connectors, startId, 'process')
+    expect(shape.y).toBeGreaterThan(parent.y)
+  })
+
+  it('extends a decision node through its free branches, carrying the labels', () => {
+    const { shapes, connectors, startId } = flowchartShapes('decision')
+    const first = buildFlowchartChild(shapes, connectors, startId, 'process')
+    expect(first.connector.flowchart.fromPort).toBe('yes')
+    expect(first.connector.label).toBe('Yes')
+    // With Yes taken, the next child fills the No branch.
+    const second = buildFlowchartChild(
+      [...shapes, first.shape],
+      [...connectors, first.connector],
+      startId,
+      'process',
+    )
+    expect(second.connector.flowchart.fromPort).toBe('no')
+    expect(second.connector.label).toBe('No')
+  })
+
+  it('returns null for a non-flowchart shape', () => {
+    const { shapes, connectors } = flowchartShapes()
+    shapes.push({ id: 'block1', type: 'rectangle', x: 0, y: 0, w: 10, h: 10 })
+    expect(buildFlowchartChild(shapes, connectors, 'block1', 'process')).toBeNull()
   })
 })

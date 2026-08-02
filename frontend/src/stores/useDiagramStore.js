@@ -11,9 +11,9 @@ import { findThemePreset, DEFAULT_THEME_PRESET } from '@/diagram/theme.js'
 import { createDiagramDocument, SCHEMA_VERSION, DEFAULT_DIAGRAM_TYPE } from '@/diagram/schema.js'
 import { addChild, addSibling, addRootNode, addTree, nodeById, subtreeIds } from '@/diagram/mindmapModel.js'
 import { layoutMindMap, mindmapTreeRects } from '@/diagram/mindmapLayout.js'
-import { isMindmapShape } from '@/diagram/freeFloating.js'
+import { isMindmapShape, isFlowchartShape } from '@/diagram/freeFloating.js'
 import { mindmapModelFromShapes } from '@/diagram/freeFloatingGraph.js'
-import { buildMindmapChild, buildMindmapSibling } from '@/diagram/freeFloatingOps.js'
+import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild } from '@/diagram/freeFloatingOps.js'
 import {
   addFlowchartNode,
   addFlowchartEdge,
@@ -324,6 +324,38 @@ function attachFlowchart(store, state, history) {
     let id = null
     history.commit('Add node', () => (id = addFlowchartNode(state.flowchart, nodeType, text, x, y)))
     return id
+  }
+  // Add a connected child as a free-floating tagged shape + edge connector
+  // (free-floating #122), one undoable unit. Used when the parent is a migrated
+  // flowchart SHAPE (state.flowchart is null after the flip), so the keyboard/handle
+  // build path has a home the way addChildShape does for mind maps.
+  store.addFlowchartChildShape = (parentShapeId, nodeType) => {
+    const built = buildFlowchartChild(state.shapes, state.connectors, parentShapeId, nodeType)
+    if (!built) return null
+    built.shape.zIndex = nextZIndex(state)
+    history.commit('Add node', () => {
+      state.shapes.push(built.shape)
+      state.connectors.push(built.connector)
+    })
+    return built.shape.id
+  }
+  // Delete migrated flowchart SHAPES and their touching edges (free-floating #122):
+  // drop each selected flowchart-node shape plus any connector touching it — one
+  // undoable unit, no dangling edges. Ids that are not flowchart shapes are ignored.
+  // A flowchart delete removes just the node(s) + their edges, not a downstream
+  // subtree, matching the sub-model removeFlowchartNodes.
+  store.deleteFlowchartShapes = (ids) => {
+    const remove = new Set(
+      (ids || []).filter((id) => isFlowchartShape(state.shapes.find((s) => s.id === id))),
+    )
+    if (!remove.size) return
+    history.commit('Delete', () => {
+      state.shapes = state.shapes.filter((s) => !remove.has(s.id))
+      state.connectors = state.connectors.filter(
+        (c) => !remove.has(c.from?.shapeId) && !remove.has(c.to?.shapeId),
+      )
+      state.selection = state.selection.filter((sid) => !remove.has(sid))
+    })
   }
   store.updateFlowchartNode = (id, patch) =>
     history.commit('Update node', () => {
