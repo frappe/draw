@@ -18,6 +18,7 @@ import {
   LINE_H,
 } from '@/diagram/mindmapLayout.js'
 import { resolveNodeColor, nodeFill, readableInk } from '@/diagram/mindmapColors.js'
+import { nodeRx } from '@/diagram/mindmapNodeShape.js'
 import { isRoot, subtreeIds, rootOf } from '@/diagram/mindmapModel.js'
 import { toggleNodeCollapsed, pasteOutline, linkNodes, unlinkNodes } from '@/diagram/mindmapOperations.js'
 import { looksLikeOutline } from '@/diagram/mindmapPaste.js'
@@ -464,11 +465,6 @@ function strokeColor(node) {
   // outline follows the resolved branch/fill colour as before.
   if (isDropTarget(node.id)) return '#006EDB'
   return node.border || colorOf(node)
-}
-function nodeRx(node, b) {
-  if (node.shape === 'rounded') return 12
-  if (node.shape === 'rectangle') return 4
-  return b.h / 2 // pill (default)
 }
 function nodePoly(node, b) {
   if (node.shape === 'diamond') return `${b.w / 2},0 ${b.w},${b.h / 2} ${b.w / 2},${b.h} 0,${b.h / 2}`
