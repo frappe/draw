@@ -26,6 +26,7 @@ import { isAdditiveEvent, runMarqueeDrag } from '@/composables/pointer.js'
 
 const ERASER_TOLERANCE = 6 // canvas units of slack around a stroke path
 const MARQUEE_MIN = 3 // ignore sub-3px drags (treat as a click)
+const TABLE_MOVE_THRESHOLD = 4 // screen px a table press must travel to become a move
 
 // The select-helper on the whiteboard UI for each object kind.
 const SELECT_FN = {
@@ -317,17 +318,10 @@ function selectAt(context, store, ui) {
   const hit = whiteboardHitAt(store.state.whiteboard, context.point)
   if (!hit) return beginMarquee(context, store, ui)
   if (isAdditiveEvent(context.event)) return ui.toggleSelected(hit.kind, hit.id)
-  // Frappe-Writer-style table editing (T2): the first click selects the table;
-  // once it's selected, clicking a cell drops the caret straight into that cell
-  // (no double-click needed). Tables aren't drag-moved, so this steals no gesture.
-  if (hit.kind === 'table' && ui.isSelected('table', hit.id)) {
-    const table = tableAt(store.state.whiteboard, context.point)
-    const cell = table && tableCellAt(table, context.point)
-    if (cell) {
-      ui.state.editingCell = { tableId: table.id, row: cell.row, col: cell.col }
-      return
-    }
-  }
+  // A plain click single-selects. Once a table is selected its own pointerdown
+  // owns the press (drag to move, click to edit the cell under it — see
+  // startTableMove / WhiteboardTable.vue), so a table hit here only ever performs
+  // that initial select.
   ui[SELECT_FN[hit.kind]](hit.id)
 }
 
@@ -421,6 +415,59 @@ export function startGroupMove(event, store, editorUi, ui) {
   // these window listeners AND leaves the group shifted by the live preview with no
   // history commit. Finish as if released so the move lands as one undoable step.
   window.addEventListener('pointercancel', up)
+}
+
+// Press on a whiteboard table (select tool). Like the sticky, the table owns its
+// own press once selected: a drag past a small threshold moves it (with every
+// co-selected object), while a press that never crosses the threshold stays a
+// plain click that drops the caret into the cell under it (Frappe-Writer T2 cell
+// edit). Live-mutates the model for a smooth preview, then commits the whole
+// translation as ONE undoable unit (#133). `point` is the press in canvas units.
+export function startTableMove(event, store, editorUi, ui, table, point) {
+  const model = store.state.whiteboard
+  const items = ui.state.selection.map((item) => ({ ...item }))
+  const cell = tableCellAt(table, point)
+  const startX = event.clientX
+  const startY = event.clientY
+  let lastDx = 0
+  let lastDy = 0
+  let moving = false
+  const move = (moveEvent) => {
+    // Threshold in screen pixels so a small wiggle stays a click (still opening
+    // cell-edit) at any zoom; the applied delta is divided by zoom for canvas units.
+    if (!moving && Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) < TABLE_MOVE_THRESHOLD) return
+    moving = true
+    const zoom = editorUi.viewport.state.zoom
+    const dx = (moveEvent.clientX - startX) / zoom
+    const dy = (moveEvent.clientY - startY) / zoom
+    for (const item of items) translateWhiteboardObject(model, item.kind, item.id, dx - lastDx, dy - lastDy)
+    lastDx = dx
+    lastDy = dy
+  }
+  const finish = (finishEvent) => {
+    window.removeEventListener('pointermove', move)
+    window.removeEventListener('pointerup', finish)
+    window.removeEventListener('pointercancel', finish)
+    if (moving) {
+      // Undo the live preview, then commit the whole move once for clean undo.
+      for (const item of items) translateWhiteboardObject(model, item.kind, item.id, -lastDx, -lastDy)
+      store.updateWhiteboardModel('Move objects', (m) => {
+        for (const item of items) translateWhiteboardObject(m, item.kind, item.id, lastDx, lastDy)
+      })
+      return
+    }
+    // A plain click (a real release, not a cancelled gesture) opens the cell under
+    // the press for inline editing (T2). editingCell is set directly — no reselect —
+    // so it survives (setSelection would clear it).
+    if (cell && finishEvent?.type !== 'pointercancel') {
+      ui.state.editingCell = { tableId: table.id, row: cell.row, col: cell.col }
+    }
+  }
+  window.addEventListener('pointermove', move)
+  window.addEventListener('pointerup', finish)
+  // Match startGroupMove: a pointercancel must tear the listeners down and land any
+  // in-progress move as one undoable step, never stranding the preview.
+  window.addEventListener('pointercancel', finish)
 }
 
 // Double-click inside a table edits the cell under the cursor; anywhere else it

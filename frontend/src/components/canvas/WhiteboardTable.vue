@@ -6,7 +6,10 @@
 // like lines/strokes. One store mutation per committed edit (Part G6).
 import { computed, ref, watch, nextTick } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
+import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
+import { startTableMove } from '@/composables/useWhiteboardInteraction.js'
+import { isAdditiveEvent, clientToLogical } from '@/composables/pointer.js'
 import { tableWidth, tableHeight } from '@/diagram/whiteboardModel.js'
 
 const props = defineProps({
@@ -15,6 +18,7 @@ const props = defineProps({
 })
 
 const store = useDiagramStore()
+const editorUi = useEditorUi()
 const ui = useWhiteboardUi()
 
 const width = computed(() => tableWidth(props.table))
@@ -38,6 +42,20 @@ const cells = computed(() => {
   }
   return out
 })
+
+// A press on the table (select tool only). The first press and additive toggles
+// fall through to the surface selectAt, which single-selects/toggles the table;
+// once it's selected WE own the press — a drag past a small threshold moves it, a
+// plain click drops the caret into the cell under it (T2) — so the surface never
+// double-handles it (#133). Mirrors the sticky-note pointerdown.
+function onPointerDown(event) {
+  if (event.button !== 0 || editorUi.state.tool !== 'select') return
+  if (isAdditiveEvent(event) || !ui.isSelected('table', props.table.id)) return
+  event.stopPropagation()
+  const surface = event.target.closest('[data-fdpreset]')
+  const rect = surface ? surface.getBoundingClientRect() : { left: 0, top: 0 }
+  startTableMove(event, store, editorUi, ui, props.table, clientToLogical(event, rect, editorUi.viewport))
+}
 
 // Inline editor: mounts when editingCell targets this table. The draft is held
 // locally and committed on Enter/blur; Escape cancels.
@@ -91,7 +109,7 @@ function cancelEdit() {
 </script>
 
 <template>
-  <g>
+  <g @pointerdown="onPointerDown">
     <!-- Cell backgrounds + outer frame. -->
     <rect
       :x="table.x"
