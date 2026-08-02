@@ -44,112 +44,103 @@ function miniMindShape(shape) {
   return 'rect' // pill / rounded / rectangle all read as a rounded rect here
 }
 
-// Simplified content shapes in canvas units, per diagram type. Each carries its
-// real `fill`, an optional `stroke`, and a `kind` the template renders — so the
-// overview looks like the diagram (colours + shapes), not flat grey boxes.
+// Per-type builders shared by the unified overview and each dedicated type, so
+// the mind-map / flowchart overview reflects real shapes + colours everywhere —
+// including on the unified canvas, where they used to collapse to grey rects
+// (#101). `ox/oy` fold in a frame's origin on the unified canvas.
+function blockItems(shapes) {
+  return shapes.filter(isVisible).map((s) => {
+    const b = axisAlignedBBox(s)
+    return {
+      id: `s-${s.id}`, x: b.x, y: b.y, w: b.w, h: b.h,
+      fill: s.fill && s.fill !== 'none' ? s.fill : '#CBD5E1',
+      stroke: s.border?.color || null, kind: miniKind(s.type),
+    }
+  })
+}
+function flowchartItems(fc, ox = 0, oy = 0) {
+  return fc.nodes.map((n) => {
+    const s = flowchartNodeSize(n)
+    return {
+      id: `f-${n.id}`, x: n.x + ox, y: n.y + oy, w: s.w, h: s.h,
+      fill: n.fill && n.fill !== 'none' ? n.fill : '#EEF2F7', stroke: n.border || '#94A3B8',
+      kind: n.nodeType === 'decision' ? 'diamond' : n.nodeType === 'connector' ? 'ellipse' : 'rect',
+    }
+  })
+}
+function mindmapItems(mm, preset, ox = 0, oy = 0) {
+  const { positions } = layoutMindMap(mm)
+  return mm.nodes
+    .filter((n) => positions[n.id])
+    .map((n) => {
+      const b = positions[n.id]
+      const color = resolveNodeColor(mm, n, preset)
+      const fill = n.fill || (n.color ? nodeFill(n.color) : isMindRoot(mm, n.id) ? '#F3F3F3' : nodeFill(color))
+      return { id: `m-${n.id}`, x: b.x + ox, y: b.y + oy, w: b.w, h: b.h, fill, stroke: n.border || color, kind: miniMindShape(n.shape) }
+    })
+}
+function flowchartLinks(fc, ox = 0, oy = 0) {
+  const byId = Object.fromEntries(fc.nodes.map((n) => [n.id, n]))
+  return fc.edges
+    .map((e) => {
+      const a = byId[e.from.nodeId]
+      const b = byId[e.to.nodeId]
+      if (!a || !b) return null
+      const sa = flowchartNodeSize(a)
+      const sb = flowchartNodeSize(b)
+      return { id: `fl-${e.id}`, x1: a.x + ox + sa.w / 2, y1: a.y + oy + sa.h / 2, x2: b.x + ox + sb.w / 2, y2: b.y + oy + sb.h / 2, color: '#94A3B8' }
+    })
+    .filter(Boolean)
+}
+function mindmapLinks(mm, preset, ox = 0, oy = 0) {
+  const { positions } = layoutMindMap(mm)
+  return mm.nodes
+    .filter((n) => n.parentId && positions[n.parentId] && positions[n.id])
+    .map((n) => {
+      const a = positions[n.parentId]
+      const b = positions[n.id]
+      return { id: `ml-${n.id}`, x1: a.x + ox + a.w / 2, y1: a.y + oy + a.h / 2, x2: b.x + ox + b.w / 2, y2: b.y + oy + b.h / 2, color: resolveNodeColor(mm, n, preset) }
+    })
+}
+function originOf(model) {
+  const o = model.origin || { x: 0, y: 0 }
+  return [o.x || 0, o.y || 0]
+}
+
+// Simplified content shapes in canvas units. Each carries its real fill, an
+// optional stroke, and a `kind` the template renders — so the overview looks like
+// the diagram (colours + shapes), not flat grey boxes.
 const items = computed(() => {
+  const preset = store.state.themePreset
+  const { mindmap: mm, flowchart: fc, whiteboard: wb } = store.state
   // Unified canvas: overview ALL content — block shapes + whiteboard objects +
   // the mind-map / flowchart frames (offset by their origin).
   if (isUnifiedDocument(store.state)) {
-    const out = []
-    for (const s of store.state.shapes.filter(isVisible)) {
-      const b = axisAlignedBBox(s)
-      out.push({
-        id: `s-${s.id}`, x: b.x, y: b.y, w: b.w, h: b.h,
-        fill: s.fill && s.fill !== 'none' ? s.fill : '#CBD5E1',
-        stroke: s.border?.color || null, kind: miniKind(s.type),
-      })
-    }
-    const wb = store.state.whiteboard
-    if (wb) {
-      for (const o of whiteboardObjectBoxes(wb)) {
-        out.push({ id: `w-${o.id}`, ...o.box, fill: '#E2E8F0', stroke: '#94A3B8', kind: 'rect' })
-      }
-    }
-    const mm = store.state.mindmap
-    if (mm?.nodes?.length) {
-      const { positions } = layoutMindMap(mm)
-      const o = mm.origin || { x: 0, y: 0 }
-      for (const n of mm.nodes) {
-        const b = positions[n.id]
-        if (b) out.push({ id: `m-${n.id}`, x: b.x + o.x, y: b.y + o.y, w: b.w, h: b.h, fill: '#F3F3F3', stroke: '#CBD5E1', kind: 'rounded' })
-      }
-    }
-    const fc = store.state.flowchart
-    if (fc?.nodes?.length) {
-      const o = fc.origin || { x: 0, y: 0 }
-      for (const n of fc.nodes) {
-        const s = flowchartNodeSize(n)
-        out.push({ id: `f-${n.id}`, x: n.x + o.x, y: n.y + o.y, w: s.w, h: s.h, fill: n.fill && n.fill !== 'none' ? n.fill : '#EEF2F7', stroke: '#94A3B8', kind: 'rect' })
-      }
-    }
+    const out = blockItems(store.state.shapes)
+    if (wb) for (const o of whiteboardObjectBoxes(wb)) out.push({ id: `w-${o.id}`, ...o.box, fill: '#E2E8F0', stroke: '#94A3B8', kind: 'rect' })
+    if (mm?.nodes?.length) out.push(...mindmapItems(mm, preset, ...originOf(mm)))
+    if (fc?.nodes?.length) out.push(...flowchartItems(fc, ...originOf(fc)))
     return out
   }
-  if (type.value === 'flowchart' && store.state.flowchart) {
-    return store.state.flowchart.nodes.map((n) => {
-      const s = flowchartNodeSize(n)
-      return {
-        id: n.id, x: n.x, y: n.y, w: s.w, h: s.h,
-        fill: n.fill || '#EEF2F7', stroke: n.border || '#94A3B8',
-        kind: n.nodeType === 'decision' ? 'diamond' : n.nodeType === 'connector' ? 'ellipse' : 'rect',
-      }
-    })
-  }
-  if (type.value === 'mindmap' && store.state.mindmap) {
-    const model = store.state.mindmap
-    const preset = store.state.themePreset
-    const { positions } = layoutMindMap(model)
-    return model.nodes
-      .filter((n) => positions[n.id])
-      .map((n) => {
-        const b = positions[n.id]
-        const color = resolveNodeColor(model, n, preset)
-        const fill = n.fill || (n.color ? nodeFill(n.color) : isMindRoot(model, n.id) ? '#F3F3F3' : nodeFill(color))
-        return { id: n.id, x: b.x, y: b.y, w: b.w, h: b.h, fill, stroke: n.border || color, kind: miniMindShape(n.shape) }
-      })
-  }
-  return store.state.shapes
-    .filter(isVisible)
-    .map((s) => {
-      const b = axisAlignedBBox(s)
-      return {
-        id: s.id, x: b.x, y: b.y, w: b.w, h: b.h,
-        fill: s.fill && s.fill !== 'none' ? s.fill : '#CBD5E1',
-        stroke: s.border?.color || null,
-        kind: miniKind(s.type),
-      }
-    })
+  if (type.value === 'flowchart' && fc) return flowchartItems(fc)
+  if (type.value === 'mindmap' && mm) return mindmapItems(mm, preset)
+  return blockItems(store.state.shapes)
 })
 
 // Connector/branch lines in canvas units so the overview shows structure, not
-// just scattered nodes: mind-map branches (in their branch colour), flowchart
-// edges and block connectors (neutral). Center-to-center is enough at this size.
+// just scattered nodes: mind-map branches (in their branch colour) and flowchart
+// edges. Center-to-center is enough at this size.
 const links = computed(() => {
-  if (type.value === 'mindmap' && store.state.mindmap) {
-    const model = store.state.mindmap
-    const preset = store.state.themePreset
-    const { positions } = layoutMindMap(model)
-    return model.nodes
-      .filter((n) => n.parentId && positions[n.parentId] && positions[n.id])
-      .map((n) => {
-        const a = positions[n.parentId]
-        const b = positions[n.id]
-        return { id: n.id, x1: a.x + a.w / 2, y1: a.y + a.h / 2, x2: b.x + b.w / 2, y2: b.y + b.h / 2, color: resolveNodeColor(model, n, preset) }
-      })
+  const preset = store.state.themePreset
+  const { mindmap: mm, flowchart: fc } = store.state
+  if (isUnifiedDocument(store.state)) {
+    const out = []
+    if (mm?.nodes?.length) out.push(...mindmapLinks(mm, preset, ...originOf(mm)))
+    if (fc?.nodes?.length) out.push(...flowchartLinks(fc, ...originOf(fc)))
+    return out
   }
-  if (type.value === 'flowchart' && store.state.flowchart) {
-    const byId = Object.fromEntries(store.state.flowchart.nodes.map((n) => [n.id, n]))
-    return store.state.flowchart.edges
-      .map((e) => {
-        const a = byId[e.from.nodeId]
-        const b = byId[e.to.nodeId]
-        if (!a || !b) return null
-        const sa = flowchartNodeSize(a)
-        const sb = flowchartNodeSize(b)
-        return { id: e.id, x1: a.x + sa.w / 2, y1: a.y + sa.h / 2, x2: b.x + sb.w / 2, y2: b.y + sb.h / 2, color: '#94A3B8' }
-      })
-      .filter(Boolean)
-  }
+  if (type.value === 'mindmap' && mm) return mindmapLinks(mm, preset)
+  if (type.value === 'flowchart' && fc) return flowchartLinks(fc)
   return []
 })
 
