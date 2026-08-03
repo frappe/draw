@@ -217,9 +217,9 @@ class TestDrawDiagram(IntegrationTestCase):
 		self.assertTrue(can_view_via_general_access(doc, "Guest"))
 		self.assertEqual(self._read_as("Guest", doc.name)["name"], doc.name)
 
-	def test_site_users_view_is_visible_in_another_users_list(self):
+	def test_general_access_is_not_injected_into_a_non_owners_list(self):
 		# List visibility (permission_query_conditions): a site_users_view diagram
-		# owned by one user shows up in another site user's list; a restricted one
+		# owned by one user does NOT auto-appear in another user's list (if_owner gate — general access still grants open/read, tested above); a restricted one
 		# owned by the same user does not.
 		from draw.api.share import set_general_access
 
@@ -251,7 +251,10 @@ class TestDrawDiagram(IntegrationTestCase):
 		finally:
 			frappe.set_user("Administrator")
 
-		self.assertIn(shared.name, visible, "a site_users_view diagram must be visible to other site users")
+		# General access is open/read access for a non-owner (proven above), NOT
+		# list-injection: the if_owner gate keeps it out of the list. A non-owner's
+		# list is owned + explicitly-shared only. Discoverability is a follow-up.
+		self.assertNotIn(shared.name, visible, "general access does not inject into a non-owner's list (if_owner gate)")
 		self.assertNotIn(private.name, visible, "a restricted diagram must stay private")
 
 	def test_register_in_drive_when_available(self):
