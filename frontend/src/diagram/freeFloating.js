@@ -25,6 +25,7 @@ import { rootNodes, childrenOf, subtreeIds, nodeById } from './mindmapModel.js'
 import { layoutMindMap, offsetPositions } from './mindmapLayout.js'
 import { resolveNodeColor, nodeFill, readableInk } from './mindmapColors.js'
 import { nodeSize } from './flowchartModel.js'
+import { nodeClickZone } from './mindmapNodeShape.js'
 
 // The schema version that first emits free-floating documents. Phase 1 keeps the
 // live SCHEMA_VERSION at 1 (see schema.js) — this constant is the target phase 2
@@ -46,6 +47,17 @@ export const ROLE = {
 
 export function isMindmapShape(shape) {
   return shape?.role === ROLE.mindmapNode
+}
+
+// What a single click at logical `point` on `shape` should do on the unified
+// canvas (#123). A mind-map node edits its text when the click is over the label
+// interior and selects when it lands on the border rim; every other shape returns
+// null, so the canvas keeps its normal select / double-click-to-edit. Pure (the
+// zone maths lives in nodeClickZone) so the zone→action decision unit-tests
+// without a live pointer. `point` and `shape` share logical canvas coordinates.
+export function mindmapNodeClickAction(shape, point) {
+  if (!isMindmapShape(shape)) return null
+  return nodeClickZone(point.x - shape.x, point.y - shape.y, shape)
 }
 
 export function isFlowchartShape(shape) {

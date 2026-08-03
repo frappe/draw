@@ -10,6 +10,7 @@ import { safeHref, safeImageSrc } from '@/utils/safeUrl.js'
 import { nodeShape } from '@/diagram/flowchartShapes.js'
 import { polygonPointsString } from '@/diagram/polygon.js'
 import { shapeCornerRadius } from '@/diagram/shapeGeometry.js'
+import { NODE_BORDER_ZONE } from '@/diagram/mindmapNodeShape.js'
 
 const props = defineProps({
   shape: { type: Object, required: true },
@@ -156,6 +157,10 @@ const flowchartGlyph = computed(() => {
   const nodeType = props.shape.flowchart?.nodeType
   return nodeType ? nodeShape(nodeType, props.shape.w, props.shape.h) : null
 })
+
+// A free-floating mind-map node (unified canvas). Its label edits on a single
+// click and its cursor changes by hover zone (#123); both key off this.
+const isMindmapNode = computed(() => props.shape.role === 'mindmap-node')
 
 // Whimsical mind map (#125): a non-root node with `mindmap.shaped === false`
 // renders as transparent text — no rect / fill / border, just its label. The
@@ -349,6 +354,26 @@ useAutoFitText(richEl, () => ({
       preserveAspectRatio="xMidYMid meet"
     />
 
+    <!-- Mind-map node hover/cursor zones (#123). The rim (full bbox, underneath)
+         shows an arrow — a click there selects; the inset label zone (on top)
+         shows an I-beam — a single click there edits. Transparent and cursor-only:
+         DiagramCanvas owns the gesture and decides the action from the SAME
+         NODE_BORDER_ZONE threshold, so the cursor and the click can't disagree.
+         Rendered above the body but below the link badge, and the label text is
+         non-capturing for these nodes, so the I-beam shows even over the glyphs. -->
+    <template v-if="isMindmapNode">
+      <rect
+        :x="shape.x" :y="shape.y" :width="shape.w" :height="shape.h"
+        fill="transparent" style="cursor: default"
+      />
+      <rect
+        v-if="shape.w > NODE_BORDER_ZONE * 2 && shape.h > NODE_BORDER_ZONE * 2"
+        :x="shape.x + NODE_BORDER_ZONE" :y="shape.y + NODE_BORDER_ZONE"
+        :width="shape.w - NODE_BORDER_ZONE * 2" :height="shape.h - NODE_BORDER_ZONE * 2"
+        fill="transparent" style="cursor: text"
+      />
+    </template>
+
     <!-- Rich text (HTML) — hidden while this shape is being edited. -->
     <foreignObject
       v-if="!isEditingThis && richHtml"
@@ -401,6 +426,7 @@ useAutoFitText(richEl, () => ({
       :text-decoration="textStyle.underline ? 'underline' : 'none'"
       :opacity="shape.opacity"
       :font-family="textStyle.font || 'Inter, sans-serif'"
+      :style="isMindmapNode ? { pointerEvents: 'none' } : null"
     >
       {{ mindmapPlaceholder ? 'New idea' : shape.text.content }}
     </text>

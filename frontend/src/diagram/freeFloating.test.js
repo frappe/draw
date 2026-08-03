@@ -3,6 +3,7 @@ import {
   flattenSubmodels,
   isMindmapShape,
   isFlowchartShape,
+  mindmapNodeClickAction,
   ROLE,
   SCHEMA_VERSION_FREEFLOATING,
 } from './freeFloating.js'
@@ -241,5 +242,43 @@ describe('flattenSubmodels — document level', () => {
 
   it('exposes the target schema version constant', () => {
     expect(SCHEMA_VERSION_FREEFLOATING).toBe(2)
+  })
+})
+
+// A free-floating mind-map node shape (unified canvas), positioned away from the
+// origin so the tests exercise the point→local conversion, not just w/h.
+function mindmapNodeShape(partial = {}) {
+  return { id: 'm2', role: ROLE.mindmapNode, x: 100, y: 200, w: 160, h: 44, ...partial }
+}
+
+describe('mindmapNodeClickAction (single-click-to-edit decision, #123)', () => {
+  const node = mindmapNodeShape()
+
+  it('EDITS a click over the label interior (offset by the shape origin)', () => {
+    expect(mindmapNodeClickAction(node, { x: 180, y: 222 })).toBe('edit') // centre
+    expect(mindmapNodeClickAction(node, { x: 112, y: 222 })).toBe('edit') // just inside the left rim
+  })
+
+  it('SELECTS a click on the border rim', () => {
+    expect(mindmapNodeClickAction(node, { x: 103, y: 222 })).toBe('select') // near left edge
+    expect(mindmapNodeClickAction(node, { x: 258, y: 222 })).toBe('select') // near right edge
+    expect(mindmapNodeClickAction(node, { x: 180, y: 203 })).toBe('select') // near top edge
+    expect(mindmapNodeClickAction(node, { x: 180, y: 241 })).toBe('select') // near bottom edge
+  })
+
+  it('SELECTS a click outside the node box (a stray hit never edits)', () => {
+    expect(mindmapNodeClickAction(node, { x: 90, y: 222 })).toBe('select')
+    expect(mindmapNodeClickAction(node, { x: 400, y: 222 })).toBe('select')
+  })
+
+  it('returns null for a non-mind-map shape, so the canvas keeps normal select', () => {
+    expect(mindmapNodeClickAction({ id: 's1', x: 0, y: 0, w: 100, h: 40 }, { x: 50, y: 20 })).toBeNull()
+    expect(mindmapNodeClickAction(mindmapNodeShape({ role: ROLE.flowchartNode }), { x: 180, y: 222 })).toBeNull()
+    expect(mindmapNodeClickAction(null, { x: 0, y: 0 })).toBeNull()
+  })
+
+  it('treats a tiny boxless node as all-rim (select), so it never traps the caret', () => {
+    // h = 16 = 2*edge: no interior at all, even dead centre selects.
+    expect(mindmapNodeClickAction(mindmapNodeShape({ h: 16 }), { x: 180, y: 208 })).toBe('select')
   })
 })

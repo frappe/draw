@@ -17,7 +17,8 @@ import { axisAlignedBBox, anchorPoint, pointInShape, unionBounds } from '@/diagr
 import { isVisible, isInteractable } from '@/diagram/shapeFlags.js'
 import { layoutMindMap, offsetPositions, mindmapTreeRects } from '@/diagram/mindmapLayout.js'
 import { subtreeIds } from '@/diagram/mindmapModel.js'
-import { isMindmapShape } from '@/diagram/freeFloating.js'
+import { isMindmapShape, mindmapNodeClickAction } from '@/diagram/freeFloating.js'
+import { isAdditiveEvent } from '@/composables/pointer.js'
 import { flowchartContentBounds } from '@/diagram/flowchartLayout.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
@@ -256,6 +257,16 @@ function onCanvasDrop(event) {
 }
 const editing = useTextEditing(store, editorUi)
 const clipboard = useClipboard(store)
+
+// A single click on a free-floating mind-map node's LABEL edits its text (#123):
+// recorded on pointerdown (which also selects it) and resolved on pointerup, but
+// only if the pointer barely moved — a drag-move must never trip text edit. A
+// click on the node's border rim (or on any non-mindmap shape) just selects, so
+// only the label zone arms this. Logical point of the press, or null.
+const pendingNodeEdit = ref(null)
+// Logical-unit slack between press and release still counting as a click, not a
+// drag — mirrors useShapeTransform's MOVE_THRESHOLD so the two agree.
+const NODE_EDIT_CLICK_SLACK = 3
 
 // Cmd/Ctrl+V: paste an OS-clipboard image at the viewport centre, else the
 // internal shape buffer (spec 2.6). Owns paste so the keyboard composable doesn't.
@@ -663,7 +674,38 @@ function onSurfacePointerDown(event) {
     if (isPolygonTool.value) return polygon.onPointerDown(selection.toLogicalFor(event, surface.value, viewport))
     return creation.onCanvasPointerDown(event)
   }
+  // Arm single-click-to-edit for a free-floating mind-map node before the shared
+  // selection runs (which selects it + starts a possible drag). Pointerup decides
+  // click-vs-drag and edits only on a click in the label zone (#123).
+  captureNodeEditIntent(event)
   selection.onSurfacePointerdown(event)
+}
+
+// Record a pending text-edit when a plain press lands on the LABEL zone of a
+// free-floating mind-map node. Additive/Alt presses (multi-select, duplicate-
+// drag) and border-rim or non-mindmap presses arm nothing, so they only select.
+function captureNodeEditIntent(event) {
+  pendingNodeEdit.value = null
+  if (editorUi.state.tool !== 'select' || event.button !== 0) return
+  if (isAdditiveEvent(event) || event.altKey || !surface.value) return
+  const point = selection.toLogicalFor(event, surface.value, viewport)
+  const shape = topShapeAt(point)
+  if (mindmapNodeClickAction(shape, point) !== 'edit') return
+  pendingNodeEdit.value = { id: shape.id, x: point.x, y: point.y }
+}
+
+// Resolve the armed edit on release: if the pointer stayed put it was a click,
+// not a drag-move — begin editing that node's text. Returns true when it handled
+// the release. A drag past the slack leaves it to the move that already ran.
+function resolveNodeEditIntent(event) {
+  const pending = pendingNodeEdit.value
+  pendingNodeEdit.value = null
+  if (!pending || !surface.value) return false
+  const point = selection.toLogicalFor(event, surface.value, viewport)
+  if (Math.abs(point.x - pending.x) >= NODE_EDIT_CLICK_SLACK) return false
+  if (Math.abs(point.y - pending.y) >= NODE_EDIT_CLICK_SLACK) return false
+  editing.beginTextEdit(pending.id)
+  return true
 }
 
 function onSurfacePointerMove(event) {
@@ -681,6 +723,8 @@ function onSurfacePointerUp(event) {
   viewport.endPan()
   if (delegateSurfaceEvent('onPointerUp', event)) return
   if (delegateFlowchartEvent('onPointerUp', event)) return
+  // A click (not a drag) on a mind-map node's label drops the caret in (#123).
+  if (resolveNodeEditIntent(event)) return
   // Polygon has no drag to finish — its clicks are handled on pointer-down.
   if (!isMindmap.value && editorUi.state.tool === 'draw' && !isPolygonTool.value) {
     creation.onCanvasPointerUp(event)
