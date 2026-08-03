@@ -231,6 +231,7 @@ const laserHead = computed(() => {
     <g style="pointer-events: none">
       <circle
         v-if="laserHead"
+        data-testid="laser-dot"
         :cx="laserHead.x"
         :cy="laserHead.y"
         :r="LASER_HEAD_RADIUS"

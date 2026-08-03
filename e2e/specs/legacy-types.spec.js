@@ -4,8 +4,7 @@ import {
   POPOVER,
   toolByIcon,
   buttonByIcon,
-  openShapesPopover,
-  dragTileToCanvas,
+  dragShapeFromCatalog,
   dragOnCanvas,
   clickCanvas,
   clickNode,
@@ -27,8 +26,7 @@ import {
 test.describe('block', () => {
   test('a dragged tile becomes a persisted shape', async ({ page, diagram }) => {
     const name = await diagram.open('block', { empty: true })
-    await openShapesPopover(page)
-    await dragTileToCanvas(page, { x: 480, y: 300 })
+    await dragShapeFromCatalog(page, { x: 480, y: 300 })
     await expect
       .poll(async () => (await diagram.saved(name)).shapes.length, { timeout: 20_000 })
       .toBe(1)
