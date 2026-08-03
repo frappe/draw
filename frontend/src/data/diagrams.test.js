@@ -81,4 +81,18 @@ describe('createDiagram applies default settings (#126)', () => {
     expect(inserted.payload.document.themePreset).toBe('slate')
     expect(inserted.payload.document.canvas.background).toBe(null)
   })
+
+  // #165 review: the defaults stamp only a freshly-built document. A caller-supplied
+  // template already carries its own look and must not be recoloured by the settings.
+  it('leaves a caller-supplied template document untouched', async () => {
+    const { settings } = useAppSettings()
+    settings.defaultThemePreset = 'ocean'
+    settings.defaultCanvasBackground = '#F5F5F5'
+
+    const template = { diagramType: 'block', themePreset: 'violet', canvas: { background: '#000000' } }
+    await createDiagram('Test', template, 'block')
+
+    expect(inserted.payload.document.themePreset).toBe('violet')
+    expect(inserted.payload.document.canvas.background).toBe('#000000')
+  })
 })

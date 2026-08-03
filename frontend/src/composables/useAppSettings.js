@@ -18,6 +18,10 @@ const STORAGE_KEY = 'frappe-draw-settings'
 const DEFAULTS = {
   defaultThemePreset: DEFAULT_THEME_PRESET,
   defaultCanvasBackground: null,
+  // Default look of a NEW mind-map child node: 'text' renders it as transparent
+  // Whimsical-style text (mindmap.shaped false, #125) — the current behaviour —
+  // and 'shape' boxes it like the root instead (#126). Root nodes are always boxed.
+  mindmapChildStyle: 'text',
 }
 
 // Persisted values merge OVER the defaults, so a key added in a later release
@@ -26,7 +30,7 @@ const stored = readJson(STORAGE_KEY, {})
 const settings = reactive({ ...DEFAULTS, ...stored })
 
 // Persist the whole object on any change. Deep so a future nested setting is
-// caught too; today's two values are a string and null.
+// caught too; today's values are two strings and a null.
 watch(settings, () => writeJson(STORAGE_KEY, { ...settings }), { deep: true })
 
 export function useAppSettings() {

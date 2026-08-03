@@ -2,17 +2,19 @@
 // Home diagram browser (spec §2). Modes chosen from the sidebar:
 //   home   — Pinned group + the rest of the diagrams (flat, no folders)
 //   recent — a flat list of the most-recently-edited diagrams
-//   all    — a flat list of every diagram
+//   shared — diagrams others shared with me that I don't own (#116)
+//   pinned — a flat list of just the pinned diagrams (#116)
 // Toolbar offers search + sort + a tile/list toggle, becoming a bulk-action bar
 // on selection. Creation is the top-right CTA only. At most MAX_PINNED pinned.
-import { computed, onMounted, reactive, ref, watchEffect } from 'vue'
-import { createListResource, Dialog, Button, FormControl, Dropdown, TextInput, Tooltip } from 'frappe-ui'
+import { computed, onMounted, reactive, ref, watch, watchEffect } from 'vue'
+import { createListResource, createResource, Dialog, Button, FormControl, Dropdown, TextInput, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import DiagramCollection from './DiagramCollection.vue'
+import { pinnedOnly, unpinned } from '@/components/home/homeViews.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
 
 const props = defineProps({
-  mode: { type: String, default: 'home' }, // 'home' | 'recent' | 'all'
+  mode: { type: String, default: 'home' }, // 'home' | 'recent' | 'shared' | 'pinned'
 })
 const emit = defineEmits(['create', 'open', 'changed'])
 
@@ -30,6 +32,18 @@ const enriched = createListResource({
 })
 
 onMounted(() => enriched.fetch())
+
+// "Shared with you" can't be a plain list filter — it joins DocShare and excludes
+// the owner — so it comes from a dedicated endpoint (draw.api.diagram.shared_with_me),
+// fetched lazily the first time that view is opened.
+const shared = createResource({ url: 'draw.api.diagram.shared_with_me', auto: false })
+watch(
+  () => props.mode,
+  (mode) => {
+    if (mode === 'shared') shared.fetch()
+  },
+  { immediate: true },
+)
 
 const rows = computed(() => enriched.data || [])
 const pinnedTotal = computed(() => rows.value.filter((d) => d.is_pinned).length)
@@ -74,13 +88,22 @@ function byNewest(a, b) {
 const visibleRows = computed(() => rows.value.filter((d) => matchesQuery(d)))
 
 // Home: a Pinned group, then every other diagram (flat — no folders, #115).
-const pinned = computed(() => visibleRows.value.filter((d) => d.is_pinned).sort(bySort))
-const files = computed(() => visibleRows.value.filter((d) => !d.is_pinned).sort(bySort))
+const pinned = computed(() => pinnedOnly(visibleRows.value).sort(bySort))
+const files = computed(() => unpinned(visibleRows.value).sort(bySort))
 const hasPinnedSection = computed(() => pinned.value.length > 0)
 
-// Recent + All are flat across the whole (filtered) library.
+// Recent is the newest slice of my library; the Pinned view reuses the same pinned
+// group Home shows. "Shared with you" is its own resource (search-filtered here).
 const recentList = computed(() => [...visibleRows.value].sort(byNewest).slice(0, RECENT_LIMIT))
-const allFlat = computed(() => [...visibleRows.value].sort(bySort))
+const sharedList = computed(() => (shared.data || []).filter((d) => matchesQuery(d)).sort(bySort))
+
+// The single flat list a non-home view renders.
+const modeList = computed(() => {
+  if (props.mode === 'recent') return recentList.value
+  if (props.mode === 'shared') return sharedList.value
+  if (props.mode === 'pinned') return pinned.value
+  return []
+})
 
 // --- selection + bulk delete ----------------------------------------------
 const selected = reactive(new Set())
@@ -95,14 +118,24 @@ function clearSelection() {
 
 // The diagrams selectable in the current view, so Select all grabs what's on screen.
 const currentDiagrams = computed(() => {
-  if (props.mode === 'recent') return recentList.value
-  if (props.mode === 'all') return allFlat.value
-  return [...pinned.value, ...files.value]
+  if (props.mode === 'home') return [...pinned.value, ...files.value]
+  return modeList.value
 })
 // Current view shows nothing (a search excluded everything — the truly-empty home
 // renders HomeShell's EmptyState instead of this grid).
 const nothingHere = computed(() => !currentDiagrams.value.length)
 const hasActiveFilter = computed(() => Boolean(query.value.trim()))
+
+// The empty state speaks to the view you're in: a filtered search vs. an empty
+// Shared / Pinned tab want different words (and glyph) than a fresh, unused Home.
+const EMPTY_STATES = {
+  shared: { icon: 'share-2', title: 'Nothing shared with you', hint: 'Diagrams others share with you show up here.' },
+  pinned: { icon: 'pin', title: 'No pinned diagrams', hint: 'Pin a diagram to keep it handy here.' },
+}
+const emptyState = computed(() => {
+  if (hasActiveFilter.value) return { icon: 'search', title: 'No diagrams match', hint: 'Try a different search.' }
+  return EMPTY_STATES[props.mode] || { icon: 'feather', title: 'Nothing here yet', hint: 'Create a diagram to get started.' }
+})
 const allSelected = computed(() => {
   const diagrams = currentDiagrams.value
   return diagrams.length > 0 && diagrams.every((d) => selected.has(d.name))
@@ -195,6 +228,8 @@ const infoRows = computed(() => {
 
 function refresh() {
   enriched.reload()
+  // Keep the Shared view live after an action taken from it (e.g. duplicate).
+  if (props.mode === 'shared') shared.fetch()
   emit('changed')
 }
 function frappeNow() {
@@ -306,29 +341,26 @@ const collectionHandlers = {
       <DiagramCollection v-if="files.length" :diagrams="files" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
     </template>
 
-    <!-- RECENT / ALL: a single flat list. (Only these modes — home renders its
-         own grouped view above; v-else-if keeps it from double-rendering there.) -->
+    <!-- RECENT / SHARED / PINNED: a single flat list. (Only these modes — home
+         renders its own grouped view above; v-else-if keeps it from double-
+         rendering there.) -->
     <DiagramCollection
       v-else-if="mode !== 'home'"
-      :diagrams="mode === 'recent' ? recentList : allFlat"
+      :diagrams="modeList"
       :view="view"
       :selected="selected"
       :pin-limit-reached="pinLimitReached"
       v-on="collectionHandlers"
     />
 
-    <!-- Nothing matches the current search. -->
+    <!-- Empty view — worded for the current tab (search / Shared / Pinned / Home). -->
     <div v-if="nothingHere" class="flex flex-col items-center gap-3 py-20 text-center">
       <div class="flex h-12 w-12 items-center justify-center rounded-full bg-surface-gray-2">
-        <LucideIcon :name="hasActiveFilter ? 'search' : 'feather'" class="h-5 w-5 text-ink-gray-5" />
+        <LucideIcon :name="emptyState.icon" class="h-5 w-5 text-ink-gray-5" />
       </div>
       <div>
-        <p class="text-[14px] font-semibold text-ink-gray-8">
-          {{ hasActiveFilter ? 'No diagrams match' : 'Nothing here yet' }}
-        </p>
-        <p class="mt-0.5 text-[12px] text-ink-gray-5">
-          {{ hasActiveFilter ? 'Try a different search.' : 'Create a diagram to get started.' }}
-        </p>
+        <p class="text-[14px] font-semibold text-ink-gray-8">{{ emptyState.title }}</p>
+        <p class="mt-0.5 text-[12px] text-ink-gray-5">{{ emptyState.hint }}</p>
       </div>
     </div>
 

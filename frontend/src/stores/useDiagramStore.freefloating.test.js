@@ -1,9 +1,10 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { createDiagramStore } from './useDiagramStore.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
 import { flattenSubmodels, ROLE } from '@/diagram/freeFloating.js'
 import { createFlowchart, addFlowchartNode } from '@/diagram/flowchartModel.js'
 import { createMindMap, addChild } from '@/diagram/mindmapModel.js'
+import { useAppSettings, resetSettings } from '@/composables/useAppSettings.js'
 
 // A store whose flowchart has been flattened to free-floating tagged shapes (the
 // #122 state: state.flowchart is null, the node lives in state.shapes as a
@@ -75,6 +76,41 @@ describe('store.setMindmapNodeShaped (Whimsical #125)', () => {
     expect(after.parentId).toBe(before.parentId)
     expect(after.side).toBe(before.side)
     expect(after.depth).toBe(before.depth)
+  })
+})
+
+// #126: addChildNode / addSiblingNode read the saved "Mind map child nodes" default
+// and stamp it onto the new node's mindmap.shaped, without the pure builder knowing
+// the setting (a sibling is another child node, so it honours the same default).
+describe('store.addChildNode / addSiblingNode default child style (#126)', () => {
+  afterEach(() => resetSettings())
+
+  it('adds a boxed child when the default is Shape', () => {
+    useAppSettings().settings.mindmapChildStyle = 'shape'
+    const { store, rootId } = migratedMindmapStore()
+    const newId = store.addChildNode(rootId)
+    expect(store.shapeById(newId).mindmap.shaped).toBe(true)
+  })
+
+  it('adds a text child when the default is Text (unchanged behaviour)', () => {
+    useAppSettings().settings.mindmapChildStyle = 'text'
+    const { store, rootId } = migratedMindmapStore()
+    const newId = store.addChildNode(rootId)
+    expect(store.shapeById(newId).mindmap.shaped).toBe(false)
+  })
+
+  it('adds a boxed sibling when the default is Shape', () => {
+    useAppSettings().settings.mindmapChildStyle = 'shape'
+    const { store, childId } = migratedMindmapStore()
+    const newId = store.addSiblingNode(childId)
+    expect(store.shapeById(newId).mindmap.shaped).toBe(true)
+  })
+
+  it('adds a text sibling when the default is Text (unchanged behaviour)', () => {
+    useAppSettings().settings.mindmapChildStyle = 'text'
+    const { store, childId } = migratedMindmapStore()
+    const newId = store.addSiblingNode(childId)
+    expect(store.shapeById(newId).mindmap.shaped).toBe(false)
   })
 })
 

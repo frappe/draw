@@ -51,8 +51,10 @@ function childBox(parentShape, side, indexOnSide) {
 
 // Build the tagged shape + branch connector for a new child of `parentShapeId`.
 // Returns null when the parent is not a mind-map shape. The caller assigns zIndex
-// and commits both objects as one undoable unit.
-export function buildMindmapChild(shapes, parentShapeId, themePreset, explicitSide = null) {
+// and commits both objects as one undoable unit. `defaultShaped` sets the new
+// node's mindmap.shaped — false (Whimsical text, #125) by default; the store
+// passes true when the user's "Mind map child nodes" default is Shape (#126).
+export function buildMindmapChild(shapes, parentShapeId, themePreset, explicitSide = null, defaultShaped = false) {
   const parentShape = mindmapShape(shapes, parentShapeId)
   if (!parentShape) return null
   const model = mindmapModelFromShapes(shapes)
@@ -83,7 +85,7 @@ export function buildMindmapChild(shapes, parentShapeId, themePreset, explicitSi
       fill, border: { color, width: 1.5, dash: 'solid' },
       text: { content: '', align: 'center', valign: 'middle', style: { size: 16, bold: false, italic: false, underline: false, color: readableInk(fill) } },
       role: ROLE.mindmapNode,
-      mindmap: { parentId: parentShapeId, order, depth, collapsed: false, side: newNode.side, color: null, marker: { icon: null, colorDot: null }, isRoot: false, shaped: false },
+      mindmap: { parentId: parentShapeId, order, depth, collapsed: false, side: newNode.side, color: null, marker: { icon: null, colorDot: null }, isRoot: false, shaped: defaultShaped },
     },
     themePreset,
   )
@@ -100,13 +102,14 @@ export function buildMindmapChild(shapes, parentShapeId, themePreset, explicitSi
 
 // A sibling of `nodeShapeId` is a child of its parent (same side). For a root
 // (no parent) there are no siblings, so grow it with a child instead — matching
-// the framed model's Enter-on-root behaviour.
-export function buildMindmapSibling(shapes, nodeShapeId, themePreset) {
+// the framed model's Enter-on-root behaviour. `defaultShaped` carries the user's
+// child-node style default through to the new node (#126), same as buildMindmapChild.
+export function buildMindmapSibling(shapes, nodeShapeId, themePreset, defaultShaped = false) {
   const model = mindmapModelFromShapes(shapes)
   const node = model.nodes.find((n) => n.id === nodeShapeId)
   if (!node) return null
-  if (!node.parentId) return buildMindmapChild(shapes, nodeShapeId, themePreset)
-  return buildMindmapChild(shapes, node.parentId, themePreset, node.side)
+  if (!node.parentId) return buildMindmapChild(shapes, nodeShapeId, themePreset, null, defaultShaped)
+  return buildMindmapChild(shapes, node.parentId, themePreset, node.side, defaultShaped)
 }
 
 // --- flowchart --------------------------------------------------------------

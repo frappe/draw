@@ -49,6 +49,10 @@ function cancel() {
   draft.value = props.title
   editing.value = false
 }
+
+// Let the toolbar's "…" > Rename re-enter inline editing (#111) — same entry point
+// as clicking the title, so the two rename paths stay identical.
+defineExpose({ startEditing })
 </script>
 
 <template>

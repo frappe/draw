@@ -43,6 +43,12 @@ describe('buildMindmapChild', () => {
     expect(shape.mindmap.shaped).toBe(false)
   })
 
+  it('boxes the child when defaultShaped is true, text when false (#126)', () => {
+    const { shapes, rootId } = rootShapes()
+    expect(buildMindmapChild(shapes, rootId, 'ocean', null, true).shape.mindmap.shaped).toBe(true)
+    expect(buildMindmapChild(shapes, rootId, 'ocean', null, false).shape.mindmap.shaped).toBe(false)
+  })
+
   it('places the first child to the right of the root, the second to the left', () => {
     let { shapes, rootId } = rootShapes()
     const root = shapes.find((s) => s.id === rootId)
@@ -87,6 +93,12 @@ describe('buildMindmapSibling', () => {
     const { shapes, rootId } = rootShapes()
     const { shape } = buildMindmapSibling(shapes, rootId, 'ocean')
     expect(shape.mindmap.parentId).toBe(rootId)
+  })
+
+  it('boxes the sibling when defaultShaped is true, text when false (#126)', () => {
+    const { shapes, rootId } = rootShapes()
+    expect(buildMindmapSibling(shapes, rootId, 'ocean', true).shape.mindmap.shaped).toBe(true)
+    expect(buildMindmapSibling(shapes, rootId, 'ocean', false).shape.mindmap.shaped).toBe(false)
   })
 })
 

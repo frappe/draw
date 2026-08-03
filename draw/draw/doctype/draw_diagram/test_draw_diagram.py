@@ -275,6 +275,77 @@ class TestDrawDiagram(IntegrationTestCase):
 		self.assertNotIn(shared.name, visible, "general access does not inject into a non-owner's list (if_owner gate)")
 		self.assertNotIn(private.name, visible, "a restricted diagram must stay private")
 
+	# ----- "Shared with you" listing (GitHub #116) -----
+
+	def test_shared_with_me_lists_shares_from_others(self):
+		# A diagram shared with B appears in B's shared_with_me; one shared only with an
+		# unrelated user C does not. This is the core contract of the sidebar view.
+		from draw.api.diagram import shared_with_me
+		from draw.api.share import share_diagram
+
+		b = self._user("draw-swm-b@example.com")
+		c = self._user("draw-swm-c@example.com")
+
+		to_b = self._make("block", {"schemaVersion": 1, "diagramType": "block"}, title="Shared To B")
+		share_diagram(to_b.name, b, "view")
+		to_c = self._make("block", {"schemaVersion": 1, "diagramType": "block"}, title="Shared To C")
+		share_diagram(to_c.name, c, "view")
+
+		frappe.set_user(b)
+		try:
+			names = {d["name"] for d in shared_with_me()}
+		finally:
+			frappe.set_user("Administrator")
+
+		self.assertIn(to_b.name, names, "a diagram shared with B must appear in B's shared_with_me")
+		self.assertNotIn(to_c.name, names, "a diagram shared only with C must not appear for B")
+
+	def test_shared_with_me_excludes_diagrams_the_user_owns(self):
+		# "Shared WITH me" means someone else's diagram — never my own, even when a
+		# DocShare row for me exists on it (e.g. a self-share). The owner filter drops it.
+		from draw.api.diagram import shared_with_me
+		from draw.api.share import share_diagram
+
+		owner = self._user("draw-swm-owner@example.com")
+		own = frappe.get_doc(
+			{
+				"doctype": "Draw Diagram",
+				"title": "Owned By Me",
+				"diagram_type": "block",
+				"owner": owner,
+				"document": json.dumps({"schemaVersion": 1, "diagramType": "block"}),
+			}
+		).insert(ignore_permissions=True)
+		self.addCleanup(lambda: frappe.delete_doc("Draw Diagram", own.name, force=True, ignore_permissions=True))
+		frappe.db.set_value("Draw Diagram", own.name, "owner", owner)  # insert stamps the session user; pin the real owner
+		share_diagram(own.name, owner, "view")  # a DocShare on my own diagram
+
+		frappe.set_user(owner)
+		try:
+			names = {d["name"] for d in shared_with_me()}
+		finally:
+			frappe.set_user("Administrator")
+
+		self.assertNotIn(own.name, names, "my own diagram must not be listed as shared with me")
+
+	def test_shared_with_me_excludes_trashed(self):
+		# A trashed diagram is off the shelf, shared or not.
+		from draw.api.diagram import shared_with_me
+		from draw.api.share import share_diagram
+
+		b = self._user("draw-swm-trash@example.com")
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"}, title="Shared Then Trashed")
+		share_diagram(doc.name, b, "view")
+		frappe.db.set_value("Draw Diagram", doc.name, "is_trashed", 1)
+
+		frappe.set_user(b)
+		try:
+			names = {d["name"] for d in shared_with_me()}
+		finally:
+			frappe.set_user("Administrator")
+
+		self.assertNotIn(doc.name, names, "a trashed diagram must not appear in shared_with_me")
+
 	# ----- optional Frappe Drive / Suite integration (soft-coupled) -----
 	# This dev/CI site has NO Drive, so these pin the "Drive absent" contract: every
 	# entry point must no-op cleanly and never block a diagram's own lifecycle. The

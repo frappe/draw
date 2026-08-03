@@ -11,6 +11,7 @@ import Sidebar from '@/components/home/Sidebar.vue'
 import TileGrid from '@/components/home/TileGrid.vue'
 import EmptyState from '@/components/home/EmptyState.vue'
 import TrashView from '@/components/home/TrashView.vue'
+import { VIEW_TITLES } from '@/components/home/homeViews.js'
 import { diagrams, createDiagram } from '@/data/diagrams.js'
 import { getDriveAvailability, shouldShowInstallDriveBanner } from '@/data/drive.js'
 
@@ -33,7 +34,6 @@ onMounted(async () => {
 const list = computed(() => diagrams.data || [])
 const isEmpty = computed(() => list.value.length === 0)
 
-const VIEW_TITLES = { home: 'Home', recent: 'Recent', all: 'All diagrams' }
 const title = computed(() => VIEW_TITLES[view.value] || 'Home')
 
 function navigate(next) {
