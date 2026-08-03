@@ -59,6 +59,9 @@ const flow = computed(() => {
       <polygon v-else-if="type === 'triangle'" points="12,3 22,20 2,20" />
       <polygon v-else-if="type === 'diamond'" points="12,2 22,12 12,22 2,12" />
       <polygon v-else-if="type === 'hexagon'" points="7,4 17,4 22,12 17,20 7,20 2,12" />
+      <!-- Freely-drawn polygon (#139): an irregular outline signals "place your own
+           vertices", distinct from the fixed presets above. -->
+      <polygon v-else-if="type === 'polygon'" points="4,9 11,3 20,7 17,20 7,18" />
       <path v-else-if="type === 'arrow'" d="M2 9 H13 V5 L22 12 L13 19 V15 H2 Z" />
     </template>
 
