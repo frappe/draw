@@ -93,6 +93,29 @@ export function isConnectorType(type) {
   return CONNECTOR_TYPES.includes(type)
 }
 
+// The dashed draw ghost, as a throwaway shape so the canvas can render it through
+// ShapeView and the preview matches the committed shape exactly (#130): a
+// rectangle previews with rectangle corners (not the rounded rect's), an ellipse
+// previews as the inscribed ellipse of the drag bounds — so the pointer sits on
+// the bounding box, matching Figma / Excalidraw. Returns null for the connector
+// (line) draft and before the first move, so only box drafts ghost as a shape.
+// Text / image carry no outline of their own, so they preview as a plain box.
+export function draftPreviewShape(draft) {
+  if (!draft?.box) return null
+  const type = draft.type === 'text' || draft.type === 'image' ? 'rectangle' : draft.type
+  return {
+    type: type || 'rectangle',
+    x: draft.x,
+    y: draft.y,
+    w: draft.w,
+    h: draft.h,
+    rotation: 0,
+    opacity: 1,
+    fill: 'none',
+    border: { color: '#006EDB', width: 1.5, dash: 'dashed' },
+  }
+}
+
 // Convert a pointer event to logical canvas units by undoing the SVG <g> pan +
 // zoom transform applied by DiagramCanvas (translate(panX panY) scale(zoom)).
 // The SVG lives inside the surface's own scroll box, so its content shifts by

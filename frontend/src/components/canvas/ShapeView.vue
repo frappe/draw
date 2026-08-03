@@ -9,6 +9,7 @@ import { sanitizeRichText } from '@/utils/sanitizeHtml.js'
 import { safeHref, safeImageSrc } from '@/utils/safeUrl.js'
 import { nodeShape } from '@/diagram/flowchartShapes.js'
 import { polygonPointsString } from '@/diagram/polygon.js'
+import { shapeCornerRadius } from '@/diagram/shapeGeometry.js'
 
 const props = defineProps({
   shape: { type: Object, required: true },
@@ -67,6 +68,10 @@ const transform = computed(() =>
     ? `rotate(${props.shape.rotation} ${center.value.x} ${center.value.y})`
     : null,
 )
+
+// Corner radius for the rect branch, from the shared helper so the draw preview
+// (which ghosts through this same component) renders identical corners (#130).
+const cornerRadius = computed(() => shapeCornerRadius(props.shape.type))
 
 const border = computed(() => props.shape.border || {})
 const dashArray = computed(() => {
@@ -243,7 +248,7 @@ useAutoFitText(richEl, () => ({
       :y="shape.y"
       :width="shape.w"
       :height="shape.h"
-      :rx="shape.type === 'rounded' ? 20 : 8"
+      :rx="cornerRadius"
       :fill="fill"
       :fill-opacity="shape.opacity"
       :stroke="border.color"

@@ -22,7 +22,7 @@ import { flowchartContentBounds } from '@/diagram/flowchartLayout.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { useSelection } from '@/composables/useSelection.js'
-import { useShapeCreation } from '@/composables/useShapeCreation.js'
+import { useShapeCreation, draftPreviewShape } from '@/composables/useShapeCreation.js'
 import { usePolygonCreation } from '@/composables/usePolygonCreation.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
 import { useCanvasPaste } from '@/composables/useCanvasPaste.js'
@@ -220,24 +220,9 @@ const isPolygonTool = computed(
 const polygonPreviewPoints = computed(() => polygon.vertices.value.map((p) => `${p.x},${p.y}`).join(' '))
 const polygonLastVertex = computed(() => polygon.vertices.value[polygon.vertices.value.length - 1] || null)
 // The live draw ghost, as a throwaway shape so ShapeView draws the real
-// geometry of the armed tool (spec §7.1). Text/image have no outline of their
-// own, so they preview as a plain box.
-const previewShape = computed(() => {
-  const draft = creation.preview.value
-  if (!draft?.box) return null
-  const type = draft.type === 'text' || draft.type === 'image' ? 'rectangle' : draft.type
-  return {
-    type: type || 'rectangle',
-    x: draft.x,
-    y: draft.y,
-    w: draft.w,
-    h: draft.h,
-    rotation: 0,
-    opacity: 1,
-    fill: 'none',
-    border: { color: '#006EDB', width: 1.5, dash: 'dashed' },
-  }
-})
+// geometry of the armed tool (spec §7.1) and the preview matches the committed
+// shape (#130). The mapping is a pure, unit-tested helper.
+const previewShape = computed(() => draftPreviewShape(creation.preview.value))
 const imageInsert = useImageInsert(store)
 // The whiteboard object selection lives here (separate from block shape
 // selection); we clear it when a block shape on the board is picked, so the two

@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest'
-import { startPaletteDrag, isConnectorType, DATA_TRANSFER_KEY, useShapeCreation } from './useShapeCreation.js'
+import {
+  startPaletteDrag,
+  isConnectorType,
+  DATA_TRANSFER_KEY,
+  useShapeCreation,
+  draftPreviewShape,
+} from './useShapeCreation.js'
+import { shapeCornerRadius } from '@/diagram/shapeGeometry.js'
 
 // The palette-drag gesture has two halves in different files: the tile produces a
 // dataTransfer payload (startPaletteDrag) and the canvas consumes it
@@ -147,6 +154,73 @@ describe('draw preview with Shift held', () => {
     creation.onCanvasPointerDown(fakePointerEvent(10, 10))
     creation.onCanvasPointerMove(fakePointerEvent(90, 20, true))
     expect(creation.preview.value).toMatchObject({ line: true, x1: 10, y1: 10, x2: 90, y2: 20 })
+  })
+})
+
+// The draw ghost is rendered by mapping the raw draft to a throwaway shape that
+// ShapeView draws (#130). The mapping is pure, so pin that the ghost matches what
+// commits: same type (so the same corners / outline), same bounds.
+describe('draftPreviewShape', () => {
+  it('ghosts a rectangle with the committed rectangle corner, not the rounded rect', () => {
+    const ghost = draftPreviewShape({ box: true, type: 'rectangle', x: 10, y: 20, w: 100, h: 60 })
+    expect(ghost.type).toBe('rectangle')
+    // ShapeView keys the corner radius off the type, so a matching type is a
+    // matching corner: sharp rectangle, never the rounded rectangle's radius.
+    expect(shapeCornerRadius(ghost.type)).toBe(shapeCornerRadius('rectangle'))
+    expect(shapeCornerRadius(ghost.type)).not.toBe(shapeCornerRadius('rounded'))
+  })
+
+  it('ghosts an ellipse as the inscribed ellipse of the drag bounds', () => {
+    // Same type + same box as the committed ellipse, which ShapeView inscribes in
+    // the box (rx = w/2, ry = h/2) — so the pointer sits on the bounding box, not
+    // off the curve (Figma / Excalidraw behaviour).
+    const ghost = draftPreviewShape({ box: true, type: 'ellipse', x: 10, y: 20, w: 100, h: 60 })
+    expect(ghost).toMatchObject({ type: 'ellipse', x: 10, y: 20, w: 100, h: 60 })
+  })
+
+  it('passes the draft bounds straight through so the ghost tracks the drag', () => {
+    const ghost = draftPreviewShape({ box: true, type: 'diamond', x: 5, y: 6, w: 30, h: 40 })
+    expect(ghost).toMatchObject({ x: 5, y: 6, w: 30, h: 40, fill: 'none' })
+  })
+
+  it('ghosts text and image as a plain rectangle (they have no outline of their own)', () => {
+    expect(draftPreviewShape({ box: true, type: 'text', x: 0, y: 0, w: 10, h: 10 }).type).toBe('rectangle')
+    expect(draftPreviewShape({ box: true, type: 'image', x: 0, y: 0, w: 10, h: 10 }).type).toBe('rectangle')
+  })
+
+  it('renders no shape ghost for a connector (line) draft or before the first move', () => {
+    expect(draftPreviewShape({ line: true, x1: 0, y1: 0, x2: 5, y2: 5 })).toBeNull()
+    expect(draftPreviewShape(null)).toBeNull()
+  })
+})
+
+// End-to-end for the geometry: drive a drag through the composable, read the live
+// preview, release, and read the committed shape — the ghost the user saw must be
+// the shape they get (#130).
+describe('preview matches the committed shape', () => {
+  it('rectangle: same type and bounds in the preview and after release', () => {
+    const store = fakeStore()
+    const creation = useShapeCreation(store, fakeDrawUi('rectangle'))
+    creation.onCanvasPointerDown(fakePointerEvent(10, 20))
+    creation.onCanvasPointerMove(fakePointerEvent(110, 80))
+    const ghost = draftPreviewShape(creation.preview.value)
+    creation.onCanvasPointerUp(fakePointerEvent(110, 80))
+    const committed = store.shapes[0]
+    expect(ghost).toMatchObject({ type: 'rectangle', x: 10, y: 20, w: 100, h: 60 })
+    expect(committed).toMatchObject({ type: 'rectangle', x: 10, y: 20, w: 100, h: 60 })
+    expect(shapeCornerRadius(ghost.type)).toBe(shapeCornerRadius(committed.type))
+  })
+
+  it('ellipse: same type and bounds in the preview and after release', () => {
+    const store = fakeStore()
+    const creation = useShapeCreation(store, fakeDrawUi('ellipse'))
+    creation.onCanvasPointerDown(fakePointerEvent(10, 20))
+    creation.onCanvasPointerMove(fakePointerEvent(110, 80))
+    const ghost = draftPreviewShape(creation.preview.value)
+    creation.onCanvasPointerUp(fakePointerEvent(110, 80))
+    const committed = store.shapes[0]
+    expect(ghost).toMatchObject({ type: 'ellipse', x: 10, y: 20, w: 100, h: 60 })
+    expect(committed).toMatchObject({ type: 'ellipse', x: 10, y: 20, w: 100, h: 60 })
   })
 })
 
