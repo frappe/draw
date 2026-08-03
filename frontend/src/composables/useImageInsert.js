@@ -3,6 +3,13 @@
 // and the returned file_url is stored on the shape — so the document stays light
 // (no base64 blobs in the autosaved JSON) and the image is shareable/exportable.
 // Images are ordinary shapes (type 'image'): selectable, movable, resizable.
+//
+// The upload is ATTACHED to the current diagram and routed through Draw's own
+// server endpoint (draw.api.diagram.upload_diagram_image) rather than the generic
+// upload flow. Under Frappe Suite, the generic flow adopts every loose uploaded
+// File into the user's Drive Home, so inserting N images left N stray Drive files
+// (#74); the endpoint inserts the File server-side, which the Drive adoption hook
+// never sees. Falls back to a plain upload if the diagram name isn't known yet.
 
 import { FileUploadHandler } from 'frappe-ui'
 
@@ -27,11 +34,24 @@ export function useImageInsert(store) {
   // Upload `file` and place it; `at` (canvas-unit point) centers it, else canvas center.
   async function insert(file, at) {
     if (!file.type.startsWith('image/')) return null
-    const fileDoc = await handler.upload(file, { private: false })
+    const fileDoc = await handler.upload(file, uploadOptions())
     const url = fileDoc?.file_url || fileDoc?.message?.file_url
     if (!url) return null
     const size = await naturalSize(url)
     return place(url, size, at)
+  }
+
+  // Attach to the diagram + route through Draw's endpoint when we know the diagram
+  // name; otherwise a plain public upload (unchanged legacy behaviour).
+  function uploadOptions() {
+    const name = store.state.name
+    if (!name) return { private: false }
+    return {
+      private: false,
+      doctype: 'Draw Diagram',
+      docname: name,
+      method: 'draw.api.diagram.upload_diagram_image',
+    }
   }
 
   function place(src, size, at) {

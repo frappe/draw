@@ -1,5 +1,5 @@
 // THE diagram document store (CONVENTIONS "useDiagramStore.js — THE store API").
-// createDiagramStore(initialDocument) returns a reactive object owned by
+// createDiagramStore(initialDocument, name) returns a reactive object owned by
 // EditorShell and provided as 'diagramStore'. useDiagramStore() injects it.
 // All shape/connector mutations are history-tracked via commit().
 
@@ -47,9 +47,12 @@ import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 
 const STORE_KEY = 'diagramStore'
 
-export function createDiagramStore(initialDocument) {
+export function createDiagramStore(initialDocument, name = null) {
   const document = initialDocument || createDiagramDocument()
   const state = reactive({
+    // The Draw Diagram record name (set by EditorShell). Used to attach inserted
+    // images to this diagram on upload (useImageInsert). null in the read-only viewer.
+    name,
     diagramType: document.diagramType || DEFAULT_DIAGRAM_TYPE,
     canvas: { ...document.canvas },
     shapes: clone(document.shapes || []),
