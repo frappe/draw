@@ -444,6 +444,29 @@ class TestDrawDiagram(IntegrationTestCase):
 		doc.save()
 		self.assertEqual(frappe.db.get_value("File", file_name, "status"), "Active")
 
+	def test_move_to_drive_folder_is_a_safe_noop_when_absent(self):
+		# The "Move to folder" endpoint is soft-coupled: with Drive absent it returns
+		# the not-installed shape and never raises, so the toolbar action degrades.
+		from draw.api.drive_integration import drive_available, move_to_drive_folder
+
+		doc = self._make("unified", {"schemaVersion": 1, "diagramType": "unified"})
+		if not drive_available():
+			result = move_to_drive_folder(doc.name, "some-folder")
+			self.assertFalse(result["drive_installed"])
+			self.assertFalse(result["moved"])
+			self.assertIsNone(result["file"])
+
+	def test_list_drive_folders_is_a_safe_noop_when_absent(self):
+		# The folder browser returns the empty drive-absent shape without raising, so
+		# the Move dialog degrades cleanly when Drive is not installed.
+		from draw.api.drive_integration import drive_available, list_drive_folders
+
+		if not drive_available():
+			result = list_drive_folders()
+			self.assertFalse(result["drive_installed"])
+			self.assertEqual(result["folders"], [])
+			self.assertEqual(result["path"], [])
+
 	def test_inserted_image_is_attached_to_the_diagram(self):
 		# #74: inserted images upload through draw.api.diagram.upload_diagram_image,
 		# which inserts the File server-side ATTACHED to the diagram (so Suite's Drive
