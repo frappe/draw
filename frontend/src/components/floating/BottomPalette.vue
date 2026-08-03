@@ -60,6 +60,8 @@ function flowNumber() {
 
 // Curated set (#131): rectangle, square, rounded rectangle, ellipse, triangle,
 // diamond, hexagon, block arrow. Dropped cylinder / callout / star / pentagon.
+// Polygon (#139) is the freely-drawn N-sided shape — armed by click, then vertices
+// are placed on the canvas, so unlike the rest it can't be dragged onto the canvas.
 // Icons are drawn by ShapeGlyph so each tile is the actual shape it inserts.
 const SHAPES = [
   { type: 'rectangle', label: 'Rectangle' },
@@ -69,8 +71,12 @@ const SHAPES = [
   { type: 'triangle', label: 'Triangle' },
   { type: 'diamond', label: 'Diamond' },
   { type: 'hexagon', label: 'Hexagon' },
+  { type: 'polygon', label: 'Polygon' },
   { type: 'arrow', label: 'Block arrow' },
 ]
+// The polygon is placed vertex-by-vertex, so its tile arms the multi-click tool
+// rather than dropping a fixed shape — it is the one shape tile that can't be dragged.
+const NON_DRAGGABLE_SHAPES = ['polygon']
 // A plain Line has no arrowheads; Arrow ends in an arrow; elbow/curved too. The
 // arrow connector's id is namespaced so it never collides with the 'arrow'
 // block-arrow SHAPE above (they'd both key `byType` and the draw tool).
@@ -170,8 +176,10 @@ function insertFlowchartNode(type, close) {
 }
 
 // Drag a tile onto the canvas to place that shape where you drop it (shapes +
-// lines only — the other tools arm a mode rather than drop a fixed shape).
+// lines only — the other tools arm a mode rather than drop a fixed shape). The
+// polygon has no fixed geometry to drop, so its drag is suppressed here too.
 function startTileDrag(event, type) {
+  if (NON_DRAGGABLE_SHAPES.includes(type)) return
   startPaletteDrag(event, type, editorUi)
 }
 // Close the popover only once the drag is over — closing on dragstart would
@@ -251,7 +259,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
               <Tooltip v-for="s in filteredShapes" :key="s.type" :text="s.label">
                 <button
                   :class="[tileBase, isArmed(s.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
-                  draggable="true"
+                  :draggable="!NON_DRAGGABLE_SHAPES.includes(s.type)"
                   @click="arm(s.type, togglePopover)"
                   @dragstart="startTileDrag($event, s.type)"
                   @dragend="endTileDrag(togglePopover)"

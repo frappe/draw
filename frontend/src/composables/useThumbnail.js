@@ -15,6 +15,7 @@ import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
 import { unionBounds } from '@/diagram/geometry.js'
 import { whiteboardObjectsInZOrder } from '@/diagram/whiteboardModel.js'
 import { pointsToPath } from '@/diagram/svgPath.js'
+import { polygonPointsString } from '@/diagram/polygon.js'
 import { contrastInk, HIGHLIGHTER_OPACITY } from '@/diagram/whiteboardColors.js'
 
 const THROTTLE_MS = 30000
@@ -53,6 +54,13 @@ function shapeBody(s) {
   }
   if (s.type === 'triangle') return `<polygon points="${trianglePoints({ x, y, w, h })}" ${fill} ${stroke}/>`
   if (s.type === 'diamond') return `<polygon points="${diamondPoints({ x, y, w, h })}" ${fill} ${stroke}/>`
+  // Freely-drawn polygon (#139): normalised points scaled onto the box, matching
+  // ShapeView. polygonPointsString coerces every component to a number, so a
+  // crafted point can't escape the attribute here.
+  if (s.type === 'polygon') {
+    const pts = polygonPointsString({ x, y, w, h, points: s.points })
+    if (pts) return `<polygon points="${pts}" ${fill} ${stroke}/>`
+  }
   return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" ${fill} ${stroke}/>`
 }
 

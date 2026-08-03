@@ -23,6 +23,7 @@ import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { useSelection } from '@/composables/useSelection.js'
 import { useShapeCreation } from '@/composables/useShapeCreation.js'
+import { usePolygonCreation } from '@/composables/usePolygonCreation.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
 import { useCanvasPaste } from '@/composables/useCanvasPaste.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
@@ -207,6 +208,17 @@ const ownLayerBounds = computed(() => {
 // during a gesture; here we only route the surface's pointer/drag/dblclick.
 const selection = useSelection(store, editorUi)
 const creation = useShapeCreation(store, editorUi)
+// The polygon tool (#139) is a multi-click gesture, not the press-drag-release draw
+// above — clicks place vertices and the path closes on itself. It owns the surface
+// only while the polygon draw type is armed; every other draw type stays on the
+// rubber-band flow.
+const polygon = usePolygonCreation(store, editorUi)
+const isPolygonTool = computed(
+  () => editorUi.state.tool === 'draw' && editorUi.state.drawShapeType === 'polygon',
+)
+// The in-progress vertices as an SVG polyline (raw canvas units, not yet a shape).
+const polygonPreviewPoints = computed(() => polygon.vertices.value.map((p) => `${p.x},${p.y}`).join(' '))
+const polygonLastVertex = computed(() => polygon.vertices.value[polygon.vertices.value.length - 1] || null)
 // The live draw ghost, as a throwaway shape so ShapeView draws the real
 // geometry of the armed tool (spec §7.1). Text/image have no outline of their
 // own, so they preview as a plain box.
@@ -660,7 +672,12 @@ function onSurfacePointerDown(event) {
   // Mind map is auto-layout: no free shape select/draw/move on the surface
   // (node interactions live on the nodes themselves).
   if (isMindmap.value) return
-  if (editorUi.state.tool === 'draw') return creation.onCanvasPointerDown(event)
+  if (editorUi.state.tool === 'draw') {
+    // Polygon places a vertex per click (and closes on the first vertex); every
+    // other draw type starts the press-drag-release draft.
+    if (isPolygonTool.value) return polygon.onPointerDown(selection.toLogicalFor(event, surface.value, viewport))
+    return creation.onCanvasPointerDown(event)
+  }
   selection.onSurfacePointerdown(event)
 }
 
@@ -668,14 +685,21 @@ function onSurfacePointerMove(event) {
   if (panning.value) return viewport.movePan(event)
   if (delegateSurfaceEvent('onPointerMove', event)) return
   if (delegateFlowchartEvent('onPointerMove', event)) return
-  if (!isMindmap.value && editorUi.state.tool === 'draw') creation.onCanvasPointerMove(event)
+  if (!isMindmap.value && editorUi.state.tool === 'draw') {
+    // The polygon's rubber-band follows the cursor with no button pressed.
+    if (isPolygonTool.value) return polygon.onPointerMove(selection.toLogicalFor(event, surface.value, viewport))
+    creation.onCanvasPointerMove(event)
+  }
 }
 
 function onSurfacePointerUp(event) {
   viewport.endPan()
   if (delegateSurfaceEvent('onPointerUp', event)) return
   if (delegateFlowchartEvent('onPointerUp', event)) return
-  if (!isMindmap.value && editorUi.state.tool === 'draw') creation.onCanvasPointerUp(event)
+  // Polygon has no drag to finish — its clicks are handled on pointer-down.
+  if (!isMindmap.value && editorUi.state.tool === 'draw' && !isPolygonTool.value) {
+    creation.onCanvasPointerUp(event)
+  }
 }
 
 // A cancelled pointer (browser gesture takeover, lost capture) must end whatever
@@ -691,6 +715,10 @@ function onSurfacePointerCancel() {
 // creation is via the bottom palette. Double-click-to-create is whiteboard-only,
 // owned by the whiteboard mode interaction (spec §6/§7.1; P4).
 function onSurfaceDoubleClick(event) {
+  // Double-click closes the in-progress polygon (its two presses already dropped
+  // the final vertices; the builder drops the duplicate). Consume it so it never
+  // falls through to text-editing the shape it just created.
+  if (isPolygonTool.value && polygon.isActive.value) return polygon.close()
   // On the whiteboard, double-clicking an existing text box edits it instead of
   // dropping a new box on top of it (S13). Check shapes before the mode delegate.
   if (isWhiteboard.value) {
@@ -873,6 +901,44 @@ const surfaceCursor = computed(() => {
             stroke-dasharray="6 4"
             stroke-linecap="round"
           />
+
+          <!-- In-progress polygon (#139): the placed edges, a rubber-band segment to
+               the cursor, and a dot per vertex. The first dot swells into a snap ring
+               when the cursor is close enough to close the path. Non-interactive so it
+               never intercepts the next vertex click. -->
+          <g v-if="isPolygonTool && polygon.isActive.value" style="pointer-events: none">
+            <polyline
+              v-if="polygon.vertices.value.length > 1"
+              :points="polygonPreviewPoints"
+              fill="none"
+              stroke="#006EDB"
+              stroke-width="1.5"
+              stroke-dasharray="6 4"
+              stroke-linejoin="round"
+              stroke-linecap="round"
+            />
+            <line
+              v-if="polygon.cursor.value && polygonLastVertex"
+              :x1="polygonLastVertex.x"
+              :y1="polygonLastVertex.y"
+              :x2="polygon.cursor.value.x"
+              :y2="polygon.cursor.value.y"
+              stroke="#006EDB"
+              stroke-width="1.5"
+              stroke-dasharray="6 4"
+              stroke-linecap="round"
+            />
+            <circle
+              v-for="(v, i) in polygon.vertices.value"
+              :key="i"
+              :cx="v.x"
+              :cy="v.y"
+              :r="i === 0 && polygon.nearFirst.value ? 7 : 3.5"
+              :fill="i === 0 && polygon.nearFirst.value ? '#006EDB' : '#FFFFFF'"
+              stroke="#006EDB"
+              stroke-width="1.5"
+            />
+          </g>
 
           <TextEditor />
         </template>

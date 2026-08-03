@@ -8,6 +8,7 @@ import { useAutoFitText } from '@/composables/useAutoFitText.js'
 import { sanitizeRichText } from '@/utils/sanitizeHtml.js'
 import { safeHref, safeImageSrc } from '@/utils/safeUrl.js'
 import { nodeShape } from '@/diagram/flowchartShapes.js'
+import { polygonPointsString } from '@/diagram/polygon.js'
 
 const props = defineProps({
   shape: { type: Object, required: true },
@@ -97,6 +98,10 @@ function scale(points) {
   return points.map(([nx, ny]) => `${x + nx * w},${y + ny * h}`).join(' ')
 }
 const polygonPoints = computed(() => (POLYGONS[props.shape.type] ? scale(POLYGONS[props.shape.type]) : ''))
+
+// A freely-drawn polygon (#139) carries its own vertices, normalised to the box —
+// so it scales, moves and rotates through x/y/w/h like every other shape.
+const freePolygonPoints = computed(() => polygonPointsString(props.shape))
 
 // Five-pointed star generated around the box centre.
 const starPoints = computed(() => {
@@ -278,6 +283,15 @@ useAutoFitText(richEl, () => ({
     <polygon
       v-else-if="shape.type === 'pentagon' || shape.type === 'hexagon' || shape.type === 'arrow'"
       :points="polygonPoints"
+      :fill="fill"
+      :fill-opacity="shape.opacity"
+      :stroke="border.color"
+      :stroke-width="border.width"
+      :stroke-dasharray="dashArray"
+    />
+    <polygon
+      v-else-if="shape.type === 'polygon'"
+      :points="freePolygonPoints"
       :fill="fill"
       :fill-opacity="shape.opacity"
       :stroke="border.color"

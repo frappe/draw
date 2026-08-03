@@ -1,14 +1,18 @@
 import { test, expect, watchForErrors } from '../helpers/fixtures.js'
 import {
   SURFACE,
-  POPOVER,
-  buttonByIcon,
   toolByIcon,
   openShapesPopover,
   dragTileToCanvas,
   dragOnCanvas,
   clickCanvas,
   clickEmptyCanvas,
+  insertMindmapNode,
+  insertFlowchartNode,
+  mindmapAddHandles,
+  flowchartAddHandles,
+  ffShape,
+  marqueeOver,
   minimap,
   clickMinimap,
   canvasTransform,
@@ -19,21 +23,6 @@ import {
 // PERSISTED document wherever it can, not just on rendered pixels — a tool that
 // draws something transient but never saves it looks fine on screen and is broken.
 
-
-// Insert a starter frame. The Insert menu is gone (#44): the mind-map and
-// flowchart tiles live in the Shapes popover's last section, and the tiles are
-// icon-only, so they're found by glyph like every other tool button. The tile is
-// awaited for visibility first: clicking straight after opening the popover can
-// land while it is still settling, which misses silently and then looks like a
-// broken inserter.
-async function insertFrame(page, icon) {
-  await openShapesPopover(page)
-  const tile = buttonByIcon(page, icon, page.locator(POPOVER))
-  await tile.waitFor({ state: 'visible' })
-  await tile.click()
-  // The handler closes the popover, so this also proves the click was delivered.
-  await expect(tile).toBeHidden()
-}
 
 test.describe('unified canvas: block tools', () => {
   test('dragging a palette tile creates a persisted shape', async ({ page, diagram }) => {
@@ -188,134 +177,168 @@ test.describe('unified canvas: whiteboard tools', () => {
   })
 })
 
-test.describe('unified canvas: frames', () => {
-  test('Shapes adds a mind-map starter frame', async ({ page, diagram }) => {
+test.describe('unified canvas: free-floating mind map & flowchart', () => {
+  // The mind map and flowchart are no longer framed sub-models (#122): the "+" catalog
+  // drops a single ROLE-TAGGED SHAPE onto shapes[], and the retired mindmap/flowchart
+  // sub-models stay empty. Every assertion reads the PERSISTED shapes[] by role — never
+  // .mindmap.nodes / .flowchart.nodes or a frame hit-rect — because a node that renders
+  // but never reaches shapes[] is exactly this app's characteristic failure.
+  const nodesOf = (doc, role) => (doc.shapes || []).filter((s) => s.role === role)
+
+  test('inserting a mind map adds one free-floating node shape, not a sub-model', async ({ page, diagram }) => {
     const name = await diagram.open('unified', { empty: true })
 
-    await insertFrame(page, 'git-fork')
+    await insertMindmapNode(page)
 
-    await expect
-      .poll(async () => (await diagram.saved(name)).mindmap.nodes.length, {
-        message: 'Shapes > Mind map seeded no nodes',
-        timeout: 20_000,
-      })
-      .toBeGreaterThan(0)
-    await expect(page.locator('.fd-mm-label').first()).toBeVisible()
-  })
-
-  test('Shapes adds a flowchart starter frame', async ({ page, diagram }) => {
-    const name = await diagram.open('unified', { empty: true })
-
-    await insertFrame(page, 'workflow')
-
-    await expect
-      .poll(async () => (await diagram.saved(name)).flowchart.nodes.length, {
-        message: 'Shapes > Flowchart seeded no nodes',
-        timeout: 20_000,
-      })
-      .toBeGreaterThan(0)
-  })
-
-  test('a seeded mind-map frame renders on the unified canvas', async ({ page, diagram }) => {
-    await diagram.open('unified', { withFrames: true })
-    // Frames render at their origin; all four seeded nodes should be present.
-    await expect(page.locator('.fd-mm-label')).toHaveCount(4)
-  })
-
-  // A mind map / flowchart on the unified canvas is an ordinary canvas object: its
-  // hit-rect covers the padded content bbox and is painted BEHIND the live content, so
-  // a press on the object's empty margin grabs the whole thing while a press on a node
-  // edits that node (#45). Operations on the content itself live in
-  // unified-objects.spec.js; these two cover the object-level gesture.
-  //
-  // The press lands 4px inside the bbox corner, which is inside the 12px pad and
-  // therefore guaranteed to miss every node. Asserted on the persisted origin — the
-  // object visibly following the cursor while nothing saves is exactly this app's
-  // characteristic failure.
-  // A mind map moves PER TREE: several independent maps can sit on the canvas
-  // (#48), so the origin that moves is the dragged tree's own root, not the map's.
-  const originOf = (doc, kind) =>
-    kind === 'mindmap'
-      ? doc.mindmap.nodes.find((n) => !n.parentId).origin || { x: 0, y: 0 }
-      : doc.flowchart.origin
-
-  for (const kind of ['mindmap', 'flowchart']) {
-    test(`dragging a ${kind} object's margin moves it, and the move persists`, async ({ page, diagram }) => {
-      const name = await diagram.open('unified', { framesInView: true })
-      const before = originOf(await diagram.saved(name), kind)
-
-      // Both objects draw the same dashed hit-rect; they render mind map first.
-      const rect = page.locator('rect[stroke-dasharray="6 4"]').nth(kind === 'mindmap' ? 0 : 1)
-      const box = await rect.boundingBox()
-      if (!box) throw new Error(`the ${kind} object's hit-rect is not rendered`)
-      const { width, height } = page.viewportSize()
-      // Only the corner has to be reachable — page.mouse ignores out-of-window
-      // coordinates, and these bboxes can extend past the fold.
-      if (box.x + 4 > width || box.y + 4 > height || box.x < 0 || box.y < 0) {
-        throw new Error(`the ${kind} object's corner is outside the ${width}x${height} window`)
-      }
-
-      await page.mouse.move(box.x + 4, box.y + 4)
-      await page.mouse.down()
-      await page.mouse.move(box.x + 64, box.y + 44, { steps: 12 })
-      await page.mouse.up()
-
-      await expect
-        .poll(async () => {
-          const after = originOf(await diagram.saved(name), kind)
-          return after.x !== before.x || after.y !== before.y
-        }, {
-          message: `dragging the ${kind} object did not persist a new origin`,
-          timeout: 20_000,
-        })
-        .toBe(true)
-    })
-  }
-
-  // #48: inserting a second mind map / flowchart used to edit the one already on
-  // the canvas — a branch grafted onto the existing root, a step wired onto the
-  // last flowchart node — instead of adding an independent diagram beside it.
-  test('a second mind map is its own tree, not a branch of the first', async ({ page, diagram }) => {
-    const name = await diagram.open('unified', { empty: true })
-
-    await insertFrame(page, 'git-fork')
-    await expect
-      .poll(async () => (await diagram.saved(name)).mindmap.nodes.length, { timeout: 20_000 })
-      .toBe(3)
-    await insertFrame(page, 'git-fork')
-
+    // It renders through ShapeView: an empty root shows the muted "New idea" placeholder.
+    await expect(page.getByText('New idea', { exact: true }).first()).toBeVisible()
     await expect
       .poll(async () => {
-        const nodes = (await diagram.saved(name)).mindmap.nodes
-        return nodes.filter((n) => !n.parentId).length
+        const doc = await diagram.saved(name)
+        return { shapes: nodesOf(doc, 'mindmap-node').length, submodel: doc.mindmap.nodes.length }
       }, {
-        message: 'the second Add mind map grew the existing map instead of adding its own',
+        message: 'a mind-map insert did not persist a single free-floating root shape',
+        timeout: 20_000,
+      })
+      .toEqual({ shapes: 1, submodel: 0 })
+
+    const doc = await diagram.saved(name)
+    expect(nodesOf(doc, 'mindmap-node')[0].mindmap.isRoot, 'the inserted node is a real root').toBe(true)
+    expect(doc.connectors, 'a lone root wires no branch').toHaveLength(0)
+  })
+
+  test('the inserted mind-map node shows its "+" add-handles, and Tab grows a child', async ({ page, diagram }) => {
+    const name = await diagram.open('unified', { empty: true })
+
+    await insertMindmapNode(page) // the new root is auto-selected
+    // The mouse affordance appears for the sole-selected node (#118).
+    await expect(mindmapAddHandles(page).first()).toBeVisible()
+
+    await page.keyboard.press('Tab') // the keyboard grows a child from the selected node
+
+    await expect
+      .poll(async () => (await diagram.saved(name)).shapes.filter((s) => s.role === 'mindmap-node').length, {
+        message: 'Tab on a free-floating mind-map node did not add a child shape',
         timeout: 20_000,
       })
       .toBe(2)
-    // Two full starters — neither one grafted onto the other.
-    expect((await diagram.saved(name)).mindmap.nodes).toHaveLength(6)
-    await expect(page.locator('rect[stroke-dasharray="6 4"]')).toHaveCount(2)
+    const doc = await diagram.saved(name)
+    expect(
+      doc.connectors.some((c) => c.role === 'mindmap-branch'),
+      'the child is bound to its parent by a branch connector',
+    ).toBe(true)
   })
 
-  test('a second flowchart is its own chart, unconnected to the first', async ({ page, diagram }) => {
+  // #48: a second insert used to graft a branch onto the existing root. Every insert is
+  // now its own independent shape.
+  test('a second mind-map insert is its own node, not a branch of the first', async ({ page, diagram }) => {
     const name = await diagram.open('unified', { empty: true })
 
-    await insertFrame(page, 'workflow')
+    await insertMindmapNode(page)
     await expect
-      .poll(async () => (await diagram.saved(name)).flowchart.nodes.length, { timeout: 20_000 })
-      .toBe(2)
-    await insertFrame(page, 'workflow')
+      .poll(async () => (await diagram.saved(name)).shapes.filter((s) => s.role === 'mindmap-node').length, { timeout: 20_000 })
+      .toBe(1)
+    await insertMindmapNode(page)
 
     await expect
       .poll(async () => {
-        const fc = (await diagram.saved(name)).flowchart
-        return { nodes: fc.nodes.length, edges: fc.edges.length }
+        const roots = (await diagram.saved(name)).shapes.filter(
+          (s) => s.role === 'mindmap-node' && s.mindmap.isRoot,
+        )
+        return roots.length
       }, {
-        message: 'the second Add flowchart extended the existing chart instead of adding its own',
+        message: 'the second mind-map insert grew the first instead of adding its own node',
         timeout: 20_000,
       })
-      .toEqual({ nodes: 4, edges: 2 }) // one edge per chart, none between them
+      .toBe(2)
+    expect((await diagram.saved(name)).mindmap.nodes, 'the retired sub-model stays empty').toEqual([])
+  })
+
+  test('inserting a flowchart node adds one free-floating node shape, not a sub-model', async ({ page, diagram }) => {
+    const name = await diagram.open('unified', { empty: true })
+
+    await insertFlowchartNode(page)
+
+    // It renders through ShapeView with the Terminator's default "Start" label.
+    await expect(page.getByText('Start', { exact: true }).first()).toBeVisible()
+    await expect
+      .poll(async () => {
+        const doc = await diagram.saved(name)
+        return { shapes: nodesOf(doc, 'flowchart-node').length, submodel: doc.flowchart.nodes.length }
+      }, {
+        message: 'a flowchart insert did not persist a single free-floating node shape',
+        timeout: 20_000,
+      })
+      .toEqual({ shapes: 1, submodel: 0 })
+    expect((await diagram.saved(name)).connectors, 'a lone node wires no edge').toHaveLength(0)
+  })
+
+  test('the inserted flowchart node shows its "+" add-handle, and Enter grows a step', async ({ page, diagram }) => {
+    const name = await diagram.open('unified', { empty: true })
+
+    await insertFlowchartNode(page) // auto-selected
+    await expect(flowchartAddHandles(page).first()).toBeVisible()
+
+    await page.keyboard.press('Enter') // Enter adds a connected Process step below (#77)
+
+    await expect
+      .poll(async () => (await diagram.saved(name)).shapes.filter((s) => s.role === 'flowchart-node').length, {
+        message: 'Enter on a free-floating flowchart node did not add a connected step',
+        timeout: 20_000,
+      })
+      .toBe(2)
+    const doc = await diagram.saved(name)
+    expect(
+      doc.connectors.some((c) => c.role === 'flowchart-edge'),
+      'the new step is joined by a flow edge',
+    ).toBe(true)
+  })
+
+  test('a second flowchart insert is its own node, unconnected to the first', async ({ page, diagram }) => {
+    const name = await diagram.open('unified', { empty: true })
+
+    await insertFlowchartNode(page)
+    await expect
+      .poll(async () => (await diagram.saved(name)).shapes.filter((s) => s.role === 'flowchart-node').length, { timeout: 20_000 })
+      .toBe(1)
+    await insertFlowchartNode(page)
+
+    await expect
+      .poll(async () => (await diagram.saved(name)).shapes.filter((s) => s.role === 'flowchart-node').length, {
+        message: 'the second flowchart insert extended the first instead of adding its own node',
+        timeout: 20_000,
+      })
+      .toBe(2)
+    const doc = await diagram.saved(name)
+    expect(doc.connectors, 'two independent inserts wire no edge between them').toHaveLength(0)
+    expect(doc.flowchart.nodes, 'the retired sub-model stays empty').toEqual([])
+  })
+
+  // Marquee + delete treat the migrated nodes as ordinary canvas shapes.
+  test('a marquee selects the inserted nodes, and Delete removes them from shapes[]', async ({ page, diagram }) => {
+    const name = await diagram.open('unified', { empty: true })
+
+    await insertMindmapNode(page)
+    await insertMindmapNode(page) // two independent roots, both centred in view
+    let ids = []
+    await expect
+      .poll(async () => {
+        ids = (await diagram.saved(name)).shapes.filter((s) => s.role === 'mindmap-node').map((s) => s.id)
+        return ids.length
+      }, { timeout: 20_000 })
+      .toBe(2)
+
+    // The document is otherwise empty, so a marquee enclosing both nodes rubber-bands
+    // exactly them; Delete then acts on the whole selection.
+    await marqueeOver(page, ids.map((id) => ffShape(page, id)), 'inserted mind-map node')
+    await page.keyboard.press('Delete')
+
+    await expect
+      .poll(async () => (await diagram.saved(name)).shapes.filter((s) => s.role === 'mindmap-node').length, {
+        message: 'a marquee + Delete did not remove the free-floating mind-map shapes',
+        timeout: 20_000,
+      })
+      .toBe(0)
   })
 })
 

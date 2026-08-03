@@ -13,7 +13,11 @@ for (const type of TYPES) {
     await diagram.open(type)
 
     await expect(page.locator(SURFACE).first()).toBeVisible()
-    const drawn = await page.locator(`${SURFACE} rect, ${SURFACE} path, .fd-mm-label`).count()
+    // Every type paints seeded content as SVG rects and/or paths inside the surface: a
+    // legacy single-type mind map draws node boxes + branch paths, and on the unified
+    // canvas a migrated node is an ordinary rect/glyph shape with connector paths (#122)
+    // — no `.fd-mm-label` special-case any more.
+    const drawn = await page.locator(`${SURFACE} rect, ${SURFACE} path`).count()
     expect(drawn, `${type} rendered nothing from its seeded document`).toBeGreaterThan(0)
 
     expect(errors.pageErrors, `${type} raised uncaught exceptions`).toEqual([])
