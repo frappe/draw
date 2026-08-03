@@ -94,6 +94,8 @@ async function doCopy() {
           <div class="relative">
             <button
               type="button"
+              data-testid="general-access-trigger"
+              :data-value="currentAccess.value"
               class="flex w-full items-center gap-2.5 rounded-md border border-outline-gray-2 bg-surface-base px-3 py-2 text-left hover:border-outline-gray-3"
               aria-haspopup="listbox"
               :aria-expanded="accessMenuOpen"
@@ -121,6 +123,7 @@ async function doCopy() {
                   <button
                     type="button"
                     role="option"
+                    :data-testid="'general-access-option-' + opt.value"
                     :aria-selected="opt.value === share.generalAccess.value"
                     class="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-surface-gray-2"
                     @click="chooseAccess(opt.value)"

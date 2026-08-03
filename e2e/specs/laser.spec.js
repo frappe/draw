@@ -1,14 +1,14 @@
 import { test, expect } from '../helpers/fixtures.js'
-import { SURFACE, surfaceBox, toolByIcon } from '../helpers/editor.js'
+import { surfaceBox } from '../helpers/editor.js'
 
-// The laser pointer (#41): a presentation aid that must leave a short trail behind
-// the moving pointer, fade it out on its own, and never write anything to the
-// document. Before the fix it rendered a single dot with no trail at all, which no
-// spec caught — so the trail is asserted from the DOM (it is transient by design and
-// therefore invisible to the persisted-document assertions used everywhere else),
-// and the "never persists" half is asserted from the saved document.
+// The laser pointer (#41): a presentation aid that follows the moving pointer as a
+// single dot, fades itself out on its own, and never writes anything to the document.
+// The trail was dropped in #102 — it is just the dot now — so the dot is asserted from
+// the DOM (it is transient by design and therefore invisible to the persisted-document
+// assertions used everywhere else) via a data-testid rather than its fill colour, and
+// the "never persists" half is asserted from the saved document.
 
-const TRAIL = `${SURFACE} path[stroke="#E03636"]`
+const LASER_DOT = '[data-testid="laser-dot"]'
 
 // Sweep the pointer without pressing: the laser follows hover, like a real one.
 async function sweep(page, steps = 12) {
@@ -20,32 +20,28 @@ async function sweep(page, steps = 12) {
 }
 
 test.describe('laser pointer', () => {
-  test('leaves a fading trail behind the pointer, then clears itself', async ({ page, diagram }) => {
+  test('shows a dot under the moving pointer, then clears itself', async ({ page, diagram }) => {
     await diagram.open('whiteboard', { empty: true })
-    await toolByIcon(page, 'zap').click()
+    await page.getByTestId('wtool-laser').click()
 
-    // Sweep and read the trail inside ONE poll: the trail is alive for well under a
-    // second, so a sweep followed by a separate read races its own fade. More than
-    // one segment IS the trail (a single dot — the old behavior — renders no trail
-    // path at all), and the oldest segment being fainter than the newest is the fade.
+    // Sweep and read inside ONE poll: the dot is alive for well under a second, so a
+    // sweep followed by a separate read races its own fade. The dot appearing under
+    // the moving pointer is the whole behaviour now that the trail is gone (#102).
     await expect.poll(async () => {
       await sweep(page)
-      const opacities = await page.locator(TRAIL).evaluateAll((nodes) =>
-        nodes.map((node) => Number(node.getAttribute('stroke-opacity'))),
-      )
-      return opacities.length > 1 && opacities[0] < opacities[opacities.length - 1]
-    }, { message: 'the laser left no fading trail behind the pointer' }).toBe(true)
+      return page.locator(LASER_DOT).count()
+    }, { message: 'the laser drew no dot under the moving pointer' }).toBeGreaterThan(0)
 
-    // With the pointer still, the trail fades out entirely (self-fading, spec C5).
-    await expect.poll(() => page.locator(TRAIL).count(), {
-      message: 'the laser trail never faded away after the pointer stopped',
+    // With the pointer still, the dot fades out entirely (self-fading, spec C5).
+    await expect.poll(() => page.locator(LASER_DOT).count(), {
+      message: 'the laser dot never faded away after the pointer stopped',
       timeout: 5_000,
     }).toBe(0)
   })
 
   test('draws nothing into the document', async ({ page, diagram }) => {
     const name = await diagram.open('whiteboard', { empty: true })
-    await toolByIcon(page, 'zap').click()
+    await page.getByTestId('wtool-laser').click()
 
     // Press and drag too: a laser gesture must stay transient even when it looks
     // exactly like a pen stroke.
