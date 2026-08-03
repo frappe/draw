@@ -218,3 +218,50 @@ def list_drive_folders(parent: str | None = None) -> dict:
 		for node in get_valid_breadcrumbs(entity, get_user_access(entity))
 	]
 	return {"drive_installed": True, "current": entity, "path": path, "folders": folders}
+
+
+@frappe.whitelist()
+def diagram_drive_path(name: str) -> dict:
+	"""The FOLDER ancestry (Home -> ... -> the folder the diagram sits in) of a diagram's
+	backing Drive File, so the editor toolbar can render a Drive-path breadcrumb (#112).
+	The diagram's own title is the editable last crumb (rendered by TitleEditor), so the
+	diagram's own File node is EXCLUDED here -- `path` is folders only.
+
+	Soft-coupled like the rest of this module: returns the drive-absent shape when Drive
+	is unusable -- including a partial/broken Suite whose Drive API can't be imported --
+	so a missing dependency can never 500 the editor; the toolbar then falls back to the
+	static "Frappe Draw / <title>" crumb. Never discloses a diagram's Drive location to a
+	caller who cannot read it."""
+	absent = {"drive_installed": False, "registered": False, "path": []}
+	if not drive_available():
+		return absent
+	try:
+		from suite.drive.api.permissions import get_user_access
+		from suite.drive.overrides.file import File
+		from suite.drive.utils import get_valid_breadcrumbs
+	except ImportError:
+		# Standalone Drive / partial Suite -- no breadcrumb API to offer.
+		return absent
+
+	# Read-permission first (mirrors register_diagram_in_drive): don't leak the path of a
+	# diagram -- or that one even exists -- to a caller who cannot read it.
+	not_registered = {"drive_installed": True, "registered": False, "path": []}
+	if not frappe.db.exists("Draw Diagram", name):
+		return not_registered
+	if not frappe.has_permission("Draw Diagram", "read", doc=name):
+		return not_registered
+
+	file_name = File.get_for_doc("Draw Diagram", name)
+	if not file_name:
+		# Diagram not yet backed by a Drive File (e.g. made before the integration, or
+		# before Drive was installed); the toolbar shows the static crumb.
+		return not_registered
+
+	# get_valid_breadcrumbs returns root -> ... -> the File itself as the LAST node (the
+	# same shape list_drive_folders treats as "current"). Drop that last node so `path`
+	# is the folder ancestry only -- the diagram's title is the separate last crumb.
+	crumbs = get_valid_breadcrumbs(file_name, get_user_access(file_name))
+	folders = crumbs[:-1] if crumbs else []
+	# Suite relabels the user's own root as "Home".
+	path = [{"name": node["name"], "title": node["file_name"]} for node in folders]
+	return {"drive_installed": True, "registered": True, "path": path}

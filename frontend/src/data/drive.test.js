@@ -5,8 +5,13 @@ import { describe, it, expect, vi } from 'vitest'
 const call = vi.fn()
 vi.mock('frappe-ui', () => ({ call: (...args) => call(...args) }))
 
-const { shouldShowInstallDriveBanner, getDriveAvailability, listDriveFolders, moveToDriveFolder } =
-  await import('./drive.js')
+const {
+  shouldShowInstallDriveBanner,
+  getDriveAvailability,
+  listDriveFolders,
+  moveToDriveFolder,
+  getDiagramDrivePath,
+} = await import('./drive.js')
 
 describe('shouldShowInstallDriveBanner', () => {
   it('stays hidden while the status is still loading / unknown', () => {
@@ -74,5 +79,25 @@ describe('moveToDriveFolder', () => {
       name: 'diagram-1',
       folder: null,
     })
+  })
+})
+
+describe('getDiagramDrivePath', () => {
+  it('returns the diagram folder path from diagram_drive_path', async () => {
+    const res = {
+      drive_installed: true,
+      registered: true,
+      path: [{ name: 'home-id', title: 'Home' }],
+    }
+    call.mockReset().mockResolvedValue(res)
+    expect(await getDiagramDrivePath('diagram-1')).toBe(res)
+    expect(call).toHaveBeenCalledWith('draw.api.drive_integration.diagram_drive_path', {
+      name: 'diagram-1',
+    })
+  })
+
+  it('returns null on error, so the toolbar falls back to the static crumb', async () => {
+    call.mockReset().mockRejectedValue(new Error('network'))
+    expect(await getDiagramDrivePath('diagram-1')).toBeNull()
   })
 })

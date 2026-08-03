@@ -467,6 +467,19 @@ class TestDrawDiagram(IntegrationTestCase):
 			self.assertEqual(result["folders"], [])
 			self.assertEqual(result["path"], [])
 
+	def test_diagram_drive_path_is_a_safe_noop_when_absent(self):
+		# The toolbar's Drive-path breadcrumb is soft-coupled: with Drive absent,
+		# diagram_drive_path returns the not-installed / unregistered shape and never
+		# raises, so the toolbar falls back to the static "Frappe Draw / <title>" crumb.
+		from draw.api.drive_integration import diagram_drive_path, drive_available
+
+		doc = self._make("unified", {"schemaVersion": 1, "diagramType": "unified"})
+		if not drive_available():
+			result = diagram_drive_path(doc.name)
+			self.assertFalse(result["drive_installed"])
+			self.assertFalse(result["registered"])
+			self.assertEqual(result["path"], [])
+
 	def test_inserted_image_is_attached_to_the_diagram(self):
 		# #74: inserted images upload through draw.api.diagram.upload_diagram_image,
 		# which inserts the File server-side ATTACHED to the diagram (so Suite's Drive
