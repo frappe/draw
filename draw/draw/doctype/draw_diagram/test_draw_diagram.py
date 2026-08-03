@@ -299,6 +299,7 @@ class TestDrawDiagram(IntegrationTestCase):
 			}
 		).insert(ignore_permissions=True)
 		self.addCleanup(lambda: frappe.delete_doc("Draw Diagram", own.name, force=True, ignore_permissions=True))
+		frappe.db.set_value("Draw Diagram", own.name, "owner", owner)  # insert stamps the session user; pin the real owner
 		share_diagram(own.name, owner, "view")  # a DocShare on my own diagram
 
 		frappe.set_user(owner)
