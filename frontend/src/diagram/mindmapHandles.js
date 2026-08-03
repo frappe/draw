@@ -131,14 +131,34 @@ function siblingHandle(nodeId, box, side) {
   }
 }
 
+// How many migrated mind-map nodes hang directly off `nodeId`, read from the
+// reconstructed tree (each node's parentId) so it counts real children whatever
+// their on-canvas position.
+export function childCount(nodeId, ctx) {
+  return Object.values(ctx.byId).filter((node) => node.parentId === nodeId).length
+}
+
+// Whether a node still offers the add-child "+". Once a non-root node has a child
+// of its own the add-child "+" is redundant with the add-another-child (sibling)
+// "+" beneath it, so it drops away and only the sibling "+" remains (#129). A root
+// always keeps its add-child "+"(s) — it has no sibling "+" — and a childless node
+// keeps its initial add-child "+".
+export function offersAddChild(nodeId, ctx) {
+  return isRootNode(nodeId, ctx) || childCount(nodeId, ctx) === 0
+}
+
 // Every "+" handle to draw for one node, in absolute logical coords. A root offers
-// only an add-child "+" on BOTH sides (it has no sibling); every other node offers
-// an add-child "+" on its branch side plus an add-sibling "+" below it. Empty for a
-// shape id that is not a migrated mind-map node.
+// only an add-child "+" on BOTH sides (it has no sibling). A non-root node offers
+// an add-sibling ("add another child") "+" below it, plus — only until it has a
+// child of its own — an add-child "+" on its branch side; after the first child
+// that add-child "+" is redundant and drops away (#129). Empty for a shape id that
+// is not a migrated mind-map node.
 export function handlesForNode(nodeId, ctx) {
   const box = ctx.boxes[nodeId]
   if (!ctx.byId[nodeId] || !box) return []
-  const handles = addSidesFor(nodeId, ctx).map((side) => childHandle(nodeId, box, side))
+  const handles = offersAddChild(nodeId, ctx)
+    ? addSidesFor(nodeId, ctx).map((side) => childHandle(nodeId, box, side))
+    : []
   if (!isRootNode(nodeId, ctx)) handles.push(siblingHandle(nodeId, box, branchSideOf(nodeId, ctx)))
   return handles
 }

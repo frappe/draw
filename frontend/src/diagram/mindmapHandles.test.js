@@ -6,6 +6,8 @@ import {
   HOVER_OUT,
   buildContext,
   branchSideOf,
+  childCount,
+  offersAddChild,
   handlesForNode,
   shouldShowHandles,
   nodeAtPoint,
@@ -139,6 +141,54 @@ describe('handlesForNode', () => {
     // 'Alpha' was pinned right, so its handles sit to the right of its box.
     const box = ctx.boxes[a]
     expect(childHandles[0].cx).toBeGreaterThan(box.x + box.w)
+  })
+})
+
+// sampleTree() with a grandchild hung off 'right', so 'right' now has a child of
+// its own while 'left' and the grandchild stay childless.
+function treeWithGrandchild() {
+  return [...sampleTree(), mmNode('grand', 'right', 600, 100, 140, 40)]
+}
+
+describe('childCount', () => {
+  it('counts the nodes that hang directly off a node', () => {
+    const ctx = buildContext(treeWithGrandchild())
+    expect(childCount('root', ctx)).toBe(2) // right + left
+    expect(childCount('right', ctx)).toBe(1) // grand
+    expect(childCount('left', ctx)).toBe(0)
+    expect(childCount('grand', ctx)).toBe(0)
+  })
+})
+
+describe('offersAddChild (#129)', () => {
+  it('offers the add-child "+" until a non-root node has a child', () => {
+    const ctx = buildContext(treeWithGrandchild())
+    // A childless non-root still offers it; once it has a child it does not.
+    expect(offersAddChild('left', ctx)).toBe(true)
+    expect(offersAddChild('grand', ctx)).toBe(true)
+    expect(offersAddChild('right', ctx)).toBe(false)
+    // A root always offers it (both sides), children or not.
+    expect(offersAddChild('root', ctx)).toBe(true)
+  })
+})
+
+describe('handlesForNode after the first child (#129)', () => {
+  it('offers add-child + sibling on a childless node (0 children → add child)', () => {
+    const ctx = buildContext(treeWithGrandchild())
+    expect(handlesForNode('left', ctx).map((h) => h.kind)).toEqual(['child', 'sibling'])
+  })
+
+  it('drops the redundant add-child once a child exists (≥1 child → only sibling)', () => {
+    const ctx = buildContext(treeWithGrandchild())
+    const handles = handlesForNode('right', ctx)
+    expect(handles.map((h) => h.kind)).toEqual(['sibling'])
+    // The one remaining "+" is the add-another-child (sibling) op, on the branch side.
+    expect(handles[0]).toMatchObject({ kind: 'sibling', side: 'right' })
+  })
+
+  it('leaves a root with both add-child "+" even after it has children', () => {
+    const ctx = buildContext(treeWithGrandchild())
+    expect(handlesForNode('root', ctx).map((h) => h.kind)).toEqual(['child', 'child'])
   })
 })
 
