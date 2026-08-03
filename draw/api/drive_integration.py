@@ -52,6 +52,12 @@ def register_diagram_in_drive(diagram_name: str) -> str | None:
 		return None
 	if not drive_available() or not frappe.db.exists("Draw Diagram", diagram_name):
 		return None
+	# Never register (and thereby disclose the title of, via create_for_doc) a diagram
+	# the caller cannot read. The whitelisted add_to_drive() path reaches here by name,
+	# and this function reads the doc directly, bypassing permission checks. after_insert
+	# still passes — the session user is the owner, who can read it.
+	if not frappe.has_permission("Draw Diagram", "read", doc=diagram_name):
+		return None
 
 	drive_file_cls = _drive_file_cls()
 	if drive_file_cls is None:
