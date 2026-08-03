@@ -470,9 +470,11 @@ function attachFlowchart(store, state, history) {
   // updateFlowchartModel runs it over the standalone sub-model. The pure helper
   // reconstructs the model, applies `action(model)`, and returns the shape/connector
   // patches; here we just write them back as one undoable unit. No-op when the canvas
-  // holds no migrated flowchart nodes.
-  store.applyFlowchartShapeLayout = (label, action) => {
-    const patches = flowchartLayoutPatches(state.shapes, state.connectors, action)
+  // holds no migrated flowchart nodes. `rootId` is the selected node — the action is
+  // scoped to that node's connected component so a second, independent flowchart on the
+  // same canvas is left untouched (#167).
+  store.applyFlowchartShapeLayout = (label, action, rootId = null) => {
+    const patches = flowchartLayoutPatches(state.shapes, state.connectors, action, rootId)
     if (!patches.nodes.length) return
     history.commit(label, () => {
       for (const patch of patches.nodes) {

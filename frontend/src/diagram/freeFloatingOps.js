@@ -6,7 +6,7 @@
 // the returned objects in one commit().
 
 import { createShape, createConnector, nextId } from './factories.js'
-import { mindmapModelFromShapes, flowchartModelFromShapes } from './freeFloatingGraph.js'
+import { mindmapModelFromShapes, flowchartModelFromShapes, flowchartComponentIds } from './freeFloatingGraph.js'
 import { resolveNodeColor, nodeFill, readableInk } from './mindmapColors.js'
 import { makeFlowchartNode, defaultNodeText, nodeSize, pickFreeBranch } from './flowchartModel.js'
 import { placeChild } from './flowchartLayout.js'
@@ -166,11 +166,25 @@ export function flowchartDirectionOfShapes(shapes) {
 //   - node patches: new x/y, text (numbering), and the manuallyPositioned /
 //     direction / stepPrefix tags.
 //   - edge patches: recomputed anchors, so arrows leave the right side after a flip.
-export function flowchartLayoutPatches(shapes, connectors, action) {
-  const nodeShapes = (shapes || []).filter((s) => s.role === ROLE.flowchartNode)
-  if (!nodeShapes.length) return { nodes: [], edges: [] }
-  const direction = flowchartDirectionOfShapes(shapes)
-  const model = flowchartModelFromShapes(shapes, connectors, direction)
+// `rootId` is the selected node: the action is scoped to that node's connected
+// component so a second, independent flowchart on the same canvas is left untouched
+// (#167). A null rootId re-flows every flowchart node (legacy whole-canvas behaviour).
+export function flowchartLayoutPatches(shapes, connectors, action, rootId = null) {
+  const allNodeShapes = (shapes || []).filter((s) => s.role === ROLE.flowchartNode)
+  if (!allNodeShapes.length) return { nodes: [], edges: [] }
+  const memberIds = rootId
+    ? flowchartComponentIds(shapes, connectors, rootId)
+    : new Set(allNodeShapes.map((s) => s.id))
+  if (!memberIds.size) return { nodes: [], edges: [] }
+
+  // Reconstruct from ONLY the selected chart's nodes + the edges among them, so both
+  // the layout and the returned patches stay confined to that component.
+  const nodeShapes = allNodeShapes.filter((s) => memberIds.has(s.id))
+  const edgeConnectors = (connectors || []).filter(
+    (c) => c.role === ROLE.flowchartEdge && memberIds.has(c.from?.shapeId) && memberIds.has(c.to?.shapeId),
+  )
+  const direction = flowchartDirectionOfShapes(nodeShapes)
+  const model = flowchartModelFromShapes(nodeShapes, edgeConnectors, direction)
   seedStepNumbers(model, nodeShapes)
   action(model)
 
@@ -187,8 +201,7 @@ export function flowchartLayoutPatches(shapes, connectors, action) {
       stepPrefix: node._stepPrefix || null,
     }
   })
-  const edges = (connectors || [])
-    .filter((c) => c.role === ROLE.flowchartEdge)
+  const edges = edgeConnectors
     .map((c) => {
       const from = boxes[c.from?.shapeId]
       const to = boxes[c.to?.shapeId]

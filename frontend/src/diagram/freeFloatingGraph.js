@@ -75,3 +75,41 @@ export function flowchartModelFromShapes(shapes, connectors = [], direction = 'T
     }))
   return { direction, nodes, edges }
 }
+
+// The connected component (set of flowchart-node shape ids) reachable from `rootId`
+// by walking flowchart-edge connectors UNDIRECTED. The canvas can hold several
+// independent flowcharts at once (#167); a whole-graph layout action must touch only
+// the chart the selected node belongs to, so callers scope the reconstructed model to
+// this set. Returns an empty Set when rootId is missing or is not a flowchart node.
+// With a single chart the walk reaches every flowchart node, so scoping is a no-op.
+export function flowchartComponentIds(shapes, connectors = [], rootId = null) {
+  const nodeIds = new Set(
+    (shapes || []).filter((shape) => shape.role === ROLE.flowchartNode).map((shape) => shape.id),
+  )
+  if (!rootId || !nodeIds.has(rootId)) return new Set()
+
+  // Undirected adjacency, edges between two flowchart nodes only (a dangling edge to a
+  // deleted / non-flowchart shape can't bridge two charts).
+  const neighbours = new Map()
+  const link = (a, b) => neighbours.set(a, [...(neighbours.get(a) || []), b])
+  for (const connector of connectors || []) {
+    if (connector.role !== ROLE.flowchartEdge) continue
+    const a = connector.from?.shapeId
+    const b = connector.to?.shapeId
+    if (!nodeIds.has(a) || !nodeIds.has(b)) continue
+    link(a, b)
+    link(b, a)
+  }
+
+  const seen = new Set([rootId])
+  const stack = [rootId]
+  while (stack.length) {
+    const current = stack.pop()
+    for (const next of neighbours.get(current) || []) {
+      if (seen.has(next)) continue
+      seen.add(next)
+      stack.push(next)
+    }
+  }
+  return seen
+}

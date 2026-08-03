@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { mindmapModelFromShapes, flowchartModelFromShapes } from './freeFloatingGraph.js'
+import {
+  mindmapModelFromShapes,
+  flowchartModelFromShapes,
+  flowchartComponentIds,
+} from './freeFloatingGraph.js'
 import { flattenSubmodels } from './freeFloating.js'
 import { createMindMap, addChild, addCrosslink } from './mindmapModel.js'
 import { createFlowchart, addFlowchartNode, addFlowchartEdge } from './flowchartModel.js'
@@ -89,5 +93,46 @@ describe('flowchartModelFromShapes', () => {
     // Position is the baked absolute canvas coord (node + origin), not the old local.
     expect(node.x).toBe(30 + 600)
     expect(node.y).toBe(20 + 700)
+  })
+})
+
+// #167: with several independent flowcharts flattened onto one canvas, a layout action
+// must resolve exactly the selected node's connected component (undirected edge walk).
+describe('flowchartComponentIds', () => {
+  // A migrated linear flowchart (Start → Step → End) as shapes/connectors. Origins are
+  // distinct so the two charts don't overlap, but only the edges decide the component.
+  function chart(origin) {
+    const model = createFlowchart('TB')
+    model.origin = origin
+    const start = addFlowchartNode(model, 'terminator', 'Start', 0, 0)
+    const step = addFlowchartNode(model, 'process', 'Step', 0, 120)
+    const end = addFlowchartNode(model, 'terminator', 'End', 0, 240)
+    addFlowchartEdge(model, start, step)
+    addFlowchartEdge(model, step, end)
+    const out = flattenSubmodels(docWith({ flowchart: model }))
+    return { shapes: out.shapes, connectors: out.connectors, ids: [start, step, end], start }
+  }
+
+  it('walks only the selected chart, ignoring a second independent flowchart', () => {
+    const a = chart({ x: 0, y: 0 })
+    const b = chart({ x: 2000, y: 0 })
+    const shapes = [...a.shapes, ...b.shapes]
+    const connectors = [...a.connectors, ...b.connectors]
+    const ids = flowchartComponentIds(shapes, connectors, a.start)
+    expect([...ids].sort()).toEqual([...a.ids].sort())
+    for (const id of b.ids) expect(ids.has(id)).toBe(false)
+  })
+
+  it('reaches the whole chart from any member, walking edges undirected', () => {
+    const a = chart({ x: 0, y: 0 })
+    // Seed from the LAST node — an undirected walk still reaches the start.
+    const fromEnd = flowchartComponentIds(a.shapes, a.connectors, a.ids[2])
+    expect([...fromEnd].sort()).toEqual([...a.ids].sort())
+  })
+
+  it('is an empty set with no rootId or an id that is not a flowchart node', () => {
+    const a = chart({ x: 0, y: 0 })
+    expect(flowchartComponentIds(a.shapes, a.connectors, null).size).toBe(0)
+    expect(flowchartComponentIds(a.shapes, a.connectors, 'not-a-node').size).toBe(0)
   })
 })

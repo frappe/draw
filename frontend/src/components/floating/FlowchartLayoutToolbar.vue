@@ -16,33 +16,44 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { isFlowchartShape } from '@/diagram/freeFloating.js'
 import { flowchartDirectionOfShapes } from '@/diagram/freeFloatingOps.js'
+import { flowchartComponentIds } from '@/diagram/freeFloatingGraph.js'
 import { tidyLayout, toggleDirection } from '@/diagram/flowchartLayout.js'
 import { autoNumberFlow } from '@/diagram/flowchartModel.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
 
-// Show only while a migrated flowchart node is selected.
-const active = computed(() =>
-  (store.state.selection || []).some((id) => isFlowchartShape(store.shapeById(id))),
+// The selected flowchart node — its connected component is the chart these actions
+// re-flow, and it isolates that chart from any other flowchart on the canvas (#167).
+const rootId = computed(
+  () => (store.state.selection || []).find((id) => isFlowchartShape(store.shapeById(id))) || null,
 )
 
-// Direction + numbered are whole-graph properties, read off the shapes' tags.
-const direction = computed(() => flowchartDirectionOfShapes(store.state.shapes))
+// Show only while a migrated flowchart node is selected.
+const active = computed(() => rootId.value != null)
+
+// Direction + numbered are whole-graph properties, read off the shapes' tags — scoped
+// to the selected chart so a second chart with a different direction doesn't skew them.
+const memberIds = computed(() =>
+  flowchartComponentIds(store.state.shapes, store.state.connectors, rootId.value),
+)
+const direction = computed(() =>
+  flowchartDirectionOfShapes(store.state.shapes.filter((s) => memberIds.value.has(s.id))),
+)
 const numbered = computed(() =>
-  store.state.shapes.some((s) => isFlowchartShape(s) && s.flowchart?.stepPrefix),
+  store.state.shapes.some((s) => memberIds.value.has(s.id) && s.flowchart?.stepPrefix),
 )
 
 function tidy() {
   editorUi.pulseLayoutAnimation()
-  store.applyFlowchartShapeLayout('Tidy up', (m) => tidyLayout(m))
+  store.applyFlowchartShapeLayout('Tidy up', (m) => tidyLayout(m), rootId.value)
 }
 function flip() {
   editorUi.pulseLayoutAnimation()
-  store.applyFlowchartShapeLayout('Flow direction', (m) => toggleDirection(m))
+  store.applyFlowchartShapeLayout('Flow direction', (m) => toggleDirection(m), rootId.value)
 }
 function number() {
-  store.applyFlowchartShapeLayout('Number steps', (m) => autoNumberFlow(m))
+  store.applyFlowchartShapeLayout('Number steps', (m) => autoNumberFlow(m), rootId.value)
 }
 
 const btn =

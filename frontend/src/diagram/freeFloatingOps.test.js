@@ -8,7 +8,7 @@ import {
 } from './freeFloatingOps.js'
 import { flattenSubmodels, ROLE } from './freeFloating.js'
 import { createMindMap, addChild } from './mindmapModel.js'
-import { createFlowchart, addFlowchartNode, autoNumberFlow } from './flowchartModel.js'
+import { createFlowchart, addFlowchartNode, addFlowchartEdge, autoNumberFlow } from './flowchartModel.js'
 import { tidyLayout, toggleDirection } from './flowchartLayout.js'
 
 // A migrated single-root mind map's shapes[] (root only), to grow from.
@@ -234,5 +234,92 @@ describe('flowchartLayoutPatches', () => {
     const startOff = off.nodes.find((n) => n.id === startId)
     expect(startOff.text).toBe('Start')
     expect(startOff.stepPrefix).toBeNull()
+  })
+
+  // #167: two independent flowcharts share the canvas; an action seeded with a node in
+  // chart A must re-flow ONLY chart A and leave chart B exactly where it was.
+  describe('scoped to the selected chart (#167)', () => {
+    // A migrated linear chart (Start → Step) at the given origin, so the two charts sit
+    // apart on the canvas and never share an edge.
+    function linearChart(origin) {
+      const model = createFlowchart('TB')
+      model.origin = origin
+      const start = addFlowchartNode(model, 'terminator', 'Start', 0, 0)
+      const step = addFlowchartNode(model, 'process', 'Step', 0, 120)
+      addFlowchartEdge(model, start, step)
+      const doc = flattenSubmodels({
+        schemaVersion: 2, diagramType: 'unified',
+        canvas: { width: 1920, height: 1080, background: null },
+        shapes: [], connectors: [], sections: [],
+        mindmap: null, flowchart: model, whiteboard: null,
+      })
+      return { shapes: doc.shapes, connectors: doc.connectors, ids: [start, step], startId: start }
+    }
+
+    function twoCharts() {
+      const a = linearChart({ x: 0, y: 0 })
+      const b = linearChart({ x: 2000, y: 0 })
+      return {
+        shapes: [...a.shapes, ...b.shapes],
+        connectors: [...a.connectors, ...b.connectors],
+        a,
+        b,
+      }
+    }
+
+    function boxesOf(shapes, ids) {
+      return ids.map((id) => {
+        const s = shapes.find((sh) => sh.id === id)
+        return { id, x: s.x, y: s.y }
+      })
+    }
+
+    it('Tidy on chart A patches only chart A; chart B is untouched', () => {
+      const { shapes, connectors, a, b } = twoCharts()
+      // Shove chart A's step out of place so a real Tidy has something to pull back.
+      const aStep = shapes.find((s) => s.id === a.ids[1])
+      aStep.flowchart.manuallyPositioned = true
+      aStep.x = 9999
+      aStep.y = 9999
+      const before = boxesOf(shapes, b.ids)
+
+      const patches = flowchartLayoutPatches(shapes, connectors, (m) => tidyLayout(m), a.startId)
+      const patchedIds = patches.nodes.map((n) => n.id).sort()
+      expect(patchedIds).toEqual([...a.ids].sort())
+      for (const id of b.ids) expect(patches.nodes.some((n) => n.id === id)).toBe(false)
+
+      // Persist the patches the way the store commit does; chart B stays put.
+      applyNodePatches(shapes, patches.nodes)
+      expect(boxesOf(shapes, b.ids)).toEqual(before)
+    })
+
+    it('Flip on chart A flips only chart A; chart B keeps its direction', () => {
+      const { shapes, connectors, a, b } = twoCharts()
+      const patches = flowchartLayoutPatches(shapes, connectors, (m) => toggleDirection(m), a.startId)
+      expect(patches.nodes.map((n) => n.id).sort()).toEqual([...a.ids].sort())
+      expect(patches.nodes.every((n) => n.direction === 'LR')).toBe(true)
+
+      applyNodePatches(shapes, patches.nodes)
+      // Chart B's nodes never got a direction patch, so they read TB unchanged.
+      const bStart = shapes.find((s) => s.id === b.ids[0])
+      expect(bStart.flowchart?.direction ?? 'TB').toBe('TB')
+    })
+
+    it('only edges within the component get anchor patches', () => {
+      const { shapes, connectors, a, b } = twoCharts()
+      const patches = flowchartLayoutPatches(shapes, connectors, (m) => toggleDirection(m), a.startId)
+      const aEdge = a.connectors.find((c) => c.role === ROLE.flowchartEdge)
+      const bEdge = b.connectors.find((c) => c.role === ROLE.flowchartEdge)
+      const edgeIds = patches.edges.map((e) => e.id)
+      expect(edgeIds).toContain(aEdge.id)
+      expect(edgeIds).not.toContain(bEdge.id)
+    })
+
+    it('with no rootId it falls back to the whole canvas (legacy behaviour)', () => {
+      const { shapes, connectors, a, b } = twoCharts()
+      const patches = flowchartLayoutPatches(shapes, connectors, (m) => tidyLayout(m))
+      const patchedIds = patches.nodes.map((n) => n.id).sort()
+      expect(patchedIds).toEqual([...a.ids, ...b.ids].sort())
+    })
   })
 })
