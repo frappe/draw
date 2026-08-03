@@ -13,7 +13,7 @@ import { addChild, addSibling, addRootNode, createMindMap, nodeById, subtreeIds 
 import { layoutMindMap, mindmapTreeRects } from '@/diagram/mindmapLayout.js'
 import { isMindmapShape, isFlowchartShape, flattenSubmodels } from '@/diagram/freeFloating.js'
 import { mindmapModelFromShapes } from '@/diagram/freeFloatingGraph.js'
-import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild } from '@/diagram/freeFloatingOps.js'
+import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild, flowchartLayoutPatches } from '@/diagram/freeFloatingOps.js'
 import {
   createFlowchart,
   addFlowchartNode,
@@ -461,6 +461,38 @@ function attachFlowchart(store, state, history) {
   store.updateFlowchartModel = (label, mutatorFn) => {
     if (!state.flowchart) return
     history.commit(label, () => mutatorFn(state.flowchart))
+  }
+  // The unified-canvas counterpart (#98): run a whole-graph layout action (Tidy up /
+  // flip direction / number steps) over the FREE-FLOATING flowchart shapes, the way
+  // updateFlowchartModel runs it over the standalone sub-model. The pure helper
+  // reconstructs the model, applies `action(model)`, and returns the shape/connector
+  // patches; here we just write them back as one undoable unit. No-op when the canvas
+  // holds no migrated flowchart nodes.
+  store.applyFlowchartShapeLayout = (label, action) => {
+    const patches = flowchartLayoutPatches(state.shapes, state.connectors, action)
+    if (!patches.nodes.length) return
+    history.commit(label, () => {
+      for (const patch of patches.nodes) {
+        const shape = state.shapes.find((s) => s.id === patch.id)
+        if (!shape) continue
+        shape.x = patch.x
+        shape.y = patch.y
+        if (shape.text) shape.text.content = patch.text
+        shape.flowchart = {
+          ...(shape.flowchart || {}),
+          manuallyPositioned: patch.manuallyPositioned,
+          direction: patch.direction,
+        }
+        if (patch.stepPrefix) shape.flowchart.stepPrefix = patch.stepPrefix
+        else delete shape.flowchart.stepPrefix
+      }
+      for (const patch of patches.edges) {
+        const connector = state.connectors.find((c) => c.id === patch.id)
+        if (!connector) continue
+        if (connector.from) connector.from.anchor = patch.fromAnchor
+        if (connector.to) connector.to.anchor = patch.toAnchor
+      }
+    })
   }
   // Templates/Insert (canvas unification): drop a starter flowchart on the canvas.
   // Free-floating #122: this now creates a ROLE-TAGGED node SHAPE via the migration
