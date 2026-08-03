@@ -18,14 +18,15 @@ import {
   LINE_H,
 } from '@/diagram/mindmapLayout.js'
 import { resolveNodeColor, nodeFill, readableInk } from '@/diagram/mindmapColors.js'
-import { nodeRx, nodeClickZone, NODE_BORDER_ZONE } from '@/diagram/mindmapNodeShape.js'
+import { nodeRx } from '@/diagram/mindmapNodeShape.js'
 import { isRoot, subtreeIds, rootOf } from '@/diagram/mindmapModel.js'
 import { toggleNodeCollapsed, pasteOutline, linkNodes, unlinkNodes } from '@/diagram/mindmapOperations.js'
 import { looksLikeOutline } from '@/diagram/mindmapPaste.js'
 import { useMindmapInteraction } from '@/composables/useMindmapInteraction.js'
-import { isAdditiveEvent, clientToLogical } from '@/composables/pointer.js'
+import { isAdditiveEvent } from '@/composables/pointer.js'
 import {
   mindmapUi,
+  selectedNodeId,
   selectNode,
   selectCrosslink,
   focusedNodeId,
@@ -271,6 +272,12 @@ function surfaceRect(event) {
   return surface ? surface.getBoundingClientRect() : { left: 0, top: 0 }
 }
 
+// Whether this node was the sole selection BEFORE the current press — captured on
+// pointerdown (which then selects it), so the click can tell a first click
+// (select) from a second click on an already-selected node (edit) — the Whimsical
+// model (N5).
+const pressSelectedId = ref(null)
+
 // Only the select tool drives the map's own affordances — nodes, cross-links,
 // the hover pad, the +/collapse handles. On the unified canvas the mind map
 // shares the surface with the whiteboard/draw tools, and a pen stroke or a
@@ -287,6 +294,7 @@ function onNodePointerDown(event, id) {
   event.stopPropagation()
   if (mindmapUi.pendingLinkSource) return finishLink(id)
   if (isAdditiveEvent(event)) return store.toggleInSelection(id)
+  pressSelectedId.value = selectedNodeId(store)
   interaction.startDrag(event, id, surfaceRect(event))
 }
 
@@ -317,34 +325,21 @@ function isCrosslinkSelected(id) {
   return mindmapUi.selectedCrosslinkId === id
 }
 
-// Click model by hover zone (#123): a single click over the label drops the
-// text cursor straight in (edit); a click on the node's border rim just selects,
-// so the rim stays a select/grab zone. A drag (reparent) is not a click, so it
-// never edits; additive clicks stay pure multi-select. Double-click (startEdit)
-// still edits from anywhere on the node, rim included.
+// N5 click model: first click selects; clicking the already-selected node again
+// drops the text cursor in. A drag (reparent) is not a click, so it never edits.
+// Double-click (startEdit) still selects+edits immediately.
 function onNodeClick(event, id) {
   if (!nodesInteractive()) return
   event.stopPropagation()
   if (isAdditiveEvent(event)) return
   if (interaction.gesture.moved) return
-  if (mindmapUi.editingId === id) return
-  const b = box(id)
-  if (b && zoneAt(event, b) === 'edit') {
+  if (pressSelectedId.value === id && mindmapUi.editingId !== id) {
     beginEdit(id)
     selectNode(store, id)
     nextTick(() => focusField(id))
     return
   }
   selectNode(store, id)
-}
-
-// The zone (edit/select) a pointer event over a node falls in, computed in the
-// node's own local coordinates: client → logical (undo pan/zoom), then minus the
-// node's box origin. Drives both the single-click action and the CSS cursor, so
-// what the cursor promises and what the click does can't drift (#123).
-function zoneAt(event, b) {
-  const point = clientToLogical(event, surfaceRect(event), editorUi.viewport)
-  return nodeClickZone(point.x - b.x, point.y - b.y, b)
 }
 
 function startEdit(event, id) {
@@ -621,22 +616,9 @@ function nodePoly(node, b) {
             >{{ (node.emoji ? node.emoji + '  ' : '') + (node.text || 'New idea') }}</div>
           </div>
         </foreignObject>
-        <!-- Two transparent hit-zones give the cursor feedback for #123. The rim
-             (full bbox, underneath) shows an arrow — a click there selects; the
-             inset label zone (on top) shows an I-beam — a click there edits. The
-             single-click action itself is decided in onNodeClick from the same
-             NODE_BORDER_ZONE threshold, so cursor and click always agree. Both
-             zones double-click to edit. -->
+        <!-- Transparent hit-rect for double-click-to-edit over the whole pill. -->
         <rect
           :width="box.w" :height="box.h" :rx="box.h / 2" fill="transparent"
-          style="cursor: default"
-          @dblclick="startEdit($event, node.id)"
-        />
-        <rect
-          v-if="box.w > NODE_BORDER_ZONE * 2 && box.h > NODE_BORDER_ZONE * 2"
-          :x="NODE_BORDER_ZONE" :y="NODE_BORDER_ZONE"
-          :width="box.w - NODE_BORDER_ZONE * 2" :height="box.h - NODE_BORDER_ZONE * 2"
-          fill="transparent"
           style="cursor: text"
           @dblclick="startEdit($event, node.id)"
         />

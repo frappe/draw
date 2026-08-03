@@ -14,6 +14,7 @@ import { NODE_BORDER_ZONE } from '@/diagram/mindmapNodeShape.js'
 
 const props = defineProps({
   shape: { type: Object, required: true },
+  selected: { type: Boolean, default: false },
 })
 
 const editing = useTextEditing()
@@ -367,7 +368,7 @@ useAutoFitText(richEl, () => ({
         fill="transparent" style="cursor: default"
       />
       <rect
-        v-if="shape.w > NODE_BORDER_ZONE * 2 && shape.h > NODE_BORDER_ZONE * 2"
+        v-if="selected && shape.w > NODE_BORDER_ZONE * 2 && shape.h > NODE_BORDER_ZONE * 2"
         :x="shape.x + NODE_BORDER_ZONE" :y="shape.y + NODE_BORDER_ZONE"
         :width="shape.w - NODE_BORDER_ZONE * 2" :height="shape.h - NODE_BORDER_ZONE * 2"
         fill="transparent" style="cursor: text"

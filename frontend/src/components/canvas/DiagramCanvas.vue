@@ -691,6 +691,11 @@ function captureNodeEditIntent(event) {
   const point = selection.toLogicalFor(event, surface.value, viewport)
   const shape = topShapeAt(point)
   if (mindmapNodeClickAction(shape, point) !== 'edit') return
+  // Select-first (#123): the FIRST click on a node just selects it; only a click on
+  // an ALREADY-selected node's label edits. This runs before selection.onSurfacePointerdown,
+  // so store.state.selection is still the pre-click selection.
+  const sel = store.state.selection
+  if (!(sel.length === 1 && sel[0] === shape.id)) return
   pendingNodeEdit.value = { id: shape.id, x: point.x, y: point.y }
 }
 
@@ -898,7 +903,7 @@ const surfaceCursor = computed(() => {
             :connector="connector"
           />
 
-          <ShapeView v-for="shape in blockLayerShapes" :key="shape.id" :shape="shape" />
+          <ShapeView v-for="shape in blockLayerShapes" :key="shape.id" :shape="shape" :selected="store.state.selection.includes(shape.id)" />
 
           <SmartGuidesLayer />
           <HoverArrows />
