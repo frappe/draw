@@ -10,7 +10,7 @@ import {
   resetMindmapUi,
 } from './mindmapUi.js'
 import { linkNodes, deleteNodes, deleteTrees } from '@/diagram/mindmapOperations.js'
-import { rootNodes, nodeById } from '@/diagram/mindmapModel.js'
+import { rootNodes, nodeById, createEmptyMindMap, addTree } from '@/diagram/mindmapModel.js'
 import { mindmapKeydown } from '@/composables/useMindmapKeys.js'
 
 // Cross-link selection + focus mode: both existed in the model but had no way to
@@ -214,10 +214,17 @@ describe('focusedNodeId guards a stale focus', () => {
 // Delete on a root has to remove THAT map — while a lone map still clears back to
 // the blank "add your first idea" state, as it always did.
 describe('deleting one of several mind maps', () => {
+  // Seed two independent legacy sub-model trees DIRECTLY. The palette insert no
+  // longer populates state.mindmap (free-floating #122) — it drops free-floating
+  // shapes instead — but the frame move/delete path exercised below still operates
+  // on the sub-model, so build one straight from the model helpers (behaviourally
+  // identical to what the old insert seeded: one empty root per tree at origin 0,0).
   function unifiedWithTwoMaps() {
-    const store = createDiagramStore(createDiagramDocument(undefined, 'unified'))
-    store.insertMindmapStarter()
-    store.insertMindmapStarter()
+    const doc = createDiagramDocument(undefined, 'unified')
+    doc.mindmap = createEmptyMindMap()
+    addTree(doc.mindmap, '')
+    addTree(doc.mindmap, '')
+    const store = createDiagramStore(doc)
     const [first, second] = rootNodes(store.state.mindmap).map((n) => n.id)
     return { store, first, second }
   }
@@ -236,8 +243,10 @@ describe('deleting one of several mind maps', () => {
   })
 
   it('still clears the whole map when it holds only one', () => {
-    const store = createDiagramStore(createDiagramDocument(undefined, 'unified'))
-    store.insertMindmapStarter()
+    const doc = createDiagramDocument(undefined, 'unified')
+    doc.mindmap = createEmptyMindMap()
+    addTree(doc.mindmap, '')
+    const store = createDiagramStore(doc)
     selectNode(store, store.state.mindmap.rootId)
 
     expect(mindmapKeydown({ key: 'Delete' }, store)).toBe(true)

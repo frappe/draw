@@ -9,12 +9,13 @@ import { createHistory } from '@/stores/history.js'
 import { clone } from '@/utils/clone.js'
 import { findThemePreset, DEFAULT_THEME_PRESET } from '@/diagram/theme.js'
 import { createDiagramDocument, SCHEMA_VERSION, DEFAULT_DIAGRAM_TYPE } from '@/diagram/schema.js'
-import { addChild, addSibling, addRootNode, addTree, nodeById, subtreeIds } from '@/diagram/mindmapModel.js'
+import { addChild, addSibling, addRootNode, createMindMap, nodeById, subtreeIds } from '@/diagram/mindmapModel.js'
 import { layoutMindMap, mindmapTreeRects } from '@/diagram/mindmapLayout.js'
-import { isMindmapShape, isFlowchartShape } from '@/diagram/freeFloating.js'
+import { isMindmapShape, isFlowchartShape, flattenSubmodels } from '@/diagram/freeFloating.js'
 import { mindmapModelFromShapes } from '@/diagram/freeFloatingGraph.js'
 import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild } from '@/diagram/freeFloatingOps.js'
 import {
+  createFlowchart,
   addFlowchartNode,
   addFlowchartEdge,
   removeFlowchartNode,
@@ -197,6 +198,85 @@ function frameOriginInView(bbox, view, avoid = null) {
   return { x: rect.x - (bbox.x || 0), y: rect.y - (bbox.y || 0) }
 }
 
+// ----- Inserting a free-floating starter (free-floating #122) -----------------
+// The palette used to seed the legacy mindmap/flowchart SUB-MODEL, so a freshly
+// inserted map/chart rendered through the framed path — no marquee, no "+" handles,
+// no keyboard grow — until the document was saved and reloaded (which migrates it).
+// The insert now runs the SAME migration engine the loader does: it builds a tiny
+// one-node starter sub-model, flattens it to a role-tagged shape (+ any connectors),
+// and drops that on the shared canvas. A fresh insert is therefore identical to a
+// migrated one from the first frame, no reload — mooting the fresh-insert cases of
+// #120/#121/#129. The legacy sub-models are left empty (never populated), so the
+// framed render layers draw nothing; the frame-placement helpers above are now the
+// legacy path, removed with the rest of the frame code in a later phase.
+
+// How far a repeat insert steps off content it would otherwise land exactly on.
+const INSERT_NUDGE = 40
+
+// Combined bounding box of a non-empty shape list, in canvas coordinates.
+function shapesBBox(shapes) {
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  for (const shape of shapes) {
+    minX = Math.min(minX, shape.x)
+    minY = Math.min(minY, shape.y)
+    maxX = Math.max(maxX, shape.x + shape.w)
+    maxY = Math.max(maxY, shape.y + shape.h)
+  }
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY }
+}
+
+function rectsOverlap(a, b) {
+  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+}
+
+// Shift `shapes` so their combined bbox is centred in `view` (the logical on-screen
+// rect), then step diagonally off any existing shape the centred spot covers — so a
+// repeat insert into the same view doesn't land exactly on the last one. Connectors
+// bind to the shapes by id (#138 anchors), so moving the shapes carries them along;
+// only the shapes need shifting. A null `view` leaves the baked coordinates as they
+// are (nothing on screen to centre against).
+function placeShapesInView(shapes, view, existing) {
+  if (!view || !shapes.length) return
+  const box = shapesBBox(shapes)
+  let x = view.x + (view.w - box.w) / 2
+  let y = view.y + (view.h - box.h) / 2
+  for (let guard = 0; guard < 40 && existing.some((s) => rectsOverlap({ x, y, w: box.w, h: box.h }, s)); guard += 1) {
+    x += INSERT_NUDGE
+    y += INSERT_NUDGE
+  }
+  const dx = x - box.x
+  const dy = y - box.y
+  for (const shape of shapes) {
+    shape.x += dx
+    shape.y += dy
+  }
+}
+
+// A minimal document carrying just one starter sub-model for the migration engine to
+// flatten — every other layer empty, so flattenSubmodels emits only the starter.
+function starterDocument(submodels) {
+  return { shapes: [], connectors: [], sections: [], mindmap: null, flowchart: null, whiteboard: null, ...submodels }
+}
+
+// Flatten a starter sub-model and drop it on the canvas as ONE undoable unit: place
+// it in view, stack it on top of existing content, and select its first shape so the
+// user can name it straight away. state.mindmap / state.flowchart are untouched —
+// the free-floating shapes ARE the map/chart now.
+function commitStarter(store, state, history, label, submodels, view) {
+  const flat = flattenSubmodels(starterDocument(submodels), state.themePreset)
+  placeShapesInView(flat.shapes, view, state.shapes)
+  const z = nextZIndex(state)
+  flat.shapes.forEach((shape, index) => (shape.zIndex = z + index))
+  history.commit(label, () => {
+    state.shapes.push(...flat.shapes)
+    state.connectors.push(...flat.connectors)
+  })
+  if (flat.shapes[0]) store.select([flat.shapes[0].id])
+}
+
 // Mind-map tree mutations (spec diagram-types Part A). They run the pure model
 // helpers inside commit() so each is one undoable unit (Part G6); layout is
 // derived from the model, never stored. No-ops for non-mindmap diagrams.
@@ -266,41 +346,17 @@ function attachMindMap(store, state, history) {
       )
     })
   }
-  // Templates/Insert (canvas unification): drop a starter mind map on the canvas
-  // as one undoable unit — always a NEW independent tree (root + two branches).
-  //
-  // Inserting used to graft "New idea" onto the existing root instead, because a
-  // document held a single map (#48): a second Add mind map silently edited the
-  // first one. Every tree now stands on its own and existing trees are never
-  // touched by an insert.
-  //
-  // `view` is the optional logical canvas rect on screen, to place the new tree in
-  // (#30). The first tree carries the whole map's origin (so a single-tree map
-  // still saves exactly as before); later trees carry their own offset. The layout
-  // is run inside the commit to get the seeded tree's real size; it is pure and
-  // already derived on every render, so this costs nothing extra.
+  // Templates/Insert (canvas unification): drop a starter mind map on the canvas.
+  // Free-floating #122: this now creates a ROLE-TAGGED root SHAPE via the migration
+  // engine (commitStarter) instead of seeding the legacy sub-model, so a fresh
+  // insert is selectable / marquee-able / "+"-handle-able / keyboard-growable at
+  // once — identical to a migrated map, no save+reload. A single empty root: no
+  // default children, no default text (an empty node renders the greyed "New idea"
+  // placeholder, so the user names it instead of clearing seeded text, #80). `view`
+  // is the optional on-screen rect to centre it in (#30); a second insert lands
+  // clear of the first (separate shapes, placeShapesInView nudges off any overlap).
   store.insertMindmapStarter = (view = null) =>
-    history.commit('Insert mind map', () => {
-      const m = state.mindmap
-      if (!m) return
-      const first = !m.nodes.length
-      // Start with a single empty root — no default children, no default text.
-      // An empty node renders a greyed "New idea" placeholder (MindMapNodeLayer),
-      // so the user names it instead of clearing seeded text (#80).
-      const root = addTree(m, '')
-      if (!view) return
-      if (first) {
-        m.origin = frameOriginInView(layoutMindMap(m).bbox, view, otherFrameRect(state, 'mindmap'))
-        return
-      }
-      // The tree is laid out at a zero offset first, so the origin that puts it in
-      // the view is just the move from where it landed to where it should sit.
-      const trees = treeRectsOnCanvas(m)
-      const rect = trees.find((tree) => tree.rootId === root)
-      if (rect) {
-        nodeById(m, root).origin = frameOriginInView(rect, view, occupiedRect(state, trees, root))
-      }
-    })
+    commitStarter(store, state, history, 'Insert mind map', { mindmap: createMindMap('') }, view)
   // Move one mind-map tree on the unified canvas by a delta, as one undoable unit
   // — repositions that tree's own offset, leaving every other tree alone (#48).
   store.moveMindmapTree = (rootId, dx, dy) => {
@@ -401,33 +457,20 @@ function attachFlowchart(store, state, history) {
     if (!state.flowchart) return
     history.commit(label, () => mutatorFn(state.flowchart))
   }
-  // Templates/Insert (canvas unification): drop a starter flowchart on the canvas
-  // as one undoable unit — always a NEW chart of two connected nodes.
-  //
-  // A repeat insert used to append a step to the last node AND wire an edge to it,
-  // so a second Add flowchart extended the chart already there instead of making
-  // its own (#48). The new chart is now placed clear of the existing content with
-  // no edge tying the two together; its nodes are individually draggable, so it
-  // needs no origin of its own.
-  //
-  // `view` places the FIRST chart in that logical on-screen rect (#30); it carries
-  // the frame origin, which later charts must not move.
-  store.insertFlowchartStarter = (view = null, nodeType = 'terminator') =>
-    history.commit('Insert flowchart', () => {
-      const m = state.flowchart
-      if (!m) return
-      const first = !m.nodes.length
-      const bounds = first ? null : flowchartContentBounds(m)
-      const x = bounds ? bounds.x : 0
-      const y = bounds ? bounds.y + bounds.h + FRAME_GAP : 0
-      // Start with a single node of the chosen type — no second step, no edge
-      // (#80). Empty text falls back to the type's default label (addFlowchartNode).
-      // The palette exposes every node type (#86), so any of them can seed a chart.
-      addFlowchartNode(m, nodeType, '', x, y)
-      if (first && view) {
-        m.origin = frameOriginInView(flowchartContentBounds(m), view, otherFrameRect(state, 'flowchart'))
-      }
-    })
+  // Templates/Insert (canvas unification): drop a starter flowchart on the canvas.
+  // Free-floating #122: this now creates a ROLE-TAGGED node SHAPE via the migration
+  // engine (commitStarter) instead of seeding the legacy sub-model, so a fresh
+  // insert behaves exactly like a migrated one (marquee / "+" handles / keyboard)
+  // with no save+reload. A single node of the chosen type — no second step, no edge
+  // (#80); empty text falls back to the type's default label (addFlowchartNode). The
+  // palette exposes every node type (#86), so any of them can seed a chart. `view`
+  // is the optional on-screen rect to centre it in (#30); a second insert lands
+  // clear of the first (separate shapes, placeShapesInView nudges off any overlap).
+  store.insertFlowchartStarter = (view = null, nodeType = 'terminator') => {
+    const flowchart = createFlowchart()
+    addFlowchartNode(flowchart, nodeType, '', 0, 0)
+    commitStarter(store, state, history, 'Insert flowchart', { flowchart }, view)
+  }
   // Move the flowchart frame on the unified canvas by a delta, as one undoable
   // unit — repositions its origin (its top-left on the canvas).
   store.moveFlowchartFrame = (dx, dy) => {

@@ -1,44 +1,36 @@
 import { describe, it, expect } from 'vitest'
 import { createDiagramStore } from './useDiagramStore.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
-import { layoutMindMap, mindmapTreeRects } from '@/diagram/mindmapLayout.js'
-import { subtreeIds, nodeById } from '@/diagram/mindmapModel.js'
-import { flowchartContentBounds } from '@/diagram/flowchartLayout.js'
+import { NODE_TYPES, defaultNodeText } from '@/diagram/flowchartModel.js'
+import { clone } from '@/utils/clone.js'
 
-// #30: inserting a mind map or flowchart placed it at the document's fixed
-// default frame origin, so a user who had panned away got a frame somewhere
-// off-screen and had to hunt for it. The palette now passes the logical rect on
-// screen and the starter places the new frame inside it.
+// Free-floating insert path (#122). A palette insert used to seed the legacy
+// mindmap/flowchart SUB-MODEL, so a freshly inserted map/chart rendered through the
+// framed path — no marquee, no "+" handles, no keyboard grow — until the document
+// was saved and reloaded (which migrates it to shapes). The insert now runs the SAME
+// migration engine the loader does, so a fresh insert is an ordinary role-tagged
+// SHAPE on state.shapes straight away — byte-identical to a migrated one — and the
+// legacy sub-models are never populated. (Moots the fresh-insert cases of
+// #120/#121/#129.)
+//
+// A unified store still carries EMPTY sub-models (schema re-seeds them post-migrate
+// for interaction/collab to probe), so the invariant a test asserts is that an
+// insert leaves `state.mindmap.nodes` / `state.flowchart.nodes` empty — it writes a
+// free-floating shape instead of populating the frame.
 
 const unified = () => createDiagramStore(createDiagramDocument(undefined, 'unified'))
 
 // The logical rect a container of w×h shows when centred on (cx, cy).
 const viewAround = (cx, cy, w = 1600, h = 1000) => ({ x: cx - w / 2, y: cy - h / 2, w, h })
 
-// Where the frame's content actually ends up on the shared canvas.
-const mindmapRect = (state) => {
-  const bbox = layoutMindMap(state.mindmap).bbox
-  const o = state.mindmap.origin
-  return { x: o.x + (bbox.x || 0), y: o.y + (bbox.y || 0), w: bbox.w, h: bbox.h }
-}
-const flowchartRect = (state) => {
-  const bbox = flowchartContentBounds(state.flowchart)
-  const o = state.flowchart.origin
-  return { x: o.x + bbox.x, y: o.y + bbox.y, w: bbox.w, h: bbox.h }
-}
-// Each independent tree on the map (#48): its node ids/texts and where it sits.
-const trees = (state) => {
-  const { positions } = layoutMindMap(state.mindmap)
-  const o = state.mindmap.origin
-  return mindmapTreeRects(state.mindmap, positions).map((rect) => ({
-    nodes: subtreeIds(state.mindmap, rect.rootId).map((id) => nodeById(state.mindmap, id).text),
-    rect: { x: rect.x + o.x, y: rect.y + o.y, w: rect.w, h: rect.h },
-  }))
-}
+const mindmapNodes = (state) => state.shapes.filter((s) => s.role === 'mindmap-node')
+const flowchartNodes = (state) => state.shapes.filter((s) => s.role === 'flowchart-node')
+
+const rectOf = (s) => ({ x: s.x, y: s.y, w: s.w, h: s.h })
 const centreOf = (r) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 })
 const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
 
-// The assertion behind the whole issue: the user can see the new frame.
+// The assertion behind the whole placement issue (#30): the user can see the insert.
 const expectInsideView = (rect, view) => {
   expect(rect.x).toBeGreaterThanOrEqual(view.x - 1e-6)
   expect(rect.y).toBeGreaterThanOrEqual(view.y - 1e-6)
@@ -46,180 +38,202 @@ const expectInsideView = (rect, view) => {
   expect(rect.y + rect.h).toBeLessThanOrEqual(view.y + view.h + 1e-6)
 }
 
-describe('insertMindmapStarter places a new frame in the visible rect', () => {
-  it('centres the seeded tree in the view, not at the default origin', () => {
+describe('insertMindmapStarter drops a free-floating mind-map node', () => {
+  it('adds ONE mindmap-node root SHAPE and never populates the sub-model (#122)', () => {
     const store = unified()
-    const defaultOrigin = { ...store.state.mindmap.origin }
-    const view = viewAround(4000, 2500)
+    store.insertMindmapStarter(viewAround(4000, 2500))
 
+    const nodes = mindmapNodes(store.state)
+    expect(nodes.length).toBe(1)
+    const root = nodes[0]
+    expect(root.role).toBe('mindmap-node')
+    expect(root.mindmap.isRoot).toBe(true) // a root, not a child
+    expect(root.mindmap.parentId).toBeNull()
+    expect(root.text.content).toBe('') // greyed "New idea" placeholder, no seeded text (#80)
+    expect(store.state.connectors.length).toBe(0) // a lone root wires no branch
+    // The whole point: the legacy frame sub-model is left empty, not populated.
+    expect(store.state.mindmap.nodes).toEqual([])
+  })
+
+  it('places the node in the visible rect, centred (#30)', () => {
+    const store = unified()
+    const view = viewAround(4000, 2500)
     store.insertMindmapStarter(view)
 
-    expect(store.state.mindmap.origin).not.toEqual(defaultOrigin)
-    const centre = centreOf(mindmapRect(store.state))
+    const rect = rectOf(mindmapNodes(store.state)[0])
+    expectInsideView(rect, view)
+    const centre = centreOf(rect)
     expect(centre.x).toBeCloseTo(4000, 6)
     expect(centre.y).toBeCloseTo(2500, 6)
   })
 
-  it('leaves the origin alone when no view is given', () => {
+  it('selects the new root so it can be named at once', () => {
     const store = unified()
-    const defaultOrigin = { ...store.state.mindmap.origin }
-    store.insertMindmapStarter()
-    expect(store.state.mindmap.origin).toEqual(defaultOrigin)
+    store.insertMindmapStarter(viewAround(0, 0))
+    expect(store.state.selection).toEqual([mindmapNodes(store.state)[0].id])
   })
 
-  it('seeds a single empty root — no children, no default text (#80)', () => {
+  it('clears the empty state — state.shapes is non-empty after an insert', () => {
     const store = unified()
-    store.insertMindmapStarter()
-    expect(store.state.mindmap.nodes.length).toBe(1)
-    expect(store.state.mindmap.nodes[0].parentId).toBeFalsy() // a root, not a child
-    expect(store.state.mindmap.nodes[0].text).toBe('') // greyed placeholder, no real text
+    expect(store.state.shapes.length).toBe(0) // "Nothing here yet" showing
+    store.insertMindmapStarter(viewAround(0, 0))
+    expect(store.state.shapes.length).toBeGreaterThan(0) // prompt goes away
   })
 
-  // #48: a repeat insert used to graft "New idea" onto the existing root, so the
-  // second Add mind map edited the first map instead of making one of its own.
-  it('adds a SECOND independent tree, leaving the first one alone', () => {
+  it('is ONE undo step', () => {
     const store = unified()
     store.insertMindmapStarter(viewAround(4000, 2500))
-    const placed = { ...store.state.mindmap.origin }
-    const before = trees(store.state)
+    expect(mindmapNodes(store.state).length).toBe(1)
+
+    store.undo()
+
+    expect(store.state.shapes).toEqual([])
+    expect(store.state.connectors).toEqual([])
+    expect(store.state.mindmap.nodes).toEqual([])
+  })
+
+  // #48 (repeat insert): used to graft "New idea" onto the existing root, so a
+  // second Add mind map edited the first map. Every insert is now its own shape.
+  it('adds a SECOND independent node without touching the first', () => {
+    const store = unified()
+    store.insertMindmapStarter(viewAround(4000, 2500))
+    const first = clone(mindmapNodes(store.state)[0])
 
     store.insertMindmapStarter(viewAround(-1000, -1000))
 
-    const after = trees(store.state)
-    expect(after.length).toBe(2)
-    expect(store.state.mindmap.nodes.length).toBe(2) // two roots, no default branches (#80)
-    // The first tree keeps its nodes AND its place on the canvas.
-    expect(after[0]).toEqual(before[0])
-    expect(store.state.mindmap.origin).toEqual(placed)
+    const nodes = mindmapNodes(store.state)
+    expect(nodes.length).toBe(2)
+    expect(nodes[0].id).not.toBe(nodes[1].id) // distinct shapes
+    expect(clone(nodes.find((n) => n.id === first.id))).toEqual(first) // first untouched
   })
 
-  it('places the second tree in the view it was inserted into, clear of the first', () => {
+  it('does not stack a repeat insert exactly on the previous node', () => {
     const store = unified()
     const view = viewAround(4000, 2500)
     store.insertMindmapStarter(view)
     store.insertMindmapStarter(view)
 
-    const [first, second] = trees(store.state).map((t) => t.rect)
-    expect(overlaps(first, second)).toBe(false)
-    expectInsideView(second, view)
+    const [a, b] = mindmapNodes(store.state).map(rectOf)
+    expect(overlaps(a, b)).toBe(false)
   })
 
-  it('is one undo step, origin included', () => {
+  it('inserts with no view (leaves the baked coordinates)', () => {
     const store = unified()
-    const defaultOrigin = { ...store.state.mindmap.origin }
-    store.insertMindmapStarter(viewAround(4000, 2500))
-
-    store.undo()
-
+    store.insertMindmapStarter()
+    expect(mindmapNodes(store.state).length).toBe(1)
     expect(store.state.mindmap.nodes).toEqual([])
-    expect(store.state.mindmap.origin).toEqual(defaultOrigin)
   })
 })
 
-describe('insertFlowchartStarter places a new frame in the visible rect', () => {
-  it('centres the seeded node in the view', () => {
+describe('insertFlowchartStarter drops a free-floating flowchart node', () => {
+  it('adds ONE flowchart-node SHAPE of the default type, sub-model unpopulated (#122)', () => {
+    const store = unified()
+    store.insertFlowchartStarter(viewAround(-800, 3200))
+
+    const nodes = flowchartNodes(store.state)
+    expect(nodes.length).toBe(1)
+    const node = nodes[0]
+    expect(node.role).toBe('flowchart-node')
+    expect(node.flowchart.nodeType).toBe('terminator') // default
+    expect(node.text.content).toBe(defaultNodeText('terminator')) // empty text → type default (#80)
+    expect(store.state.connectors.length).toBe(0) // a lone node wires no edge (#80)
+    expect(store.state.flowchart.nodes).toEqual([]) // legacy frame left empty
+  })
+
+  it('places the node in the visible rect, centred (#30)', () => {
     const store = unified()
     const view = viewAround(-800, 3200)
-
     store.insertFlowchartStarter(view)
 
-    const centre = centreOf(flowchartRect(store.state))
+    const rect = rectOf(flowchartNodes(store.state)[0])
+    expectInsideView(rect, view)
+    const centre = centreOf(rect)
     expect(centre.x).toBeCloseTo(-800, 6)
     expect(centre.y).toBeCloseTo(3200, 6)
   })
 
-  it('leaves the origin alone when no view is given', () => {
-    const store = unified()
-    const defaultOrigin = { ...store.state.flowchart.origin }
-    store.insertFlowchartStarter()
-    expect(store.state.flowchart.origin).toEqual(defaultOrigin)
+  // #86: the palette exposes every node type, so any of them can seed a chart.
+  it("seeds ANY requested node type, with that type's default label", () => {
+    for (const type of NODE_TYPES) {
+      const store = unified()
+      store.insertFlowchartStarter(viewAround(0, 0), type)
+
+      const nodes = flowchartNodes(store.state)
+      expect(nodes.length).toBe(1)
+      expect(nodes[0].flowchart.nodeType).toBe(type)
+      expect(nodes[0].text.content).toBe(defaultNodeText(type))
+    }
   })
 
-  it('seeds a single node with no edge (#80)', () => {
+  it('selects the new node', () => {
     const store = unified()
-    store.insertFlowchartStarter()
-    expect(store.state.flowchart.nodes.length).toBe(1)
-    expect(store.state.flowchart.edges.length).toBe(0)
+    store.insertFlowchartStarter(viewAround(0, 0), 'decision')
+    expect(store.state.selection).toEqual([flowchartNodes(store.state)[0].id])
   })
 
-  // #86: the palette can seed a chart with ANY node type, not just the terminator.
-  it('seeds the requested node type (defaulting to terminator)', () => {
+  it('is ONE undo step', () => {
     const store = unified()
-    store.insertFlowchartStarter()
-    expect(store.state.flowchart.nodes[0].nodeType).toBe('terminator')
+    store.insertFlowchartStarter(viewAround(-800, 3200), 'process')
+    expect(flowchartNodes(store.state).length).toBe(1)
 
-    store.insertFlowchartStarter(null, 'decision')
-    const added = store.state.flowchart.nodes.at(-1)
-    expect(added.nodeType).toBe('decision')
-    // Empty text falls back to the type's default label.
-    expect(added.text).toBe('Decision?')
+    store.undo()
+
+    expect(store.state.shapes).toEqual([])
+    expect(store.state.flowchart.nodes).toEqual([])
   })
 
-  // #48: a repeat insert used to append a step to the last node and wire an edge
-  // to it, extending the chart already there instead of starting a new one.
-  it('adds a SECOND independent chart, unconnected to the first', () => {
+  // #48 (repeat insert): used to append a step to the last node and wire an edge to
+  // it, extending the chart already there. Each insert is now its own free node.
+  it('adds a SECOND independent node without touching the first', () => {
     const store = unified()
-    store.insertFlowchartStarter(viewAround(-800, 3200))
-    const placed = { ...store.state.flowchart.origin }
-    const before = store.state.flowchart.nodes.map((n) => ({ ...n }))
+    store.insertFlowchartStarter(viewAround(-800, 3200), 'terminator')
+    const first = clone(flowchartNodes(store.state)[0])
 
-    store.insertFlowchartStarter(viewAround(0, 0))
+    store.insertFlowchartStarter(viewAround(0, 0), 'decision')
 
-    const fc = store.state.flowchart
-    expect(fc.nodes.length).toBe(2) // one node per chart (#80)
-    expect(fc.edges.length).toBe(0) // single-node starters wire no edges
-    // The first chart's node is untouched, and the frame stays where it was.
-    expect(fc.nodes.slice(0, 1)).toEqual(before)
-    expect(fc.origin).toEqual(placed)
-    // The new chart sits below the old one, not on top of it.
-    const added = fc.nodes.slice(1)
-    expect(Math.min(...added.map((n) => n.y))).toBeGreaterThan(Math.max(...before.map((n) => n.y)))
+    const nodes = flowchartNodes(store.state)
+    expect(nodes.length).toBe(2)
+    expect(store.state.connectors.length).toBe(0) // no edge tying the two together
+    expect(clone(nodes.find((n) => n.id === first.id))).toEqual(first) // first untouched
+    expect(nodes.map((n) => n.flowchart.nodeType).sort()).toEqual(['decision', 'terminator'])
+  })
+
+  it('inserts with no view (leaves the baked coordinates)', () => {
+    const store = unified()
+    store.insertFlowchartStarter()
+    expect(flowchartNodes(store.state).length).toBe(1)
+    expect(store.state.flowchart.nodes).toEqual([])
   })
 })
 
-describe('the second frame inserted into one view stays on screen', () => {
-  it('clears the mind map without leaving the view', () => {
+describe('mind map and flowchart inserts coexist as free-floating shapes', () => {
+  it('keeps both, each an independent tagged shape, each its own undo step', () => {
     const store = unified()
-    const view = viewAround(4000, 2500)
+    const view = viewAround(1000, 1000)
     store.insertMindmapStarter(view)
     store.insertFlowchartStarter(view)
 
-    const mm = mindmapRect(store.state)
-    const fc = flowchartRect(store.state)
-    expect(overlaps(fc, mm)).toBe(false)
-    expectInsideView(fc, view)
+    expect(mindmapNodes(store.state).length).toBe(1)
+    expect(flowchartNodes(store.state).length).toBe(1)
+    expect(store.state.mindmap.nodes).toEqual([])
+    expect(store.state.flowchart.nodes).toEqual([])
+
+    // Two distinct inserts → two undo steps.
+    store.undo()
+    expect(flowchartNodes(store.state).length).toBe(0)
+    expect(mindmapNodes(store.state).length).toBe(1)
+    store.undo()
+    expect(mindmapNodes(store.state).length).toBe(0)
   })
 
-  it('clears the flowchart without leaving the view in the other order', () => {
+  it('places the two clear of each other in one view', () => {
     const store = unified()
     const view = viewAround(4000, 2500)
-    store.insertFlowchartStarter(view)
     store.insertMindmapStarter(view)
+    store.insertFlowchartStarter(view)
 
-    const mm = mindmapRect(store.state)
-    const fc = flowchartRect(store.state)
+    const mm = rectOf(mindmapNodes(store.state)[0])
+    const fc = rectOf(flowchartNodes(store.state)[0])
     expect(overlaps(mm, fc)).toBe(false)
-    expectInsideView(mm, view)
-  })
-
-  // The reported regression: clearing the other frame outright used to push the new
-  // one below the bottom edge whenever the view was too small to hold both.
-  it('stays in a view too small to clear the other frame', () => {
-    const store = unified()
-    const view = viewAround(4000, 2500, 900, 520)
-    store.insertMindmapStarter(view)
-    store.insertFlowchartStarter(view)
-
-    expectInsideView(flowchartRect(store.state), view)
-  })
-
-  it('centres in the view when the other frame is far away', () => {
-    const store = unified()
-    store.insertMindmapStarter(viewAround(0, 0))
-    store.insertFlowchartStarter(viewAround(9000, 9000))
-
-    const centre = centreOf(flowchartRect(store.state))
-    expect(centre.x).toBeCloseTo(9000, 6)
-    expect(centre.y).toBeCloseTo(9000, 6)
   })
 })
