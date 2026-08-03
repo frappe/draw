@@ -23,7 +23,10 @@ async function openShareDialog(page) {
   // `exact` because the fixture titles each document after its test, and a test
   // whose name contains "share" would otherwise match the title button too.
   await page.getByRole('button', { name: 'Share', exact: true }).click()
-  await expect(page.getByText('Share diagram')).toBeVisible()
+  // The heading was renamed to `Sharing "<name>"` (Writer-style, #106), so the old
+  // "Share diagram" text is gone. Wait on the general-access trigger instead: one
+  // stable element that is present only once the dialog has actually opened.
+  await expect(page.getByTestId('general-access-trigger')).toBeVisible()
 }
 
 // Invite by typing the address and picking the search result.
@@ -38,6 +41,16 @@ async function invite(page, email, level) {
 // The row for `email` in the members list, and its level dropdown.
 function memberRow(page, email) {
   return page.locator('div').filter({ hasText: new RegExp(`^${email}$`) }).first()
+}
+
+// General access is a Writer-style tier menu now (#106), not a <select>: click the
+// trigger to open the tier list, then pick the tier by its stable test id. The tiers
+// are 'restricted' | 'site_users_view' | 'public_view' — the old two-state
+// 'link'/'restricted' select is gone. The trigger carries the live tier as its
+// data-value, so a caller can wait on it once a change has round-tripped.
+async function setGeneralAccess(page, tier) {
+  await page.getByTestId('general-access-trigger').click()
+  await page.getByTestId(`general-access-option-${tier}`).click()
 }
 
 test.describe('sharing: inviting people', () => {
@@ -120,7 +133,7 @@ test.describe('sharing: the public link', () => {
     expect(await fetchIsPublic(page, name), 'a new diagram should not be public').toBe(0)
 
     await openShareDialog(page)
-    await page.getByLabel('General access').selectOption('link')
+    await setGeneralAccess(page, 'public_view')
 
     await expect
       .poll(async () => fetchIsPublic(page, name), {
@@ -132,18 +145,18 @@ test.describe('sharing: the public link', () => {
 
   test('switching back to restricted makes it private again', async ({ page, diagram }) => {
     const name = await diagram.open('unified')
-    const access = page.getByLabel('General access')
+    const accessTrigger = page.getByTestId('general-access-trigger')
 
     await openShareDialog(page)
-    await access.selectOption('link')
+    await setGeneralAccess(page, 'public_view')
     // Wait for the DIALOG to catch up, not just the server. is_public flips as soon as
-    // set_public commits, but the client is still inside its reload() at that point —
-    // polling the API alone and switching straight back raced the reload and made this
-    // test flaky. The select only reads 'link' once reload() has landed.
-    await expect(access).toHaveValue('link')
+    // set_general_access commits, but the client is still inside its reload() at that
+    // point — polling the API alone and switching straight back raced the reload and
+    // made this flaky. The trigger reflects the public tier only once reload() has landed.
+    await expect(accessTrigger).toHaveAttribute('data-value', 'public_view')
     await expect.poll(async () => fetchIsPublic(page, name), { timeout: 20_000 }).toBe(1)
 
-    await access.selectOption('restricted')
+    await setGeneralAccess(page, 'restricted')
     await expect
       .poll(async () => fetchIsPublic(page, name), {
         message: 'turning the public link off did not persist',
@@ -155,14 +168,14 @@ test.describe('sharing: the public link', () => {
   test('switching on and straight back off ends up off', async ({ page, diagram }) => {
     // The change made while the first one is still in flight used to be DROPPED:
     // toggleGlobalAccess returned early while `updating` was true, so the diagram
-    // stayed public and the dropdown snapped back to "link" as though the second
-    // click had applied. Deliberately no wait between the two selections.
+    // stayed public and the control snapped back to public as though the second
+    // pick had applied. Deliberately no wait between the two tier picks.
     const name = await diagram.open('unified')
-    const access = page.getByLabel('General access')
+    const accessTrigger = page.getByTestId('general-access-trigger')
 
     await openShareDialog(page)
-    await access.selectOption('link')
-    await access.selectOption('restricted')
+    await setGeneralAccess(page, 'public_view')
+    await setGeneralAccess(page, 'restricted')
 
     await expect
       .poll(async () => fetchIsPublic(page, name), {
@@ -170,7 +183,7 @@ test.describe('sharing: the public link', () => {
         timeout: 20_000,
       })
       .toBe(0)
-    await expect(access).toHaveValue('restricted')
+    await expect(accessTrigger).toHaveAttribute('data-value', 'restricted')
   })
 
   test('a public diagram opens in the read-only viewer', async ({ page, diagram }) => {
@@ -178,7 +191,7 @@ test.describe('sharing: the public link', () => {
     // the setting above, and the one part of sharing a user actually sees working.
     const name = await diagram.open('unified')
     await openShareDialog(page)
-    await page.getByLabel('General access').selectOption('link')
+    await setGeneralAccess(page, 'public_view')
     await expect.poll(async () => fetchIsPublic(page, name), { timeout: 20_000 }).toBe(1)
 
     await page.goto(`/draw/view/${encodeURIComponent(name)}`)
@@ -194,7 +207,7 @@ test.describe('sharing: hygiene', () => {
 
     await openShareDialog(page)
     await invite(page, TARGET, 'comment')
-    await page.getByLabel('General access').selectOption('link')
+    await setGeneralAccess(page, 'public_view')
 
     expect(errors.pageErrors, 'the share dialog raised an uncaught exception').toEqual([])
     expect(errors.failures, 'the share dialog made a request that failed').toEqual([])
