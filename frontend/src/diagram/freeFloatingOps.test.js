@@ -5,6 +5,7 @@ import {
   buildFlowchartChild,
   flowchartLayoutPatches,
   flowchartDirectionOfShapes,
+  mindmapLayoutPatches,
 } from './freeFloatingOps.js'
 import { flattenSubmodels, ROLE } from './freeFloating.js'
 import { createMindMap, addChild } from './mindmapModel.js'
@@ -99,6 +100,77 @@ describe('buildMindmapSibling', () => {
     const { shapes, rootId } = rootShapes()
     expect(buildMindmapSibling(shapes, rootId, 'ocean', true).shape.mindmap.shaped).toBe(true)
     expect(buildMindmapSibling(shapes, rootId, 'ocean', false).shape.mindmap.shaped).toBe(false)
+  })
+})
+
+// #122 P3: the free-floating counterpart of a standalone map's live auto-layout —
+// an explicit whole-tree Tidy, pinned by the tree's root, run over the tagged shapes.
+describe('mindmapLayoutPatches', () => {
+  // A migrated single root grown with two children (first right, second left, by the
+  // balancing in buildMindmapChild), returned as merged shapes[]/connectors[].
+  function grownTree() {
+    let { shapes, connectors, rootId } = rootShapes()
+    const c1 = buildMindmapChild(shapes, rootId, 'ocean')
+    shapes = [...shapes, c1.shape]
+    connectors = [...connectors, c1.connector]
+    const c2 = buildMindmapChild(shapes, rootId, 'ocean')
+    shapes = [...shapes, c2.shape]
+    connectors = [...connectors, c2.connector]
+    return { shapes, connectors, rootId, childIds: [c1.shape.id, c2.shape.id] }
+  }
+
+  it('is a no-op when there are no mind-map shapes', () => {
+    expect(mindmapLayoutPatches([], [], 'anything').nodes).toEqual([])
+  })
+
+  it('pins the tree by its root — the root patch keeps its position', () => {
+    const { shapes, connectors, rootId } = grownTree()
+    const root = shapes.find((s) => s.id === rootId)
+    const patches = mindmapLayoutPatches(shapes, connectors, rootId)
+    const rootPatch = patches.nodes.find((n) => n.id === rootId)
+    expect(rootPatch.x).toBe(root.x)
+    expect(rootPatch.y).toBe(root.y)
+  })
+
+  it('re-flows child nodes around the pinned root (pulls a shoved child back)', () => {
+    const { shapes, connectors, rootId, childIds } = grownTree()
+    const kid = shapes.find((s) => s.id === childIds[0])
+    kid.x = 9999
+    kid.y = 9999
+    const patches = mindmapLayoutPatches(shapes, connectors, rootId)
+    const kidPatch = patches.nodes.find((n) => n.id === childIds[0])
+    // The layout derives positions from the tree, not the shoved coords, so the child
+    // lands back beside the root — nowhere near the 9999 slot it was dragged to.
+    expect(kidPatch.x).toBeLessThan(9999)
+    expect(kidPatch.y).toBeLessThan(9999)
+  })
+
+  it('branch edge patches carry anchors matching each child side', () => {
+    const { shapes, connectors, rootId, childIds } = grownTree()
+    const patches = mindmapLayoutPatches(shapes, connectors, rootId)
+    expect(patches.edges).toHaveLength(2)
+    // Every branch leaves the parent on one side and enters the child on the other.
+    for (const e of patches.edges) {
+      expect(['left', 'right']).toContain(e.fromAnchor)
+      expect(e.toAnchor).toBe(e.fromAnchor === 'right' ? 'left' : 'right')
+    }
+    // The right-side child's branch leaves the root's right edge, the left-side's left.
+    const rightBranch = connectors.find((c) => c.role === ROLE.mindmapBranch && c.to.shapeId === childIds[0])
+    const leftBranch = connectors.find((c) => c.role === ROLE.mindmapBranch && c.to.shapeId === childIds[1])
+    expect(patches.edges.find((e) => e.id === rightBranch.id).fromAnchor).toBe('right')
+    expect(patches.edges.find((e) => e.id === leftBranch.id).fromAnchor).toBe('left')
+  })
+
+  it('scopes to the selected tree — a second map on the canvas gets no patches', () => {
+    const a = grownTree()
+    const b = grownTree()
+    const shapes = [...a.shapes, ...b.shapes]
+    const connectors = [...a.connectors, ...b.connectors]
+    const patches = mindmapLayoutPatches(shapes, connectors, a.rootId)
+    const patchedIds = patches.nodes.map((n) => n.id)
+    for (const id of [b.rootId, ...b.childIds]) expect(patchedIds).not.toContain(id)
+    const bEdgeIds = b.connectors.filter((c) => c.role === ROLE.mindmapBranch).map((c) => c.id)
+    for (const id of bEdgeIds) expect(patches.edges.some((e) => e.id === id)).toBe(false)
   })
 })
 

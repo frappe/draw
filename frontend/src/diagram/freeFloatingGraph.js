@@ -113,3 +113,45 @@ export function flowchartComponentIds(shapes, connectors = [], rootId = null) {
   }
   return seen
 }
+
+// The whole tree (set of mindmap-node shape ids) that `rootId` belongs to. Unlike a
+// flowchart's undirected edge walk, a mind map's structure is authoritative in each
+// node's `mindmap.parentId` tag (freeFloatingOps.buildMindmapChild), so the branch
+// connectors are not needed here: climb parentId to the tree's true root, then collect
+// that root's entire subtree by resolving children through parentId. The canvas can
+// hold several independent mind maps at once (#48); a whole-tree Tidy must touch only
+// the tree the selected node belongs to, so callers scope the reconstructed model to
+// this set. Returns an empty Set when rootId is missing or is not a mindmap node.
+// Guards against a parentId cycle (a malformed doc) so the climb and the collect halt.
+export function mindmapComponentIds(shapes, rootId = null) {
+  const nodes = new Map(
+    (shapes || []).filter((shape) => shape.role === ROLE.mindmapNode).map((shape) => [shape.id, shape]),
+  )
+  if (!rootId || !nodes.has(rootId)) return new Set()
+
+  // Climb parentId to the tree root, stopping on a missing parent or a cycle.
+  let treeRoot = rootId
+  const climbed = new Set([treeRoot])
+  while (true) {
+    const parentId = nodes.get(treeRoot)?.mindmap?.parentId
+    if (!parentId || !nodes.has(parentId) || climbed.has(parentId)) break
+    treeRoot = parentId
+    climbed.add(parentId)
+  }
+
+  // Collect the root's whole subtree, resolving children through parentId. The
+  // members guard doubles as the cycle guard for a malformed parentId chain.
+  const members = new Set([treeRoot])
+  const stack = [treeRoot]
+  while (stack.length) {
+    const current = stack.pop()
+    for (const [id, shape] of nodes) {
+      if (members.has(id)) continue
+      if (shape.mindmap?.parentId === current) {
+        members.add(id)
+        stack.push(id)
+      }
+    }
+  }
+  return members
+}

@@ -6,7 +6,8 @@
 // the returned objects in one commit().
 
 import { createShape, createConnector, nextId } from './factories.js'
-import { mindmapModelFromShapes, flowchartModelFromShapes, flowchartComponentIds } from './freeFloatingGraph.js'
+import { mindmapModelFromShapes, flowchartModelFromShapes, flowchartComponentIds, mindmapComponentIds } from './freeFloatingGraph.js'
+import { layoutMindMap } from './mindmapLayout.js'
 import { resolveNodeColor, nodeFill, readableInk } from './mindmapColors.js'
 import { makeFlowchartNode, defaultNodeText, nodeSize, pickFreeBranch } from './flowchartModel.js'
 import { placeChild } from './flowchartLayout.js'
@@ -110,6 +111,62 @@ export function buildMindmapSibling(shapes, nodeShapeId, themePreset, defaultSha
   if (!node) return null
   if (!node.parentId) return buildMindmapChild(shapes, nodeShapeId, themePreset, null, defaultShaped)
   return buildMindmapChild(shapes, node.parentId, themePreset, node.side, defaultShaped)
+}
+
+// --- mind-map whole-tree layout (#122 P3) -----------------------------------
+
+// The mind-map counterpart of flowchartLayoutPatches: re-flow one free-floating mind
+// map with the balanced auto-layout, as an explicit "Tidy up" action. A standalone
+// mind-map doc lays out live through MindMapOverlay, but free-floating nodes are
+// manually-draggable shapes, so a branch dragged askew stays askew until the user asks
+// for a tidy. `rootId` is the selected node; the action is scoped to that node's whole
+// tree (mindmapComponentIds) so a second, independent map on the same canvas is left
+// untouched (#48). Reconstructs the pure model, runs the tested layoutMindMap, then
+// PINS THE TREE BY ITS ROOT — the root's top-left stays exactly where it is, so the
+// branches re-flow around it instead of the whole tree teleporting to the map's own
+// origin. Returns the shape/connector PATCHES to write back, never mutating the inputs;
+// the store applies them inside one commit().
+//   - node patches: the new x/y of each laid-out node (a collapsed descendant has no
+//     laid-out box, so it is left where it is).
+//   - edge patches: branch anchors recomputed from the new boxes, so each curve leaves
+//     the side its child now sits on.
+export function mindmapLayoutPatches(shapes, connectors, rootId) {
+  const memberIds = mindmapComponentIds(shapes, rootId)
+  if (!memberIds.size) return { nodes: [], edges: [] }
+
+  const nodeShapes = (shapes || []).filter((s) => s.role === ROLE.mindmapNode && memberIds.has(s.id))
+  const model = mindmapModelFromShapes(nodeShapes)
+  if (!model.rootId) return { nodes: [], edges: [] }
+  const { positions } = layoutMindMap(model)
+
+  // Pin the tree by its root: keep the root's top-left where the user has it, so Tidy
+  // re-flows the branches around the root rather than teleporting the tree to origin.
+  const rootPos = positions[model.rootId]
+  const rootShape = nodeShapes.find((s) => s.id === model.rootId)
+  if (!rootPos || !rootShape) return { nodes: [], edges: [] }
+  const dx = rootShape.x - rootPos.x
+  const dy = rootShape.y - rootPos.y
+
+  const boxes = {}
+  const nodes = []
+  for (const shape of nodeShapes) {
+    const p = positions[shape.id]
+    if (!p) continue // collapsed descendant — no laid-out box, leave it put
+    const x = Math.round(p.x + dx)
+    const y = Math.round(p.y + dy)
+    boxes[shape.id] = { x, y, w: p.w, h: p.h }
+    nodes.push({ id: shape.id, x, y })
+  }
+
+  const edges = (connectors || [])
+    .filter((c) => c.role === ROLE.mindmapBranch && boxes[c.from?.shapeId] && boxes[c.to?.shapeId])
+    .map((c) => {
+      const parentBox = boxes[c.from.shapeId]
+      const childBox = boxes[c.to.shapeId]
+      const childRight = childBox.x >= parentBox.x
+      return { id: c.id, fromAnchor: childRight ? 'right' : 'left', toAnchor: childRight ? 'left' : 'right' }
+    })
+  return { nodes, edges }
 }
 
 // --- flowchart --------------------------------------------------------------

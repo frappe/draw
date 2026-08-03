@@ -13,7 +13,7 @@ import { addChild, addSibling, addRootNode, createMindMap, nodeById, subtreeIds 
 import { layoutMindMap, mindmapTreeRects } from '@/diagram/mindmapLayout.js'
 import { isMindmapShape, isFlowchartShape, flattenSubmodels } from '@/diagram/freeFloating.js'
 import { mindmapModelFromShapes } from '@/diagram/freeFloatingGraph.js'
-import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild, flowchartLayoutPatches } from '@/diagram/freeFloatingOps.js'
+import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild, flowchartLayoutPatches, mindmapLayoutPatches } from '@/diagram/freeFloatingOps.js'
 import { useAppSettings } from '@/composables/useAppSettings.js'
 import {
   createFlowchart,
@@ -380,6 +380,33 @@ function attachMindMap(store, state, history) {
     history.commit('Move mind map', () => {
       const o = root.origin || { x: 0, y: 0 }
       root.origin = { x: o.x + dx, y: o.y + dy }
+    })
+  }
+  // The mind-map counterpart of applyFlowchartShapeLayout (#122 P3): re-flow the
+  // selected node's whole tree with the balanced auto-layout as an explicit "Tidy up".
+  // A standalone map auto-layouts live via MindMapOverlay, but free-floating nodes are
+  // manually-draggable shapes, so they need an explicit tidy. The pure helper
+  // reconstructs the model, lays it out pinned by its root, and returns the shape /
+  // connector patches; here we just write them back as one undoable unit. No-op when the
+  // canvas holds no migrated mind-map nodes (or there is nothing to move). `rootId` is
+  // the selected node — the action is scoped to that node's tree so a second,
+  // independent map on the same canvas is left untouched (#48).
+  store.applyMindmapShapeLayout = (label, rootId) => {
+    const patches = mindmapLayoutPatches(state.shapes, state.connectors, rootId)
+    if (!patches.nodes.length) return
+    history.commit(label, () => {
+      for (const patch of patches.nodes) {
+        const shape = state.shapes.find((s) => s.id === patch.id)
+        if (!shape) continue
+        shape.x = patch.x
+        shape.y = patch.y
+      }
+      for (const patch of patches.edges) {
+        const connector = state.connectors.find((c) => c.id === patch.id)
+        if (!connector) continue
+        if (connector.from) connector.from.anchor = patch.fromAnchor
+        if (connector.to) connector.to.anchor = patch.toAnchor
+      }
     })
   }
 }

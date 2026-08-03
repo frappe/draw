@@ -141,3 +141,27 @@ describe('store.deleteFlowchartShapes (free-floating #122)', () => {
     expect(store.state.shapes.length).toBe(before)
   })
 })
+
+// #122 P3: an explicit whole-tree Tidy for a free-floating mind map — re-flows the
+// selected node's tree pinned by its root, as one undoable unit.
+describe('store.applyMindmapShapeLayout (free-floating #122 P3)', () => {
+  it('re-flows the tree in ONE undoable commit (undo restores prior positions)', () => {
+    const { store, rootId, childId } = migratedMindmapStore()
+    // Shove the child far off; Tidy should pull it back beside the root.
+    store.shapeById(childId).x = 9999
+    store.shapeById(childId).y = 9999
+    store.applyMindmapShapeLayout('Tidy up', rootId)
+    expect(store.shapeById(childId).x).toBeLessThan(9999)
+    // One commit: a single undo restores the shoved-away position.
+    store.undo()
+    expect(store.shapeById(childId).x).toBe(9999)
+    expect(store.shapeById(childId).y).toBe(9999)
+  })
+
+  it('is a no-op when the canvas has no mind-map shapes', () => {
+    const { store } = migratedFlowchartStore()
+    const before = store.state.shapes.map((s) => ({ id: s.id, x: s.x, y: s.y }))
+    store.applyMindmapShapeLayout('Tidy up', 'nope')
+    expect(store.state.shapes.map((s) => ({ id: s.id, x: s.x, y: s.y }))).toEqual(before)
+  })
+})

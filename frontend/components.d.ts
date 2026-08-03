@@ -44,6 +44,7 @@ declare module 'vue' {
     LinkSection: typeof import('./src/components/palette-right/LinkSection.vue')['default']
     Logomark: typeof import('./src/components/Logomark.vue')['default']
     MindmapHoverHandles: typeof import('./src/components/canvas/MindmapHoverHandles.vue')['default']
+    MindmapLayoutToolbar: typeof import('./src/components/floating/MindmapLayoutToolbar.vue')['default']
     MindMapNodeLayer: typeof import('./src/components/canvas/MindMapNodeLayer.vue')['default']
     MindMapOverlay: typeof import('./src/components/canvas/MindMapOverlay.vue')['default']
     Minimap: typeof import('./src/components/canvas/Minimap.vue')['default']

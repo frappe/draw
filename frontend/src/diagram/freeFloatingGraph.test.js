@@ -3,6 +3,7 @@ import {
   mindmapModelFromShapes,
   flowchartModelFromShapes,
   flowchartComponentIds,
+  mindmapComponentIds,
 } from './freeFloatingGraph.js'
 import { flattenSubmodels } from './freeFloating.js'
 import { createMindMap, addChild, addCrosslink } from './mindmapModel.js'
@@ -134,5 +135,44 @@ describe('flowchartComponentIds', () => {
     const a = chart({ x: 0, y: 0 })
     expect(flowchartComponentIds(a.shapes, a.connectors, null).size).toBe(0)
     expect(flowchartComponentIds(a.shapes, a.connectors, 'not-a-node').size).toBe(0)
+  })
+})
+
+// #122 P3: a whole-tree Tidy resolves the selected node's tree from the authoritative
+// mindmap.parentId tags (no connectors needed), so several maps can share one canvas.
+describe('mindmapComponentIds', () => {
+  // A migrated mind map (Root with two branches, one grandchild) as tagged shapes.
+  function tree() {
+    const model = createMindMap('Root')
+    const a = addChild(model, model.rootId, 'Alpha', 'right')
+    const b = addChild(model, model.rootId, 'Beta', 'left')
+    const grand = addChild(model, a, 'Gamma')
+    const out = flattenSubmodels(docWith({ mindmap: model }))
+    return { shapes: out.shapes, ids: [model.rootId, a, b, grand], rootId: model.rootId, child: a }
+  }
+
+  it('returns every node id in the selected tree, seeded from any member', () => {
+    const t = tree()
+    // From the root — the whole tree.
+    expect([...mindmapComponentIds(t.shapes, t.rootId)].sort()).toEqual([...t.ids].sort())
+    // From a mid-tree child — climbs to the root, then collects the same whole tree.
+    expect([...mindmapComponentIds(t.shapes, t.child)].sort()).toEqual([...t.ids].sort())
+  })
+
+  it('isolates one tree from a second independent map on the same canvas', () => {
+    const a = tree()
+    const b = tree()
+    const shapes = [...a.shapes, ...b.shapes]
+    const ids = mindmapComponentIds(shapes, a.rootId)
+    expect([...ids].sort()).toEqual([...a.ids].sort())
+    for (const id of b.ids) expect(ids.has(id)).toBe(false)
+  })
+
+  it('is an empty set for a missing rootId or a non-mindmap shape', () => {
+    const t = tree()
+    t.shapes.push({ id: 'block1', type: 'rectangle', x: 0, y: 0, w: 10, h: 10 })
+    expect(mindmapComponentIds(t.shapes, null).size).toBe(0)
+    expect(mindmapComponentIds(t.shapes, 'nope').size).toBe(0)
+    expect(mindmapComponentIds(t.shapes, 'block1').size).toBe(0)
   })
 })
