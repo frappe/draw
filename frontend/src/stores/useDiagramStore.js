@@ -318,7 +318,9 @@ function attachMindMap(store, state, history) {
   }
   store.addSiblingNode = (nodeId) => {
     if (isMindmapShape(state.shapes.find((s) => s.id === nodeId))) {
-      const built = buildMindmapSibling(state.shapes, nodeId, state.themePreset)
+      // A sibling is another child node, so honour the same style default (#126).
+      const defaultShaped = useAppSettings().settings.mindmapChildStyle === 'shape'
+      const built = buildMindmapSibling(state.shapes, nodeId, state.themePreset, defaultShaped)
       if (!built) return null
       built.shape.zIndex = nextZIndex(state)
       history.commit('Add sibling', () => {

@@ -102,13 +102,14 @@ export function buildMindmapChild(shapes, parentShapeId, themePreset, explicitSi
 
 // A sibling of `nodeShapeId` is a child of its parent (same side). For a root
 // (no parent) there are no siblings, so grow it with a child instead — matching
-// the framed model's Enter-on-root behaviour.
-export function buildMindmapSibling(shapes, nodeShapeId, themePreset) {
+// the framed model's Enter-on-root behaviour. `defaultShaped` carries the user's
+// child-node style default through to the new node (#126), same as buildMindmapChild.
+export function buildMindmapSibling(shapes, nodeShapeId, themePreset, defaultShaped = false) {
   const model = mindmapModelFromShapes(shapes)
   const node = model.nodes.find((n) => n.id === nodeShapeId)
   if (!node) return null
-  if (!node.parentId) return buildMindmapChild(shapes, nodeShapeId, themePreset)
-  return buildMindmapChild(shapes, node.parentId, themePreset, node.side)
+  if (!node.parentId) return buildMindmapChild(shapes, nodeShapeId, themePreset, null, defaultShaped)
+  return buildMindmapChild(shapes, node.parentId, themePreset, node.side, defaultShaped)
 }
 
 // --- flowchart --------------------------------------------------------------

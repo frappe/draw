@@ -94,6 +94,12 @@ describe('buildMindmapSibling', () => {
     const { shape } = buildMindmapSibling(shapes, rootId, 'ocean')
     expect(shape.mindmap.parentId).toBe(rootId)
   })
+
+  it('boxes the sibling when defaultShaped is true, text when false (#126)', () => {
+    const { shapes, rootId } = rootShapes()
+    expect(buildMindmapSibling(shapes, rootId, 'ocean', true).shape.mindmap.shaped).toBe(true)
+    expect(buildMindmapSibling(shapes, rootId, 'ocean', false).shape.mindmap.shaped).toBe(false)
+  })
 })
 
 // A migrated single-node flowchart's shapes[]/connectors[], to grow from.
