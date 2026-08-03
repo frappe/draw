@@ -13,12 +13,15 @@ const read = (rel) => readFileSync(path.join(here, rel), 'utf8')
 const overflowSfc = read('OverflowMenu.vue')
 const titleEditor = read('TitleEditor.vue')
 const topToolbar = read('TopToolbar.vue')
+const moveDialog = read('MoveToDriveDialog.vue')
 
 function build(overrides = {}) {
   return overflowMenuItems({
     isPinned: false,
+    driveAvailable: false,
     onRename: () => {},
     onShowInfo: () => {},
+    onMove: () => {},
     onTogglePin: () => {},
     onDelete: () => {},
     ...overrides,
@@ -49,9 +52,26 @@ describe('overflow menu model (#111)', () => {
     expect(build().map((i) => i.icon)).toEqual(['edit-2', 'file-text', 'pin', 'trash-2'])
   })
 
-  it('does not surface the deferred Move / Version history actions', () => {
-    const labels = build({ isPinned: true }).map((i) => i.label)
-    expect(labels.some((l) => /move|version/i.test(l))).toBe(false)
+  it('offers Move only when Drive is available (Version history stays deferred)', () => {
+    // No Drive → no folders to move into, so Move is hidden.
+    const withoutDrive = build().map((i) => i.label)
+    expect(withoutDrive).not.toContain('Move')
+
+    // Drive present → Move appears, sitting between Show info and the pin toggle.
+    const withDrive = build({ driveAvailable: true }).map((i) => i.label)
+    expect(withDrive).toEqual(['Rename', 'Show info', 'Move', 'Favourite', 'Delete'])
+
+    // Version history has no backing yet, so it never shows either way.
+    expect(withoutDrive.some((l) => /version/i.test(l))).toBe(false)
+    expect(withDrive.some((l) => /version/i.test(l))).toBe(false)
+  })
+
+  it('wires Move to its callback and gives it a folder icon', () => {
+    const onMove = vi.fn()
+    const move = build({ driveAvailable: true, onMove }).find((i) => i.label === 'Move')
+    expect(move.icon).toBe('folder')
+    move.onClick()
+    expect(onMove).toHaveBeenCalledOnce()
   })
 
   it('wires each row to its callback', () => {
@@ -98,5 +118,35 @@ describe('overflow menu wiring', () => {
 
   it('reuses the ShareMenu route-param loadDiagram pattern (prop-light toolbar)', () => {
     expect(overflowSfc).toContain('loadDiagram(route.params.name)')
+  })
+
+  it('mounts the Move dialog and gates it on Drive availability', () => {
+    expect(overflowSfc).toContain('MoveToDriveDialog')
+    expect(overflowSfc).toContain('getDriveAvailability')
+    expect(overflowSfc).toContain('driveAvailable: driveAvailable.value')
+  })
+})
+
+// Source-check the Move dialog the way ShareMenu.test.js checks its SFC (node env,
+// no DOM mount): it loads folders on open, moves on confirm, emits `moved`, and
+// degrades gracefully when Drive is absent.
+describe('MoveToDriveDialog (#105)', () => {
+  it('loads Home when opened and browses into folders', () => {
+    expect(moveDialog).toContain('listDriveFolders')
+    expect(moveDialog).toContain('load(null)')
+    expect(moveDialog).toContain('function openFolder')
+  })
+
+  it('moves into the current folder, then emits moved and closes', () => {
+    expect(moveDialog).toContain('moveToDriveFolder(props.diagramName, current.value)')
+    expect(moveDialog).toContain("emit('moved'")
+    expect(moveDialog).toContain('show.value = false')
+  })
+
+  it('degrades gracefully when Drive is unavailable', () => {
+    expect(moveDialog).toContain('drive_installed !== false')
+    expect(moveDialog).toContain("Frappe Drive isn't available")
+    // Move is disabled unless Drive is installed.
+    expect(moveDialog).toMatch(/canMove\s*=\s*computed\(\(\)\s*=>\s*driveInstalled\.value/)
   })
 })

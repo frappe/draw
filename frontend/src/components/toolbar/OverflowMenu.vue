@@ -8,12 +8,14 @@
 // it can be unit-tested without mounting this component.
 //
 // Move … and Version history … are intentionally omitted — see overflowMenu.js.
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, Dialog, Dropdown, toast } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { loadDiagram } from '@/data/diagrams.js'
+import { getDriveAvailability } from '@/data/drive.js'
 import { overflowMenuItems } from './overflowMenu.js'
+import MoveToDriveDialog from './MoveToDriveDialog.vue'
 
 // Rename lives in the sibling TitleEditor (inline, in the breadcrumb), so we ask the
 // parent toolbar to trigger it rather than duplicating the edit UI here.
@@ -25,16 +27,33 @@ const diagram = loadDiagram(route.params.name)
 
 const isPinned = computed(() => Boolean(diagram.doc?.is_pinned))
 const showInfo = ref(false)
+const showMove = ref(false)
+
+// "Move" only makes sense with a Drive to move into — probe availability the same way
+// DriveMenu does, and stay hidden until it's confirmed present.
+const driveAvailable = ref(false)
+onMounted(async () => {
+  const status = await getDriveAvailability()
+  driveAvailable.value = !!status?.installed
+})
 
 const menuItems = computed(() =>
   overflowMenuItems({
     isPinned: isPinned.value,
+    driveAvailable: driveAvailable.value,
     onRename: () => emit('rename'),
     onShowInfo: openInfo,
+    onMove: () => (showMove.value = true),
     onTogglePin: togglePin,
     onDelete: trash,
   }),
 )
+
+// After a successful move, tell the user where it landed (parity with the other
+// toolbar toasts).
+function onMoved({ title } = {}) {
+  toast.success('Moved to Drive', { text: title ? `Now in "${title}"` : '' })
+}
 
 // Reload before showing so "Last edited" (and a title/owner changed elsewhere) is
 // current — this resource is loaded once on open and would otherwise be stale.
@@ -99,4 +118,6 @@ function frappeNow() {
       </dl>
     </template>
   </Dialog>
+
+  <MoveToDriveDialog v-model="showMove" :diagram-name="route.params.name" @moved="onMoved" />
 </template>

@@ -164,3 +164,57 @@ def add_to_drive(name: str) -> dict:
 	is automatic on create (e.g. for diagrams made before this shipped, or if the
 	auto-register was a no-op because Drive was installed later). Idempotent."""
 	return {"drive_installed": drive_available(), "file": register_diagram_in_drive(name)}
+
+
+@frappe.whitelist()
+def move_to_drive_folder(name: str, folder: str | None = None) -> dict:
+	"""Move a diagram's backing Drive File into `folder` (a Drive File id), or into
+	the owner's Drive Home when `folder` is empty (#105). No-op shape when Drive is
+	absent so the toolbar can stay wired everywhere.
+
+	Ensures a backing File first (idempotent), then delegates to Suite's File.move.
+	move() runs its OWN upload/write permission checks and folder validation, throwing
+	frappe.PermissionError / NotADirectoryError / ValueError — those are deliberately
+	left to PROPAGATE (this is a user-initiated action, so the UI should surface the
+	real error rather than silently swallow it)."""
+	if not drive_available():
+		return {"drive_installed": False, "moved": False, "file": None}
+	file_name = register_diagram_in_drive(name)
+	if not file_name:
+		return {"drive_installed": True, "moved": False, "file": None}
+	frappe.get_doc("File", file_name).move(folder or None)
+	return {"drive_installed": True, "moved": True, "file": file_name}
+
+
+@frappe.whitelist()
+def list_drive_folders(parent: str | None = None) -> dict:
+	"""List the sub-folders of a Drive folder (defaulting to the owner's Home), plus
+	the Home-down-to-here breadcrumb, so the "Move to folder" dialog can browse the
+	tree (#105). Everything is permission-checked and scoped to what the caller can
+	read, by Suite's own list/breadcrumb helpers.
+
+	Returns the drive-absent shape when Drive is unusable — including a partial/broken
+	Suite whose Drive API can't be imported — so a missing dependency can never 500
+	the browser."""
+	absent = {"drive_installed": False, "current": None, "path": [], "folders": []}
+	if not drive_available():
+		return absent
+	try:
+		from suite.drive.api.list import files as drive_files
+		from suite.drive.api.permissions import get_user_access
+		from suite.drive.utils import get_user_folder, get_valid_breadcrumbs
+	except ImportError:
+		# Standalone Drive / partial Suite — no folder-browsing API to offer.
+		return absent
+
+	entity = parent or get_user_folder().name
+	# file_kinds=["Folder"] filters the listing to folders (Suite maps the "Folder"
+	# kind to is_folder == 1). Re-check is_folder when mapping in case that changes.
+	rows = drive_files(entity_name=entity, file_kinds=["Folder"])
+	folders = [{"name": r["name"], "title": r.get("file_name")} for r in rows if r.get("is_folder")]
+	# Ancestry from Home down to `entity`; Suite relabels the user's own folder "Home".
+	path = [
+		{"name": node["name"], "title": node["file_name"]}
+		for node in get_valid_breadcrumbs(entity, get_user_access(entity))
+	]
+	return {"drive_installed": True, "current": entity, "path": path, "folders": folders}
