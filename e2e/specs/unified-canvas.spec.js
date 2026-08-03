@@ -2,8 +2,11 @@ import { test, expect, watchForErrors } from '../helpers/fixtures.js'
 import {
   SURFACE,
   toolByIcon,
-  openShapesPopover,
-  dragTileToCanvas,
+  dragShapeFromCatalog,
+  armShapeFromCatalog,
+  armPolygonFromCatalog,
+  armCreateToolFromCatalog,
+  insertTableFromCatalog,
   dragOnCanvas,
   clickCanvas,
   clickEmptyCanvas,
@@ -28,8 +31,7 @@ test.describe('unified canvas: block tools', () => {
   test('dragging a palette tile creates a persisted shape', async ({ page, diagram }) => {
     const name = await diagram.open('unified', { empty: true })
 
-    await openShapesPopover(page)
-    const { payload } = await dragTileToCanvas(page, { x: 500, y: 320 })
+    const { payload } = await dragShapeFromCatalog(page, { x: 500, y: 320 })
     expect(payload, 'tile dragstart wrote no tool payload').toBeTruthy()
 
     await expect(page.locator(`${SURFACE} rect`).first()).toBeVisible()
@@ -44,8 +46,7 @@ test.describe('unified canvas: block tools', () => {
   test('press-drag with an armed shape tool creates a shape', async ({ page, diagram }) => {
     const name = await diagram.open('unified', { empty: true })
 
-    const tiles = await openShapesPopover(page)
-    await tiles.first().click() // arms draw mode for that shape
+    await armShapeFromCatalog(page) // arms draw mode for the first shape (the rectangle)
     await dragOnCanvas(page, { x: 300, y: 250 }, { x: 520, y: 400 })
 
     await expect
@@ -81,15 +82,38 @@ test.describe('unified canvas: block tools', () => {
       }, { message: 'undo did not restore the shape position', timeout: 20_000 })
       .toBe(true)
   })
+
+  // The polygon (#139) is the one shape the catalog can't drag: its tile arms a
+  // multi-click draw tool. Each click drops a vertex and Enter closes the path into a
+  // real block shape on shapes[], so it is asserted on the persisted document like any
+  // other shape rather than on the transient in-progress preview.
+  test('the polygon tool places a multi-click shape', async ({ page, diagram }) => {
+    const name = await diagram.open('unified', { empty: true })
+
+    await armPolygonFromCatalog(page)
+    await clickCanvas(page, 300, 250)
+    await clickCanvas(page, 480, 250)
+    await clickCanvas(page, 400, 400)
+    await page.keyboard.press('Enter') // closes the path with three vertices placed
+
+    await expect
+      .poll(async () => (await diagram.saved(name)).shapes.length, {
+        message: 'closing the polygon did not persist a shape',
+        timeout: 20_000,
+      })
+      .toBe(1)
+    const doc = await diagram.saved(name)
+    expect(doc.shapes[0].type, 'the placed shape is a polygon').toBe('polygon')
+  })
 })
 
 test.describe('unified canvas: whiteboard tools', () => {
   test('the pen draws a stroke that persists', async ({ page, diagram }) => {
     const name = await diagram.open('unified', { empty: true })
 
-    // WhiteboardTools declares its own icon for each tool ('pen-line'), which differs
-    // from the name in modeStrategies.js ('edit-2') — see the note in the audit report.
-    await toolByIcon(page, 'pen-line').click()
+    // On the unified bar the pen is no longer a bar button — it moved into the "+"
+    // catalog (#90), so it is armed there by its 'pen-line' tile, not off the toolbar.
+    await armCreateToolFromCatalog(page, 'pen-line')
     await dragOnCanvas(page, { x: 300, y: 260 }, { x: 640, y: 420 }, 14)
 
     await expect
@@ -143,7 +167,7 @@ test.describe('unified canvas: whiteboard tools', () => {
   test('a sticky note can be placed', async ({ page, diagram }) => {
     const name = await diagram.open('unified', { empty: true })
 
-    await toolByIcon(page, 'sticky-note').click()
+    await armCreateToolFromCatalog(page, 'sticky-note')
     await clickCanvas(page, 460, 300)
 
     await expect
@@ -174,6 +198,28 @@ test.describe('unified canvas: whiteboard tools', () => {
         timeout: 20_000,
       })
       .toBe(0)
+  })
+
+  // The Table tool no longer drops a fixed 3×3 grid on click (#134): its catalog tile
+  // opens a size picker, and the size is committed by clicking a cell. A committed
+  // table lands on whiteboard.tables[], so that is what proves the picker wired
+  // through — not the rendered grid, which a table that never saved would still show.
+  test('a table is placed at the size picked in the popover', async ({ page, diagram }) => {
+    const name = await diagram.open('unified', { empty: true })
+
+    await insertTableFromCatalog(page, 3, 3)
+
+    await expect
+      .poll(async () => (await diagram.saved(name)).whiteboard.tables.length, {
+        message: 'picking a size did not persist a table',
+        timeout: 20_000,
+      })
+      .toBe(1)
+    const table = (await diagram.saved(name)).whiteboard.tables[0]
+    expect({ rows: table.rows, cols: table.cols }, 'the table matches the picked size').toEqual({
+      rows: 3,
+      cols: 3,
+    })
   })
 })
 
@@ -377,10 +423,12 @@ test.describe('unified canvas: hygiene', () => {
     const errors = watchForErrors(page)
     await diagram.open('unified', { empty: true })
 
-    await openShapesPopover(page)
-    await dragTileToCanvas(page, { x: 420, y: 300 })
-    await toolByIcon(page, 'pen-line').click()
+    // Exercise both catalog paths and a bar tool. Each catalog helper closes the
+    // panel before it returns, so arming the pen and then dragging a shape never
+    // races the popover open against its own close.
+    await armCreateToolFromCatalog(page, 'pen-line')
     await dragOnCanvas(page, { x: 260, y: 240 }, { x: 520, y: 380 }, 10)
+    await dragShapeFromCatalog(page, { x: 420, y: 300 })
     await toolByIcon(page, 'mouse-pointer').click()
     await clickEmptyCanvas(page)
     await page.keyboard.press('Meta+z')

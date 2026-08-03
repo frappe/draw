@@ -99,15 +99,6 @@ export function selectedCrosslinks(page) {
   return page.locator('line[stroke="#006EDB"][stroke-dasharray="2 5"]')
 }
 
-// --- palette ---------------------------------------------------------------
-
-export async function openShapesPopover(page) {
-  await buttonByIcon(page, 'shapes').click()
-  const tiles = page.locator('[draggable="true"]')
-  await tiles.first().waitFor({ state: 'visible' })
-  return tiles
-}
-
 // --- the "+" Add catalog (free-floating #122 / catalog #90) -------------------
 //
 // The mind-map and flowchart tiles moved out of the old Shapes popover into the one
@@ -152,6 +143,55 @@ export async function insertFlowchartNode(page) {
   await expect(catalog).toBeHidden()
 }
 
+// Arm a block shape's draw tool from the catalog: click a Shapes tile (the first,
+// the rectangle, by default) to enter press-drag-to-draw. A click arms the tool and
+// closes the catalog, so awaiting its hidden state also proves the click landed.
+export async function armShapeFromCatalog(page, index = 0) {
+  const catalog = await openAddCatalog(page)
+  const tile = catalogSectionTiles(catalog, 'Shapes').nth(index)
+  await tile.waitFor({ state: 'visible' })
+  await tile.click()
+  await expect(catalog).toBeHidden()
+}
+
+// Arm the Polygon tool (#139) from the catalog. Polygon is the one shape tile that
+// can't be dragged, so it is exactly the catalog's only non-draggable tile — a
+// stabler hook than a grid index. Clicking arms the multi-click draw tool and closes
+// the catalog; place vertices with clickCanvas and finish with Enter.
+export async function armPolygonFromCatalog(page) {
+  const catalog = await openAddCatalog(page)
+  const tile = catalog.locator('button[draggable="false"]').first()
+  await tile.waitFor({ state: 'visible' })
+  await tile.click()
+  await expect(catalog).toBeHidden()
+}
+
+// Arm a "Draw & insert" surface tool (Pen / Sticky note) from the catalog, located by
+// its lucide glyph — these tiles ARE icon buttons (unlike the drawn shape tiles), so
+// iconSelector finds them inside the portalled panel. Clicking arms the mode and
+// closes the catalog. The surface tools only appear on the unified canvas.
+export async function armCreateToolFromCatalog(page, icon) {
+  const catalog = await openAddCatalog(page)
+  const tile = buttonByIcon(page, icon, catalog)
+  await tile.waitFor({ state: 'visible' })
+  await tile.click()
+  await expect(catalog).toBeHidden()
+}
+
+// Place a table from the catalog's Table size-picker (#134): the Table tile opens a
+// hover grid, and clicking the "rows × cols" cell commits that exact size, dropping
+// the table centred in view and closing both the picker and the catalog. The picker's
+// grid is the only role="grid" on the page, and each cell's accessible name is its
+// size, so the target cell is addressed directly rather than by a hover sweep.
+export async function insertTableFromCatalog(page, rows, cols) {
+  const catalog = await openAddCatalog(page)
+  await buttonByIcon(page, 'table', catalog).click()
+  const grid = page.getByRole('grid')
+  await grid.waitFor({ state: 'visible' })
+  await grid.getByRole('button', { name: `${rows} × ${cols}`, exact: true }).click()
+  await expect(catalog).toBeHidden()
+}
+
 // Drag a palette tile onto the canvas.
 //
 // Playwright's synthetic mouse does NOT reliably start a native HTML5 drag — a
@@ -179,10 +219,28 @@ export async function dragTileToCanvas(page, { tileIndex = 0, x, y } = {}) {
       }
       el.dispatchEvent(new DragEvent('dragover', opts))
       el.dispatchEvent(new DragEvent('drop', opts))
+      // Fire dragend on the source tile too, exactly as a real drag does: its handler
+      // closes the "+" catalog. Without it the popover lingers over the canvas and the
+      // next step (an Arrange menu, a selecting click) lands on the panel instead.
+      tile.dispatchEvent(
+        new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer: dt }),
+      )
       return { payload, types: [...dt.types] }
     },
     [tileIndex, x ?? 520, y ?? 330, TOOL_PAYLOAD_KEY],
   )
+}
+
+// Open the catalog and DRAG its first shape tile (the rectangle) onto the canvas at
+// (x, y). openAddCatalog only clicks "Add", so wait for the tiles to render before
+// dispatching the drag; dragTileToCanvas fires dragend, which closes the catalog, so
+// the drop leaves a bare canvas for whatever the test does next. Returns the payload.
+export async function dragShapeFromCatalog(page, { x, y } = {}) {
+  const catalog = await openAddCatalog(page)
+  await catalog.locator('[draggable="true"]').first().waitFor({ state: 'visible' })
+  const result = await dragTileToCanvas(page, { x, y })
+  await expect(catalog).toBeHidden()
+  return result
 }
 
 // --- drawing on the surface -------------------------------------------------
