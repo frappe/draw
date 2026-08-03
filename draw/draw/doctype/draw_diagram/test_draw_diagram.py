@@ -108,6 +108,152 @@ class TestDrawDiagram(IntegrationTestCase):
 		self.assertEqual(row["level"], "edit")
 		self.assertTrue(row["can_edit"])
 
+	# ----- general access tiers (GitHub #106) -----
+
+	def _read_as(self, user, name):
+		"""Read a diagram through the real document gate (draw.api.diagram) as `user`.
+		Returns the payload, or raises frappe.PermissionError just as an HTTP caller
+		would. General access is enforced here, NOT through frappe.has_permission."""
+		from draw.api.diagram import get_diagram
+
+		frappe.set_user(user)
+		try:
+			return get_diagram(name)
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_set_general_access_toggles_the_two_flags_exclusively(self):
+		from draw.api.share import set_general_access
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+
+		self.assertEqual(set_general_access(doc.name, "site_users_view"), "site_users_view")
+		flags = frappe.db.get_value(
+			"Draw Diagram", doc.name, ["is_public", "all_site_users_can_view"], as_dict=True
+		)
+		self.assertEqual((flags.is_public, flags.all_site_users_can_view), (0, 1))
+
+		set_general_access(doc.name, "public_view")
+		flags = frappe.db.get_value(
+			"Draw Diagram", doc.name, ["is_public", "all_site_users_can_view"], as_dict=True
+		)
+		self.assertEqual((flags.is_public, flags.all_site_users_can_view), (1, 0))
+
+		set_general_access(doc.name, "restricted")
+		flags = frappe.db.get_value(
+			"Draw Diagram", doc.name, ["is_public", "all_site_users_can_view"], as_dict=True
+		)
+		self.assertEqual((flags.is_public, flags.all_site_users_can_view), (0, 0))
+
+	def test_set_general_access_rejects_an_unknown_tier(self):
+		from draw.api.share import set_general_access
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		self.assertRaises(frappe.ValidationError, set_general_access, doc.name, "editable-by-anyone")
+
+	def test_site_users_view_grants_view_to_an_arbitrary_site_user(self):
+		# The middle tier: any signed-in user — with NO share and NO Draw role — may
+		# VIEW the diagram through the document gate.
+		from draw.api.permission import can_view_via_general_access
+		from draw.api.share import get_general_access, set_general_access
+
+		outsider = self._user("draw-anyuser@example.com")
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		set_general_access(doc.name, "site_users_view")
+
+		self.assertEqual(get_general_access(doc.name), "site_users_view")
+		self.assertEqual(self._read_as(outsider, doc.name)["name"], doc.name)
+
+		doc.reload()
+		self.assertTrue(can_view_via_general_access(doc, outsider))
+		# ...but it is VIEW ONLY — no write, no re-share.
+		frappe.set_user(outsider)
+		try:
+			self.assertFalse(frappe.has_permission("Draw Diagram", "write", doc=doc.name))
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_site_users_view_is_denied_to_a_guest(self):
+		# "All logged-in site users" excludes the guest/website user.
+		from draw.api.permission import can_view_via_general_access
+		from draw.api.share import set_general_access
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		set_general_access(doc.name, "site_users_view")
+
+		doc.reload()
+		self.assertFalse(can_view_via_general_access(doc, "Guest"))
+		self.assertRaises(frappe.PermissionError, self._read_as, "Guest", doc.name)
+
+	def test_restricted_diagram_denies_another_signed_in_user(self):
+		# The default tier: an unrelated signed-in user, with no share, cannot read it.
+		outsider = self._user("draw-restricted-out@example.com")
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})  # restricted by default
+		self.assertRaises(frappe.PermissionError, self._read_as, outsider, doc.name)
+
+	def test_public_view_grants_view_including_a_guest(self):
+		from draw.api.share import get_general_access, set_general_access
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		set_general_access(doc.name, "public_view")
+
+		self.assertEqual(get_general_access(doc.name), "public_view")
+		self.assertTrue(frappe.db.get_value("Draw Diagram", doc.name, "is_public"))
+		self.assertEqual(self._read_as("Guest", doc.name)["name"], doc.name)
+
+	def test_legacy_is_public_document_maps_to_public_view(self):
+		# Backward compatibility: a diagram made public before the tier field existed
+		# has is_public=1 and no all_site_users_can_view — it must still read as
+		# public_view, viewable by anyone including guests, with no migration.
+		from draw.api.permission import can_view_via_general_access, general_access_level
+		from draw.api.share import get_general_access
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		frappe.db.set_value("Draw Diagram", doc.name, "is_public", 1)  # simulate an old doc
+		doc.reload()
+
+		self.assertEqual(general_access_level(doc), "public_view")
+		self.assertEqual(get_general_access(doc.name), "public_view")
+		self.assertTrue(can_view_via_general_access(doc, "Guest"))
+		self.assertEqual(self._read_as("Guest", doc.name)["name"], doc.name)
+
+	def test_site_users_view_is_visible_in_another_users_list(self):
+		# List visibility (permission_query_conditions): a site_users_view diagram
+		# owned by one user shows up in another site user's list; a restricted one
+		# owned by the same user does not.
+		from draw.api.share import set_general_access
+
+		owner = self._user("draw-ga-owner@example.com")
+		other = self._user("draw-ga-other@example.com")
+		for u in (owner, other):
+			frappe.get_doc("User", u).add_roles("Draw User")
+
+		def make(title):
+			d = frappe.get_doc(
+				{
+					"doctype": "Draw Diagram",
+					"title": title,
+					"diagram_type": "block",
+					"owner": owner,
+					"document": json.dumps({"schemaVersion": 1, "diagramType": "block"}),
+				}
+			).insert(ignore_permissions=True)
+			self.addCleanup(lambda n=d.name: frappe.delete_doc("Draw Diagram", n, force=True, ignore_permissions=True))
+			return d
+
+		shared = make("GA Shared To Site")
+		set_general_access(shared.name, "site_users_view")
+		private = make("GA Private")  # restricted
+
+		frappe.set_user(other)
+		try:
+			visible = {d.name for d in frappe.get_list("Draw Diagram", filters={"is_trashed": 0})}
+		finally:
+			frappe.set_user("Administrator")
+
+		self.assertIn(shared.name, visible, "a site_users_view diagram must be visible to other site users")
+		self.assertNotIn(private.name, visible, "a restricted diagram must stay private")
+
 	def test_register_in_drive_when_available(self):
 		# Optional Drive integration — only exercised when Drive is installed
 		# (CI's fresh site has no Drive, so this skips there).

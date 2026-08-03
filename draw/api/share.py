@@ -1,12 +1,25 @@
 # Writer-style sharing for Draw Diagram — view / comment / edit access levels,
 # built on Frappe core DocShare (frappe.share) plus a custom "comment" permission
 # type (registered by draw.patches.register_comment_permission_type). No Frappe
-# Drive dependency. Public access reuses the diagram's own `is_public` flag, which
-# draw.api.permission.query_conditions already honours.
+# Drive dependency.
+#
+# Two independent surfaces (GitHub #106):
+#   - per-user access (view / comment / edit), below, via DocShare; and
+#   - general access — a single VIEW-ONLY tier for everyone else: restricted /
+#     site_users_view / public_view (see set_general_access). The tiers map to the
+#     `is_public` and `all_site_users_can_view` flags and are enforced by
+#     draw.api.permission (list) + draw.api.diagram (document read).
 
 import frappe
 from frappe import _
 from frappe.utils import cint
+
+from draw.api.permission import (
+	GENERAL_ACCESS_LEVELS,
+	PUBLIC_VIEW,
+	SITE_USERS_VIEW,
+	general_access_level,
+)
 
 # Access level -> DocShare flags. "edit" also grants share so collaborators can
 # re-share, matching the Drive/Writer "editor" tier.
@@ -119,9 +132,47 @@ def search_users(txt: str = "") -> list:
 
 
 @frappe.whitelist()
+def set_general_access(name: str, level: str) -> str:
+	"""Set a diagram's general-access tier (GitHub #106). VIEW-ONLY, one of:
+	'restricted' (invited members only), 'site_users_view' (every signed-in site
+	user may view) or 'public_view' (anyone with the link may view). Persisted as
+	the `is_public` / `all_site_users_can_view` flags; returns the level set.
+
+	General access never grants edit — that is what per-user shares are for."""
+	_check_can_share(name)
+	if level not in GENERAL_ACCESS_LEVELS:
+		frappe.throw(_("Unknown general access level: {0}").format(level))
+	frappe.db.set_value(
+		"Draw Diagram",
+		name,
+		{
+			"is_public": 1 if level == PUBLIC_VIEW else 0,
+			"all_site_users_can_view": 1 if level == SITE_USERS_VIEW else 0,
+		},
+	)
+	return level
+
+
+@frappe.whitelist()
+def get_general_access(name: str) -> str:
+	"""The diagram's current general-access tier, for the Share dialog."""
+	if not frappe.has_permission("Draw Diagram", "read", doc=name):
+		frappe.throw(_("Not permitted."), frappe.PermissionError)
+	flags = (
+		frappe.db.get_value(
+			"Draw Diagram", name, ["is_public", "all_site_users_can_view"], as_dict=True
+		)
+		or {}
+	)
+	return general_access_level(flags)
+
+
+@frappe.whitelist()
 def set_public(name: str, enabled: int) -> None:
-	"""Toggle "anyone in this site can view" via the diagram's is_public flag
-	(honoured by draw.api.permission.query_conditions).
+	"""Backward-compatible shim for the old two-state public toggle: flip the
+	public_view tier on/off via the diagram's is_public flag. New clients call
+	set_general_access; this only ever touches is_public, so it is safe for any
+	older caller still on the record.
 
 	`enabled` MUST carry a type annotation. Frappe enforces that every argument of a
 	whitelisted function is annotated and answers 417 FrappeTypeError otherwise — so

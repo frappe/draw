@@ -13,6 +13,7 @@
   "diagram_type",
   "column_break_settings",
   "is_public",
+  "all_site_users_can_view",
   "is_pinned",
   "revision",
   "sort_order",
@@ -68,7 +69,15 @@
    "default": "0",
    "fieldname": "is_public",
    "fieldtype": "Check",
-   "label": "Is Public"
+   "label": "Is Public",
+   "description": "General access: anyone with the link can VIEW (public_view tier). The long-standing public flag."
+  },
+  {
+   "default": "0",
+   "fieldname": "all_site_users_can_view",
+   "fieldtype": "Check",
+   "label": "All Site Users Can View",
+   "description": "General access: every logged-in site user (never a guest) can VIEW (site_users_view tier). Outranked by is_public."
   },
   {
    "default": "0",
