@@ -19,14 +19,18 @@ const MAX_W = 420 // cap the placed width so a big photo doesn't fill the canvas
 export function useImageInsert(store) {
   const handler = new FileUploadHandler()
 
-  // Open the OS file picker and insert the chosen image.
-  function pick() {
+  // Open the OS file picker and insert the chosen image. `getAt` (optional) returns
+  // the canvas-unit point to centre the image on — the palette passes the viewport
+  // centre so a picked image lands in the visible area rather than at the fixed canvas
+  // centre off-screen (#119/#75). Evaluated on file-change, so a pan made before the
+  // OS dialog closes is still honoured, and the camera is never moved to reveal it.
+  function pick(getAt) {
     const input = document.createElement('input')
     input.type = 'file'
     input.accept = ACCEPT
     input.addEventListener('change', () => {
       const file = input.files && input.files[0]
-      if (file) insert(file)
+      if (file) insert(file, getAt?.())
     })
     input.click()
   }

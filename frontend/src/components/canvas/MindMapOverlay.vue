@@ -12,7 +12,6 @@ import { Popover, Tooltip, Dialog, Button } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import SwatchGrid from '@/components/floating/SwatchGrid.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
-import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
 import { layoutMindMap } from '@/diagram/mindmapLayout.js'
 import { isRoot, rootNodes } from '@/diagram/mindmapModel.js'
@@ -31,7 +30,6 @@ import {
 import { requestDelete } from '@/composables/useMindmapKeys.js'
 
 const store = useDiagramStore()
-const editorUi = useEditorUi()
 
 // Fill, branch and border all draw from the same rich Espresso/Frappe swatch
 // family (spec: many more options), each in its own menu so the three knobs are
@@ -190,12 +188,15 @@ function confirmDeleteNodes() {
 }
 
 // --- blank map --------------------------------------------------------------
+// The layout places the first idea at the map's origin, which sits within the
+// freshly-opened viewport — so we do NOT re-frame the camera (#119: no insert may
+// pan the canvas; the user controls panning). The node is selected and opened for
+// editing straight away.
 function addFirstIdea() {
   const id = store.addRootNode('')
   if (!id) return
   selectNode(store, id)
   beginEdit(id)
-  setTimeout(() => editorUi.fit?.(), 0)
 }
 
 const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2'

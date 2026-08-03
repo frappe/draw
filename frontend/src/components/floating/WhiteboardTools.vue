@@ -117,7 +117,7 @@ function insertTable({ rows, cols }, close) {
 
   <!-- Insert image (action, not a tool). Hidden when the surrounding palette owns it. -->
   <Tooltip v-if="showImageInsert" text="Insert image">
-    <button :class="buttonBase" @click="imageInsert.pick()">
+    <button :class="buttonBase" @click="imageInsert.pick(() => editorUi.viewport.centerPoint())">
       <LucideIcon name="image" class="h-4 w-4" />
     </button>
   </Tooltip>

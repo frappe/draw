@@ -15,19 +15,20 @@ const editorUi = useEditorUi()
 
 const isBlank = computed(() => (store.state.flowchart?.nodes.length ?? 0) === 0)
 
-// Drop the first process node at the canvas origin, frame it high on screen, and
-// open its editor so the user can type straight away. Framing it near the top
-// (rather than dead-centre) keeps the "add next node" picker — which opens below
-// the node — clear of the bottom palette.
+// Drop the first process node centred in the CURRENT view and open its editor so the
+// user can type straight away. It lands where the user is looking without moving the
+// camera (#119: no insert may pan the canvas; #75: it must land in view). The "add
+// next node" picker opens below the node and already flips above / clamps when it
+// would reach the bottom palette, so no pan is needed to keep it clear.
 function addFirstStep() {
-  const id = store.addFlowchartNode('process', '', 0, 0)
+  const size = nodeSize({ nodeType: 'process' })
+  const view = editorUi.viewport.visibleRect()
+  const x = Math.round(view.x + (view.w - size.w) / 2)
+  const y = Math.round(view.y + (view.h - size.h) / 2)
+  const id = store.addFlowchartNode('process', '', x, y)
   if (!id) return
   store.select([id]) // show its "+" extend handles right away
-  nextTick(() => {
-    const size = nodeSize({ nodeType: 'process' })
-    editorUi.viewport.placeTopCenter({ x: 0, y: 0, w: size.w, h: size.h }, 120)
-    requestFlowchartEdit(id)
-  })
+  nextTick(() => requestFlowchartEdit(id))
 }
 </script>
 

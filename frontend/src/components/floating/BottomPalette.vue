@@ -137,7 +137,7 @@ function isArmed(type) {
 // The catalog tools resolve to three kinds of action: image opens a file picker,
 // text arms block draw-text, and the surface tools arm a whiteboard mode.
 function runCreateTool(tool, close) {
-  if (tool.key === 'image') imageInsert.pick()
+  if (tool.key === 'image') imageInsert.pick(() => viewport.centerPoint())
   else if (tool.key === 'text') editorUi.setDrawShape('text')
   else editorUi.setTool(tool.key)
   shapeQuery.value = ''
