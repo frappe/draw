@@ -2,8 +2,9 @@
 // Top bar (48px). Drive/Writer style: NO back button — a breadcrumb instead.
 // Left: the violet logomark + "Frappe Draw" (→ Home) / optional folder / the
 // editable diagram title as the last crumb + save indicator. Right: Export,
-// Share, presence. Chrome only — frappe-ui + its tokens; the breadcrumb
-// styling mirrors frappe-ui's Breadcrumbs (text-lg, ink-gray ladder).
+// Share, a "…" overflow menu (#111), presence. Chrome only — frappe-ui + its
+// tokens; the breadcrumb styling mirrors frappe-ui's Breadcrumbs (text-lg ladder).
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Logomark from '@/components/Logomark.vue'
 import TitleEditor from './TitleEditor.vue'
@@ -11,6 +12,7 @@ import SaveIndicator from './SaveIndicator.vue'
 import ExportMenu from './ExportMenu.vue'
 import ShareMenu from './ShareMenu.vue'
 import DriveMenu from './DriveMenu.vue'
+import OverflowMenu from './OverflowMenu.vue'
 import PresenceAvatars from './PresenceAvatars.vue'
 
 defineProps({
@@ -20,6 +22,10 @@ defineProps({
 const emit = defineEmits(['update:title'])
 
 const router = useRouter()
+
+// The overflow menu's "Rename" re-enters the inline title editor (same path as
+// clicking the breadcrumb title), so hold a ref to trigger it.
+const titleEditor = ref(null)
 
 function goHome() {
   router.push({ name: 'Home' })
@@ -33,7 +39,7 @@ function goHome() {
     <!-- Breadcrumb: logo + Frappe Draw (→ Home). -->
     <button
       class="flex items-center gap-2 rounded px-1 py-1 hover:bg-surface-gray-2"
-      title="All diagrams"
+      title="Home"
       @click="goHome"
     >
       <Logomark :size="22" />
@@ -43,7 +49,7 @@ function goHome() {
     <span class="mx-0.5 text-base text-ink-gray-4" aria-hidden="true">/</span>
 
     <!-- Current diagram — the editable last crumb. -->
-    <TitleEditor :title="title" @update:title="emit('update:title', $event)" />
+    <TitleEditor ref="titleEditor" :title="title" @update:title="emit('update:title', $event)" />
 
     <SaveIndicator :status="saveStatus" />
 
@@ -51,6 +57,8 @@ function goHome() {
       <ExportMenu />
       <DriveMenu />
       <ShareMenu />
+      <!-- "…" overflow: Rename / Show info / Favourite / Delete (#111). -->
+      <OverflowMenu @rename="titleEditor?.startEditing()" />
 
       <div class="h-5 w-px bg-surface-gray-3" />
 

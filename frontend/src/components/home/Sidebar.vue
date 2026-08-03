@@ -1,12 +1,14 @@
 <script setup>
 // Home sidebar, built on frappe-ui's official <Sidebar> so it matches Drive /
 // Writer (header block with logo + user + menu, sections, icon-rail collapse).
-// Nav only — Home / Recent / All diagrams / Trash. No folders (#115).
+// Nav only — Home / Recent / Shared with you / Pinned / Trash (#116). No folders
+// (#115). The nav set lives in homeViews.js so it can be unit-tested browser-free.
 import { ref, computed } from 'vue'
 import { Sidebar, SidebarItem, toast } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import Logomark from '@/components/Logomark.vue'
 import SettingsDialog from '@/components/home/SettingsDialog.vue'
+import { SIDEBAR_NAV } from '@/components/home/homeViews.js'
 import { logout } from '@/data/session.js'
 
 const props = defineProps({
@@ -40,13 +42,7 @@ const header = computed(() => ({
   ],
 }))
 
-const NAV = [
-  { key: 'home', label: 'Home', feather: 'home' },
-  { key: 'recent', label: 'Recent', feather: 'clock' },
-  { key: 'all', label: 'All diagrams', feather: 'layers' },
-  { key: 'trash', label: 'Trash', feather: 'trash-2' },
-]
-const sections = computed(() => [{ items: NAV }])
+const sections = computed(() => [{ items: SIDEBAR_NAV }])
 </script>
 
 <template>

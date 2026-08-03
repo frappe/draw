@@ -12,6 +12,11 @@
 # the three-level view/comment/edit model. Parallel endpoints for those used to sit
 # in this module, unused, and a caller reaching one would have got weaker access
 # rules than the live path applies.
+#
+# The one listing endpoint that DOES live here is shared_with_me(): "diagrams shared
+# with me that I don't own" cannot be expressed as a frappe-ui list filter (it joins
+# DocShare and excludes the owner), so the Home sidebar's "Shared with you" view
+# (GitHub #116) calls this scoped, DocShare-backed read instead.
 
 import hashlib
 import hmac
@@ -94,6 +99,39 @@ def get_public_diagram(name: str) -> dict:
 	access) surface as a permission error the viewer renders as "You need access".
 	"""
 	return get_diagram(name)
+
+
+@frappe.whitelist()
+def shared_with_me() -> list[dict]:
+	"""Diagrams shared with the current user that they do NOT own — the Home
+	sidebar's "Shared with you" view (GitHub #116).
+
+	Source of truth is core DocShare (frappe.share.get_shared), so it returns exactly
+	the diagrams someone granted this user through the Share dialog. The caller's own
+	diagrams (a self-share, or a share added before ownership moved) and trashed ones
+	are filtered out. Returns the same field set the tile grid renders, so a shared
+	diagram looks identical to an owned one on the shelf.
+	"""
+	user = frappe.session.user
+	shared_names = frappe.share.get_shared(DOCTYPE, user)
+	if not shared_names:
+		return []
+	return frappe.get_all(
+		DOCTYPE,
+		filters={"name": ["in", shared_names], "owner": ["!=", user], "is_trashed": 0},
+		fields=[
+			"name",
+			"title",
+			"creation",
+			"modified",
+			"diagram_type",
+			"is_pinned",
+			"owner",
+			"document",
+			"thumbnail",
+		],
+		order_by="modified desc",
+	)
 
 
 # --- real-time collaboration room (SPEC §11.1) -------------------------------
