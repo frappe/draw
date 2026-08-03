@@ -101,6 +101,14 @@ function shapeIds(doc) {
   return [...doc.getMap('shapes').keys()]
 }
 
+function connectorIds(doc) {
+  return [...doc.getMap('connectors').keys()]
+}
+
+function metaKeys(doc) {
+  return [...doc.getMap('meta').keys()]
+}
+
 let sessions
 
 beforeEach(() => {
@@ -407,6 +415,47 @@ describe('useCollaboration', () => {
     const check = new Yreal.Doc()
     Yreal.applyUpdate(check, fromBase64(base64))
     expect([...check.getMap('shapes').keys()]).toEqual(['s1'])
+    collab.destroy()
+  })
+
+  // ---- Free-floating nodes sync per object, not as a meta blob (#122) ----------
+  // On a unified doc the mind-map / flowchart nodes are ordinary role-tagged shapes
+  // in shapes[] (+ connectors[]), NOT the sub-model blob (flattenSubmodels empties
+  // state.mindmap / state.flowchart on load). So they must land in the per-object
+  // `shapes` / `connectors` Yjs maps, keyed by id — that per-object CRDT is what lets
+  // two people edit different nodes and merge cleanly. `mindmap` / `flowchart` stay in
+  // META_KEYS on purpose: a LEGACY standalone doc still carries its whole tree/chart in
+  // that last-writer-wins blob, so dropping them from META_KEYS would stop syncing it.
+  it('a unified doc syncs free-floating mind-map / flowchart nodes per object, not as a meta blob', async () => {
+    sessions = [() => Promise.resolve({ room: 'room-a', password: 'pw-a' })]
+    const store = makeStore()
+
+    const collab = useCollaboration(store, {}, 'diagram-1')
+    await flush()
+
+    // A migrated mind-map node and a migrated flowchart node are ordinary role-tagged
+    // shapes; the branch/edge between them is an ordinary connector.
+    store.state.shapes.push(
+      { id: 'mm1', type: 'rectangle', mindmap: { isRoot: true } },
+      { id: 'fc1', type: 'rectangle', flowchart: { nodeType: 'process' } },
+    )
+    store.state.connectors.push({ id: 'c1', from: { shapeId: 'mm1' }, to: { shapeId: 'fc1' } })
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(200)
+
+    const doc = created.docs[0]
+    // Each node object lands in the per-object map, keyed by its id — not in `meta`.
+    expect(shapeIds(doc).sort()).toEqual(['fc1', 'mm1'])
+    expect(connectorIds(doc)).toEqual(['c1'])
+    expect(metaKeys(doc)).not.toContain('mm1')
+    expect(metaKeys(doc)).not.toContain('fc1')
+
+    // The sub-model blobs are not what carries the nodes: they stay empty on a unified
+    // doc and ride in `meta` as `null` (kept in META_KEYS only for legacy standalone docs).
+    expect(store.state.mindmap).toBeNull()
+    expect(store.state.flowchart).toBeNull()
+    expect(doc.getMap('meta').get('mindmap')).toBe('null')
+    expect(doc.getMap('meta').get('flowchart')).toBe('null')
     collab.destroy()
   })
 })

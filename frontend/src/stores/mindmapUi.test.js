@@ -10,7 +10,7 @@ import {
   resetMindmapUi,
 } from './mindmapUi.js'
 import { linkNodes, deleteNodes, deleteTrees } from '@/diagram/mindmapOperations.js'
-import { rootNodes, nodeById, createEmptyMindMap, addTree } from '@/diagram/mindmapModel.js'
+import { rootNodes, createEmptyMindMap, addTree } from '@/diagram/mindmapModel.js'
 import { mindmapKeydown } from '@/composables/useMindmapKeys.js'
 
 // Cross-link selection + focus mode: both existed in the model but had no way to
@@ -216,7 +216,7 @@ describe('focusedNodeId guards a stale focus', () => {
 describe('deleting one of several mind maps', () => {
   // Seed two independent legacy sub-model trees DIRECTLY. The palette insert no
   // longer populates state.mindmap (free-floating #122) — it drops free-floating
-  // shapes instead — but the frame move/delete path exercised below still operates
+  // shapes instead — but the multi-map delete path exercised below still operates
   // on the sub-model, so build one straight from the model helpers (behaviourally
   // identical to what the old insert seeded: one empty root per tree at origin 0,0).
   function unifiedWithTwoMaps() {
@@ -251,19 +251,5 @@ describe('deleting one of several mind maps', () => {
 
     expect(mindmapKeydown({ key: 'Delete' }, store)).toBe(true)
     expect(mindmapUi.confirmDelete.clearAll).toBe(true)
-  })
-
-  it('moves one map without moving the other', () => {
-    const { store, first, second } = unifiedWithTwoMaps()
-    const before = nodeById(store.state.mindmap, first).origin
-
-    store.moveMindmapTree(second, 120, -80)
-
-    const moved = nodeById(store.state.mindmap, second).origin
-    expect(nodeById(store.state.mindmap, first).origin).toEqual(before)
-    expect(moved).toEqual({ x: 120, y: -80 })
-    // One undo step, like every other frame move.
-    store.undo()
-    expect(nodeById(store.state.mindmap, second).origin).toEqual({ x: 0, y: 0 })
   })
 })

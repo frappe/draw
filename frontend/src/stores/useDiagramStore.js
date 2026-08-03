@@ -9,8 +9,7 @@ import { createHistory } from '@/stores/history.js'
 import { clone } from '@/utils/clone.js'
 import { findThemePreset, DEFAULT_THEME_PRESET } from '@/diagram/theme.js'
 import { createDiagramDocument, SCHEMA_VERSION, DEFAULT_DIAGRAM_TYPE } from '@/diagram/schema.js'
-import { addChild, addSibling, addRootNode, createMindMap, nodeById, subtreeIds } from '@/diagram/mindmapModel.js'
-import { layoutMindMap, mindmapTreeRects } from '@/diagram/mindmapLayout.js'
+import { addChild, addSibling, addRootNode, createMindMap, subtreeIds } from '@/diagram/mindmapModel.js'
 import { isMindmapShape, isFlowchartShape, flattenSubmodels } from '@/diagram/freeFloating.js'
 import { mindmapModelFromShapes } from '@/diagram/freeFloatingGraph.js'
 import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild, flowchartLayoutPatches, mindmapLayoutPatches } from '@/diagram/freeFloatingOps.js'
@@ -24,7 +23,6 @@ import {
   flowchartNodeById,
   flowchartEdgeById,
 } from '@/diagram/flowchartModel.js'
-import { flowchartContentBounds } from '@/diagram/flowchartLayout.js'
 import {
   addStroke,
   removeStroke,
@@ -92,116 +90,6 @@ function assembleStore(state, history) {
   return store
 }
 
-// ----- Placing an inserted frame (#30) ---------------------------------------
-// A frame's `origin` is its top-left on the shared canvas; its content sits at
-// origin + the content bbox. Insert used to leave the origin at the document's
-// fixed default, so a user who had panned away got a frame somewhere off-screen.
-// It is now placed inside `view`, the logical rect the canvas currently shows.
-
-const FRAME_GAP = 80
-
-// The rect a frame occupies on the shared canvas.
-function frameRect(origin, bbox) {
-  return { x: origin.x + (bbox.x || 0), y: origin.y + (bbox.y || 0), w: bbox.w, h: bbox.h }
-}
-
-function overlapArea(a, b) {
-  const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)
-  const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)
-  return Math.max(0, w) * Math.max(0, h)
-}
-
-// The rect held by the auto-layout frame OTHER than `kind`, or null if it's empty.
-// Both frames insert into the same view, so the second one needs to know where the
-// first one sits.
-function otherFrameRect(state, kind) {
-  if (kind === 'mindmap') {
-    const f = state.flowchart
-    if (!f?.nodes.length) return null
-    return frameRect(f.origin || { x: 0, y: 0 }, flowchartContentBounds(f))
-  }
-  const m = state.mindmap
-  if (!m?.nodes.length) return null
-  return frameRect(m.origin || { x: 0, y: 0 }, layoutMindMap(m).bbox)
-}
-
-// Where each mind-map tree sits on the shared canvas: the map's origin plus the
-// tree's own offset within it (#48).
-function treeRectsOnCanvas(model) {
-  const origin = model.origin || { x: 0, y: 0 }
-  return mindmapTreeRects(model, layoutMindMap(model).positions).map((rect) => ({
-    ...rect,
-    x: rect.x + origin.x,
-    y: rect.y + origin.y,
-  }))
-}
-
-// What a newly inserted mind-map tree has to sit clear of: every tree already on
-// the map, plus the flowchart. One enclosing rect — placement only ever needs
-// somewhere free, not the exact shape of what is taken.
-function occupiedRect(state, trees, exceptRootId) {
-  let rect = otherFrameRect(state, 'mindmap')
-  for (const tree of trees) {
-    if (tree.rootId !== exceptRootId) rect = union(rect, tree)
-  }
-  return rect
-}
-
-function union(a, b) {
-  if (!a) return b
-  if (!b) return a
-  const x = Math.min(a.x, b.x)
-  const y = Math.min(a.y, b.y)
-  return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y }
-}
-
-// One axis of a rect placed inside the view: kept within its bounds, or centred on
-// it when the rect is the larger of the two.
-function insideAxis(pos, size, min, extent) {
-  if (size >= extent) return min + (extent - size) / 2
-  return Math.min(Math.max(pos, min), min + extent - size)
-}
-
-function insideView(rect, view) {
-  return {
-    ...rect,
-    x: insideAxis(rect.x, rect.w, view.x, view.w),
-    y: insideAxis(rect.y, rect.h, view.y, view.h),
-  }
-}
-
-function centredInView(size, view) {
-  return { x: view.x + (view.w - size.w) / 2, y: view.y + (view.h - size.h) / 2, ...size }
-}
-
-// The four ways to sit clear of `avoid` — below, above, right, left — each centred
-// in the view on the other axis and then pulled back inside it. That pull can leave
-// a sliver of overlap when the view has no room to clear the other frame; a small
-// overlap the user can drag apart beats a frame parked off-screen (#30).
-function placementsClearing(size, view, avoid) {
-  const centred = centredInView(size, view)
-  return [
-    { ...centred, y: avoid.y + avoid.h + FRAME_GAP },
-    { ...centred, y: avoid.y - FRAME_GAP - size.h },
-    { ...centred, x: avoid.x + avoid.w + FRAME_GAP },
-    { ...centred, x: avoid.x - FRAME_GAP - size.w },
-  ].map((rect) => insideView(rect, view))
-}
-
-// The origin that puts `bbox` in the middle of `view`, so an inserted frame appears
-// where the user is looking — moved aside to whichever in-view placement covers the
-// other frame least, which the document's fixed default origins used to prevent.
-function frameOriginInView(bbox, view, avoid = null) {
-  const size = { w: bbox.w, h: bbox.h }
-  let rect = insideView(centredInView(size, view), view)
-  if (avoid && overlapArea(rect, avoid) > 0) {
-    rect = placementsClearing(size, view, avoid).reduce((best, next) =>
-      overlapArea(next, avoid) < overlapArea(best, avoid) ? next : best,
-    )
-  }
-  return { x: rect.x - (bbox.x || 0), y: rect.y - (bbox.y || 0) }
-}
-
 // ----- Inserting a free-floating starter (free-floating #122) -----------------
 // The palette used to seed the legacy mindmap/flowchart SUB-MODEL, so a freshly
 // inserted map/chart rendered through the framed path — no marquee, no "+" handles,
@@ -211,8 +99,7 @@ function frameOriginInView(bbox, view, avoid = null) {
 // and drops that on the shared canvas. A fresh insert is therefore identical to a
 // migrated one from the first frame, no reload — mooting the fresh-insert cases of
 // #120/#121/#129. The legacy sub-models are left empty (never populated), so the
-// framed render layers draw nothing; the frame-placement helpers above are now the
-// legacy path, removed with the rest of the frame code in a later phase.
+// framed render layers draw nothing.
 
 // How far a repeat insert steps off content it would otherwise land exactly on.
 const INSERT_NUDGE = 40
@@ -371,17 +258,6 @@ function attachMindMap(store, state, history) {
   // clear of the first (separate shapes, placeShapesInView nudges off any overlap).
   store.insertMindmapStarter = (view = null) =>
     commitStarter(store, state, history, 'Insert mind map', { mindmap: createMindMap('') }, view)
-  // Move one mind-map tree on the unified canvas by a delta, as one undoable unit
-  // — repositions that tree's own offset, leaving every other tree alone (#48).
-  store.moveMindmapTree = (rootId, dx, dy) => {
-    if (!state.mindmap || (!dx && !dy)) return
-    const root = nodeById(state.mindmap, rootId)
-    if (!root) return
-    history.commit('Move mind map', () => {
-      const o = root.origin || { x: 0, y: 0 }
-      root.origin = { x: o.x + dx, y: o.y + dy }
-    })
-  }
   // The mind-map counterpart of applyFlowchartShapeLayout (#122 P3): re-flow the
   // selected node's whole tree with the balanced auto-layout as an explicit "Tidy up".
   // A standalone map auto-layouts live via MindMapOverlay, but free-floating nodes are
@@ -545,16 +421,6 @@ function attachFlowchart(store, state, history) {
     const flowchart = createFlowchart()
     addFlowchartNode(flowchart, nodeType, '', 0, 0)
     commitStarter(store, state, history, 'Insert flowchart', { flowchart }, view)
-  }
-  // Move the flowchart frame on the unified canvas by a delta, as one undoable
-  // unit — repositions its origin (its top-left on the canvas).
-  store.moveFlowchartFrame = (dx, dy) => {
-    const m = state.flowchart
-    if (!m || (!dx && !dy)) return
-    history.commit('Move flowchart', () => {
-      const o = m.origin || { x: 0, y: 0 }
-      m.origin = { x: o.x + dx, y: o.y + dy }
-    })
   }
 }
 
