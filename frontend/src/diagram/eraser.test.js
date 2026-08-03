@@ -113,7 +113,7 @@ describe('eraseObjectsAt', () => {
       whiteboard: {
         strokes: [horizontalStroke()],
         lines: [makeLine(0, 100, 100, 100)],
-        tables: [makeTable(400, 0)],
+        tables: [makeTable(400, 0, { rows: 3, cols: 3 })],
         stickyNotes: [makeStickyNote(700, 0)],
       },
     }

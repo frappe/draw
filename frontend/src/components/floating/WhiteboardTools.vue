@@ -15,7 +15,8 @@ import { CHALK_COLORS, STICKY_COLORS, PEN_WIDTHS } from '@/diagram/whiteboardCol
 import { ERASER_SIZES } from '@/diagram/eraser.js'
 import { visibleWhiteboardTools } from './whiteboardTools.js'
 import LineOptions from './LineOptions.vue'
-import TableOptions from './TableOptions.vue'
+import TableSizePicker from './TableSizePicker.vue'
+import { tableInsertOrigin } from './tableSizePicker.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
 
 // `exclude` hides tools the surrounding context already provides — on the unified
@@ -30,8 +31,10 @@ const store = useDiagramStore()
 const ui = useWhiteboardUi()
 const imageInsert = useImageInsert(store)
 
-// Tools that expose options in the disclosure popover.
-const OPTION_TOOLS = ['pen', 'highlighter', 'eraser', 'sticky', 'line', 'table']
+// Tools that expose options in the disclosure popover. The table tool is absent:
+// clicking it opens the size picker (which commits directly), so it never needs
+// the separate options step (#134).
+const OPTION_TOOLS = ['pen', 'highlighter', 'eraser', 'sticky', 'line']
 
 // Eraser modes (#39). 'ink' is the classic whiteboard eraser — it takes only what
 // the tip covers; 'object' takes the whole element under it, the only way to erase
@@ -63,31 +66,54 @@ function toggleClass(active) {
   return active ? 'bg-surface-gray-2 text-ink-gray-9' : ''
 }
 
-// New-line / new-table defaults live on ui.state; LineOptions/TableOptions emit a
-// partial patch and these copy each present field onto the right default.
+// New-line defaults live on ui.state; LineOptions emits a partial patch and this
+// copies each present field onto the right default.
 function applyLineDefault(patch) {
   const fields = { start: 'lineStart', end: 'lineEnd', color: 'penColor', width: 'penWidth' }
   for (const [key, target] of Object.entries(fields)) {
     if (patch[key] !== undefined) ui.state[target] = patch[key]
   }
 }
-function applyTableDefault(patch) {
-  const fields = { rows: 'tableRows', cols: 'tableCols', color: 'penColor' }
-  for (const [key, target] of Object.entries(fields)) {
-    if (patch[key] !== undefined) ui.state[target] = patch[key]
+
+// Commit a table of the picked size: drop it centred in view, select it, and
+// remember the size so the keyboard-armed quick-place uses the same one (#134).
+function insertTable({ rows, cols }, close) {
+  const origin = tableInsertOrigin(editorUi.viewport.visibleRect(), rows, cols)
+  const id = store.addTable(origin.x, origin.y, { rows, cols, color: ui.state.penColor })
+  if (id) {
+    editorUi.setTool('select')
+    ui.selectTable(id)
+    ui.state.tableRows = rows
+    ui.state.tableCols = cols
   }
+  close?.()
 }
 </script>
 
 <template>
   <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
 
-  <!-- Tools: a single click arms; the next canvas action draws. -->
-  <Tooltip v-for="t in visibleTools" :key="t.tool" :text="t.label">
-    <button :class="[buttonBase, toggleClass(activeTool === t.tool)]" @click="editorUi.setTool(t.tool)">
-      <LucideIcon :name="t.icon" class="h-4 w-4" />
-    </button>
-  </Tooltip>
+  <!-- Tools: a single click arms; the next canvas action draws. The table tool is
+       the exception — clicking it opens the size picker, which inserts on pick. -->
+  <template v-for="t in visibleTools" :key="t.tool">
+    <Popover v-if="t.tool === 'table'">
+      <template #target="{ togglePopover: togglePicker }">
+        <Tooltip :text="t.label">
+          <button :class="[buttonBase, toggleClass(activeTool === t.tool)]" @click="togglePicker()">
+            <LucideIcon :name="t.icon" class="h-4 w-4" />
+          </button>
+        </Tooltip>
+      </template>
+      <template #body-main="{ togglePopover }">
+        <TableSizePicker @pick="insertTable($event, togglePopover)" />
+      </template>
+    </Popover>
+    <Tooltip v-else :text="t.label">
+      <button :class="[buttonBase, toggleClass(activeTool === t.tool)]" @click="editorUi.setTool(t.tool)">
+        <LucideIcon :name="t.icon" class="h-4 w-4" />
+      </button>
+    </Tooltip>
+  </template>
 
   <!-- Insert image (action, not a tool). Hidden when the surrounding palette owns it. -->
   <Tooltip v-if="showImageInsert" text="Insert image">
@@ -201,15 +227,6 @@ function applyTableDefault(patch) {
         :color="ui.state.penColor"
         :width="ui.state.penWidth"
         @change="applyLineDefault"
-      />
-
-      <!-- Table: rows + cols + color. -->
-      <TableOptions
-        v-else-if="activeTool === 'table'"
-        :rows="ui.state.tableRows"
-        :cols="ui.state.tableCols"
-        :color="ui.state.penColor"
-        @change="applyTableDefault"
       />
     </template>
   </Popover>

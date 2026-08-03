@@ -108,6 +108,50 @@ export async function openShapesPopover(page) {
   return tiles
 }
 
+// --- the "+" Add catalog (free-floating #122 / catalog #90) -------------------
+//
+// The mind-map and flowchart tiles moved out of the old Shapes popover into the one
+// circular "+" catalog (#90) that the create canvas centres on the bottom bar. It is
+// the button labelled "Add"; its tiles sit under plain-text section headers ("Shapes",
+// "Lines & connectors", "Draw & insert", "Mind map", "Flowchart"). Opening it returns
+// the portalled panel (a Popover, so NOT under [data-palette] — scope to POPOVER).
+export async function openAddCatalog(page) {
+  await page.locator(PALETTE).locator('[aria-label="Add"]').click()
+  return page.locator(POPOVER)
+}
+
+// The tile(s) under one catalog section, reached from the section header rather than
+// the tile: a catalog tile is icon-only (a drawn ShapeGlyph, no accessible name) and
+// frappe-ui Tooltip text is not a hook under Playwright (see iconSelector). The tile
+// grid is the header's immediate next sibling, so this never catches a block/line tile.
+function catalogSectionTiles(catalog, sectionLabel) {
+  return catalog
+    .getByText(sectionLabel, { exact: true })
+    .locator('xpath=following-sibling::div[1]')
+    .locator('button')
+}
+
+// Insert a free-floating mind-map node from the catalog: a SINGLE role-tagged root
+// SHAPE lands on shapes[] (#122), not a framed sub-model. The click closes the
+// popover, so awaiting its hidden state also proves the click was delivered.
+export async function insertMindmapNode(page) {
+  const catalog = await openAddCatalog(page)
+  const tile = catalogSectionTiles(catalog, 'Mind map').first()
+  await tile.waitFor({ state: 'visible' })
+  await tile.click()
+  await expect(catalog).toBeHidden()
+}
+
+// Insert a free-floating flowchart node from the catalog: a SINGLE role-tagged SHAPE
+// of the first node type (the Terminator, the default starter) lands on shapes[].
+export async function insertFlowchartNode(page) {
+  const catalog = await openAddCatalog(page)
+  const tile = catalogSectionTiles(catalog, 'Flowchart').first()
+  await tile.waitFor({ state: 'visible' })
+  await tile.click()
+  await expect(catalog).toBeHidden()
+}
+
 // Drag a palette tile onto the canvas.
 //
 // Playwright's synthetic mouse does NOT reliably start a native HTML5 drag — a
@@ -221,4 +265,60 @@ export async function dragNode(page, locator, what, dx, dy) {
   await page.mouse.move(cx + dx, cy + dy, { steps: 12 })
   await page.mouse.up()
   return box
+}
+
+// --- free-floating (#122) mind-map / flowchart nodes on the unified canvas ------
+//
+// After the migration a mind-map / flowchart node is an ORDINARY shape rendered by
+// ShapeView: a `<g data-shape-id>` group — a boxed root, a transparent-text child,
+// or the exact flowchart glyph. The migration reuses each node's id verbatim as the
+// shape id (m1…/f1…), so a seeded node is found by id; a node is also found by its
+// label text. There is no `.fd-mm-label` and no frame hit-rect any more.
+export function ffShape(page, id) {
+  return page.locator(`[data-shape-id="${id}"]`).first()
+}
+export function ffNode(page, label) {
+  return page.getByText(label, { exact: true }).first()
+}
+
+// Select a free-floating node by clicking the CENTRE of its rendered box. Selection
+// is a geometric hit-test (topShapeAt), not a DOM click, and a transparent-text child
+// has no fill to click, so a real mouse click at the box centre is what selects it.
+export async function selectShape(page, locator, what) {
+  const box = await boxInWindow(page, locator, what)
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+}
+
+// The on-canvas "+" add-handles for migrated nodes (#118 mind map / #77 flowchart):
+// a handle reveals for a hovered or sole-selected node (select tool only). Each is a
+// filled circle carrying an "Add child"/"Add sibling"/"Add step" <title>.
+export function mindmapAddHandles(page) {
+  return page.locator('[data-mindmap-hover-handles] circle')
+}
+export function flowchartAddHandles(page) {
+  return page.locator('[data-flowchart-hover-handles] circle')
+}
+
+// Rubber-band a marquee enclosing the given elements: the press starts just outside
+// their combined top-left (empty canvas, so it starts a marquee rather than grabbing a
+// shape) and releases just past the bottom-right, so every shape the box covers is
+// selected. Coordinates are read from the live geometry so the box always encloses the
+// nodes wherever they landed; each element must be in-window (page.mouse ignores
+// out-of-window coordinates — see boxInWindow).
+export async function marqueeOver(page, locators, what) {
+  let left = Infinity
+  let top = Infinity
+  let right = -Infinity
+  let bottom = -Infinity
+  for (const locator of locators) {
+    const box = await boxInWindow(page, locator, what)
+    left = Math.min(left, box.x)
+    top = Math.min(top, box.y)
+    right = Math.max(right, box.x + box.width)
+    bottom = Math.max(bottom, box.y + box.height)
+  }
+  await page.mouse.move(left - 24, top - 24)
+  await page.mouse.down()
+  await page.mouse.move(right + 24, bottom + 24, { steps: 14 })
+  await page.mouse.up()
 }

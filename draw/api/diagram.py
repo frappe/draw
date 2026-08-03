@@ -22,6 +22,8 @@ from frappe import _
 from frappe.utils import cint, now_datetime
 from frappe.utils.password import get_encryption_key
 
+from draw.api.permission import can_view_via_general_access
+
 DOCTYPE = "Draw Diagram"
 
 
@@ -63,15 +65,18 @@ def _get_readable_diagram(name: str) -> "frappe.model.document.Document":
 		frappe.throw(_("Diagram not found"), frappe.DoesNotExistError)
 
 	diagram = frappe.get_doc(DOCTYPE, name)
-	is_public = bool(diagram.is_public)
-	is_guest = frappe.session.user == "Guest"
 
-	if is_guest:
-		if not is_public:
-			raise frappe.PermissionError(_("You need access to view this diagram"))
+	# General access grants VIEW without a per-user share: public_view lets anyone
+	# in (guests included), site_users_view lets any signed-in user in. This is the
+	# only path a guest ever reads through.
+	if can_view_via_general_access(diagram):
 		return diagram
 
-	if diagram.owner == frappe.session.user or is_public:
+	user = frappe.session.user
+	if user == "Guest":
+		raise frappe.PermissionError(_("You need access to view this diagram"))
+
+	if diagram.owner == user:
 		return diagram
 
 	# Falls back to standard permission rules (covers System Manager + shares).
@@ -282,6 +287,69 @@ def _save_thumbnail_file(
 			"decode": False,
 		}
 	).insert(ignore_permissions=True)
+
+
+# --- inserted images (#74) ---------------------------------------------------
+
+# Mirrors the frontend picker (useImageInsert.js ACCEPT).
+_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp", "svg"}
+_MAX_IMAGE_BYTES = 10 * 1024 * 1024
+
+
+@frappe.whitelist(methods=["POST"])
+def upload_diagram_image(name: str) -> dict:
+	"""Store an image inserted onto the canvas as a File ATTACHED to the diagram.
+
+	Reached through Frappe's upload endpoint (frappe-ui FileUploadHandler passes
+	`method=...`), so the bytes arrive in `frappe.local.uploaded_file`. We insert
+	the File here — server-side, exactly like the thumbnail — instead of letting
+	the upload endpoint create a loose File. Suite's Drive adopts every loose File
+	the upload endpoint creates into the uploader's Drive Home
+	(suite/drive/overrides/file.py:after_file_upload), so inserting N images used
+	to leave N stray files there (#74). A File created by a plain `.insert()` is
+	never seen by that hook, so no stray entries appear — and being attached to the
+	diagram, the image is owned by it and cleaned up when the diagram is deleted.
+
+	Kept PUBLIC (is_private=0): the file_url is embedded in the diagram document and
+	must render for anyone the diagram is shared/exported to, exactly as before."""
+	diagram = _get_writable_diagram(name)
+
+	content, filename = _uploaded_image()
+	if not content:
+		frappe.throw(_("No image was uploaded"), frappe.ValidationError)
+	if len(content) > _MAX_IMAGE_BYTES:
+		frappe.throw(_("Image is too large"), frappe.ValidationError)
+	extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+	if extension not in _IMAGE_EXTENSIONS:
+		frappe.throw(_("Only image files can be inserted"), frappe.ValidationError)
+
+	file_doc = frappe.get_doc(
+		{
+			"doctype": "File",
+			"file_name": filename,
+			"attached_to_doctype": DOCTYPE,
+			"attached_to_name": diagram.name,
+			"is_private": 0,
+			"content": content,
+			"decode": False,
+		}
+	).insert(ignore_permissions=True)
+	return {"file_url": file_doc.file_url, "file_name": file_doc.file_name}
+
+
+def _uploaded_image() -> tuple[bytes | None, str]:
+	"""The uploaded image's bytes + filename. Frappe's upload endpoint hands the
+	content to a delegated `method` via frappe.local.uploaded_file; fall back to the
+	raw request file if a frappe build doesn't populate it."""
+	content = getattr(frappe.local, "uploaded_file", None)
+	filename = getattr(frappe.local, "uploaded_filename", None)
+	if not content:
+		request = getattr(frappe, "request", None)
+		upload = request.files.get("file") if request and request.files else None
+		if upload is not None:
+			content = upload.stream.read()
+			filename = filename or upload.filename
+	return content, filename or "image"
 
 
 # --- scheduled maintenance ---------------------------------------------------

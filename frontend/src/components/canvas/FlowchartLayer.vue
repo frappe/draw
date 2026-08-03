@@ -17,7 +17,7 @@ import { flowchartUi, endFlowchartEdit } from '@/stores/flowchartUi.js'
 import { primaryTriad } from '@/diagram/theme.js'
 import { nodeSize } from '@/diagram/flowchartModel.js'
 import { nodeShape } from '@/diagram/flowchartShapes.js'
-import { routeEdge, routeOffsets, portPoint, branchInfoFor } from '@/diagram/flowchartLayout.js'
+import { routeEdge, routeOffsets, portPoint, branchInfoFor, placePicker } from '@/diagram/flowchartLayout.js'
 import { pointsToPath } from '@/diagram/svgPath.js'
 import FlowchartNodeTypePicker from './FlowchartNodeTypePicker.vue'
 import SmartGuidesLayer from './SmartGuidesLayer.vue'
@@ -199,6 +199,42 @@ function onEditKeydown(event, id) {
     endFlowchartEdit(id)
   }
 }
+
+// ----- node-type picker placement (#96) --------------------------------------
+
+// The picker's box, matching the <foreignObject> in the template.
+const PICKER_W = 260
+const PICKER_H = 240
+
+// Final on-canvas position for the open picker: anchored just below the source
+// node (flipping above / clamping so it never hides behind the bottom palette),
+// recomputed against the live viewport so it stays correct as the canvas pans or
+// zooms while the picker is open.
+const pickerPos = computed(() => {
+  if (!ui.picker) return { x: 0, y: 0 }
+  const view = editorUi.viewport.visibleRect()
+  const z = zoom.value || 1
+  // Exclude the bottom strip the palette occupies (~84 screen px) plus a small
+  // margin on every edge, converted to logical units at the current zoom.
+  const margin = 8 / z
+  const bounds = {
+    x: view.x + margin,
+    y: view.y + margin,
+    w: view.w - margin * 2,
+    h: view.h - margin - 84 / z,
+  }
+  const source = ui.picker.source?.fromNodeId
+    ? props.flowchart.nodes.find((n) => n.id === ui.picker.source.fromNodeId)
+    : null
+  const box = source ? { x: source.x, y: source.y, ...nodeSize(source) } : null
+  return placePicker({
+    box,
+    point: { x: ui.picker.x, y: ui.picker.y },
+    menu: { w: PICKER_W, h: PICKER_H },
+    bounds,
+    direction: direction.value,
+  })
+})
 
 // ----- hover bookkeeping ------------------------------------------------------
 
@@ -402,11 +438,12 @@ function onLeave(id) {
       :stroke-dasharray="`${4 / zoom} ${3 / zoom}`"
     />
 
-    <!-- Node-type picker overlay at the requested logical point (F2/F4). -->
+    <!-- Node-type picker overlay, positioned just below the node and flipped/clamped
+         so it never hides behind the bottom palette (#96). -->
     <foreignObject
       v-if="ui.picker"
-      :x="ui.picker.x"
-      :y="ui.picker.y"
+      :x="pickerPos.x"
+      :y="pickerPos.y"
       width="260"
       height="240"
       style="overflow: visible"

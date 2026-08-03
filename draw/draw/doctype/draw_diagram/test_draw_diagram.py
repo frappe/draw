@@ -123,52 +123,260 @@ class TestDrawDiagram(IntegrationTestCase):
 		self.assertEqual(row["level"], "edit")
 		self.assertTrue(row["can_edit"])
 
-	def test_register_in_drive_when_available(self):
-		# Optional Drive integration — only exercised when Drive is installed
-		# (CI's fresh site has no Drive, so this skips there).
-		from draw.api.drive_integration import drive_installed, register_in_drive
+	# ----- general access tiers (GitHub #106) -----
 
-		if not drive_installed():
-			self.skipTest("Frappe Drive not installed")
+	def _read_as(self, user, name):
+		"""Read a diagram through the real document gate (draw.api.diagram) as `user`.
+		Returns the payload, or raises frappe.PermissionError just as an HTTP caller
+		would. General access is enforced here, NOT through frappe.has_permission."""
+		from draw.api.diagram import get_diagram
 
-		teams = frappe.get_all("Drive Team", pluck="name")
-		team = (
-			teams[0]
-			if teams
-			else frappe.get_doc({"doctype": "Drive Team", "title": "Draw CI Team"}).insert(
-				ignore_permissions=True
-			).name
+		frappe.set_user(user)
+		try:
+			return get_diagram(name)
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_set_general_access_toggles_the_two_flags_exclusively(self):
+		from draw.api.share import set_general_access
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+
+		self.assertEqual(set_general_access(doc.name, "site_users_view"), "site_users_view")
+		flags = frappe.db.get_value(
+			"Draw Diagram", doc.name, ["is_public", "all_site_users_can_view"], as_dict=True
 		)
-		doc = self._make("unified", {"schemaVersion": 1, "diagramType": "unified"})
+		self.assertEqual((flags.is_public, flags.all_site_users_can_view), (0, 1))
 
-		file_name = register_in_drive(doc.name, team=team)
-		self.addCleanup(lambda: frappe.delete_doc("File", file_name, force=True, ignore_permissions=True))
-		self.assertTrue(file_name)
-		# Registered as a Drive link that opens the Draw editor.
-		self.assertEqual(
-			frappe.db.get_value("File", file_name, "file_url"), f"/draw/d/{doc.name}"
+		set_general_access(doc.name, "public_view")
+		flags = frappe.db.get_value(
+			"Draw Diagram", doc.name, ["is_public", "all_site_users_can_view"], as_dict=True
 		)
-		# Idempotent — a second call reuses the same File.
-		self.assertEqual(register_in_drive(doc.name, team=team), file_name)
+		self.assertEqual((flags.is_public, flags.all_site_users_can_view), (1, 0))
+
+		set_general_access(doc.name, "restricted")
+		flags = frappe.db.get_value(
+			"Draw Diagram", doc.name, ["is_public", "all_site_users_can_view"], as_dict=True
+		)
+		self.assertEqual((flags.is_public, flags.all_site_users_can_view), (0, 0))
+
+	def test_set_general_access_rejects_an_unknown_tier(self):
+		from draw.api.share import set_general_access
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		self.assertRaises(frappe.ValidationError, set_general_access, doc.name, "editable-by-anyone")
+
+	def test_site_users_view_grants_view_to_an_arbitrary_site_user(self):
+		# The middle tier: any signed-in user — with NO share and NO Draw role — may
+		# VIEW the diagram through the document gate.
+		from draw.api.permission import can_view_via_general_access
+		from draw.api.share import get_general_access, set_general_access
+
+		outsider = self._user("draw-anyuser@example.com")
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		set_general_access(doc.name, "site_users_view")
+
+		self.assertEqual(get_general_access(doc.name), "site_users_view")
+		self.assertEqual(self._read_as(outsider, doc.name)["name"], doc.name)
+
+		doc.reload()
+		self.assertTrue(can_view_via_general_access(doc, outsider))
+		# ...but it is VIEW ONLY — no write, no re-share.
+		frappe.set_user(outsider)
+		try:
+			self.assertFalse(frappe.has_permission("Draw Diagram", "write", doc=doc.name))
+		finally:
+			frappe.set_user("Administrator")
+
+	def test_site_users_view_is_denied_to_a_guest(self):
+		# "All logged-in site users" excludes the guest/website user.
+		from draw.api.permission import can_view_via_general_access
+		from draw.api.share import set_general_access
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		set_general_access(doc.name, "site_users_view")
+
+		doc.reload()
+		self.assertFalse(can_view_via_general_access(doc, "Guest"))
+		self.assertRaises(frappe.PermissionError, self._read_as, "Guest", doc.name)
+
+	def test_restricted_diagram_denies_another_signed_in_user(self):
+		# The default tier: an unrelated signed-in user, with no share, cannot read it.
+		outsider = self._user("draw-restricted-out@example.com")
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})  # restricted by default
+		self.assertRaises(frappe.PermissionError, self._read_as, outsider, doc.name)
+
+	def test_public_view_grants_view_including_a_guest(self):
+		from draw.api.share import get_general_access, set_general_access
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		set_general_access(doc.name, "public_view")
+
+		self.assertEqual(get_general_access(doc.name), "public_view")
+		self.assertTrue(frappe.db.get_value("Draw Diagram", doc.name, "is_public"))
+		self.assertEqual(self._read_as("Guest", doc.name)["name"], doc.name)
+
+	def test_legacy_is_public_document_maps_to_public_view(self):
+		# Backward compatibility: a diagram made public before the tier field existed
+		# has is_public=1 and no all_site_users_can_view — it must still read as
+		# public_view, viewable by anyone including guests, with no migration.
+		from draw.api.permission import can_view_via_general_access, general_access_level
+		from draw.api.share import get_general_access
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		frappe.db.set_value("Draw Diagram", doc.name, "is_public", 1)  # simulate an old doc
+		doc.reload()
+
+		self.assertEqual(general_access_level(doc), "public_view")
+		self.assertEqual(get_general_access(doc.name), "public_view")
+		self.assertTrue(can_view_via_general_access(doc, "Guest"))
+		self.assertEqual(self._read_as("Guest", doc.name)["name"], doc.name)
+
+	def test_general_access_is_not_injected_into_a_non_owners_list(self):
+		# List visibility (permission_query_conditions): a site_users_view diagram
+		# owned by one user does NOT auto-appear in another user's list (if_owner gate — general access still grants open/read, tested above); a restricted one
+		# owned by the same user does not.
+		from draw.api.share import set_general_access
+
+		owner = self._user("draw-ga-owner@example.com")
+		other = self._user("draw-ga-other@example.com")
+		for u in (owner, other):
+			frappe.get_doc("User", u).add_roles("Draw User")
+
+		def make(title):
+			d = frappe.get_doc(
+				{
+					"doctype": "Draw Diagram",
+					"title": title,
+					"diagram_type": "block",
+					"owner": owner,
+					"document": json.dumps({"schemaVersion": 1, "diagramType": "block"}),
+				}
+			).insert(ignore_permissions=True)
+			self.addCleanup(lambda n=d.name: frappe.delete_doc("Draw Diagram", n, force=True, ignore_permissions=True))
+			return d
+
+		shared = make("GA Shared To Site")
+		set_general_access(shared.name, "site_users_view")
+		private = make("GA Private")  # restricted
+
+		frappe.set_user(other)
+		try:
+			visible = {d.name for d in frappe.get_list("Draw Diagram", filters={"is_trashed": 0})}
+		finally:
+			frappe.set_user("Administrator")
+
+		# General access is open/read access for a non-owner (proven above), NOT
+		# list-injection: the if_owner gate keeps it out of the list. A non-owner's
+		# list is owned + explicitly-shared only. Discoverability is a follow-up.
+		self.assertNotIn(shared.name, visible, "general access does not inject into a non-owner's list (if_owner gate)")
+		self.assertNotIn(private.name, visible, "a restricted diagram must stay private")
+
+	# ----- optional Frappe Drive / Suite integration (soft-coupled) -----
+	# This dev/CI site has NO Drive, so these pin the "Drive absent" contract: every
+	# entry point must no-op cleanly and never block a diagram's own lifecycle. The
+	# "Drive present" paths are guarded with skipTest and run post-merge on Suite.
 
 	def test_drive_is_available_reports_status(self):
-		# The editor calls is_available() to decide whether to show "Add to Drive".
+		# The editor toolbar and the Home "install Drive" banner call is_available().
 		# It must always return the two booleans without raising, Drive or not.
-		from draw.api.drive_integration import drive_installed, is_available
+		from draw.api.drive_integration import drive_available, is_available
 
 		status = is_available()
-		self.assertEqual(status["installed"], drive_installed())
-		self.assertIn("ready", status)
-		if not drive_installed():
+		self.assertEqual(status["installed"], drive_available())
+		self.assertEqual(status["ready"], drive_available())
+		if not drive_available():
+			self.assertFalse(status["installed"])
 			self.assertFalse(status["ready"])
 
-	def test_drive_registration_noops_without_team(self):
-		# Registration is a safe no-op when Drive isn't set up / not installed.
+	def test_drive_registration_noops_when_absent(self):
+		# Registration is a safe no-op (returns None) when Drive is not installed,
+		# so creating a diagram never fails for the lack of Drive.
 		from draw.api import drive_integration
 
 		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
-		if not drive_integration.drive_installed():
-			self.assertIsNone(drive_integration.register_in_drive(doc.name))
+		if not drive_integration.drive_available():
+			self.assertIsNone(drive_integration.register_diagram_in_drive(doc.name))
+		# A missing diagram is always a no-op, Drive or not.
+		self.assertIsNone(drive_integration.register_diagram_in_drive("does-not-exist"))
+
+	def test_drive_doc_event_wrappers_are_import_safe(self):
+		# after_insert/on_update/on_trash route through these wrappers. With Drive
+		# absent they must be pure no-ops — importing Suite lazily and swallowing
+		# ImportError — so the diagram lifecycle is untouched.
+		from draw.api import drive_integration
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		# None of these may raise, and (Drive absent) none may create a backing File.
+		drive_integration.auto_register_diagram(doc)
+		drive_integration.sync_diagram_drive_file(doc, "on_update")
+		drive_integration.trash_diagram_drive_file(doc, "on_trash")
+		if not drive_integration.drive_available():
+			self.assertFalse(
+				frappe.db.exists("File", {"content_doctype": "Draw Diagram", "content_docname": doc.name})
+			)
+
+	def test_register_creates_one_content_file_when_drive_present(self):
+		# On a Suite site: registration creates exactly ONE Drive content File
+		# (content_doctype/content_docname), no team, and is idempotent.
+		from draw.api.drive_integration import drive_available, register_diagram_in_drive
+
+		if not drive_available():
+			self.skipTest("Frappe Drive not installed")
+
+		doc = self._make("unified", {"schemaVersion": 1, "diagramType": "unified"})
+		file_name = register_diagram_in_drive(doc.name)
+		self.addCleanup(lambda: frappe.delete_doc("File", file_name, force=True, ignore_permissions=True))
+		self.assertTrue(file_name)
+		self.assertEqual(
+			frappe.db.get_value("File", file_name, "content_docname"), doc.name
+		)
+		# Idempotent — a second call reuses the same content File.
+		self.assertEqual(register_diagram_in_drive(doc.name), file_name)
+
+	def test_inserted_image_is_attached_to_the_diagram(self):
+		# #74: inserted images upload through draw.api.diagram.upload_diagram_image,
+		# which inserts the File server-side ATTACHED to the diagram (so Suite's Drive
+		# never adopts it as a stray Home entry). The bytes arrive via the upload
+		# endpoint in frappe.local; simulate that here.
+		from draw.api.diagram import upload_diagram_image
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		frappe.local.uploaded_file = b"\x89PNG\r\n\x1a\n fake image bytes"
+		frappe.local.uploaded_filename = "inserted.png"
+		try:
+			result = upload_diagram_image(doc.name)
+		finally:
+			frappe.local.uploaded_file = None
+			frappe.local.uploaded_filename = None
+
+		file_name = frappe.db.get_value(
+			"File",
+			{"attached_to_doctype": "Draw Diagram", "attached_to_name": doc.name},
+			["name", "is_private", "file_url"],
+			as_dict=True,
+		)
+		self.addCleanup(
+			lambda: frappe.delete_doc("File", file_name.name, force=True, ignore_permissions=True)
+		)
+		self.assertTrue(file_name, "the inserted image was not attached to the diagram")
+		# Public, so it still renders in shared/exported diagrams.
+		self.assertEqual(file_name.is_private, 0)
+		self.assertEqual(result["file_url"], file_name.file_url)
+
+	def test_inserted_image_rejects_a_non_image(self):
+		# The endpoint only accepts image extensions (defence in depth beyond the
+		# browser picker); a non-image upload is a 400, not a stored File.
+		from draw.api.diagram import upload_diagram_image
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		frappe.local.uploaded_file = b"PK\x03\x04 not an image"
+		frappe.local.uploaded_filename = "payload.zip"
+		try:
+			self.assertRaises(frappe.ValidationError, upload_diagram_image, doc.name)
+		finally:
+			frappe.local.uploaded_file = None
+			frappe.local.uploaded_filename = None
 
 	# ----- collaboration room (real-time session scoping) -----
 

@@ -1,8 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild } from './freeFloatingOps.js'
+import {
+  buildMindmapChild,
+  buildMindmapSibling,
+  buildFlowchartChild,
+  flowchartLayoutPatches,
+  flowchartDirectionOfShapes,
+} from './freeFloatingOps.js'
 import { flattenSubmodels, ROLE } from './freeFloating.js'
 import { createMindMap, addChild } from './mindmapModel.js'
-import { createFlowchart, addFlowchartNode } from './flowchartModel.js'
+import { createFlowchart, addFlowchartNode, autoNumberFlow } from './flowchartModel.js'
+import { tidyLayout, toggleDirection } from './flowchartLayout.js'
 
 // A migrated single-root mind map's shapes[] (root only), to grow from.
 function rootShapes() {
@@ -135,5 +142,97 @@ describe('buildFlowchartChild', () => {
     const { shapes, connectors } = flowchartShapes()
     shapes.push({ id: 'block1', type: 'rectangle', x: 0, y: 0, w: 10, h: 10 })
     expect(buildFlowchartChild(shapes, connectors, 'block1', 'process')).toBeNull()
+  })
+})
+
+// #98: the free-floating counterpart of BottomPalette's Tidy / flip / number, run
+// over the tagged shapes instead of the standalone sub-model.
+describe('flowchartLayoutPatches', () => {
+  // A migrated Start -> Process chart's shapes[]/connectors[].
+  function twoNodeChart() {
+    const { shapes, connectors, startId } = flowchartShapes('terminator')
+    const built = buildFlowchartChild(shapes, connectors, startId, 'process')
+    built.shape.zIndex = 5
+    return {
+      shapes: [...shapes, built.shape],
+      connectors: [...connectors, built.connector],
+      startId,
+      childId: built.shape.id,
+    }
+  }
+
+  // Persist node patches back onto the shapes, the way the store's commit does, so a
+  // follow-up call sees the new positions / direction / step-number state.
+  function applyNodePatches(shapes, nodePatches) {
+    for (const p of nodePatches) {
+      const s = shapes.find((sh) => sh.id === p.id)
+      if (!s) continue
+      s.x = p.x
+      s.y = p.y
+      if (s.text) s.text.content = p.text
+      s.flowchart = { ...(s.flowchart || {}), manuallyPositioned: p.manuallyPositioned, direction: p.direction }
+      if (p.stepPrefix) s.flowchart.stepPrefix = p.stepPrefix
+      else delete s.flowchart.stepPrefix
+    }
+  }
+
+  it('defaults the direction to TB before any flip', () => {
+    const { shapes } = twoNodeChart()
+    expect(flowchartDirectionOfShapes(shapes)).toBe('TB')
+  })
+
+  it('is a no-op when there are no flowchart shapes', () => {
+    expect(flowchartLayoutPatches([], [], (m) => tidyLayout(m)).nodes).toEqual([])
+  })
+
+  it('Tidy re-flows the shapes below one another and clears manual flags', () => {
+    const { shapes, connectors, startId, childId } = twoNodeChart()
+    const child = shapes.find((s) => s.id === childId)
+    child.flowchart.manuallyPositioned = true
+    child.x = 999
+    child.y = 999
+    const patches = flowchartLayoutPatches(shapes, connectors, (m) => tidyLayout(m))
+    const start = patches.nodes.find((n) => n.id === startId)
+    const kid = patches.nodes.find((n) => n.id === childId)
+    expect(kid.manuallyPositioned).toBe(false)
+    expect(kid.y).toBeGreaterThan(start.y) // child sits below the start (TB)
+    expect(kid.x).toBeLessThan(999) // pulled back from the shoved-away slot
+  })
+
+  it('Flip toggles the persisted direction and re-lays-out along the new axis', () => {
+    const { shapes, connectors, startId, childId } = twoNodeChart()
+    const first = flowchartLayoutPatches(shapes, connectors, (m) => toggleDirection(m))
+    expect(first.nodes.every((n) => n.direction === 'LR')).toBe(true)
+    const start = first.nodes.find((n) => n.id === startId)
+    const kid = first.nodes.find((n) => n.id === childId)
+    expect(kid.x).toBeGreaterThan(start.x) // child now to the RIGHT of the start
+    // Persisting + flipping again returns to TB (proves the direction round-trips).
+    applyNodePatches(shapes, first.nodes)
+    const second = flowchartLayoutPatches(shapes, connectors, (m) => toggleDirection(m))
+    expect(second.nodes.every((n) => n.direction === 'TB')).toBe(true)
+  })
+
+  it('recomputes edge anchors so the arrow leaves the new side after a flip', () => {
+    const { shapes, connectors } = twoNodeChart()
+    const patches = flowchartLayoutPatches(shapes, connectors, (m) => toggleDirection(m))
+    expect(patches.edges).toHaveLength(1)
+    expect(patches.edges[0].fromAnchor).toBe('right')
+    expect(patches.edges[0].toAnchor).toBe('left')
+  })
+
+  it('Number steps prefixes each node in flow order, then strips them on toggle off', () => {
+    const { shapes, connectors, startId, childId } = twoNodeChart()
+    const on = flowchartLayoutPatches(shapes, connectors, (m) => autoNumberFlow(m))
+    const start = on.nodes.find((n) => n.id === startId)
+    const kid = on.nodes.find((n) => n.id === childId)
+    expect(start.text).toBe('1. Start')
+    expect(kid.text).toBe('2. Process')
+    expect(start.stepPrefix).toBe('1. ')
+    // Persist, then toggle off — the exact prefixes are removed, text restored.
+    applyNodePatches(shapes, on.nodes)
+    const off = flowchartLayoutPatches(shapes, connectors, (m) => autoNumberFlow(m))
+    const startOff = off.nodes.find((n) => n.id === startId)
+    expect(startOff.text).toBe('Start')
+    expect(startOff.stepPrefix).toBeNull()
   })
 })

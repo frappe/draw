@@ -14,7 +14,10 @@ import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { isUnifiedDocument } from '@/diagram/schema.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
+import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { startPaletteDrag } from '@/composables/useShapeCreation.js'
+import { tableInsertOrigin } from './tableSizePicker.js'
+import TableSizePicker from './TableSizePicker.vue'
 import { collapseAll } from '@/diagram/mindmapOperations.js'
 import { autoNumberFlow, isFlowNumbered } from '@/diagram/flowchartModel.js'
 import { NODE_TYPES, NODE_TYPE_META } from '@/diagram/flowchartModel.js'
@@ -26,6 +29,7 @@ const editorUi = useEditorUi()
 const viewport = editorUi.viewport
 const modeStrategy = useModeStrategy()
 const store = useDiagramStore()
+const ui = useWhiteboardUi()
 const imageInsert = useImageInsert(store)
 
 const isBlock = computed(() => modeStrategy?.value?.type === 'block')
@@ -56,6 +60,8 @@ function flowNumber() {
 
 // Curated set (#131): rectangle, square, rounded rectangle, ellipse, triangle,
 // diamond, hexagon, block arrow. Dropped cylinder / callout / star / pentagon.
+// Polygon (#139) is the freely-drawn N-sided shape — armed by click, then vertices
+// are placed on the canvas, so unlike the rest it can't be dragged onto the canvas.
 // Icons are drawn by ShapeGlyph so each tile is the actual shape it inserts.
 const SHAPES = [
   { type: 'rectangle', label: 'Rectangle' },
@@ -65,8 +71,12 @@ const SHAPES = [
   { type: 'triangle', label: 'Triangle' },
   { type: 'diamond', label: 'Diamond' },
   { type: 'hexagon', label: 'Hexagon' },
+  { type: 'polygon', label: 'Polygon' },
   { type: 'arrow', label: 'Block arrow' },
 ]
+// The polygon is placed vertex-by-vertex, so its tile arms the multi-click tool
+// rather than dropping a fixed shape — it is the one shape tile that can't be dragged.
+const NON_DRAGGABLE_SHAPES = ['polygon']
 // A plain Line has no arrowheads; Arrow ends in an arrow; elbow/curved too. The
 // arrow connector's id is namespaced so it never collides with the 'arrow'
 // block-arrow SHAPE above (they'd both key `byType` and the draw tool).
@@ -139,6 +149,21 @@ function isCreateToolActive(tool) {
   return editorUi.state.tool === tool.key
 }
 
+// Commit a table of the picked size: drop it centred in view, select it, and
+// remember the size for the keyboard-armed quick-place. The catalog closes via
+// the caller's togglePopover (#134).
+function insertTable({ rows, cols }) {
+  const origin = tableInsertOrigin(viewport.visibleRect(), rows, cols)
+  const id = store.addTable(origin.x, origin.y, { rows, cols, color: ui.state.penColor })
+  if (id) {
+    editorUi.setTool('select')
+    ui.selectTable(id)
+    ui.state.tableRows = rows
+    ui.state.tableCols = cols
+  }
+  shapeQuery.value = ''
+}
+
 function insertMindmap(close) {
   store.insertMindmapStarter(viewport.visibleRect())
   shapeQuery.value = ''
@@ -151,8 +176,10 @@ function insertFlowchartNode(type, close) {
 }
 
 // Drag a tile onto the canvas to place that shape where you drop it (shapes +
-// lines only — the other tools arm a mode rather than drop a fixed shape).
+// lines only — the other tools arm a mode rather than drop a fixed shape). The
+// polygon has no fixed geometry to drop, so its drag is suppressed here too.
 function startTileDrag(event, type) {
+  if (NON_DRAGGABLE_SHAPES.includes(type)) return
   startPaletteDrag(event, type, editorUi)
 }
 // Close the popover only once the drag is over — closing on dragstart would
@@ -232,7 +259,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
               <Tooltip v-for="s in filteredShapes" :key="s.type" :text="s.label">
                 <button
                   :class="[tileBase, isArmed(s.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
-                  draggable="true"
+                  :draggable="!NON_DRAGGABLE_SHAPES.includes(s.type)"
                   @click="arm(s.type, togglePopover)"
                   @dragstart="startTileDrag($event, s.type)"
                   @dragend="endTileDrag(togglePopover)"
@@ -259,14 +286,30 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
 
             <div v-if="filteredTools.length" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Draw &amp; insert</div>
             <div v-if="filteredTools.length" class="grid grid-cols-6 gap-1">
-              <Tooltip v-for="t in filteredTools" :key="t.key" :text="t.label">
-                <button
-                  :class="[tileBase, isCreateToolActive(t) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
-                  @click="runCreateTool(t, togglePopover)"
-                >
-                  <LucideIcon :name="t.icon" class="h-[18px] w-[18px]" />
-                </button>
-              </Tooltip>
+              <template v-for="t in filteredTools" :key="t.key">
+                <!-- Table: opens the size picker; picking inserts the table, then
+                     closes the picker and the catalog (#134). -->
+                <Popover v-if="t.key === 'table'">
+                  <template #target="{ togglePopover: togglePicker }">
+                    <Tooltip :text="t.label">
+                      <button :class="[tileBase, 'text-ink-gray-7']" @click="togglePicker()">
+                        <LucideIcon :name="t.icon" class="h-[18px] w-[18px]" />
+                      </button>
+                    </Tooltip>
+                  </template>
+                  <template #body-main="{ togglePopover: closePicker }">
+                    <TableSizePicker @pick="insertTable($event); closePicker(); togglePopover()" />
+                  </template>
+                </Popover>
+                <Tooltip v-else :text="t.label">
+                  <button
+                    :class="[tileBase, isCreateToolActive(t) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
+                    @click="runCreateTool(t, togglePopover)"
+                  >
+                    <LucideIcon :name="t.icon" class="h-[18px] w-[18px]" />
+                  </button>
+                </Tooltip>
+              </template>
             </div>
 
             <div v-if="showMindmap" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Mind map</div>

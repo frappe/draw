@@ -18,8 +18,11 @@ import {
 import { maxOf } from './geometry.js'
 
 const PAD = 60 // content-bounds margin
-const LEVEL_GAP = 96 // gap between successive levels (down in TB, right in LR)
-const SIBLING_GAP = 72 // gap between siblings within a level (roomy so decision branch labels don't collide)
+// Kept deliberately tight (#99): new nodes should land close to their parent so a
+// fresh chart reads as one compact flow, not a sparse scatter the user must drag
+// together. avoidOverlap still guarantees no collision, so tightening is safe.
+const LEVEL_GAP = 64 // gap between successive levels (down in TB, right in LR)
+const SIBLING_GAP = 44 // gap between siblings within a level (still clears decision branch labels)
 const ROUTE_OFFSET = 14 // lateral offset to separate overlapping parallel runs
 
 // ----- node ports ----------------------------------------------------------
@@ -391,6 +394,55 @@ function collectLevelPositions(model, levels, out) {
 export function toggleDirection(model) {
   model.direction = model.direction === 'LR' ? 'TB' : 'LR'
   tidyLayout(model)
+}
+
+// ----- node-type picker placement (#96) --------------------------------------
+
+// Where to open the on-node "+" node-type picker so it neither floats a big gap
+// below the node nor slips behind the bottom-centre palette. All logical canvas
+// units (the picker renders inside the viewport <g>).
+//   - box: the source node's box {x,y,w,h}, or null for a free drop point.
+//   - point: the drop point {x,y}, used only when there is no box.
+//   - menu: the picker's {w,h}.
+//   - bounds: the rectangle the menu must stay inside {x,y,w,h}; the caller shrinks
+//     the visible canvas rect by a bottom inset so the palette strip is excluded.
+//   - direction: 'TB' opens just below the node and flips ABOVE when it would spill
+//     past the bounds; 'LR' opens to the right and flips left. A final clamp on both
+//     axes guarantees the menu stays wholly inside `bounds` regardless.
+export function placePicker({ box, point, menu, bounds, direction = 'TB', gap = 8 }) {
+  let x
+  let y
+  if (box) {
+    if (direction === 'LR') {
+      x = box.x + box.w + gap
+      if (x + menu.w > bounds.x + bounds.w) {
+        const flipped = box.x - gap - menu.w
+        if (flipped >= bounds.x) x = flipped
+      }
+      y = box.y
+    } else {
+      y = box.y + box.h + gap
+      if (y + menu.h > bounds.y + bounds.h) {
+        const flipped = box.y - gap - menu.h
+        if (flipped >= bounds.y) y = flipped
+      }
+      x = box.x + box.w / 2 - menu.w / 2
+    }
+  } else {
+    x = point.x
+    y = point.y
+  }
+  return {
+    x: Math.round(clampRange(x, bounds.x, bounds.x + bounds.w - menu.w)),
+    y: Math.round(clampRange(y, bounds.y, bounds.y + bounds.h - menu.h)),
+  }
+}
+
+// Clamp `value` into [min, max]. When the menu is bigger than the bounds (max <
+// min) there is no fully-inside spot, so pin to the top-left edge (min).
+function clampRange(value, min, max) {
+  if (max < min) return min
+  return Math.min(Math.max(value, min), max)
 }
 
 // ----- content bounds (fit/export, Part G8) ----------------------------------

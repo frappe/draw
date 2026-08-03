@@ -185,6 +185,44 @@ describe('documentToSvg still renders single-type documents', () => {
   })
 })
 
+// Freely-drawn polygon (#139): a shape carrying its own vertices, normalised to the
+// box, must export as a <polygon> whose points scale onto x/y/w/h — matching
+// ShapeView on the live canvas. documentToSvg is the single export path.
+describe('documentToSvg — freely-drawn polygon (#139)', () => {
+  function polygonDoc(points) {
+    return {
+      schemaVersion: 2,
+      diagramType: 'block',
+      themePreset: 'ocean',
+      canvas: { width: 1280, height: 720, background: 'none' },
+      sections: [],
+      connectors: [],
+      shapes: [
+        {
+          id: 'p1', type: 'polygon', x: 0, y: 0, w: 200, h: 100, rotation: 0, opacity: 1, zIndex: 1,
+          fill: '#EFF6FF', border: { color: '#4F94FF', width: 2 },
+          text: { content: '', style: {} },
+          points: points || [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0.5, y: 1 }],
+        },
+      ],
+      mindmap: null, flowchart: null, whiteboard: null,
+    }
+  }
+
+  it('exports a polygon with its normalised points scaled onto the box', () => {
+    const svg = documentToSvg(polygonDoc())
+    // (0,0)->0,0 (1,0)->200,0 (0.5,1)->100,100.
+    expect(svg).toContain('<polygon points="0,0 200,0 100,100"')
+    expect(svg).toContain('#EFF6FF') // the fill still reaches the markup
+  })
+
+  it('neutralises a crafted point component instead of letting it escape the attribute', () => {
+    const svg = documentToSvg(polygonDoc([{ x: '0" onload="alert(1)', y: 0 }, { x: 1, y: 0 }, { x: 0.5, y: 1 }]))
+    expect(svg, 'an event handler reached the markup').not.toMatch(/\son[a-z]+\s*=/i)
+    expect(svg).not.toContain('alert(1)')
+  })
+})
+
 describe('safeColor', () => {
   // Colours reach SVG attributes straight from the persisted document, and diagrams are
   // SHARED — so a colour crafted by one user is rendered in another user's browser.

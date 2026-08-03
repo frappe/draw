@@ -12,11 +12,23 @@ import TileGrid from '@/components/home/TileGrid.vue'
 import EmptyState from '@/components/home/EmptyState.vue'
 import TrashView from '@/components/home/TrashView.vue'
 import { diagrams, createDiagram } from '@/data/diagrams.js'
+import { getDriveAvailability, shouldShowInstallDriveBanner } from '@/data/drive.js'
 
 const router = useRouter()
 const view = ref('home')
 
-onMounted(() => diagrams.fetch())
+// Nudge users without Frappe Drive to install it (so their diagrams are tracked
+// as files). Hidden until we've confirmed Drive is absent, and after a dismiss.
+const driveStatus = ref(null)
+const bannerDismissed = ref(false)
+const showInstallDriveBanner = computed(
+  () => !bannerDismissed.value && shouldShowInstallDriveBanner(driveStatus.value),
+)
+
+onMounted(async () => {
+  diagrams.fetch()
+  driveStatus.value = await getDriveAvailability()
+})
 
 const list = computed(() => diagrams.data || [])
 const isEmpty = computed(() => list.value.length === 0)
@@ -71,6 +83,26 @@ function open(name) {
             <template #prefix><LucideIcon name="plus" class="h-4 w-4" /></template>
             Create
           </Button>
+        </div>
+
+        <div
+          v-if="showInstallDriveBanner"
+          class="mb-6 flex items-center gap-3 rounded-lg border border-outline-gray-1 bg-surface-gray-1 px-4 py-3"
+        >
+          <LucideIcon name="hard-drive" class="h-5 w-5 shrink-0 text-ink-gray-6" />
+          <div class="min-w-0 flex-1">
+            <div class="text-base font-medium text-ink-gray-8">Install Drive to track your files</div>
+            <div class="text-p-sm text-ink-gray-6">
+              Your diagrams save to Draw. Add Frappe Drive to keep them alongside the rest of your files.
+            </div>
+          </div>
+          <button
+            aria-label="Dismiss"
+            class="shrink-0 rounded p-1 text-ink-gray-5 hover:bg-surface-gray-3 hover:text-ink-gray-7"
+            @click="bannerDismissed = true"
+          >
+            <LucideIcon name="x" class="h-4 w-4" />
+          </button>
         </div>
 
         <EmptyState v-if="isEmpty" @create="create" />

@@ -13,6 +13,7 @@ import {
   flowchartContentBounds,
   nodeCenter,
   placeChild,
+  placePicker,
 } from './flowchartLayout.js'
 import { nodeSize } from './flowchartModel.js'
 
@@ -52,6 +53,32 @@ describe('flowchart routing', () => {
     flowchartNodeById(model, b).x += 200
     const after = routeEdge(model, model.edges[0]).end
     expect(after.x).not.toBe(before.x)
+  })
+
+  // #99: a first child sits one tight LEVEL_GAP below the parent (not the old,
+  // sparse 96px) so a fresh flow reads compact without manual re-arranging.
+  it('placeChild drops a first child a tight gap below the parent (TB)', () => {
+    const model = createFlowchart()
+    const a = addFlowchartNode(model, 'process', 'A', 40, 40)
+    const parent = flowchartNodeById(model, a)
+    const parentSize = nodeSize(parent)
+    const pos = placeChild(model, a, { nodeType: 'process', x: 0, y: 0 })
+    // The vertical gap between the parent's bottom and the child's top is LEVEL_GAP.
+    expect(pos.y - (parent.y + parentSize.h)).toBe(64)
+  })
+
+  // #99: two siblings sit a tight SIBLING_GAP apart, and still never overlap.
+  it('placeChild spaces a second sibling a tight gap from the first (TB)', () => {
+    const model = createFlowchart()
+    const a = addFlowchartNode(model, 'process', 'A', 0, 0)
+    const p1 = placeChild(model, a, { nodeType: 'process', x: 0, y: 0 })
+    const c1 = flowchartNodeById(model, addFlowchartNode(model, 'process'))
+    c1.x = p1.x
+    c1.y = p1.y
+    const p2 = placeChild(model, a, { nodeType: 'process', x: 0, y: 0 })
+    const size = nodeSize(c1)
+    // Nudged along x by exactly one box-width + SIBLING_GAP, so the gap is 44.
+    expect(p2.x - (p1.x + size.w)).toBe(44)
   })
 
   // P9: adding a node must never drop it on top of an existing one.
@@ -121,6 +148,52 @@ describe('flowchart direction toggle', () => {
     toggleDirection(model)
     expect(model.direction).toBe('LR')
     expect(nodeCenter(flowchartNodeById(model, a)).x).toBeLessThan(nodeCenter(flowchartNodeById(model, b)).x)
+  })
+})
+
+// #96: the node-type picker must open close below the node and never slip behind
+// the bottom palette — flipping above / clamping when there is not room below.
+describe('flowchart picker placement (#96)', () => {
+  const menu = { w: 256, h: 232 }
+  const roomy = { x: 0, y: 0, w: 1000, h: 1000 }
+
+  it('opens just below the node, centred, when there is room (TB)', () => {
+    const box = { x: 100, y: 100, w: 160, h: 72 }
+    const pos = placePicker({ box, menu, bounds: roomy, direction: 'TB', gap: 8 })
+    expect(pos.y).toBe(180) // node bottom (172) + gap (8)
+    expect(pos.x).toBe(52) // centred: 100 + 80 - 128
+  })
+
+  it('flips ABOVE the node when below would spill past the bounds (TB)', () => {
+    const box = { x: 100, y: 400, w: 160, h: 72 }
+    const bounds = { x: 0, y: 0, w: 1000, h: 500 } // 480+232 spills past 500
+    const pos = placePicker({ box, menu, bounds, direction: 'TB', gap: 8 })
+    expect(pos.y).toBe(160) // node top (400) - gap (8) - menu height (232)
+  })
+
+  it('clamps within the bounds when it fits neither below nor above (TB)', () => {
+    const box = { x: 100, y: 20, w: 160, h: 72 }
+    const bounds = { x: 0, y: 0, w: 1000, h: 300 }
+    const pos = placePicker({ box, menu, bounds, direction: 'TB', gap: 8 })
+    expect(pos.y).toBe(68) // clamped to bounds.h - menu.h = 300 - 232
+  })
+
+  it('clamps horizontally so a right-edge node keeps the menu on screen', () => {
+    const box = { x: 900, y: 100, w: 160, h: 72 }
+    const pos = placePicker({ box, menu, bounds: roomy, direction: 'TB', gap: 8 })
+    expect(pos.x).toBe(744) // bounds.w - menu.w = 1000 - 256
+  })
+
+  it('opens to the right in LR, flipping left when there is no room', () => {
+    const right = placePicker({ box: { x: 100, y: 100, w: 160, h: 72 }, menu, bounds: roomy, direction: 'LR', gap: 8 })
+    expect(right.x).toBe(268) // node right (260) + gap (8)
+    const flipped = placePicker({ box: { x: 700, y: 100, w: 160, h: 72 }, menu, bounds: roomy, direction: 'LR', gap: 8 })
+    expect(flipped.x).toBe(436) // node left (700) - gap (8) - menu width (256)
+  })
+
+  it('falls back to the drop point (clamped) when there is no source box', () => {
+    const pos = placePicker({ box: null, point: { x: 990, y: 990 }, menu, bounds: roomy })
+    expect(pos).toEqual({ x: 744, y: 768 }) // clamped into 1000 - menu
   })
 })
 
