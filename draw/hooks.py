@@ -142,15 +142,15 @@ permission_query_conditions = {
 
 # Document Events
 # ---------------
-# Hook on document methods and events
-
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+# Auto-grant the Draw User role to every new real user, so nobody has to be a
+# System Manager to use Draw — System Manager's unrestricted diagram list query
+# is the leak behind #73. Keep this dict merge-friendly: additional doctype hooks
+# should be added as sibling keys, not by rewriting the "User" entry.
+doc_events = {
+	"User": {
+		"after_insert": "draw.setup.grant_draw_user_role",
+	},
+}
 
 # Scheduled Tasks
 # ---------------
