@@ -123,24 +123,30 @@ function catalogSectionTiles(catalog, sectionLabel) {
 }
 
 // Insert a free-floating mind-map node from the catalog: a SINGLE role-tagged root
-// SHAPE lands on shapes[] (#122), not a framed sub-model. The click closes the
-// popover, so awaiting its hidden state also proves the click was delivered.
+// SHAPE lands on shapes[] (#122), not a framed sub-model. The tile now ARMS a
+// placement pointer and closes the catalog (#75 click-to-place), so after the popover
+// hides we click the canvas to drop the root where the pointer lands (auto-selected).
 export async function insertMindmapNode(page) {
   const catalog = await openAddCatalog(page)
   const tile = catalogSectionTiles(catalog, 'Mind map').first()
   await tile.waitFor({ state: 'visible' })
   await tile.click()
   await expect(catalog).toBeHidden()
+  const box = await surfaceBox(page)
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
 }
 
 // Insert a free-floating flowchart node from the catalog: a SINGLE role-tagged SHAPE
 // of the first node type (the Terminator, the default starter) lands on shapes[].
+// The tile arms a placement pointer (#75 click-to-place); click the canvas to drop it.
 export async function insertFlowchartNode(page) {
   const catalog = await openAddCatalog(page)
   const tile = catalogSectionTiles(catalog, 'Flowchart').first()
   await tile.waitFor({ state: 'visible' })
   await tile.click()
   await expect(catalog).toBeHidden()
+  const box = await surfaceBox(page)
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
 }
 
 // Arm a block shape's draw tool from the catalog: click a Shapes tile (the first,
