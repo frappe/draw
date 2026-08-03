@@ -30,6 +30,19 @@ async function exportVia(page, label) {
   return download
 }
 
+// PNG is no longer one menu row per scale (#104): the Export menu has a single PNG
+// row carrying a 1–4× scale button strip and a "Transparent background" checkbox.
+// Pick the scale by its "N×" button, setting the checkbox first when a transparent
+// export is wanted. `×` is the same U+00D7 the button renders ({{ s }}×).
+async function exportPng(page, scale, { transparent = false } = {}) {
+  await page.getByRole('button', { name: 'Export', exact: true }).click()
+  await page.getByLabel('Transparent background').setChecked(transparent)
+  const item = page.getByRole('button', { name: `${scale}×`, exact: true })
+  await item.waitFor({ state: 'visible' })
+  const [download] = await Promise.all([page.waitForEvent('download'), item.click()])
+  return download
+}
+
 async function downloadedText(download) {
   const path = await download.path()
   return fs.readFile(path, 'utf8')
@@ -95,7 +108,7 @@ test.describe('export: the raster and document formats produce real files', () =
   test('PNG downloads a decodable image, not a blank or truncated one', async ({ page, diagram }) => {
     await diagram.open('unified', { withFrames: true })
 
-    const download = await exportVia(page, 'PNG · 1×')
+    const download = await exportPng(page, 1)
     expect(await download.suggestedFilename()).toMatch(/\.png$/)
 
     const bytes = await downloadedBytes(download)
@@ -113,8 +126,8 @@ test.describe('export: the raster and document formats produce real files', () =
   }) => {
     await diagram.open('unified', { withFrames: true })
 
-    const one = await downloadedBytes(await exportVia(page, 'PNG · 1×'))
-    const three = await downloadedBytes(await exportVia(page, 'PNG · 3×'))
+    const one = await downloadedBytes(await exportPng(page, 1))
+    const three = await downloadedBytes(await exportPng(page, 3))
 
     expect(three.readUInt32BE(16), 'the 3x export is no bigger than the 1x one').toBeGreaterThan(
       one.readUInt32BE(16),
@@ -130,12 +143,10 @@ test.describe('export: the raster and document formats produce real files', () =
     expect(bytes.subarray(0, 5).toString('utf8'), 'not a PDF').toBe('%PDF-')
   })
 
-  test('the Markdown outline export carries the diagram content', async ({ page, diagram }) => {
-    await diagram.open('unified', { withFrames: true })
-
-    const md = await downloadedText(await exportVia(page, 'Outline (Markdown)'))
-    expect(md.length, 'outline export is empty').toBeGreaterThan(0)
-  })
+  // The Markdown "Outline" export was dropped from the Export menu when it was
+  // simplified (#104): useExport.exportOutline still exists but nothing in the UI
+  // triggers it, so there is no menu item to drive and its E2E coverage is retired
+  // here. The outline conversion itself stays covered by its unit tests.
 })
 
 test.describe('export: hygiene', () => {
@@ -143,9 +154,11 @@ test.describe('export: hygiene', () => {
     const errors = watchForErrors(page)
     await diagram.open('unified', { withFrames: true })
 
-    for (const label of ['SVG', 'PNG · 2×', 'PNG · transparent', 'JPEG', 'PDF']) {
-      await exportVia(page, label)
-    }
+    await exportVia(page, 'SVG')
+    await exportPng(page, 2)
+    await exportPng(page, 1, { transparent: true })
+    await exportVia(page, 'JPEG')
+    await exportVia(page, 'PDF')
 
     expect(errors.pageErrors, 'an export raised an uncaught exception').toEqual([])
     expect(errors.failures, 'an export made a request that failed').toEqual([])

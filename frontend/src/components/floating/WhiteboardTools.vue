@@ -99,7 +99,7 @@ function insertTable({ rows, cols }, close) {
     <Popover v-if="t.tool === 'table'">
       <template #target="{ togglePopover: togglePicker }">
         <Tooltip :text="t.label">
-          <button :class="[buttonBase, toggleClass(activeTool === t.tool)]" @click="togglePicker()">
+          <button :data-testid="'wtool-' + t.tool" :class="[buttonBase, toggleClass(activeTool === t.tool)]" @click="togglePicker()">
             <LucideIcon :name="t.icon" class="h-4 w-4" />
           </button>
         </Tooltip>
@@ -109,7 +109,7 @@ function insertTable({ rows, cols }, close) {
       </template>
     </Popover>
     <Tooltip v-else :text="t.label">
-      <button :class="[buttonBase, toggleClass(activeTool === t.tool)]" @click="editorUi.setTool(t.tool)">
+      <button :data-testid="'wtool-' + t.tool" :class="[buttonBase, toggleClass(activeTool === t.tool)]" @click="editorUi.setTool(t.tool)">
         <LucideIcon :name="t.icon" class="h-4 w-4" />
       </button>
     </Tooltip>
