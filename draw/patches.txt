@@ -7,6 +7,6 @@
 # (App setup — Draw User role, permissions, "comment" permission type — now lives
 # in draw.setup.ensure_setup, run from after_install + after_migrate so it also
 # applies on fresh installs, which skip patches.)
-# Back-fill: grant the Draw User role to users that pre-date the after_insert hook
-# (#73). Idempotent, so it is safe on every migrate.
+# Back-fill: grant the Draw User role to existing System Users that pre-date the
+# lazy grant on Draw access (#73). Idempotent, so it is safe on every migrate.
 draw.patches.v0_0.grant_draw_user_role

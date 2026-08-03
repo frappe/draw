@@ -22,20 +22,25 @@ def ensure_setup(*args, **kwargs) -> None:
 	frappe.clear_cache()
 
 
-def grant_draw_user_role(doc, method: str | None = None) -> None:
-	"""Give a newly created real user the Draw User role so they can use Draw
-	without an operator having to fall back to System Manager — for whom
-	`query_conditions` returns "" (full access), which is the leak behind
-	GitHub #73.
+def grant_draw_user_role(user: str) -> None:
+	"""Give `user` the owner-scoped Draw User role so they can use Draw without an
+	operator having to fall back to System Manager — for whom `query_conditions`
+	returns "" (full access), which is the leak behind GitHub #73.
 
-	Wired as the User `after_insert` doc event and reused by the back-fill patch.
-	Guarded end to end: a failure here must never stop a User from being saved.
-	The role itself is created by `ensure_setup` (after_install / after_migrate),
-	so by the time a user is inserted it already exists; granting an existing
-	role is a no-op.
+	Called lazily from the Draw SPA boot (draw/www/draw.py) for whoever opens
+	Draw, and by the back-fill patch for existing System Users. It is deliberately
+	NOT wired to User `after_insert`: that fires for every app's signups and would
+	promote unrelated Website / portal users on a multi-app bench to desk (System)
+	users.
+
+	Guarded end to end: skips Guest / Administrator / disabled / existing holders /
+	System Managers, and never raises (so it can't break a page load). Saves with
+	`ignore_permissions` because the caller is usually the unprivileged user
+	themselves, who may not edit their own roles. The role is created by
+	`ensure_setup` (after_install / after_migrate), so it always exists by the time
+	this runs; granting an existing role is a no-op.
 	"""
 	try:
-		user = doc.name
 		if user in ("Guest", "Administrator"):
 			return
 		if not frappe.db.get_value("User", user, "enabled"):
@@ -45,7 +50,9 @@ def grant_draw_user_role(doc, method: str | None = None) -> None:
 		# pointless for them; and re-granting an existing role is wasted work.
 		if ROLE in roles or "System Manager" in roles:
 			return
-		frappe.get_doc("User", user).add_roles(ROLE)
+		user_doc = frappe.get_doc("User", user)
+		user_doc.append_roles(ROLE)
+		user_doc.save(ignore_permissions=True)
 	except Exception:
 		frappe.log_error(title=f"Draw: could not grant {ROLE} role")
 
