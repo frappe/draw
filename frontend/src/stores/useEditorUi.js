@@ -13,6 +13,13 @@ export function createEditorUi() {
     tool: 'select',
     drawShapeType: 'rectangle',
     lastShapeType: 'rectangle',
+    // A "starter placement" armed from the catalog for click-to-place (#75): a mind
+    // map ({ kind: 'mindmap' }) or a flowchart node ({ kind: 'flowchart', nodeType }).
+    // A mind map / flowchart isn't a shape draw-type, so it rides in its own state
+    // rather than overloading tool/drawShapeType. While set, the canvas shows the
+    // placement cursor and the next click drops the starter's first node at the click
+    // point. Cleared by placing it, by Escape, or by arming any other tool.
+    pendingStarter: null,
     gridVisible: false,
     gridDensity: 'dense',
     // The canvas is an infinite surface by default (no fixed paper bounds).
@@ -45,13 +52,28 @@ function assembleUi(state, viewport) {
 }
 
 // Switching to draw remembers the chosen shape so the tool can be re-armed.
+// Arming any tool (select/hand/draw/…) also disarms a pending click-to-place
+// starter, so the two arming models never both hold at once (#75).
 function attachTools(ui, state) {
-  ui.setTool = (tool) => (state.tool = tool)
+  ui.setTool = (tool) => {
+    state.pendingStarter = null
+    state.tool = tool
+  }
   ui.setDrawShape = (type) => {
+    state.pendingStarter = null
     state.drawShapeType = type
     state.lastShapeType = type
     state.tool = 'draw'
   }
+  // Arm a mind-map / flowchart starter for click-to-place (#75). It is not a draw
+  // shape type, so the tool drops back to select (no shape draft can start under it)
+  // and the pending starter carries the intent; the canvas keys the placement cursor
+  // and the drop-on-click off state.pendingStarter.
+  ui.armStarter = (starter) => {
+    state.tool = 'select'
+    state.pendingStarter = starter
+  }
+  ui.clearStarter = () => (state.pendingStarter = null)
 }
 
 // Grid display (dots only — dragged shapes align via smart guides, not the grid).

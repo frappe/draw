@@ -164,15 +164,27 @@ function insertTable({ rows, cols }) {
   shapeQuery.value = ''
 }
 
+// Mind map / flowchart arm click-to-place (#75): choosing one closes the catalog and
+// arms the pending starter; the first node then lands where the user clicks on the
+// canvas (DiagramCanvas → useShapeCreation.placeArmedStarter). This mirrors how a
+// shape tile arms draw mode, rather than dropping the node centred in view at once.
 function insertMindmap(close) {
-  store.insertMindmapStarter(viewport.visibleRect())
+  editorUi.armStarter({ kind: 'mindmap' })
   shapeQuery.value = ''
   close?.()
 }
 function insertFlowchartNode(type, close) {
-  store.insertFlowchartStarter(viewport.visibleRect(), type)
+  editorUi.armStarter({ kind: 'flowchart', nodeType: type })
   shapeQuery.value = ''
   close?.()
+}
+// Active-highlight for the armed starter, mirroring isArmed for shape tiles.
+function isMindmapStarterArmed() {
+  return editorUi.state.pendingStarter?.kind === 'mindmap'
+}
+function isFlowchartStarterArmed(type) {
+  const starter = editorUi.state.pendingStarter
+  return starter?.kind === 'flowchart' && starter.nodeType === type
 }
 
 // Drag a tile onto the canvas to place that shape where you drop it (shapes +
@@ -315,7 +327,10 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
             <div v-if="showMindmap" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Mind map</div>
             <div v-if="showMindmap" class="grid grid-cols-6 gap-1">
               <Tooltip text="Mind map">
-                <button :class="[tileBase, 'text-ink-gray-7']" @click="insertMindmap(togglePopover)">
+                <button
+                  :class="[tileBase, isMindmapStarterArmed() ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
+                  @click="insertMindmap(togglePopover)"
+                >
                   <ShapeGlyph family="mindmap" class="h-[18px] w-[18px]" />
                 </button>
               </Tooltip>
@@ -324,7 +339,10 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
             <div v-if="filteredFlowchartNodes.length" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Flowchart</div>
             <div v-if="filteredFlowchartNodes.length" class="grid grid-cols-6 gap-1">
               <Tooltip v-for="n in filteredFlowchartNodes" :key="n.type" :text="n.label">
-                <button :class="[tileBase, 'text-ink-gray-7']" @click="insertFlowchartNode(n.type, togglePopover)">
+                <button
+                  :class="[tileBase, isFlowchartStarterArmed(n.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
+                  @click="insertFlowchartNode(n.type, togglePopover)"
+                >
                   <ShapeGlyph family="flowchart" :type="n.type" class="h-[18px] w-[18px]" />
                 </button>
               </Tooltip>

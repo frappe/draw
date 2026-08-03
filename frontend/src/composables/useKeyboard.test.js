@@ -5,8 +5,9 @@ import { describe, it, expect, vi } from 'vitest'
 // here, so stub the module boundary rather than booting an editor.
 vi.mock('frappe-ui', () => ({ call: () => Promise.resolve({}), toast: { error() {}, success() {} } }))
 
-const { keyboardOwner } = await import('./useKeyboard.js')
+const { keyboardOwner, escape } = await import('./useKeyboard.js')
 const { getModeStrategy } = await import('@/stores/useModeStrategy.js')
+const { createEditorUi } = await import('@/stores/useEditorUi.js')
 // Registers the mind-map handler as a side effect of import, exactly as the app
 // does. Without this the mindmap slot is still null and a mind-map document would
 // resolve to no owner — the test would pass for the wrong reason.
@@ -60,5 +61,31 @@ describe('keyboardOwner', () => {
   // selection fallback is needed at all rather than a 'unified' keyboardMode.
   it('resolves the unified type to the block strategy', () => {
     expect(getModeStrategy('unified').keyboardMode).toBe('block')
+  })
+})
+
+// Escape cancels a catalog-armed click-to-place starter (#75) before any deselect, so
+// the placement cursor disappears without dropping anything. The arm carries
+// tool === 'select', so escape must clear pendingStarter first rather than fall
+// through to clearSelection.
+describe('escape cancels a pending starter', () => {
+  it('clears the armed starter without inserting or deselecting', () => {
+    const editorUi = createEditorUi()
+    editorUi.armStarter({ kind: 'mindmap' })
+    const store = { clearSelection: vi.fn() }
+
+    escape(store, editorUi)
+
+    expect(editorUi.state.pendingStarter).toBeNull()
+    expect(store.clearSelection).not.toHaveBeenCalled() // starter cancel takes priority
+  })
+
+  it('with nothing armed still deselects as before', () => {
+    const editorUi = createEditorUi()
+    const store = { clearSelection: vi.fn() }
+
+    escape(store, editorUi)
+
+    expect(store.clearSelection).toHaveBeenCalledTimes(1)
   })
 })

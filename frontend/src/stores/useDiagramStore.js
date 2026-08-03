@@ -146,6 +146,22 @@ function placeShapesInView(shapes, view, existing) {
   }
 }
 
+// Shift `shapes` so the FIRST shape's centre lands on `origin` — the explicit
+// click-to-place point (#75). The rest move by the same delta so a multi-shape
+// starter would stay coherent (a starter is a single node today). Connectors ride
+// along by id like placeShapesInView. No overlap-nudge: the user picked the exact
+// spot, so the node lands precisely under the click.
+function placeShapesAtOrigin(shapes, origin) {
+  if (!origin || !shapes.length) return
+  const first = shapes[0]
+  const dx = origin.x - (first.x + first.w / 2)
+  const dy = origin.y - (first.y + first.h / 2)
+  for (const shape of shapes) {
+    shape.x += dx
+    shape.y += dy
+  }
+}
+
 // A minimal document carrying just one starter sub-model for the migration engine to
 // flatten — every other layer empty, so flattenSubmodels emits only the starter.
 function starterDocument(submodels) {
@@ -156,9 +172,12 @@ function starterDocument(submodels) {
 // it in view, stack it on top of existing content, and select its first shape so the
 // user can name it straight away. state.mindmap / state.flowchart are untouched —
 // the free-floating shapes ARE the map/chart now.
-function commitStarter(store, state, history, label, submodels, view) {
+function commitStarter(store, state, history, label, submodels, view, origin = null) {
   const flat = flattenSubmodels(starterDocument(submodels), state.themePreset)
-  placeShapesInView(flat.shapes, view, state.shapes)
+  // An explicit origin (click-to-place, #75) drops the first node on the click point;
+  // otherwise centre the starter in the visible rect (#30), nudging off any overlap.
+  if (origin) placeShapesAtOrigin(flat.shapes, origin)
+  else placeShapesInView(flat.shapes, view, state.shapes)
   const z = nextZIndex(state)
   flat.shapes.forEach((shape, index) => (shape.zIndex = z + index))
   history.commit(label, () => {
@@ -256,8 +275,10 @@ function attachMindMap(store, state, history) {
   // placeholder, so the user names it instead of clearing seeded text, #80). `view`
   // is the optional on-screen rect to centre it in (#30); a second insert lands
   // clear of the first (separate shapes, placeShapesInView nudges off any overlap).
-  store.insertMindmapStarter = (view = null) =>
-    commitStarter(store, state, history, 'Insert mind map', { mindmap: createMindMap('') }, view)
+  // `origin` is the optional click-to-place point (#75): when given it overrides the
+  // view and drops the root exactly there.
+  store.insertMindmapStarter = (view = null, origin = null) =>
+    commitStarter(store, state, history, 'Insert mind map', { mindmap: createMindMap('') }, view, origin)
   // The mind-map counterpart of applyFlowchartShapeLayout (#122 P3): re-flow the
   // selected node's whole tree with the balanced auto-layout as an explicit "Tidy up".
   // A standalone map auto-layouts live via MindMapOverlay, but free-floating nodes are
@@ -417,10 +438,12 @@ function attachFlowchart(store, state, history) {
   // palette exposes every node type (#86), so any of them can seed a chart. `view`
   // is the optional on-screen rect to centre it in (#30); a second insert lands
   // clear of the first (separate shapes, placeShapesInView nudges off any overlap).
-  store.insertFlowchartStarter = (view = null, nodeType = 'terminator') => {
+  // `origin` is the optional click-to-place point (#75): when given it overrides the
+  // view and drops the node exactly there.
+  store.insertFlowchartStarter = (view = null, nodeType = 'terminator', origin = null) => {
     const flowchart = createFlowchart()
     addFlowchartNode(flowchart, nodeType, '', 0, 0)
-    commitStarter(store, state, history, 'Insert flowchart', { flowchart }, view)
+    commitStarter(store, state, history, 'Insert flowchart', { flowchart }, view, origin)
   }
 }
 

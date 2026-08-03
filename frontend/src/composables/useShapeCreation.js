@@ -79,6 +79,22 @@ export function useShapeCreation(store, editorUi) {
     dropAt(store, editorUi, type, logicalPoint(event))
   }
 
+  // Click-to-place for a catalog-armed mind-map / flowchart starter (#75). A mind
+  // map / flowchart isn't a shape draw-type, so it has its own armed state
+  // (editorUi.pendingStarter) and its own drop path here alongside the shape flows:
+  // a plain click (no drag needed) drops the starter's first node CENTRED on the
+  // click point, then disarms back to select — the arm-then-click model shape tools
+  // use. Returns true when it consumed the press so the canvas skips select handling.
+  function placeArmedStarter(event) {
+    const starter = editorUi.state.pendingStarter
+    if (!starter || event.button !== 0) return false
+    const point = logicalPoint(event)
+    if (starter.kind === 'mindmap') store.insertMindmapStarter(null, point)
+    else if (starter.kind === 'flowchart') store.insertFlowchartStarter(null, starter.nodeType, point)
+    editorUi.setTool('select')
+    return true
+  }
+
   return {
     preview,
     onCanvasPointerDown,
@@ -86,6 +102,7 @@ export function useShapeCreation(store, editorUi) {
     onCanvasPointerUp,
     onCanvasDragOver,
     onCanvasDrop,
+    placeArmedStarter,
   }
 }
 

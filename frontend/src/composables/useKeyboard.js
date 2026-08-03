@@ -212,7 +212,7 @@ function handleArrow(event, transform) {
 }
 
 // Esc exits text-edit, then any armed tool (draw/pen/hand…), else deselects (§7.2).
-function escape(store, editorUi) {
+export function escape(store, editorUi) {
   const text = useTextEditing()
   if (text?.isEditing?.value) return cancelTextEdit(text)
   // Cancel an in-progress mind-map cross-link ("click a target node" mode) before
@@ -226,6 +226,10 @@ function escape(store, editorUi) {
     mindmapUi.selectedCrosslinkId = null
     return
   }
+  // A catalog-armed click-to-place starter (mind map / flowchart) cancels first, so
+  // the placement cursor disappears without dropping anything (#75) — the arm carries
+  // tool === 'select', so this must come before the deselect fall-through.
+  if (editorUi.state.pendingStarter) return editorUi.clearStarter()
   if (editorUi.state.tool !== 'select') return editorUi.setTool('select')
   store.clearSelection()
 }

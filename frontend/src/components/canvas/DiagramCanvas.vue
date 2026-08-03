@@ -535,6 +535,10 @@ function onSurfacePointerDown(event) {
   editorUi.clearSection()
   // Hand tool always pans, for every type (shared transform, Part G4).
   if (editorUi.state.tool === 'hand') return viewport.startPan(event)
+  // A catalog-armed starter (mind map / flowchart) drops its first node at the click
+  // point, then disarms — the arm-then-click model shape tools use (#75). Handled
+  // before the select/whiteboard/flowchart routing so an armed click always places.
+  if (creation.placeArmedStarter(event)) return
   // On the whiteboard, text boxes and images are ordinary block shapes. With the
   // select tool, hand a press that lands on such a shape to the shared block
   // selection (select + drag + shift-add), so they're usable like any shape
@@ -737,6 +741,9 @@ function eraserCursor(radius, zoom) {
 const CROSSHAIR_TOOLS = ['text', 'sticky', 'line', 'table', 'highlighter']
 const surfaceCursor = computed(() => {
   const tool = editorUi.state.tool
+  // A starter armed for click-to-place (#75) shows the same placement crosshair as an
+  // armed shape tool, so it reads as "click to drop it here".
+  if (editorUi.state.pendingStarter) return DRAW_CURSOR
   if (tool === 'hand') return 'grab'
   if (tool === 'draw') return DRAW_CURSOR
   if (tool === 'pen') return PEN_CURSOR

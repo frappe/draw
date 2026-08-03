@@ -123,6 +123,26 @@ describe('insertMindmapStarter drops a free-floating mind-map node', () => {
     expect(mindmapNodes(store.state).length).toBe(1)
     expect(store.state.mindmap.nodes).toEqual([])
   })
+
+  // Click-to-place (#75): an explicit origin drops the root's CENTRE on the click
+  // point (not centred in a view rect), so the first node lands under the cursor.
+  it('centres the root on an explicit origin point, overriding the view', () => {
+    const store = unified()
+    // Pass a view too, to pin that origin wins over it.
+    store.insertMindmapStarter(viewAround(4000, 2500), { x: 1234, y: -567 })
+
+    const centre = centreOf(rectOf(mindmapNodes(store.state)[0]))
+    expect(centre.x).toBeCloseTo(1234, 6)
+    expect(centre.y).toBeCloseTo(-567, 6)
+  })
+
+  it('still selects the root and is one undo step when placed at an origin', () => {
+    const store = unified()
+    store.insertMindmapStarter(null, { x: 10, y: 20 })
+    expect(store.state.selection).toEqual([mindmapNodes(store.state)[0].id])
+    store.undo()
+    expect(store.state.shapes).toEqual([])
+  })
 })
 
 describe('insertFlowchartStarter drops a free-floating flowchart node', () => {
@@ -203,6 +223,19 @@ describe('insertFlowchartStarter drops a free-floating flowchart node', () => {
     store.insertFlowchartStarter()
     expect(flowchartNodes(store.state).length).toBe(1)
     expect(store.state.flowchart.nodes).toEqual([])
+  })
+
+  // Click-to-place (#75): an explicit origin drops the node's CENTRE on the click
+  // point, honouring the chosen node type, and overrides the view rect.
+  it('centres the node on an explicit origin point, honouring the node type', () => {
+    const store = unified()
+    store.insertFlowchartStarter(viewAround(0, 0), 'decision', { x: -42, y: 99 })
+
+    const node = flowchartNodes(store.state)[0]
+    expect(node.flowchart.nodeType).toBe('decision')
+    const centre = centreOf(rectOf(node))
+    expect(centre.x).toBeCloseTo(-42, 6)
+    expect(centre.y).toBeCloseTo(99, 6)
   })
 })
 

@@ -7,6 +7,8 @@ import {
   draftPreviewShape,
 } from './useShapeCreation.js'
 import { shapeCornerRadius } from '@/diagram/shapeGeometry.js'
+import { createDiagramStore } from '@/stores/useDiagramStore.js'
+import { createDiagramDocument } from '@/diagram/schema.js'
 
 // The palette-drag gesture has two halves in different files: the tile produces a
 // dataTransfer payload (startPaletteDrag) and the canvas consumes it
@@ -236,5 +238,94 @@ describe('isConnectorType', () => {
   it('treats the block arrow as a shape and the arrow connector as a connector', () => {
     expect(isConnectorType('arrow')).toBe(false)
     expect(isConnectorType('connector-arrow')).toBe(true)
+  })
+})
+
+// Click-to-place for a catalog-armed mind-map / flowchart starter (#75). The canvas
+// routes an armed press to creation.placeArmedStarter, which drops the starter's first
+// node CENTRED on the click point and disarms back to select. A real store is used so
+// the placement math (the first node lands under the cursor) is asserted end to end.
+function armedUi(starter, { zoom = 1, panX = 0, panY = 0 } = {}) {
+  const state = { tool: 'select', pendingStarter: starter }
+  return {
+    state,
+    viewport: { state: { panX, panY, zoom } },
+    // Mirrors editorUi.setTool: arming any tool disarms the pending starter.
+    setTool: (tool) => {
+      state.tool = tool
+      state.pendingStarter = null
+    },
+  }
+}
+
+const centreOf = (s) => ({ x: s.x + s.w / 2, y: s.y + s.h / 2 })
+const unifiedStore = () => createDiagramStore(createDiagramDocument(undefined, 'unified'))
+
+describe('placeArmedStarter (click-to-place, #75)', () => {
+  it('drops a mind-map root centred on the click point and disarms to select', () => {
+    const store = unifiedStore()
+    const editorUi = armedUi({ kind: 'mindmap' })
+    const creation = useShapeCreation(store, editorUi)
+
+    const handled = creation.placeArmedStarter(fakePointerEvent(300, 200))
+
+    expect(handled).toBe(true)
+    const node = store.state.shapes.find((s) => s.role === 'mindmap-node')
+    expect(node).toBeTruthy()
+    const centre = centreOf(node)
+    expect(centre.x).toBeCloseTo(300, 6)
+    expect(centre.y).toBeCloseTo(200, 6)
+    expect(editorUi.state.tool).toBe('select')
+    expect(editorUi.state.pendingStarter).toBeNull()
+  })
+
+  it('drops a flowchart node of the armed type centred on the click point', () => {
+    const store = unifiedStore()
+    const editorUi = armedUi({ kind: 'flowchart', nodeType: 'decision' })
+    const creation = useShapeCreation(store, editorUi)
+
+    creation.placeArmedStarter(fakePointerEvent(120, 80))
+
+    const node = store.state.shapes.find((s) => s.role === 'flowchart-node')
+    expect(node.flowchart.nodeType).toBe('decision')
+    const centre = centreOf(node)
+    expect(centre.x).toBeCloseTo(120, 6)
+    expect(centre.y).toBeCloseTo(80, 6)
+    expect(editorUi.state.pendingStarter).toBeNull()
+  })
+
+  it('honours the viewport pan/zoom when mapping the click to a canvas point', () => {
+    const store = unifiedStore()
+    // Parked away from the origin and off 100%, like a real panned canvas.
+    const editorUi = armedUi({ kind: 'mindmap' }, { zoom: 0.5, panX: -100, panY: -40 })
+    const creation = useShapeCreation(store, editorUi)
+
+    creation.placeArmedStarter(fakePointerEvent(300, 200))
+
+    // logical = (client - pan) / zoom → ((300 - -100)/0.5, (200 - -40)/0.5)
+    const node = store.state.shapes.find((s) => s.role === 'mindmap-node')
+    const centre = centreOf(node)
+    expect(centre.x).toBeCloseTo(800, 6)
+    expect(centre.y).toBeCloseTo(480, 6)
+  })
+
+  it('is a no-op with nothing armed, leaving the canvas empty', () => {
+    const store = unifiedStore()
+    const editorUi = armedUi(null)
+    const creation = useShapeCreation(store, editorUi)
+
+    expect(creation.placeArmedStarter(fakePointerEvent(10, 10))).toBe(false)
+    expect(store.state.shapes).toEqual([])
+  })
+
+  it('ignores a non-primary button so a right-click never places', () => {
+    const store = unifiedStore()
+    const editorUi = armedUi({ kind: 'mindmap' })
+    const creation = useShapeCreation(store, editorUi)
+
+    const rightClick = { ...fakePointerEvent(10, 10), button: 2 }
+    expect(creation.placeArmedStarter(rightClick)).toBe(false)
+    expect(store.state.shapes).toEqual([])
+    expect(editorUi.state.pendingStarter).toEqual({ kind: 'mindmap' }) // still armed
   })
 })
