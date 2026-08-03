@@ -142,15 +142,18 @@ permission_query_conditions = {
 
 # Document Events
 # ---------------
-# Hook on document methods and events
-
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+# OPTIONAL Frappe Drive integration (soft-coupled — see draw/api/drive_integration.py).
+# after_insert auto-saves a new diagram to the owner's Drive Home as one Drive File
+# (Writer/Slides behaviour); on_update/on_trash mirror its title/deletion. Every
+# handler is Draw's own defensive wrapper, so it is a clean no-op when Drive/Suite
+# is absent and a Drive failure never blocks the diagram's own save.
+doc_events = {
+	"Draw Diagram": {
+		"after_insert": "draw.api.drive_integration.auto_register_diagram",
+		"on_update": "draw.api.drive_integration.sync_diagram_drive_file",
+		"on_trash": "draw.api.drive_integration.trash_diagram_drive_file",
+	},
+}
 
 # Scheduled Tasks
 # ---------------

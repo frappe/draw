@@ -327,52 +327,111 @@ class TestDrawDiagram(IntegrationTestCase):
 
 		self.assertNotIn(doc.name, names, "a trashed diagram must not appear in shared_with_me")
 
-	def test_register_in_drive_when_available(self):
-		# Optional Drive integration — only exercised when Drive is installed
-		# (CI's fresh site has no Drive, so this skips there).
-		from draw.api.drive_integration import drive_installed, register_in_drive
-
-		if not drive_installed():
-			self.skipTest("Frappe Drive not installed")
-
-		teams = frappe.get_all("Drive Team", pluck="name")
-		team = (
-			teams[0]
-			if teams
-			else frappe.get_doc({"doctype": "Drive Team", "title": "Draw CI Team"}).insert(
-				ignore_permissions=True
-			).name
-		)
-		doc = self._make("unified", {"schemaVersion": 1, "diagramType": "unified"})
-
-		file_name = register_in_drive(doc.name, team=team)
-		self.addCleanup(lambda: frappe.delete_doc("File", file_name, force=True, ignore_permissions=True))
-		self.assertTrue(file_name)
-		# Registered as a Drive link that opens the Draw editor.
-		self.assertEqual(
-			frappe.db.get_value("File", file_name, "file_url"), f"/draw/d/{doc.name}"
-		)
-		# Idempotent — a second call reuses the same File.
-		self.assertEqual(register_in_drive(doc.name, team=team), file_name)
+	# ----- optional Frappe Drive / Suite integration (soft-coupled) -----
+	# This dev/CI site has NO Drive, so these pin the "Drive absent" contract: every
+	# entry point must no-op cleanly and never block a diagram's own lifecycle. The
+	# "Drive present" paths are guarded with skipTest and run post-merge on Suite.
 
 	def test_drive_is_available_reports_status(self):
-		# The editor calls is_available() to decide whether to show "Add to Drive".
+		# The editor toolbar and the Home "install Drive" banner call is_available().
 		# It must always return the two booleans without raising, Drive or not.
-		from draw.api.drive_integration import drive_installed, is_available
+		from draw.api.drive_integration import drive_available, is_available
 
 		status = is_available()
-		self.assertEqual(status["installed"], drive_installed())
-		self.assertIn("ready", status)
-		if not drive_installed():
+		self.assertEqual(status["installed"], drive_available())
+		self.assertEqual(status["ready"], drive_available())
+		if not drive_available():
+			self.assertFalse(status["installed"])
 			self.assertFalse(status["ready"])
 
-	def test_drive_registration_noops_without_team(self):
-		# Registration is a safe no-op when Drive isn't set up / not installed.
+	def test_drive_registration_noops_when_absent(self):
+		# Registration is a safe no-op (returns None) when Drive is not installed,
+		# so creating a diagram never fails for the lack of Drive.
 		from draw.api import drive_integration
 
 		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
-		if not drive_integration.drive_installed():
-			self.assertIsNone(drive_integration.register_in_drive(doc.name))
+		if not drive_integration.drive_available():
+			self.assertIsNone(drive_integration.register_diagram_in_drive(doc.name))
+		# A missing diagram is always a no-op, Drive or not.
+		self.assertIsNone(drive_integration.register_diagram_in_drive("does-not-exist"))
+
+	def test_drive_doc_event_wrappers_are_import_safe(self):
+		# after_insert/on_update/on_trash route through these wrappers. With Drive
+		# absent they must be pure no-ops — importing Suite lazily and swallowing
+		# ImportError — so the diagram lifecycle is untouched.
+		from draw.api import drive_integration
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		# None of these may raise, and (Drive absent) none may create a backing File.
+		drive_integration.auto_register_diagram(doc)
+		drive_integration.sync_diagram_drive_file(doc, "on_update")
+		drive_integration.trash_diagram_drive_file(doc, "on_trash")
+		if not drive_integration.drive_available():
+			self.assertFalse(
+				frappe.db.exists("File", {"content_doctype": "Draw Diagram", "content_docname": doc.name})
+			)
+
+	def test_register_creates_one_content_file_when_drive_present(self):
+		# On a Suite site: registration creates exactly ONE Drive content File
+		# (content_doctype/content_docname), no team, and is idempotent.
+		from draw.api.drive_integration import drive_available, register_diagram_in_drive
+
+		if not drive_available():
+			self.skipTest("Frappe Drive not installed")
+
+		doc = self._make("unified", {"schemaVersion": 1, "diagramType": "unified"})
+		file_name = register_diagram_in_drive(doc.name)
+		self.addCleanup(lambda: frappe.delete_doc("File", file_name, force=True, ignore_permissions=True))
+		self.assertTrue(file_name)
+		self.assertEqual(
+			frappe.db.get_value("File", file_name, "content_docname"), doc.name
+		)
+		# Idempotent — a second call reuses the same content File.
+		self.assertEqual(register_diagram_in_drive(doc.name), file_name)
+
+	def test_inserted_image_is_attached_to_the_diagram(self):
+		# #74: inserted images upload through draw.api.diagram.upload_diagram_image,
+		# which inserts the File server-side ATTACHED to the diagram (so Suite's Drive
+		# never adopts it as a stray Home entry). The bytes arrive via the upload
+		# endpoint in frappe.local; simulate that here.
+		from draw.api.diagram import upload_diagram_image
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		frappe.local.uploaded_file = b"\x89PNG\r\n\x1a\n fake image bytes"
+		frappe.local.uploaded_filename = "inserted.png"
+		try:
+			result = upload_diagram_image(doc.name)
+		finally:
+			frappe.local.uploaded_file = None
+			frappe.local.uploaded_filename = None
+
+		file_name = frappe.db.get_value(
+			"File",
+			{"attached_to_doctype": "Draw Diagram", "attached_to_name": doc.name},
+			["name", "is_private", "file_url"],
+			as_dict=True,
+		)
+		self.addCleanup(
+			lambda: frappe.delete_doc("File", file_name.name, force=True, ignore_permissions=True)
+		)
+		self.assertTrue(file_name, "the inserted image was not attached to the diagram")
+		# Public, so it still renders in shared/exported diagrams.
+		self.assertEqual(file_name.is_private, 0)
+		self.assertEqual(result["file_url"], file_name.file_url)
+
+	def test_inserted_image_rejects_a_non_image(self):
+		# The endpoint only accepts image extensions (defence in depth beyond the
+		# browser picker); a non-image upload is a 400, not a stored File.
+		from draw.api.diagram import upload_diagram_image
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		frappe.local.uploaded_file = b"PK\x03\x04 not an image"
+		frappe.local.uploaded_filename = "payload.zip"
+		try:
+			self.assertRaises(frappe.ValidationError, upload_diagram_image, doc.name)
+		finally:
+			frappe.local.uploaded_file = None
+			frappe.local.uploaded_filename = None
 
 	# ----- collaboration room (real-time session scoping) -----
 

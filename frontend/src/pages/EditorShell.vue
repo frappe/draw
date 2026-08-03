@@ -39,7 +39,7 @@ const props = defineProps({
 })
 
 const diagram = loadDiagram(props.name)
-const store = createDiagramStore(parseDiagramDocument(diagram.doc?.document))
+const store = createDiagramStore(parseDiagramDocument(diagram.doc?.document), props.name)
 const editorUi = createEditorUi()
 const whiteboardUi = useWhiteboardUi()
 // editorUi is created per editor, but mindmapUi is a module singleton whose fields
