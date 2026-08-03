@@ -1,15 +1,16 @@
-// Sharing (spec §9). Two independent surfaces:
+// Sharing (spec §9 / GitHub #106). Two independent surfaces:
 //   - per-user access: addMember / setMemberRole / removeMember at a level of
 //     'view' | 'comment' | 'edit', via draw.api.share.* (DocShare-backed);
-//   - a public "anyone with the link" toggle that flips Draw Diagram.is_public,
+//   - general access: one VIEW-ONLY tier for everyone else —
+//     'restricted' | 'site_users_view' | 'public_view' — via setGeneralAccess,
 //     plus a one-click copy of the link.
-// The public toggle prefers a backend whitelisted method when present, else falls
-// back to the document resource's setValue so it works before the backend lands it.
+// The tier is derived from two diagram flags (is_public, all_site_users_can_view),
+// so a diagram made public before the middle tier existed keeps working unchanged.
 
 import { ref, computed } from 'vue'
 import { call, toast } from 'frappe-ui'
 
-const TOGGLE_METHOD = 'draw.api.share.set_public'
+const GENERAL_ACCESS_METHOD = 'draw.api.share.set_general_access'
 const SHARE = {
   list: 'draw.api.share.get_diagram_shares',
   share: 'draw.api.share.share_diagram', // idempotent: also updates an existing level
@@ -17,12 +18,44 @@ const SHARE = {
   search: 'draw.api.share.search_users',
 }
 
+// The three general-access tiers, in menu order — each with its icon and helper
+// copy. This is the single source of truth the Share dialog renders; general access
+// is VIEW ONLY, so there is deliberately no edit tier here.
+export const GENERAL_ACCESS_OPTIONS = [
+  { value: 'restricted', label: 'Restricted', description: 'Only people with access can open the link', icon: 'lock' },
+  { value: 'site_users_view', label: 'All site users can view', description: 'Everyone signed in to this site', icon: 'building-2' },
+  { value: 'public_view', label: 'Anyone with the link can view', description: 'No sign-in required', icon: 'globe' },
+]
+
+// Per-member access levels shown in the People list (removal is a separate control).
+export const MEMBER_ROLE_OPTIONS = [
+  { value: 'view', label: 'Can view' },
+  { value: 'comment', label: 'Can comment' },
+  { value: 'edit', label: 'Can edit' },
+]
+
+const GENERAL_ACCESS_TOAST = {
+  restricted: 'Now restricted to invited members',
+  site_users_view: 'All site users can now view',
+  public_view: 'Anyone with the link can now view',
+}
+
+// The diagram's general-access tier, derived from its two flags. is_public
+// (public_view) outranks all_site_users_can_view when both are somehow set.
+export function generalAccessLevel(doc) {
+  if (doc?.is_public) return 'public_view'
+  if (doc?.all_site_users_can_view) return 'site_users_view'
+  return 'restricted'
+}
+
 export function useShare(diagramResource) {
   const updating = ref(false)
   // People the diagram is shared with (Drive-style), loaded when the dialog opens.
   const members = ref([])
 
-  const isPublic = computed(() => Boolean(diagramResource?.doc?.is_public))
+  const generalAccess = computed(() => generalAccessLevel(diagramResource?.doc))
+  // Kept for callers/tests that only care about the public tier.
+  const isPublic = computed(() => generalAccess.value === 'public_view')
 
   function name() {
     return diagramResource?.doc?.name
@@ -86,38 +119,41 @@ export function useShare(diagramResource) {
 
   // Serialises access changes instead of dropping the ones that arrive mid-flight.
   //
-  // This used to return early while `updating` was true, so switching to "anyone with
-  // the link" and straight back to "restricted" discarded the second change silently —
-  // and the dropdown then snapped back to the stale value, telling the user their
-  // click had taken effect when it had not. Queueing keeps the last thing they asked
-  // for; the guard against concurrent requests is kept, it just no longer costs the
-  // user their intent.
+  // An earlier version returned early while `updating` was true, so switching tiers
+  // twice in quick succession discarded the second change silently — and the control
+  // then snapped back to the stale value, telling the user their click had taken
+  // effect when it had not. Queueing keeps the last thing they asked for; the guard
+  // against concurrent requests stays, it just no longer costs the user their intent.
   let queue = Promise.resolve()
 
-  // Set the desired state rather than flipping the current one: a toggle applied to a
+  // Set the desired tier rather than flipping the current one: a toggle applied to a
   // value that is itself mid-update is ambiguous, a desired state never is.
-  function setGlobalAccess(next) {
-    queue = queue.then(() => applyGlobalAccess(Boolean(next)))
+  function setGeneralAccess(level) {
+    queue = queue.then(() => applyGeneralAccess(level))
     return queue
   }
 
-  async function applyGlobalAccess(next) {
-    const name = diagramResource?.doc?.name
-    if (!name || next === isPublic.value) return
+  async function applyGeneralAccess(level) {
+    const target = diagramResource?.doc?.name
+    if (!target || level === generalAccess.value) return
     updating.value = true
     try {
-      await persistAccess(diagramResource, name, next)
-      toast.success(next ? 'Sharing is on — anyone with the link can view' : 'Sharing turned off')
+      await call(GENERAL_ACCESS_METHOD, { name: target, level })
+      if (diagramResource.reload) await diagramResource.reload()
+      toast.success(GENERAL_ACCESS_TOAST[level] || 'Sharing updated')
     } catch (error) {
-      console.error('Share toggle failed', error)
+      console.error('General access change failed', error)
       toast.error('Could not update sharing. Please try again.')
     } finally {
       updating.value = false
     }
   }
 
-  // Kept as a shim: it was the public name on this composable, and flipping the
-  // current value is still what a bare "toggle" should mean.
+  // Backward-compatible shims for the old two-state public toggle: they now drive the
+  // general-access tier (public_view <-> restricted).
+  function setGlobalAccess(next) {
+    return setGeneralAccess(next ? 'public_view' : 'restricted')
+  }
   function toggleGlobalAccess() {
     return setGlobalAccess(!isPublic.value)
   }
@@ -135,9 +171,11 @@ export function useShare(diagramResource) {
 
   return {
     isPublic,
+    generalAccess,
     shareLink,
     updating,
     members,
+    setGeneralAccess,
     toggleGlobalAccess,
     setGlobalAccess,
     copyLink,
@@ -148,24 +186,6 @@ export function useShare(diagramResource) {
     searchUsers,
     diagramResource,
   }
-}
-
-// Try the backend method first; if it is not deployed yet, fall back to a plain
-// field update through the document resource. Either way refresh local state.
-async function persistAccess(diagramResource, name, isPublic) {
-  try {
-    await call(TOGGLE_METHOD, { name, enabled: isPublic ? 1 : 0 })
-  } catch (error) {
-    if (!isMethodMissing(error)) throw error
-    await diagramResource.setValue.submit({ is_public: isPublic ? 1 : 0 })
-    return
-  }
-  if (diagramResource.reload) await diagramResource.reload()
-}
-
-function isMethodMissing(error) {
-  const message = String(error?.message || error?.exc_type || error || '')
-  return /404|DoesNotExist|Not Found|AttributeError|ModuleNotFound/i.test(message)
 }
 
 async function copyToClipboard(text) {

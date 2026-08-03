@@ -27,6 +27,7 @@ import MindMapOverlay from '@/components/canvas/MindMapOverlay.vue'
 import FlowchartOverlay from '@/components/canvas/FlowchartOverlay.vue'
 import BlockSelectionEditor from '@/components/floating/BlockSelectionEditor.vue'
 import FlowchartSelectionEditor from '@/components/floating/FlowchartSelectionEditor.vue'
+import FlowchartLayoutToolbar from '@/components/floating/FlowchartLayoutToolbar.vue'
 import WhiteboardSelectionEditor from '@/components/floating/WhiteboardSelectionEditor.vue'
 import CollaboratorCursors from '@/components/canvas/CollaboratorCursors.vue'
 import BottomPalette from '@/components/floating/BottomPalette.vue'
@@ -177,6 +178,9 @@ onMounted(() => {
              selected (S13/S14/U1). WhiteboardSelectionEditor handles board objects. -->
         <BlockSelectionEditor v-if="chromeType === 'block' || chromeType === 'whiteboard'" />
         <FlowchartSelectionEditor v-if="chromeType === 'flowchart'" />
+        <!-- Whole-chart layout actions for a free-floating flowchart (#98). Self-
+             gates on a selected 'flowchart-node' shape, so it is a no-op elsewhere. -->
+        <FlowchartLayoutToolbar />
         <WhiteboardSelectionEditor v-if="chromeType === 'whiteboard'" />
         <CollaboratorCursors :collaborators="collab.collaborators.value" :set-cursor="collab.setCursor" />
         <ViewportControls />

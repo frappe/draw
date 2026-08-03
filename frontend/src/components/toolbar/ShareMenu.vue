@@ -1,15 +1,17 @@
 <script setup>
-// Share dialog (SPEC §9), Writer-style: "General access" first (Restricted vs
-// Anyone with the link), then "People" — invite specific users by email as
-// viewer / commenter / editor, backed by Frappe DocShare. A persistent "Copy
-// link" CTA sits at the bottom with inline "Link copied" feedback (#106/#107).
-// Native <select>s for roles so the change event is reliable.
+// Share dialog (SPEC §9), Writer-style: "General access" first — one VIEW-ONLY
+// tier (restricted / all site users / anyone with the link), each shown with its
+// icon in a small popover — then "People", inviting specific users by email as
+// viewer / commenter / editor, backed by Frappe DocShare. A persistent "Copy link"
+// CTA sits at the bottom with inline "Link copied" feedback (#106/#107). The tier
+// list and per-member roles come from useShare so the dialog and its tests agree.
+// Native <select>s for the per-user roles so the change event is reliable.
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Button, Dialog, Avatar } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { loadDiagram } from '@/data/diagrams.js'
-import { useShare } from '@/composables/useShare.js'
+import { GENERAL_ACCESS_OPTIONS, MEMBER_ROLE_OPTIONS, useShare } from '@/composables/useShare.js'
 
 const route = useRoute()
 const diagram = loadDiagram(route.params.name)
@@ -49,13 +51,21 @@ async function invite(user) {
   results.value = []
 }
 
-// Set the state the user picked, rather than toggling whatever the current value is:
-// a toggle fired while a previous change is still in flight flips the wrong way, and
-// the change used to be dropped outright. setGlobalAccess queues instead.
-const accessLevel = computed({
-  get: () => (share.isPublic.value ? 'link' : 'restricted'),
-  set: (value) => share.setGlobalAccess(value === 'link'),
-})
+// General access is a single VIEW-ONLY tier (issue #106): restricted / all site
+// users / anyone with the link. A small popover shows each tier with its icon;
+// setGeneralAccess queues the change so a rapid re-pick is never dropped.
+const generalAccessOptions = GENERAL_ACCESS_OPTIONS
+const memberRoleOptions = MEMBER_ROLE_OPTIONS
+const accessMenuOpen = ref(false)
+const currentAccess = computed(
+  () =>
+    generalAccessOptions.find((o) => o.value === share.generalAccess.value) ||
+    generalAccessOptions[0],
+)
+function chooseAccess(level) {
+  accessMenuOpen.value = false
+  share.setGeneralAccess(level)
+}
 
 // Copy link is always available (the link respects access — invited-only until you
 // open general access up). Inline "Link copied" that fades after a couple seconds.
@@ -78,19 +88,57 @@ async function doCopy() {
   <Dialog v-model="open" :options="{ title: dialogTitle, size: 'lg' }">
     <template #body-content>
       <div class="space-y-5">
-        <!-- General access (first, Writer order) -->
+        <!-- General access (first, Writer order): one VIEW-ONLY tier for everyone. -->
         <div>
           <p class="mb-2 text-sm font-medium text-ink-gray-7">General access</p>
-          <div class="flex items-center gap-2">
-            <LucideIcon :name="share.isPublic.value ? 'globe' : 'lock'" class="h-4 w-4 text-ink-gray-6" />
-            <select
-              v-model="accessLevel"
-              aria-label="General access"
-              class="h-9 flex-1 rounded-md border border-outline-gray-2 bg-surface-base px-2 text-sm text-ink-gray-8 outline-none"
+          <div class="relative">
+            <button
+              type="button"
+              class="flex w-full items-center gap-2.5 rounded-md border border-outline-gray-2 bg-surface-base px-3 py-2 text-left hover:border-outline-gray-3"
+              aria-haspopup="listbox"
+              :aria-expanded="accessMenuOpen"
+              @click="accessMenuOpen = !accessMenuOpen"
             >
-              <option value="restricted">Accessible to invited members</option>
-              <option value="link">Accessible to anyone with the link</option>
-            </select>
+              <span class="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-surface-gray-2 text-ink-gray-7">
+                <LucideIcon :name="currentAccess.icon" class="h-4 w-4" />
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-[13px] font-medium text-ink-gray-8">{{ currentAccess.label }}</span>
+                <span class="block truncate text-[11px] text-ink-gray-5">{{ currentAccess.description }}</span>
+              </span>
+              <LucideIcon name="chevron-down" class="h-4 w-4 flex-none text-ink-gray-5" />
+            </button>
+
+            <!-- Tier menu. The transparent backdrop closes it on an outside click. -->
+            <template v-if="accessMenuOpen">
+              <div class="fixed inset-0 z-10" @click="accessMenuOpen = false" />
+              <ul
+                role="listbox"
+                aria-label="General access"
+                class="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-md border border-outline-gray-2 bg-surface-base py-1 shadow-lg"
+              >
+                <li v-for="opt in generalAccessOptions" :key="opt.value">
+                  <button
+                    type="button"
+                    role="option"
+                    :aria-selected="opt.value === share.generalAccess.value"
+                    class="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-surface-gray-2"
+                    @click="chooseAccess(opt.value)"
+                  >
+                    <LucideIcon :name="opt.icon" class="h-4 w-4 flex-none text-ink-gray-6" />
+                    <span class="min-w-0 flex-1">
+                      <span class="block truncate text-[13px] text-ink-gray-8">{{ opt.label }}</span>
+                      <span class="block truncate text-[11px] text-ink-gray-5">{{ opt.description }}</span>
+                    </span>
+                    <LucideIcon
+                      v-if="opt.value === share.generalAccess.value"
+                      name="check"
+                      class="h-4 w-4 flex-none text-ink-gray-7"
+                    />
+                  </button>
+                </li>
+              </ul>
+            </template>
           </div>
         </div>
 
@@ -132,9 +180,7 @@ async function doCopy() {
               aria-label="Access level for the person being added"
               class="h-9 rounded-md border border-outline-gray-2 bg-surface-base px-2 text-sm text-ink-gray-8 outline-none"
             >
-              <option value="view">Can view</option>
-              <option value="comment">Can comment</option>
-              <option value="edit">Can edit</option>
+              <option v-for="r in memberRoleOptions" :key="r.value" :value="r.value">{{ r.label }}</option>
             </select>
           </div>
 
@@ -160,9 +206,7 @@ async function doCopy() {
                 class="h-8 rounded-md border border-outline-gray-2 bg-surface-base px-2 text-[13px] text-ink-gray-8 outline-none"
                 @change="share.setMemberRole(m.user, $event.target.value)"
               >
-                <option value="view">Can view</option>
-                <option value="comment">Can comment</option>
-                <option value="edit">Can edit</option>
+                <option v-for="r in memberRoleOptions" :key="r.value" :value="r.value">{{ r.label }}</option>
               </select>
               <button
                 class="flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-5 hover:bg-surface-gray-2"

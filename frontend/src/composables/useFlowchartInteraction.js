@@ -310,11 +310,11 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
     const from = { nodeId: link.fromNodeId, port: link.fromPort }
     link.active = false
     ui.pendingLink = null
-    // A tap on the "+" handle (no drag) opens the picker next to the handle so
-    // the next node is created + auto-positioned below (spec B4/F2).
+    // A tap on the "+" handle (no drag) opens the picker so the next node is
+    // created + auto-positioned below (spec B4/F2). The layer anchors the menu to
+    // the source node's box and flips/clamps it (#96), so no manual offset here.
     if (!wasMoved) {
-      const offset = (store.state.flowchart.direction || 'TB') === 'LR' ? { x: 36, y: 0 } : { x: 0, y: 36 }
-      openPicker(point.x + offset.x, point.y + offset.y, { fromNodeId: from.nodeId, fromPort: from.port })
+      openPicker(point.x, point.y, { fromNodeId: from.nodeId, fromPort: from.port })
       return
     }
     // Dragged onto a node -> connect to it; dragged to empty -> open the picker

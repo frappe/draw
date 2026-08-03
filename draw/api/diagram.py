@@ -22,6 +22,8 @@ from frappe import _
 from frappe.utils import cint, now_datetime
 from frappe.utils.password import get_encryption_key
 
+from draw.api.permission import can_view_via_general_access
+
 DOCTYPE = "Draw Diagram"
 
 
@@ -63,15 +65,18 @@ def _get_readable_diagram(name: str) -> "frappe.model.document.Document":
 		frappe.throw(_("Diagram not found"), frappe.DoesNotExistError)
 
 	diagram = frappe.get_doc(DOCTYPE, name)
-	is_public = bool(diagram.is_public)
-	is_guest = frappe.session.user == "Guest"
 
-	if is_guest:
-		if not is_public:
-			raise frappe.PermissionError(_("You need access to view this diagram"))
+	# General access grants VIEW without a per-user share: public_view lets anyone
+	# in (guests included), site_users_view lets any signed-in user in. This is the
+	# only path a guest ever reads through.
+	if can_view_via_general_access(diagram):
 		return diagram
 
-	if diagram.owner == frappe.session.user or is_public:
+	user = frappe.session.user
+	if user == "Guest":
+		raise frappe.PermissionError(_("You need access to view this diagram"))
+
+	if diagram.owner == user:
 		return diagram
 
 	# Falls back to standard permission rules (covers System Manager + shares).
