@@ -408,6 +408,42 @@ class TestDrawDiagram(IntegrationTestCase):
 		# Idempotent — a second call reuses the same content File.
 		self.assertEqual(register_diagram_in_drive(doc.name), file_name)
 
+	def test_soft_trash_is_a_safe_noop_when_absent(self):
+		# Soft-trashing a diagram routes on_update -> sync_diagram_drive_file ->
+		# _mirror_trash_status. With Drive absent it must be a pure no-op: the save
+		# succeeds and no backing File appears.
+		from draw.api import drive_integration
+
+		doc = self._make("unified", {"schemaVersion": 1, "diagramType": "unified"})
+		doc.is_trashed = 1
+		doc.save()  # must not raise even though Drive is absent
+		if not drive_integration.drive_available():
+			self.assertFalse(
+				frappe.db.exists("File", {"content_doctype": "Draw Diagram", "content_docname": doc.name})
+			)
+
+	def test_soft_trash_mirrors_to_drive_file_status_when_present(self):
+		# On a Suite site: soft-trashing a diagram flips its backing Drive File to
+		# Trashed (so it leaves Drive Home), and untrashing restores it to Active.
+		# Suite's own sync skips this because Draw Diagram has is_trashed, not `trashed`.
+		from draw.api.drive_integration import drive_available, register_diagram_in_drive
+
+		if not drive_available():
+			self.skipTest("Frappe Drive not installed")
+
+		doc = self._make("unified", {"schemaVersion": 1, "diagramType": "unified"})
+		file_name = register_diagram_in_drive(doc.name)
+		self.addCleanup(lambda: frappe.delete_doc("File", file_name, force=True, ignore_permissions=True))
+		self.assertEqual(frappe.db.get_value("File", file_name, "status"), "Active")
+
+		doc.is_trashed = 1
+		doc.save()
+		self.assertEqual(frappe.db.get_value("File", file_name, "status"), "Trashed")
+
+		doc.is_trashed = 0
+		doc.save()
+		self.assertEqual(frappe.db.get_value("File", file_name, "status"), "Active")
+
 	def test_inserted_image_is_attached_to_the_diagram(self):
 		# #74: inserted images upload through draw.api.diagram.upload_diagram_image,
 		# which inserts the File server-side ATTACHED to the diagram (so Suite's Drive

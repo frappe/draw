@@ -85,9 +85,39 @@ def auto_register_diagram(doc: "frappe.model.document.Document", method: str | N
 
 
 def sync_diagram_drive_file(doc: "frappe.model.document.Document", method: str | None = None) -> None:
-	"""on_update: mirror the diagram's title onto its backing Drive File (via
-	Suite's own content-file sync). No-op without Drive."""
+	"""on_update: mirror the diagram's title onto its backing Drive File (via Suite's
+	own content-file sync), then mirror its soft-trash state. No-op without Drive."""
 	_sync_content_file(doc, "on_update")
+	_guard(lambda: _mirror_trash_status(doc), "Draw: Drive trash sync failed")
+
+
+def _mirror_trash_status(doc: "frappe.model.document.Document") -> None:
+	"""Mirror a diagram's soft-trash onto its backing Drive File's `status`
+	(Active/Trashed), so a diagram trashed in Draw leaves the owner's Drive Home and
+	an untrash restores it.
+
+	Suite's own `sync_content_file` only mirrors soft-trash when the content doctype
+	has a field literally named `trashed`; Draw Diagram uses `is_trashed` instead, so
+	without this a soft-trashed diagram would linger in Drive as Active until it is
+	hard-deleted. Runs only on an `is_trashed` transition (so an ordinary title/content
+	save never touches the File's status), and is a safe no-op without Drive or a
+	backing File."""
+	if not drive_available():
+		return
+	before = doc.get_doc_before_save()
+	was_trashed = bool(before.is_trashed) if before else False
+	now_trashed = bool(doc.is_trashed)
+	if was_trashed == now_trashed:
+		return
+	drive_file_cls = _drive_file_cls()
+	if drive_file_cls is None:
+		return
+	file_name = drive_file_cls.get_for_doc("Draw Diagram", doc.name)
+	if not file_name:
+		return
+	# Direct column write, the way Suite's sync_content_file flips status — no File
+	# doc lifecycle, so it can't recurse back through the content-file sync.
+	frappe.db.set_value("File", file_name, "status", "Trashed" if now_trashed else "Active")
 
 
 def trash_diagram_drive_file(doc: "frappe.model.document.Document", method: str | None = None) -> None:
