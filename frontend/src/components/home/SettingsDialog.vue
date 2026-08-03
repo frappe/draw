@@ -29,6 +29,15 @@ const backgroundOptions = [
   { value: '#F5F5F5', label: 'Light grey' },
 ]
 const CHECKER = 'repeating-conic-gradient(#d4d4d4 0% 25%, #ffffff 0% 50%) 50% / 8px 8px'
+
+// Default look of a new mind-map child node (#126). 'text' keeps the current
+// Whimsical-style transparent text (#125); 'shape' boxes children like the root.
+const childStyleOptions = [
+  { value: 'text', label: 'Text' },
+  { value: 'shape', label: 'Shape' },
+]
+const cellActive = 'bg-surface-gray-3 text-ink-gray-9'
+const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
 </script>
 
 <template>
@@ -71,6 +80,24 @@ const CHECKER = 'repeating-conic-gradient(#d4d4d4 0% 25%, #ffffff 0% 50%) 50% / 
             >
               <span class="h-8 w-12 rounded-[5px] border border-black/10" :style="{ background: option.value || CHECKER }" />
               <span class="text-[11px] text-ink-gray-7">{{ option.label }}</span>
+            </button>
+          </div>
+        </section>
+
+        <section>
+          <div class="text-[13px] font-medium text-ink-gray-8">Mind map child nodes</div>
+          <p class="mb-3 mt-0.5 text-[12px] text-ink-gray-5">How a new child node looks by default. Text is Whimsical-style; Shape draws a box like the root.</p>
+          <div class="inline-flex gap-1 rounded-lg border border-outline-gray-2 p-1">
+            <button
+              v-for="option in childStyleOptions"
+              :key="option.value"
+              type="button"
+              :aria-pressed="settings.mindmapChildStyle === option.value"
+              class="h-7 w-20 rounded-md text-[12px] transition-colors"
+              :class="settings.mindmapChildStyle === option.value ? cellActive : cellIdle"
+              @click="settings.mindmapChildStyle = option.value"
+            >
+              {{ option.label }}
             </button>
           </div>
         </section>

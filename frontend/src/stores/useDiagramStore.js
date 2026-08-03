@@ -14,6 +14,7 @@ import { layoutMindMap, mindmapTreeRects } from '@/diagram/mindmapLayout.js'
 import { isMindmapShape, isFlowchartShape, flattenSubmodels } from '@/diagram/freeFloating.js'
 import { mindmapModelFromShapes } from '@/diagram/freeFloatingGraph.js'
 import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild, flowchartLayoutPatches } from '@/diagram/freeFloatingOps.js'
+import { useAppSettings } from '@/composables/useAppSettings.js'
 import {
   createFlowchart,
   addFlowchartNode,
@@ -287,7 +288,10 @@ function attachMindMap(store, state, history) {
   // Add a child as a free-floating tagged shape + branch connector (free-floating
   // #122), one undoable unit. Used when the parent is a migrated mind-map SHAPE.
   const addChildShape = (parentShapeId, side) => {
-    const built = buildMindmapChild(state.shapes, parentShapeId, state.themePreset, side)
+    // A new child defaults to the user's saved "Mind map child nodes" style (#126):
+    // 'shape' boxes it like the root, 'text' (default) keeps it Whimsical text (#125).
+    const defaultShaped = useAppSettings().settings.mindmapChildStyle === 'shape'
+    const built = buildMindmapChild(state.shapes, parentShapeId, state.themePreset, side, defaultShaped)
     if (!built) return null
     built.shape.zIndex = nextZIndex(state)
     history.commit('Add child', () => {

@@ -39,9 +39,12 @@ export function nextDiagramTitle(diagramType = 'block') {
 // the document JSON; the backend mirrors it to the diagram_type field on save.
 export async function createDiagram(title, document = null, diagramType = 'block', folder = null) {
   if (!title) title = nextDiagramTitle(diagramType)
+  // Only a FRESH document gets the user's saved theme/background defaults. A caller-
+  // supplied template already carries its own look, so leave it untouched (#165 review).
+  const isFresh = !document
   const finalDocument = document || createDiagramDocument(undefined, diagramType)
   if (!finalDocument.diagramType) finalDocument.diagramType = diagramType
-  applyDefaultSettings(finalDocument)
+  if (isFresh) applyDefaultSettings(finalDocument)
   const created = await diagrams.insert.submit({
     title,
     document: finalDocument,
@@ -52,10 +55,11 @@ export async function createDiagram(title, document = null, diagramType = 'block
   return created.name
 }
 
-// Stamp a NEW diagram with the user's saved defaults (useAppSettings): the theme
-// preset that colours its shapes and the canvas background. Both fall back to the
-// engine defaults, so an untouched install behaves exactly as before. Runs only
-// while creating a document — existing, saved diagrams are never touched.
+// Stamp a freshly-built diagram with the user's saved defaults (useAppSettings): the
+// theme preset that colours its shapes and the canvas background. Both fall back to
+// the engine defaults, so an untouched install behaves exactly as before. The caller
+// runs this only for a document it built itself — templates and saved diagrams keep
+// their own look.
 function applyDefaultSettings(document) {
   const { settings } = useAppSettings()
   document.themePreset = settings.defaultThemePreset || DEFAULT_THEME_PRESET

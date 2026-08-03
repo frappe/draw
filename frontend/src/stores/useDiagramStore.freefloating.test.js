@@ -1,9 +1,10 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { createDiagramStore } from './useDiagramStore.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
 import { flattenSubmodels, ROLE } from '@/diagram/freeFloating.js'
 import { createFlowchart, addFlowchartNode } from '@/diagram/flowchartModel.js'
 import { createMindMap, addChild } from '@/diagram/mindmapModel.js'
+import { useAppSettings, resetSettings } from '@/composables/useAppSettings.js'
 
 // A store whose flowchart has been flattened to free-floating tagged shapes (the
 // #122 state: state.flowchart is null, the node lives in state.shapes as a
@@ -75,6 +76,26 @@ describe('store.setMindmapNodeShaped (Whimsical #125)', () => {
     expect(after.parentId).toBe(before.parentId)
     expect(after.side).toBe(before.side)
     expect(after.depth).toBe(before.depth)
+  })
+})
+
+// #126: addChildNode reads the saved "Mind map child nodes" default and stamps it
+// onto the new child's mindmap.shaped, without the pure builder knowing the setting.
+describe('store.addChildNode default child style (#126)', () => {
+  afterEach(() => resetSettings())
+
+  it('adds a boxed child when the default is Shape', () => {
+    useAppSettings().settings.mindmapChildStyle = 'shape'
+    const { store, rootId } = migratedMindmapStore()
+    const newId = store.addChildNode(rootId)
+    expect(store.shapeById(newId).mindmap.shaped).toBe(true)
+  })
+
+  it('adds a text child when the default is Text (unchanged behaviour)', () => {
+    useAppSettings().settings.mindmapChildStyle = 'text'
+    const { store, rootId } = migratedMindmapStore()
+    const newId = store.addChildNode(rootId)
+    expect(store.shapeById(newId).mindmap.shaped).toBe(false)
   })
 })
 
