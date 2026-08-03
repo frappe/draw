@@ -6,6 +6,7 @@ import { ref, computed } from 'vue'
 import { Sidebar, SidebarItem, toast } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import Logomark from '@/components/Logomark.vue'
+import SettingsDialog from '@/components/home/SettingsDialog.vue'
 import { logout } from '@/data/session.js'
 
 const props = defineProps({
@@ -14,6 +15,7 @@ const props = defineProps({
 const emit = defineEmits(['navigate'])
 
 const collapsed = ref(false)
+const showSettings = ref(false)
 
 // Real logged-in user, injected into the page boot by www/draw.py.
 const fullName = computed(() => window.full_name || 'You')
@@ -28,11 +30,14 @@ async function signOut() {
   }
 }
 
-// Header dropdown (Log out), matching Drive's header menu.
+// Header dropdown (Settings + Log out), matching Drive's header menu.
 const header = computed(() => ({
   title: 'Frappe Draw',
   subtitle: fullName.value,
-  menuItems: [{ label: 'Log out', icon: 'log-out', onClick: signOut }],
+  menuItems: [
+    { label: 'Settings', icon: 'settings', onClick: () => (showSettings.value = true) },
+    { label: 'Log out', icon: 'log-out', onClick: signOut },
+  ],
 }))
 
 const NAV = [
@@ -63,4 +68,6 @@ const sections = computed(() => [{ items: NAV }])
       </SidebarItem>
     </template>
   </Sidebar>
+
+  <SettingsDialog v-model:open="showSettings" />
 </template>

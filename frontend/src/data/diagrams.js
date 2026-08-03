@@ -3,6 +3,8 @@
 
 import { createListResource, createDocumentResource } from 'frappe-ui'
 import { createDiagramDocument } from '@/diagram/schema.js'
+import { useAppSettings } from '@/composables/useAppSettings.js'
+import { DEFAULT_THEME_PRESET } from '@/diagram/theme.js'
 
 export const diagrams = createListResource({
   doctype: 'Draw Diagram',
@@ -39,6 +41,7 @@ export async function createDiagram(title, document = null, diagramType = 'block
   if (!title) title = nextDiagramTitle(diagramType)
   const finalDocument = document || createDiagramDocument(undefined, diagramType)
   if (!finalDocument.diagramType) finalDocument.diagramType = diagramType
+  applyDefaultSettings(finalDocument)
   const created = await diagrams.insert.submit({
     title,
     document: finalDocument,
@@ -47,6 +50,16 @@ export async function createDiagram(title, document = null, diagramType = 'block
     folder: folder || null,
   })
   return created.name
+}
+
+// Stamp a NEW diagram with the user's saved defaults (useAppSettings): the theme
+// preset that colours its shapes and the canvas background. Both fall back to the
+// engine defaults, so an untouched install behaves exactly as before. Runs only
+// while creating a document — existing, saved diagrams are never touched.
+function applyDefaultSettings(document) {
+  const { settings } = useAppSettings()
+  document.themePreset = settings.defaultThemePreset || DEFAULT_THEME_PRESET
+  if (document.canvas) document.canvas.background = settings.defaultCanvasBackground ?? null
 }
 
 export function loadDiagram(name) {

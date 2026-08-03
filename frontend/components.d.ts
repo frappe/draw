@@ -54,6 +54,7 @@ declare module 'vue' {
     SaveIndicator: typeof import('./src/components/toolbar/SaveIndicator.vue')['default']
     SectionView: typeof import('./src/components/canvas/SectionView.vue')['default']
     SelectionLayer: typeof import('./src/components/canvas/SelectionLayer.vue')['default']
+    SettingsDialog: typeof import('./src/components/home/SettingsDialog.vue')['default']
     ShapeGlyph: typeof import('./src/components/floating/ShapeGlyph.vue')['default']
     ShapeView: typeof import('./src/components/canvas/ShapeView.vue')['default']
     ShareMenu: typeof import('./src/components/toolbar/ShareMenu.vue')['default']

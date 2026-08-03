@@ -2,13 +2,24 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // diagrams.js builds frappe-ui resources at import; stub them so the module loads
 // without a network/browser. `diagrams` becomes a plain object whose `.data` a
-// test can set to stand in for the currently-loaded list.
+// test can set to stand in for the currently-loaded list, and whose insert.submit
+// captures the payload so a test can assert the document that would be saved.
+const inserted = vi.hoisted(() => ({ payload: null }))
 vi.mock('frappe-ui', () => ({
-  createListResource: () => ({ data: [] }),
+  createListResource: () => ({
+    data: [],
+    insert: {
+      submit: (payload) => {
+        inserted.payload = payload
+        return Promise.resolve({ name: 'new-diagram' })
+      },
+    },
+  }),
   createDocumentResource: () => ({}),
 }))
 
-const { nextDiagramTitle, diagrams } = await import('./diagrams.js')
+const { nextDiagramTitle, createDiagram, diagrams } = await import('./diagrams.js')
+const { useAppSettings, resetSettings } = await import('@/composables/useAppSettings.js')
 
 describe('nextDiagramTitle', () => {
   beforeEach(() => {
@@ -43,5 +54,31 @@ describe('nextDiagramTitle', () => {
     expect(nextDiagramTitle('flowchart')).toBe('Flowchart 2')
     expect(nextDiagramTitle('mindmap')).toBe('Mind map 2')
     expect(nextDiagramTitle('whiteboard')).toBe('Whiteboard 1')
+  })
+})
+
+describe('createDiagram applies default settings (#126)', () => {
+  beforeEach(() => {
+    diagrams.data = []
+    inserted.payload = null
+    resetSettings() // isolate from the shared settings singleton
+  })
+
+  it('stamps the new document with the saved theme preset and canvas background', async () => {
+    const { settings } = useAppSettings()
+    settings.defaultThemePreset = 'ocean'
+    settings.defaultCanvasBackground = '#F5F5F5'
+
+    await createDiagram('Test', null, 'block')
+
+    expect(inserted.payload.document.themePreset).toBe('ocean')
+    expect(inserted.payload.document.canvas.background).toBe('#F5F5F5')
+  })
+
+  it('keeps the current defaults (slate, no background) when settings are unset', async () => {
+    await createDiagram('Test', null, 'block')
+
+    expect(inserted.payload.document.themePreset).toBe('slate')
+    expect(inserted.payload.document.canvas.background).toBe(null)
   })
 })
