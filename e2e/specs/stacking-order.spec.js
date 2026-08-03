@@ -1,5 +1,5 @@
 import { test, expect, watchForErrors } from '../helpers/fixtures.js'
-import { POPOVER, buttonByIcon, openShapesPopover, dragTileToCanvas } from '../helpers/editor.js'
+import { POPOVER, buttonByIcon, dragShapeFromCatalog } from '../helpers/editor.js'
 
 // #27: a shape added to a canvas that already held freehand ink rendered UNDER
 // the ink, and Arrange could not lift it out — the two lived on separate stacking
@@ -75,8 +75,7 @@ test.describe('stacking order across shapes and ink', () => {
     const errors = watchForErrors(page)
     const name = await diagram.open('unified')
 
-    await openShapesPopover(page)
-    await dragTileToCanvas(page, { x: 320, y: 300 })
+    await dragShapeFromCatalog(page, { x: 320, y: 300 })
     const id = await droppedShapeId(diagram, name)
 
     const doc = await diagram.saved(name)
@@ -90,8 +89,7 @@ test.describe('stacking order across shapes and ink', () => {
   test('Arrange moves a shape below the ink and back over it', async ({ page, diagram }) => {
     const name = await diagram.open('unified')
 
-    await openShapesPopover(page)
-    await dragTileToCanvas(page, { x: 320, y: 300 })
+    await dragShapeFromCatalog(page, { x: 320, y: 300 })
     const id = await droppedShapeId(diagram, name)
 
     const shape = page.locator(`[data-shape-id="${id}"]`).first()
