@@ -35,6 +35,7 @@ import SmartGuidesLayer from './SmartGuidesLayer.vue'
 import HoverArrows from './HoverArrows.vue'
 import SelectionLayer from './SelectionLayer.vue'
 import MindmapHoverHandles from './MindmapHoverHandles.vue'
+import FlowchartHoverHandles from './FlowchartHoverHandles.vue'
 import TextEditor from './TextEditor.vue'
 import MindMapNodeLayer from './MindMapNodeLayer.vue'
 import FlowchartLayer from './FlowchartLayer.vue'
@@ -835,6 +836,11 @@ const surfaceCursor = computed(() => {
                unless the canvas holds role-tagged mind-map shapes, so legacy
                single-type maps (MindMapNodeLayer, below) are unaffected. -->
           <MindmapHoverHandles />
+          <!-- The flowchart counterpart (#77): a single "+" below a migrated
+               flowchart node. A no-op unless the canvas holds role-tagged flowchart
+               shapes, so legacy single-type charts (FlowchartLayer, below) are
+               unaffected. -->
+          <FlowchartHoverHandles />
 
           <!-- Dashed ghost of the shape/connector being drawn (spec §7.1). The
                shape ghost reuses ShapeView so the preview matches the armed
