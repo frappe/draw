@@ -4,9 +4,9 @@ import fs from 'node:fs/promises'
 // Export had no browser coverage at all, and it is the feature with the worst
 // track record in this app: #40 found that EVERY unified document — i.e. every new
 // diagram — exported as block-only, silently dropping whiteboard ink, sticky notes
-// and both frames, and that whiteboard lines and tables were never exported at
-// all. That shipped because `documentToSvg` was only ever exercised by unit tests
-// on hand-built documents.
+// and the mind map and flowchart, and that whiteboard lines and tables were never
+// exported at all. That shipped because `documentToSvg` was only ever exercised by
+// unit tests on hand-built documents.
 //
 // These drive the real Export menu and read the file the browser actually
 // downloaded. The SVG cases are the strong ones: the downloaded markup is asserted
@@ -42,8 +42,8 @@ async function downloadedBytes(download) {
 
 test.describe('export: a unified document exports every layer', () => {
   // The #40 regression, stated end to end. A unified document holds block shapes,
-  // whiteboard ink, a sticky, and mind-map + flowchart frames; all of it has to
-  // reach the file.
+  // whiteboard ink, a sticky, and the mind-map + flowchart nodes (now free-floating
+  // role-tagged shapes, #122); all of it has to reach the file.
   test('SVG contains block, whiteboard, mind-map and flowchart content', async ({
     page,
     diagram,
@@ -57,22 +57,23 @@ test.describe('export: a unified document exports every layer', () => {
     expect(svg, 'whiteboard ink missing from the export').toContain('#171717')
     expect(svg, 'sticky note missing from the export').toContain('#FEF3C7')
     expect(svg, 'sticky text missing from the export').toContain('note')
-    // Mind-map and flowchart frames.
-    expect(svg, 'mind-map frame missing from the export').toContain('Branch A')
-    expect(svg, 'flowchart frame missing from the export').toContain('Do work')
+    // Mind-map and flowchart node labels (exported from the flattened shapes[]).
+    expect(svg, 'mind-map node missing from the export').toContain('Branch A')
+    expect(svg, 'flowchart node missing from the export').toContain('Do work')
   })
 
-  test('the viewBox is wide enough to include the off-canvas frames', async ({ page, diagram }) => {
-    // The frames sit outside the 1280x720 canvas rect (mind map at y=900, flowchart
-    // at x=1500). A canvas-sized viewBox renders them into the file but crops them
-    // out of the picture, which looks identical to not exporting them.
+  test('the viewBox is wide enough to include the off-canvas nodes', async ({ page, diagram }) => {
+    // The withFrames fixture bakes the mind-map and flowchart nodes outside the
+    // 1280x720 canvas rect (the mind map past y=900, the flowchart past x=1500). A
+    // canvas-sized viewBox renders them into the file but crops them out of the
+    // picture, which looks identical to not exporting them.
     await diagram.open('unified', { withFrames: true })
 
     const svg = await downloadedText(await exportVia(page, 'SVG'))
     const [x, y, w, h] = svg.match(/viewBox="([^"]+)"/)[1].split(' ').map(Number)
 
-    expect(x + w, 'viewBox is too narrow for the flowchart frame').toBeGreaterThan(1500)
-    expect(y + h, 'viewBox is too short for the mind-map frame').toBeGreaterThan(900)
+    expect(x + w, 'viewBox is too narrow for the off-canvas flowchart nodes').toBeGreaterThan(1500)
+    expect(y + h, 'viewBox is too short for the off-canvas mind-map nodes').toBeGreaterThan(900)
   })
 
   test('a whiteboard line and table reach the exported file', async ({ page, diagram }) => {

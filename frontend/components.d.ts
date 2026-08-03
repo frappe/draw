@@ -64,6 +64,7 @@ declare module 'vue' {
     SmartGuidesLayer: typeof import('./src/components/canvas/SmartGuidesLayer.vue')['default']
     SwatchGrid: typeof import('./src/components/floating/SwatchGrid.vue')['default']
     TableOptions: typeof import('./src/components/floating/TableOptions.vue')['default']
+    TableSizePicker: typeof import('./src/components/floating/TableSizePicker.vue')['default']
     TextEditor: typeof import('./src/components/canvas/TextEditor.vue')['default']
     TileGrid: typeof import('./src/components/home/TileGrid.vue')['default']
     TitleEditor: typeof import('./src/components/toolbar/TitleEditor.vue')['default']
