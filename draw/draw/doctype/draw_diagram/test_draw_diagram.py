@@ -58,16 +58,19 @@ class TestDrawDiagram(IntegrationTestCase):
 		return email
 
 	def _private_diagram_owned_by(self, user, title="Private diagram"):
-		# A private (not public, not shared) diagram owned by `user`.
+		# A private (not public, not shared) diagram owned by `user`. The insert runs
+		# in the Administrator test session, and Document.set_user_and_timestamp
+		# stamps owner = session.user (overriding any owner passed in), so pin the
+		# intended owner in the db afterwards — the list query keys off owner.
 		doc = frappe.get_doc(
 			{
 				"doctype": "Draw Diagram",
 				"title": title,
 				"diagram_type": "block",
-				"owner": user,
 				"document": json.dumps({"schemaVersion": 1, "diagramType": "block"}),
 			}
 		).insert(ignore_permissions=True)
+		frappe.db.set_value("Draw Diagram", doc.name, "owner", user)
 		self.addCleanup(lambda: frappe.delete_doc("Draw Diagram", doc.name, force=True, ignore_permissions=True))
 		return doc
 
@@ -599,7 +602,12 @@ class TestDrawDiagram(IntegrationTestCase):
 		alice = self._user("draw-alice-73@example.com")
 		bob = self._user("draw-bob-73@example.com")
 		for u in (alice, bob):
-			grant_draw_user_role(u)  # what happens when they open Draw
+			# A real Draw user is a desk user; make them one BEFORE granting so the
+			# role-add is clean and does not flip user_type (which via set_system_user
+			# would call clear_sessions). The Website->desk first-visit rotation stays
+			# covered by test_opening_draw_grants_the_role_to_a_user_who_lacks_it.
+			frappe.db.set_value("User", u, "user_type", "System User")
+			grant_draw_user_role(u)
 			self.assertIn("Draw User", frappe.get_roles(u))
 			self.assertNotIn("System Manager", frappe.get_roles(u))
 
