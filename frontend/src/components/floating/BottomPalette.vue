@@ -14,7 +14,10 @@ import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { isUnifiedDocument } from '@/diagram/schema.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
+import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { startPaletteDrag } from '@/composables/useShapeCreation.js'
+import { tableInsertOrigin } from './tableSizePicker.js'
+import TableSizePicker from './TableSizePicker.vue'
 import { collapseAll } from '@/diagram/mindmapOperations.js'
 import { autoNumberFlow, isFlowNumbered } from '@/diagram/flowchartModel.js'
 import { NODE_TYPES, NODE_TYPE_META } from '@/diagram/flowchartModel.js'
@@ -26,6 +29,7 @@ const editorUi = useEditorUi()
 const viewport = editorUi.viewport
 const modeStrategy = useModeStrategy()
 const store = useDiagramStore()
+const ui = useWhiteboardUi()
 const imageInsert = useImageInsert(store)
 
 const isBlock = computed(() => modeStrategy?.value?.type === 'block')
@@ -137,6 +141,21 @@ function isCreateToolActive(tool) {
   if (tool.key === 'text') return isArmed('text')
   if (tool.key === 'image') return false
   return editorUi.state.tool === tool.key
+}
+
+// Commit a table of the picked size: drop it centred in view, select it, and
+// remember the size for the keyboard-armed quick-place. The catalog closes via
+// the caller's togglePopover (#134).
+function insertTable({ rows, cols }) {
+  const origin = tableInsertOrigin(viewport.visibleRect(), rows, cols)
+  const id = store.addTable(origin.x, origin.y, { rows, cols, color: ui.state.penColor })
+  if (id) {
+    editorUi.setTool('select')
+    ui.selectTable(id)
+    ui.state.tableRows = rows
+    ui.state.tableCols = cols
+  }
+  shapeQuery.value = ''
 }
 
 function insertMindmap(close) {
@@ -259,14 +278,30 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
 
             <div v-if="filteredTools.length" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Draw &amp; insert</div>
             <div v-if="filteredTools.length" class="grid grid-cols-6 gap-1">
-              <Tooltip v-for="t in filteredTools" :key="t.key" :text="t.label">
-                <button
-                  :class="[tileBase, isCreateToolActive(t) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
-                  @click="runCreateTool(t, togglePopover)"
-                >
-                  <LucideIcon :name="t.icon" class="h-[18px] w-[18px]" />
-                </button>
-              </Tooltip>
+              <template v-for="t in filteredTools" :key="t.key">
+                <!-- Table: opens the size picker; picking inserts the table, then
+                     closes the picker and the catalog (#134). -->
+                <Popover v-if="t.key === 'table'">
+                  <template #target="{ togglePopover: togglePicker }">
+                    <Tooltip :text="t.label">
+                      <button :class="[tileBase, 'text-ink-gray-7']" @click="togglePicker()">
+                        <LucideIcon :name="t.icon" class="h-[18px] w-[18px]" />
+                      </button>
+                    </Tooltip>
+                  </template>
+                  <template #body-main="{ togglePopover: closePicker }">
+                    <TableSizePicker @pick="insertTable($event); closePicker(); togglePopover()" />
+                  </template>
+                </Popover>
+                <Tooltip v-else :text="t.label">
+                  <button
+                    :class="[tileBase, isCreateToolActive(t) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
+                    @click="runCreateTool(t, togglePopover)"
+                  >
+                    <LucideIcon :name="t.icon" class="h-[18px] w-[18px]" />
+                  </button>
+                </Tooltip>
+              </template>
             </div>
 
             <div v-if="showMindmap" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Mind map</div>

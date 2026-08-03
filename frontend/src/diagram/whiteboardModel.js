@@ -51,16 +51,24 @@ export function makeLine(x1, y1, x2, y2, partial = {}) {
   }
 }
 
-// A simple fixed grid table. `cells` maps "row,col" → text.
+// Default cell size for a new table. The size picker chooses only the grid
+// dimensions (#134), so these stay the single source of truth for a cell's box —
+// shared by makeTable and the centred-insert maths (tableSizePicker.js).
+export const TABLE_CELL_W = 120
+export const TABLE_CELL_H = 40
+
+// A simple fixed grid table. `cells` maps "row,col" → text. `rows`/`cols` are
+// required: every creation path supplies an explicit size (the size picker, or
+// the armed-tool default) — there is no built-in 3×3 fallback anymore (#134).
 export function makeTable(x, y, partial = {}) {
   return {
     id: nextId('wt'),
     x,
     y,
-    rows: partial.rows || 3,
-    cols: partial.cols || 3,
-    cellW: partial.cellW || 120,
-    cellH: partial.cellH || 40,
+    rows: partial.rows,
+    cols: partial.cols,
+    cellW: partial.cellW || TABLE_CELL_W,
+    cellH: partial.cellH || TABLE_CELL_H,
     color: partial.color || '#171717',
     cells: partial.cells || {},
     zIndex: partial.zIndex || 0,
