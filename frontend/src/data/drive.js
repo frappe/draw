@@ -37,3 +37,15 @@ export function listDriveFolders(parent = null) {
 export function moveToDriveFolder(name, folder) {
   return call('draw.api.drive_integration.move_to_drive_folder', { name, folder })
 }
+
+// The FOLDER ancestry (Home → … → the folder the diagram sits in) of a diagram's Drive
+// file, for the editor toolbar's Drive-path breadcrumb (#112). Returns
+// { drive_installed, registered, path: [{ name, title }] }, or null on any error so the
+// toolbar falls back to the static "Frappe Draw" crumb rather than breaking.
+export async function getDiagramDrivePath(name) {
+  try {
+    return await call('draw.api.drive_integration.diagram_drive_path', { name })
+  } catch {
+    return null
+  }
+}
