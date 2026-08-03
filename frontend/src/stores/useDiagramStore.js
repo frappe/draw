@@ -330,6 +330,11 @@ function attachMindMap(store, state, history) {
       const node = state.mindmap?.nodes.find((n) => n.id === id)
       if (node) applyPatch(node, patch)
     })
+  // Whimsical convert (#125): flip a migrated mind-map SHAPE between a boxed node
+  // and transparent text. applyPatch deep-merges the tag, so only `shaped` changes.
+  // The context menu offers this on non-root nodes only (the root is always a box).
+  store.setMindmapNodeShaped = (id, shaped) =>
+    history.commit('Convert node', () => applyPatch(store.shapeById(id), { mindmap: { shaped } }))
   // Delete migrated mind-map SHAPES and their whole subtrees (free-floating #122):
   // reconstruct the tree from the tags, expand each id to its descendants, then drop
   // those shapes and any connector touching them — one undoable unit, no dangling

@@ -30,6 +30,12 @@ describe('buildMindmapChild', () => {
     expect(connector.to.shapeId).toBe(shape.id)
   })
 
+  it('builds children as transparent text, not boxed (Whimsical #125)', () => {
+    const { shapes, rootId } = rootShapes()
+    const { shape } = buildMindmapChild(shapes, rootId, 'ocean')
+    expect(shape.mindmap.shaped).toBe(false)
+  })
+
   it('places the first child to the right of the root, the second to the left', () => {
     let { shapes, rootId } = rootShapes()
     const root = shapes.find((s) => s.id === rootId)

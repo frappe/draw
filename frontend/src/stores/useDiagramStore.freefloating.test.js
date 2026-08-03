@@ -3,6 +3,7 @@ import { createDiagramStore } from './useDiagramStore.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
 import { flattenSubmodels, ROLE } from '@/diagram/freeFloating.js'
 import { createFlowchart, addFlowchartNode } from '@/diagram/flowchartModel.js'
+import { createMindMap, addChild } from '@/diagram/mindmapModel.js'
 
 // A store whose flowchart has been flattened to free-floating tagged shapes (the
 // #122 state: state.flowchart is null, the node lives in state.shapes as a
@@ -43,6 +44,37 @@ describe('store.addFlowchartChildShape (free-floating #122)', () => {
     const before = store.state.shapes.length
     expect(store.addFlowchartChildShape('nope', 'process')).toBeNull()
     expect(store.state.shapes.length).toBe(before)
+  })
+})
+
+// A store whose mind map has been flattened to free-floating tagged shapes: the
+// root is a boxed shape, its child renders as text (mindmap.shaped false).
+function migratedMindmapStore() {
+  const mm = createMindMap('Root')
+  const childId = addChild(mm, mm.rootId, 'Child', 'right')
+  const doc = flattenSubmodels({ ...createDiagramDocument(undefined, 'unified'), mindmap: mm })
+  return { store: createDiagramStore(doc), rootId: mm.rootId, childId }
+}
+
+describe('store.setMindmapNodeShaped (Whimsical #125)', () => {
+  it('toggles a node between text and box, and undo restores it', () => {
+    const { store, childId } = migratedMindmapStore()
+    expect(store.shapeById(childId).mindmap.shaped).toBe(false) // children default to text
+    store.setMindmapNodeShaped(childId, true)
+    expect(store.shapeById(childId).mindmap.shaped).toBe(true)
+    store.undo()
+    expect(store.shapeById(childId).mindmap.shaped).toBe(false)
+  })
+
+  it('flips only shaped, leaving the rest of the node tag intact', () => {
+    const { store, childId } = migratedMindmapStore()
+    const before = { ...store.shapeById(childId).mindmap }
+    store.setMindmapNodeShaped(childId, true)
+    const after = store.shapeById(childId).mindmap
+    expect(after.shaped).toBe(true)
+    expect(after.parentId).toBe(before.parentId)
+    expect(after.side).toBe(before.side)
+    expect(after.depth).toBe(before.depth)
   })
 })
 

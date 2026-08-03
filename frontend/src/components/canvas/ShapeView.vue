@@ -147,6 +147,30 @@ const flowchartGlyph = computed(() => {
   return nodeType ? nodeShape(nodeType, props.shape.w, props.shape.h) : null
 })
 
+// Whimsical mind map (#125): a non-root node with `mindmap.shaped === false`
+// renders as transparent text — no rect / fill / border, just its label. The
+// root stays a box (shaped is true). Only the box branch keys off this; the
+// shape keeps its w/h, so selection and marquee still target its bounding box.
+const mindmapAsText = computed(
+  () => props.shape.role === 'mindmap-node' && props.shape.mindmap?.shaped === false,
+)
+
+// Any empty mind-map node (boxed or text) shows a muted "New idea" placeholder so
+// a blank — especially boxless — node is still visible and selectable. It is
+// render-only: never written back as text content.
+const mindmapPlaceholder = computed(
+  () => props.shape.role === 'mindmap-node' && !props.shape.text?.content,
+)
+
+// Label colour for the centred <text>. A boxless text node needs dark ink on the
+// white canvas (or its own mindmap.color for Whimsical coloured text); a boxed
+// node keeps its stored text colour; an empty node draws the muted placeholder.
+const labelFill = computed(() => {
+  if (mindmapPlaceholder.value) return '#9CA3AF'
+  if (mindmapAsText.value) return props.shape.mindmap?.color || '#1F2933'
+  return textStyle.value.color
+})
+
 // Shrink-to-fit the rich text when the shape opts in (spec 6.4). Declared last so
 // the inputs getter can reference the computeds above without hitting the TDZ.
 useAutoFitText(richEl, () => ({
@@ -209,7 +233,7 @@ useAutoFitText(richEl, () => ({
       />
     </g>
     <rect
-      v-else-if="shape.type === 'rectangle' || shape.type === 'square' || shape.type === 'rounded'"
+      v-else-if="(shape.type === 'rectangle' || shape.type === 'square' || shape.type === 'rounded') && !mindmapAsText"
       :x="shape.x"
       :y="shape.y"
       :width="shape.w"
@@ -346,12 +370,12 @@ useAutoFitText(richEl, () => ({
          foreignObject AND this <text>, showing the text twice (Q2). The prior
          v-else-if chained to the hyperlink <a>, not the foreignObject. -->
     <text
-      v-if="!isEditingThis && !richHtml && shape.text?.content"
+      v-if="!isEditingThis && !richHtml && (shape.text?.content || mindmapPlaceholder)"
       :x="center.x"
       :y="center.y"
       text-anchor="middle"
       dominant-baseline="central"
-      :fill="textStyle.color"
+      :fill="labelFill"
       :font-size="textStyle.size"
       :font-weight="textStyle.bold ? 700 : 500"
       :font-style="textStyle.italic ? 'italic' : 'normal'"
@@ -359,7 +383,7 @@ useAutoFitText(richEl, () => ({
       :opacity="shape.opacity"
       :font-family="textStyle.font || 'Inter, sans-serif'"
     >
-      {{ shape.text.content }}
+      {{ mindmapPlaceholder ? 'New idea' : shape.text.content }}
     </text>
   </g>
 </template>

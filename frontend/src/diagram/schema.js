@@ -127,6 +127,7 @@ function migrateDocument(document) {
     if (!migrated.flowchart.origin) migrated.flowchart.origin = { x: 0, y: 0 }
   }
   backfillWhiteboardZIndex(migrated)
+  backfillMindmapShaped(migrated)
   migrated.schemaVersion = SCHEMA_VERSION
   return migrated
 }
@@ -154,5 +155,17 @@ function backfillWhiteboardZIndex(document) {
       if ((object.zIndex || UNASSIGNED_Z) > UNASSIGNED_Z) z = Math.max(z, object.zIndex)
       else object.zIndex = (z += 1)
     }
+  }
+}
+
+// Mind-map nodes gained a `mindmap.shaped` flag with the Whimsical style (#125):
+// the root renders as a box, children as transparent text. Documents flattened
+// before the flag existed lack it, so backfill from isRoot — root→boxed,
+// children→text. Idempotent (a node that already carries the flag is left alone),
+// so re-running is stable and no SCHEMA_VERSION bump is needed.
+function backfillMindmapShaped(document) {
+  for (const shape of document.shapes || []) {
+    if (shape.role !== 'mindmap-node' || !shape.mindmap) continue
+    if (shape.mindmap.shaped === undefined) shape.mindmap.shaped = !!shape.mindmap.isRoot
   }
 }

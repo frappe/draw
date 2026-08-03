@@ -17,6 +17,7 @@ import { axisAlignedBBox, anchorPoint, pointInShape, unionBounds } from '@/diagr
 import { isVisible, isInteractable } from '@/diagram/shapeFlags.js'
 import { layoutMindMap, offsetPositions, mindmapTreeRects } from '@/diagram/mindmapLayout.js'
 import { subtreeIds } from '@/diagram/mindmapModel.js'
+import { isMindmapShape } from '@/diagram/freeFloating.js'
 import { flowchartContentBounds } from '@/diagram/flowchartLayout.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
@@ -290,7 +291,20 @@ function onContextMenu(event) {
 function shapeMenuItems() {
   const ids = store.state.selection
   const items = []
-  if (ids.length === 1) items.push({ label: 'Edit text', icon: 'type', onClick: () => editing.beginTextEdit(ids[0]) })
+  if (ids.length === 1) {
+    items.push({ label: 'Edit text', icon: 'type', onClick: () => editing.beginTextEdit(ids[0]) })
+    const shape = store.shapeById(ids[0])
+    // Whimsical convert (#125): flip a non-root mind-map node between a boxed shape
+    // and transparent text. The root is always a box, so it gets no toggle.
+    if (isMindmapShape(shape) && !shape.mindmap?.isRoot) {
+      const shaped = shape.mindmap?.shaped !== false
+      items.push({
+        label: shaped ? 'Convert to text' : 'Convert to shape',
+        icon: shaped ? 'type' : 'square',
+        onClick: () => store.setMindmapNodeShaped(shape.id, !shaped),
+      })
+    }
+  }
   items.push(
     { label: 'Duplicate', icon: 'copy', shortcut: '⌘D', onClick: () => store.duplicate(ids) },
     { label: 'Copy', icon: 'clipboard', shortcut: '⌘C', onClick: () => clipboard.copy() },

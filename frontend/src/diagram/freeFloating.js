@@ -157,6 +157,10 @@ function flattenMindmap(model, themePreset, startZ) {
         color: node.color || null,
         marker: node.marker || { icon: null, colorDot: null },
         isRoot,
+        // Whimsical style (#125): the root is a boxed shape, children render as
+        // transparent text. This is the migration seam — every flattened doc now
+        // gets root→boxed, children→text.
+        shaped: isRoot,
       },
     })
   }

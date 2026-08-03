@@ -38,6 +38,9 @@ function box(s) {
 }
 
 function shapeBody(s) {
+  // Whimsical mind-map text node (#125): no box — the centred label (shapeText)
+  // carries it, matching the on-canvas look. Shaped nodes fall through to a rect.
+  if (s.role === 'mindmap-node' && s.mindmap?.shaped === false) return ''
   const { x, y, w, h } = box(s)
   const stroke = `stroke="${safeColor(s.border?.color)}" stroke-width="${num(s.border?.width)}"`
   const fill = `fill="${safeColor(s.fill)}" fill-opacity="${num(s.opacity, 1)}"`

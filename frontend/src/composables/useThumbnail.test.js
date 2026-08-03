@@ -113,6 +113,52 @@ describe('documentToSvg for a unified document', () => {
   })
 })
 
+// Whimsical mind map (#125): a text node (mindmap.shaped false) must export with
+// NO box — shapeBody returns '' — while its centred label (shapeText) still draws,
+// matching the on-canvas look. A shaped node keeps its rect. documentToSvg is the
+// render path that exercises both.
+describe('documentToSvg — Whimsical mind-map nodes (#125)', () => {
+  function mindmapNodesDoc() {
+    return {
+      schemaVersion: 2,
+      diagramType: 'unified',
+      themePreset: 'ocean',
+      canvas: { sizePreset: 'Widescreen 16:9', width: 1280, height: 720, background: 'none' },
+      sections: [],
+      connectors: [],
+      shapes: [
+        {
+          id: 'm1', type: 'rounded', x: 100, y: 100, w: 160, h: 48, rotation: 0, opacity: 1, zIndex: 1,
+          fill: '#ECE7FE', border: { color: '#6E56CF', width: 2 }, text: { content: 'ROOT-BOX', style: {} },
+          role: 'mindmap-node',
+          mindmap: { parentId: null, isRoot: true, shaped: true },
+        },
+        {
+          id: 'm2', type: 'rounded', x: 320, y: 100, w: 140, h: 40, rotation: 0, opacity: 1, zIndex: 2,
+          fill: '#C0FFEE', border: { color: '#6E56CF', width: 1.5 }, text: { content: 'CHILD-TEXT', style: {} },
+          role: 'mindmap-node',
+          mindmap: { parentId: 'm1', isRoot: false, shaped: false },
+        },
+      ],
+      mindmap: null, flowchart: null, whiteboard: null,
+    }
+  }
+
+  it('draws a box for the shaped root but none for the text child', () => {
+    const svg = documentToSvg(mindmapNodesDoc())
+    // The shaped root renders as a rect carrying its fill…
+    expect(svg).toMatch(/<rect[^>]*fill="#ECE7FE"/)
+    // …the text child's box is suppressed, so its fill never reaches the markup.
+    expect(svg, 'a text node exported with a box').not.toContain('#C0FFEE')
+  })
+
+  it('still exports the label of a text node', () => {
+    const svg = documentToSvg(mindmapNodesDoc())
+    expect(svg).toContain('ROOT-BOX')
+    expect(svg, 'the text node label was dropped from the export').toContain('CHILD-TEXT')
+  })
+})
+
 describe('documentToSvg still renders single-type documents', () => {
   it('renders a legacy whiteboard document, including lines and tables', () => {
     const doc = { ...unifiedDocument(), diagramType: 'whiteboard', mindmap: null, flowchart: null }

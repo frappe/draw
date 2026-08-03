@@ -49,6 +49,15 @@ describe('flattenSubmodels — mind map', () => {
     expect(root.text.content).toBe('Root')
   })
 
+  it('marks the root as a boxed shape and its children as text (Whimsical #125)', () => {
+    const { model, a, b } = sampleMindmap()
+    const out = flattenSubmodels(docWith({ mindmap: model }))
+    expect(out.shapes.find((s) => s.id === model.rootId).mindmap.shaped).toBe(true)
+    for (const child of [a, b]) {
+      expect(out.shapes.find((s) => s.id === child).mindmap.shaped).toBe(false)
+    }
+  })
+
   it('bakes absolute canvas positions (layout shifted by the frame origin)', () => {
     const origin = { x: 600, y: 200 }
     const { model } = sampleMindmap(origin)

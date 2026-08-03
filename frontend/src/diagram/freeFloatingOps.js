@@ -83,7 +83,7 @@ export function buildMindmapChild(shapes, parentShapeId, themePreset, explicitSi
       fill, border: { color, width: 1.5, dash: 'solid' },
       text: { content: '', align: 'center', valign: 'middle', style: { size: 16, bold: false, italic: false, underline: false, color: readableInk(fill) } },
       role: ROLE.mindmapNode,
-      mindmap: { parentId: parentShapeId, order, depth, collapsed: false, side: newNode.side, color: null, marker: { icon: null, colorDot: null }, isRoot: false },
+      mindmap: { parentId: parentShapeId, order, depth, collapsed: false, side: newNode.side, color: null, marker: { icon: null, colorDot: null }, isRoot: false, shaped: false },
     },
     themePreset,
   )

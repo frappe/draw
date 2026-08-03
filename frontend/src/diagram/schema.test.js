@@ -117,3 +117,55 @@ describe('schema v2 free-floating migration', () => {
     expect(twice.shapes.filter((s) => s.role).length).toBe(roleShapes)
   })
 })
+
+// Whimsical style (#125): mind-map nodes carry a `mindmap.shaped` flag (root→boxed,
+// children→text). Docs already flattened to v2 before the flag existed need it
+// backfilled from isRoot on load.
+describe('schema mindmap.shaped backfill', () => {
+  function mmNode(id, parentId, isRoot) {
+    return {
+      id, type: 'rounded', x: 100, y: 100, w: 150, h: 44, rotation: 0, opacity: 1, zIndex: 1,
+      fill: '#ECE7FE', border: { color: '#6E56CF', width: 2, dash: 'solid' },
+      text: { content: id, style: {} },
+      role: 'mindmap-node',
+      // Deliberately no `shaped` — this is a doc that predates the flag.
+      mindmap: { parentId, order: 0, depth: isRoot ? 0 : 1, collapsed: false, side: null, color: null, marker: { icon: null, colorDot: null }, isRoot },
+    }
+  }
+
+  function v2FlattenedMissingShaped() {
+    return {
+      schemaVersion: 2,
+      diagramType: 'unified',
+      themePreset: 'ocean',
+      canvas: { sizePreset: 'Widescreen 16:9', width: 1280, height: 720, background: null },
+      shapes: [mmNode('m1', null, true), mmNode('m2', 'm1', false)],
+      connectors: [],
+      sections: [],
+      mindmap: null,
+      flowchart: null,
+      whiteboard: null,
+    }
+  }
+
+  it('backfills shaped from isRoot — root boxed, children text', () => {
+    const parsed = parseDiagramDocument(v2FlattenedMissingShaped())
+    expect(parsed.shapes.find((s) => s.id === 'm1').mindmap.shaped).toBe(true)
+    expect(parsed.shapes.find((s) => s.id === 'm2').mindmap.shaped).toBe(false)
+  })
+
+  it('is idempotent — re-parsing keeps shaped stable', () => {
+    const once = parseDiagramDocument(v2FlattenedMissingShaped())
+    const twice = parseDiagramDocument(once)
+    expect(twice.shapes.find((s) => s.id === 'm1').mindmap.shaped).toBe(true)
+    expect(twice.shapes.find((s) => s.id === 'm2').mindmap.shaped).toBe(false)
+  })
+
+  it('does not override an already-set shaped flag', () => {
+    const doc = v2FlattenedMissingShaped()
+    // A child a user has explicitly converted back to a box must stay boxed.
+    doc.shapes[1].mindmap.shaped = true
+    const parsed = parseDiagramDocument(doc)
+    expect(parsed.shapes.find((s) => s.id === 'm2').mindmap.shaped).toBe(true)
+  })
+})
