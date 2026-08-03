@@ -48,6 +48,7 @@ declare module 'vue' {
     MindMapNodeLayer: typeof import('./src/components/canvas/MindMapNodeLayer.vue')['default']
     MindMapOverlay: typeof import('./src/components/canvas/MindMapOverlay.vue')['default']
     Minimap: typeof import('./src/components/canvas/Minimap.vue')['default']
+    MoveToDriveDialog: typeof import('./src/components/toolbar/MoveToDriveDialog.vue')['default']
     OverflowMenu: typeof import('./src/components/toolbar/OverflowMenu.vue')['default']
     PaletteSection: typeof import('./src/components/palette-right/PaletteSection.vue')['default']
     PresenceAvatars: typeof import('./src/components/toolbar/PresenceAvatars.vue')['default']

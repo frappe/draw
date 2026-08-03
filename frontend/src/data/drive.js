@@ -23,3 +23,17 @@ export async function getDriveAvailability() {
 export function shouldShowInstallDriveBanner(status) {
   return status != null && status.installed === false
 }
+
+// List the sub-folders of a Drive folder (pass null for the owner's Home) plus the
+// Home-down-to-here breadcrumb, for the "Move to folder" dialog (#105). Returns
+// { drive_installed, current, path: [{ name, title }], folders: [{ name, title }] }.
+export function listDriveFolders(parent = null) {
+  return call('draw.api.drive_integration.list_drive_folders', { parent })
+}
+
+// Move a diagram's Drive file into `folder` (a Drive folder id, or null for Home).
+// Returns { drive_installed, moved, file }. move()'s own permission / not-a-folder
+// errors reject the call so the dialog can surface them.
+export function moveToDriveFolder(name, folder) {
+  return call('draw.api.drive_integration.move_to_drive_folder', { name, folder })
+}
