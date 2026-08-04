@@ -798,6 +798,30 @@ class TestDrawDiagram(IntegrationTestCase):
 		execute()  # a second run must not duplicate the grant
 		self.assertEqual(frappe.db.count("Has Role", {"parent": system_user, "role": "Draw User"}), 1)
 
+	# ----- System Manager's declared create right survives Draw's own perm row (GitHub #174) -----
+
+	def test_system_manager_retains_declared_create_permission(self):
+		# Custom DocPerm REPLACES a doctype's declared perm rows rather than merging
+		# with them, so adding the Draw User row used to silently switch off the
+		# System Manager row declared in draw_diagram.json. ensure_setup's
+		# _keep_declared_permissions must have already copied it over — reasserted
+		# here so a future change to setup.py that drops the call is caught.
+		self.assertTrue(
+			frappe.db.exists(
+				"Custom DocPerm",
+				{"parent": "Draw Diagram", "role": "System Manager", "create": 1},
+			),
+			"System Manager's declared create right on Draw Diagram was not preserved",
+		)
+
+	def test_restore_declared_permissions_patch_is_idempotent(self):
+		from draw.patches.v0_0.restore_declared_permissions import execute
+
+		before = frappe.db.count("Custom DocPerm", {"parent": "Draw Diagram"})
+		execute()
+		execute()  # a second run must not duplicate rows
+		self.assertEqual(frappe.db.count("Custom DocPerm", {"parent": "Draw Diagram"}), before)
+
 	def test_two_draw_users_cannot_see_each_others_private_diagrams(self):
 		# #73 reinforced from the role angle: two users who hold ONLY the Draw User
 		# role (granted on Draw access, no System Manager) each own a private diagram,
