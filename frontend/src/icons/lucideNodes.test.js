@@ -16,7 +16,7 @@ import { LUCIDE_ALIAS } from './lucideAlias.js'
 const SRC = path.resolve(import.meta.dirname, '..')
 
 // Names that look like icons to the grep but are other `name="…"` attributes.
-const NOT_ICONS = new Set(['append', 'icon'])
+const NOT_ICONS = new Set(['append', 'icon', 'name'])
 
 function referencedIconNames() {
   // Same shape of scan the generator uses, so the two agree on what "referenced" means.
