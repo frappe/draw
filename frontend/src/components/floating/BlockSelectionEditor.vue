@@ -146,7 +146,7 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
         <Popover side="top">
           <template #target="{ togglePopover }">
             <Tooltip text="Line">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="minus" class="h-4 w-4" /></button>
+              <button :class="btn" aria-label="Line" @mousedown.prevent @click="togglePopover()"><LucideIcon name="minus" class="h-4 w-4" /></button>
             </Tooltip>
           </template>
           <template #body-main><div :class="panel"><ConnectorSection :connector="connector" /></div></template>
@@ -160,7 +160,7 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
         <Popover side="top">
           <template #target="{ togglePopover }">
             <Tooltip text="Fill">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()">
+              <button :class="btn" aria-label="Fill" @mousedown.prevent @click="togglePopover()">
                 <span class="h-4 w-4 rounded-full border border-ink-gray-4" :style="{ background: primaryFill }" />
               </button>
             </Tooltip>
@@ -171,7 +171,7 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
         <Popover side="top">
           <template #target="{ togglePopover }">
             <Tooltip text="Border">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()">
+              <button :class="btn" aria-label="Border" @mousedown.prevent @click="togglePopover()">
                 <span class="h-4 w-4 rounded-full border-[3px] bg-surface-base" :style="{ borderColor: primaryBorder }" />
               </button>
             </Tooltip>
@@ -185,18 +185,18 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
              font, size, bold/italic/underline, align. -->
         <Select :model-value="font" :options="FONTS" class="h-8 w-[92px]" @update:model-value="setFont" @mousedown.stop />
         <div class="flex items-center rounded-md border border-outline-gray-2">
-          <button class="flex h-8 w-6 items-center justify-center text-ink-gray-6 hover:bg-surface-gray-2" @mousedown.prevent @click="stepFontSize(-1)"><LucideIcon name="minus" class="h-3.5 w-3.5" /></button>
+          <button class="flex h-8 w-6 items-center justify-center text-ink-gray-6 hover:bg-surface-gray-2" aria-label="Decrease font size" @mousedown.prevent @click="stepFontSize(-1)"><LucideIcon name="minus" class="h-3.5 w-3.5" /></button>
           <span class="w-6 text-center text-[12px] tabular-nums text-ink-gray-8">{{ fontSize }}</span>
-          <button class="flex h-8 w-6 items-center justify-center text-ink-gray-6 hover:bg-surface-gray-2" @mousedown.prevent @click="stepFontSize(1)"><LucideIcon name="plus" class="h-3.5 w-3.5" /></button>
+          <button class="flex h-8 w-6 items-center justify-center text-ink-gray-6 hover:bg-surface-gray-2" aria-label="Increase font size" @mousedown.prevent @click="stepFontSize(1)"><LucideIcon name="plus" class="h-3.5 w-3.5" /></button>
         </div>
-        <Tooltip text="Bold"><button :class="[btn, markActive('bold') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="markText('bold')"><LucideIcon name="bold" class="h-4 w-4" /></button></Tooltip>
-        <Tooltip text="Italic"><button :class="[btn, markActive('italic') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="markText('italic')"><LucideIcon name="italic" class="h-4 w-4" /></button></Tooltip>
-        <Tooltip text="Underline"><button :class="[btn, markActive('underline') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="markText('underline')"><LucideIcon name="underline" class="h-4 w-4" /></button></Tooltip>
-        <Tooltip text="Strikethrough"><button :class="[btn, markActive('strike') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="markText('strike')"><LucideIcon name="strikethrough" class="h-4 w-4" /></button></Tooltip>
-        <Tooltip text="Align left"><button :class="[btn, alignActive('left') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="setTextAlign('left')"><LucideIcon name="text-align-start" class="h-4 w-4" /></button></Tooltip>
-        <Tooltip text="Align center"><button :class="[btn, alignActive('center') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="setTextAlign('center')"><LucideIcon name="text-align-center" class="h-4 w-4" /></button></Tooltip>
-        <Tooltip text="Align right"><button :class="[btn, alignActive('right') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="setTextAlign('right')"><LucideIcon name="text-align-end" class="h-4 w-4" /></button></Tooltip>
-        <Tooltip text="Auto-fit text to shape"><button :class="[btn, autoFit && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="toggleAutoFit"><LucideIcon name="scaling" class="h-4 w-4" /></button></Tooltip>
+        <Tooltip text="Bold"><button :class="[btn, markActive('bold') && 'bg-surface-gray-3 text-ink-gray-9']" aria-label="Bold" @mousedown.prevent @click="markText('bold')"><LucideIcon name="bold" class="h-4 w-4" /></button></Tooltip>
+        <Tooltip text="Italic"><button :class="[btn, markActive('italic') && 'bg-surface-gray-3 text-ink-gray-9']" aria-label="Italic" @mousedown.prevent @click="markText('italic')"><LucideIcon name="italic" class="h-4 w-4" /></button></Tooltip>
+        <Tooltip text="Underline"><button :class="[btn, markActive('underline') && 'bg-surface-gray-3 text-ink-gray-9']" aria-label="Underline" @mousedown.prevent @click="markText('underline')"><LucideIcon name="underline" class="h-4 w-4" /></button></Tooltip>
+        <Tooltip text="Strikethrough"><button :class="[btn, markActive('strike') && 'bg-surface-gray-3 text-ink-gray-9']" aria-label="Strikethrough" @mousedown.prevent @click="markText('strike')"><LucideIcon name="strikethrough" class="h-4 w-4" /></button></Tooltip>
+        <Tooltip text="Align left"><button :class="[btn, alignActive('left') && 'bg-surface-gray-3 text-ink-gray-9']" aria-label="Align left" @mousedown.prevent @click="setTextAlign('left')"><LucideIcon name="text-align-start" class="h-4 w-4" /></button></Tooltip>
+        <Tooltip text="Align center"><button :class="[btn, alignActive('center') && 'bg-surface-gray-3 text-ink-gray-9']" aria-label="Align center" @mousedown.prevent @click="setTextAlign('center')"><LucideIcon name="text-align-center" class="h-4 w-4" /></button></Tooltip>
+        <Tooltip text="Align right"><button :class="[btn, alignActive('right') && 'bg-surface-gray-3 text-ink-gray-9']" aria-label="Align right" @mousedown.prevent @click="setTextAlign('right')"><LucideIcon name="text-align-end" class="h-4 w-4" /></button></Tooltip>
+        <Tooltip text="Auto-fit text to shape"><button :class="[btn, autoFit && 'bg-surface-gray-3 text-ink-gray-9']" aria-label="Auto-fit text to shape" @mousedown.prevent @click="toggleAutoFit"><LucideIcon name="scaling" class="h-4 w-4" /></button></Tooltip>
 
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
 
@@ -205,7 +205,7 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
         <Popover side="top">
           <template #target="{ togglePopover }">
             <Tooltip text="Arrange">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="layers" class="h-4 w-4" /></button>
+              <button :class="btn" aria-label="Arrange" @mousedown.prevent @click="togglePopover()"><LucideIcon name="layers" class="h-4 w-4" /></button>
             </Tooltip>
           </template>
           <template #body-main><div :class="panel"><ArrangeSection /></div></template>
@@ -216,7 +216,7 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
         <Popover v-if="multi" side="top">
           <template #target="{ togglePopover }">
             <Tooltip text="Align">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="align-center-horizontal" class="h-4 w-4" /></button>
+              <button :class="btn" aria-label="Align" @mousedown.prevent @click="togglePopover()"><LucideIcon name="align-center-horizontal" class="h-4 w-4" /></button>
             </Tooltip>
           </template>
           <template #body-main><div :class="panel"><AlignSection /></div></template>
@@ -225,7 +225,7 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
         <Popover v-if="multi" side="top">
           <template #target="{ togglePopover }">
             <Tooltip text="Distribute & size">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="columns-2" class="h-4 w-4" /></button>
+              <button :class="btn" aria-label="Distribute & size" @mousedown.prevent @click="togglePopover()"><LucideIcon name="columns-2" class="h-4 w-4" /></button>
             </Tooltip>
           </template>
           <template #body-main><div :class="panel"><DistributeSizeSection /></div></template>
@@ -234,7 +234,7 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
         <Popover side="top">
           <template #target="{ togglePopover }">
             <Tooltip text="Transform">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="flip-horizontal-2" class="h-4 w-4" /></button>
+              <button :class="btn" aria-label="Transform" @mousedown.prevent @click="togglePopover()"><LucideIcon name="flip-horizontal-2" class="h-4 w-4" /></button>
             </Tooltip>
           </template>
           <template #body-main><div :class="panel"><TransformSection /></div></template>
@@ -243,7 +243,7 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
         <Popover side="top">
           <template #target="{ togglePopover }">
             <Tooltip text="Link">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="link" class="h-4 w-4" /></button>
+              <button :class="btn" aria-label="Link" @mousedown.prevent @click="togglePopover()"><LucideIcon name="link" class="h-4 w-4" /></button>
             </Tooltip>
           </template>
           <template #body-main>
@@ -256,12 +256,12 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
 
         <Tooltip text="Duplicate">
-          <button :class="btn" @mousedown.prevent @click="duplicate"><LucideIcon name="copy" class="h-4 w-4" /></button>
+          <button :class="btn" aria-label="Duplicate" @mousedown.prevent @click="duplicate"><LucideIcon name="copy" class="h-4 w-4" /></button>
         </Tooltip>
       </template>
 
       <Tooltip text="Delete">
-        <button class="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50" @mousedown.prevent @click="remove">
+        <button class="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50" aria-label="Delete" @mousedown.prevent @click="remove">
           <LucideIcon name="trash-2" class="h-4 w-4" />
         </button>
       </Tooltip>

@@ -136,7 +136,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
       <Popover v-if="node" side="top">
         <template #target="{ togglePopover }">
           <Tooltip text="Node type">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()">
+            <button :class="btn" aria-label="Node type" @mousedown.prevent @click="togglePopover()">
               <LucideIcon name="shapes" class="h-4 w-4" />
             </button>
           </Tooltip>
@@ -164,7 +164,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
       <Popover side="top">
         <template #target="{ togglePopover }">
           <Tooltip text="Fill">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()">
+            <button :class="btn" aria-label="Fill" @mousedown.prevent @click="togglePopover()">
               <span class="h-4 w-4 rounded-full border border-black/10" :style="{ background: fillPreview }" />
             </button>
           </Tooltip>
@@ -184,7 +184,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
       <Popover side="top">
         <template #target="{ togglePopover }">
           <Tooltip text="Border">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()">
+            <button :class="btn" aria-label="Border" @mousedown.prevent @click="togglePopover()">
               <span class="h-4 w-4 rounded-full border-[3px]" :style="{ borderColor: borderPreview }" />
             </button>
           </Tooltip>
@@ -205,22 +205,22 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
       <!-- Text formatting inline (consistent with block diagrams): size, bold,
            italic, alignment. -->
       <div class="flex items-center rounded-md border border-outline-gray-2">
-        <button class="flex h-8 w-6 items-center justify-center text-ink-gray-6 hover:bg-surface-gray-2" @click="stepFontSize(-1)"><LucideIcon name="minus" class="h-3.5 w-3.5" /></button>
+        <button class="flex h-8 w-6 items-center justify-center text-ink-gray-6 hover:bg-surface-gray-2" aria-label="Decrease font size" @click="stepFontSize(-1)"><LucideIcon name="minus" class="h-3.5 w-3.5" /></button>
         <span class="w-6 text-center text-[12px] tabular-nums text-ink-gray-8">{{ fontSize }}</span>
-        <button class="flex h-8 w-6 items-center justify-center text-ink-gray-6 hover:bg-surface-gray-2" @click="stepFontSize(1)"><LucideIcon name="plus" class="h-3.5 w-3.5" /></button>
+        <button class="flex h-8 w-6 items-center justify-center text-ink-gray-6 hover:bg-surface-gray-2" aria-label="Increase font size" @click="stepFontSize(1)"><LucideIcon name="plus" class="h-3.5 w-3.5" /></button>
       </div>
-      <Tooltip text="Bold"><button :class="[btn, tstyle.bold && 'bg-surface-gray-3 text-ink-gray-9']" @click="toggleMark('bold')"><LucideIcon name="bold" class="h-4 w-4" /></button></Tooltip>
-      <Tooltip text="Italic"><button :class="[btn, tstyle.italic && 'bg-surface-gray-3 text-ink-gray-9']" @click="toggleMark('italic')"><LucideIcon name="italic" class="h-4 w-4" /></button></Tooltip>
-      <Tooltip text="Strikethrough"><button :class="[btn, tstyle.strike && 'bg-surface-gray-3 text-ink-gray-9']" @click="toggleMark('strike')"><LucideIcon name="strikethrough" class="h-4 w-4" /></button></Tooltip>
-      <Tooltip text="Align left"><button :class="[btn, (tstyle.align||'center')==='left' && 'bg-surface-gray-3 text-ink-gray-9']" @click="setTextAlign('left')"><LucideIcon name="text-align-start" class="h-4 w-4" /></button></Tooltip>
-      <Tooltip text="Align center"><button :class="[btn, (tstyle.align||'center')==='center' && 'bg-surface-gray-3 text-ink-gray-9']" @click="setTextAlign('center')"><LucideIcon name="text-align-center" class="h-4 w-4" /></button></Tooltip>
-      <Tooltip text="Align right"><button :class="[btn, (tstyle.align||'center')==='right' && 'bg-surface-gray-3 text-ink-gray-9']" @click="setTextAlign('right')"><LucideIcon name="text-align-end" class="h-4 w-4" /></button></Tooltip>
+      <Tooltip text="Bold"><button :class="[btn, tstyle.bold && 'bg-surface-gray-3 text-ink-gray-9']" aria-label="Bold" @click="toggleMark('bold')"><LucideIcon name="bold" class="h-4 w-4" /></button></Tooltip>
+      <Tooltip text="Italic"><button :class="[btn, tstyle.italic && 'bg-surface-gray-3 text-ink-gray-9']" aria-label="Italic" @click="toggleMark('italic')"><LucideIcon name="italic" class="h-4 w-4" /></button></Tooltip>
+      <Tooltip text="Strikethrough"><button :class="[btn, tstyle.strike && 'bg-surface-gray-3 text-ink-gray-9']" aria-label="Strikethrough" @click="toggleMark('strike')"><LucideIcon name="strikethrough" class="h-4 w-4" /></button></Tooltip>
+      <Tooltip text="Align left"><button :class="[btn, (tstyle.align||'center')==='left' && 'bg-surface-gray-3 text-ink-gray-9']" aria-label="Align left" @click="setTextAlign('left')"><LucideIcon name="text-align-start" class="h-4 w-4" /></button></Tooltip>
+      <Tooltip text="Align center"><button :class="[btn, (tstyle.align||'center')==='center' && 'bg-surface-gray-3 text-ink-gray-9']" aria-label="Align center" @click="setTextAlign('center')"><LucideIcon name="text-align-center" class="h-4 w-4" /></button></Tooltip>
+      <Tooltip text="Align right"><button :class="[btn, (tstyle.align||'center')==='right' && 'bg-surface-gray-3 text-ink-gray-9']" aria-label="Align right" @click="setTextAlign('right')"><LucideIcon name="text-align-end" class="h-4 w-4" /></button></Tooltip>
 
       <!-- Decision branches — single selection only. -->
       <Popover v-if="node && node.nodeType === 'decision'" side="top">
         <template #target="{ togglePopover }">
           <Tooltip text="Branches">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="git-branch" class="h-4 w-4" /></button>
+            <button :class="btn" aria-label="Branches" @mousedown.prevent @click="togglePopover()"><LucideIcon name="git-branch" class="h-4 w-4" /></button>
           </Tooltip>
         </template>
         <template #body-main>
@@ -233,7 +233,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
                   class="min-w-0 flex-1 rounded-md border border-outline-gray-2 px-2 py-1 text-[13px] text-ink-gray-8 outline-none focus:border-outline-gray-4"
                   @change="setBranchLabel(branch.port, $event.target.value)"
                 />
-                <button class="flex h-7 w-7 flex-none items-center justify-center rounded-md text-ink-gray-5 hover:bg-surface-gray-2" title="Remove branch" @click="removeBranch(branch.port)">
+                <button class="flex h-7 w-7 flex-none items-center justify-center rounded-md text-ink-gray-5 hover:bg-surface-gray-2" title="Remove branch" aria-label="Remove branch" @click="removeBranch(branch.port)">
                   <LucideIcon name="x" class="h-4 w-4" />
                 </button>
               </div>
@@ -247,7 +247,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
 
       <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
       <Tooltip text="Delete node">
-        <button class="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50" @mousedown.prevent @click="remove">
+        <button class="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50" aria-label="Delete node" @mousedown.prevent @click="remove">
           <LucideIcon name="trash-2" class="h-4 w-4" />
         </button>
       </Tooltip>

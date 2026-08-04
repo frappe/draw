@@ -79,7 +79,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
       <Popover v-else-if="line || table" side="top">
         <template #target="{ togglePopover }">
           <Tooltip :text="`Edit ${label.toLowerCase()}`">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon :name="icon" class="h-4 w-4" /></button>
+            <button :class="btn" :aria-label="`Edit ${label.toLowerCase()}`" @mousedown.prevent @click="togglePopover()"><LucideIcon :name="icon" class="h-4 w-4" /></button>
           </Tooltip>
         </template>
         <template #body-main>
@@ -109,7 +109,12 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
       </template>
 
       <Tooltip :text="multi ? 'Delete selection' : 'Delete'">
-        <button class="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50" @mousedown.prevent @click="remove">
+        <button
+          class="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50"
+          :aria-label="multi ? 'Delete selection' : 'Delete'"
+          @mousedown.prevent
+          @click="remove"
+        >
           <LucideIcon name="trash-2" class="h-4 w-4" />
         </button>
       </Tooltip>

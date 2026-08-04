@@ -236,6 +236,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
         <Tooltip v-for="mode in modes" :key="mode.tool" :text="mode.label">
           <button
             :class="[buttonBase, toggleClass(editorUi.state.tool === mode.tool)]"
+            :aria-label="mode.label"
             @click="editorUi.setTool(mode.tool)"
           >
             <LucideIcon :name="mode.icon" class="h-4 w-4" />
@@ -272,6 +273,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
                 <button
                   :class="[tileBase, isArmed(s.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
                   :draggable="!NON_DRAGGABLE_SHAPES.includes(s.type)"
+                  :aria-label="s.label"
                   @click="arm(s.type, togglePopover)"
                   @dragstart="startTileDrag($event, s.type)"
                   @dragend="endTileDrag(togglePopover)"
@@ -287,6 +289,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
                 <button
                   :class="[tileBase, isArmed(con.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
                   draggable="true"
+                  :aria-label="con.label"
                   @click="arm(con.type, togglePopover)"
                   @dragstart="startTileDrag($event, con.type)"
                   @dragend="endTileDrag(togglePopover)"
@@ -304,7 +307,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
                 <Popover v-if="t.key === 'table'">
                   <template #target="{ togglePopover: togglePicker }">
                     <Tooltip :text="t.label">
-                      <button :class="[tileBase, 'text-ink-gray-7']" @click="togglePicker()">
+                      <button :class="[tileBase, 'text-ink-gray-7']" :aria-label="t.label" @click="togglePicker()">
                         <LucideIcon :name="t.icon" class="h-[18px] w-[18px]" />
                       </button>
                     </Tooltip>
@@ -316,6 +319,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
                 <Tooltip v-else :text="t.label">
                   <button
                     :class="[tileBase, isCreateToolActive(t) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
+                    :aria-label="t.label"
                     @click="runCreateTool(t, togglePopover)"
                   >
                     <LucideIcon :name="t.icon" class="h-[18px] w-[18px]" />
@@ -329,6 +333,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
               <Tooltip text="Mind map">
                 <button
                   :class="[tileBase, isMindmapStarterArmed() ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
+                  aria-label="Mind map"
                   @click="insertMindmap(togglePopover)"
                 >
                   <ShapeGlyph family="mindmap" class="h-[18px] w-[18px]" />
@@ -341,6 +346,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
               <Tooltip v-for="n in filteredFlowchartNodes" :key="n.type" :text="n.label">
                 <button
                   :class="[tileBase, isFlowchartStarterArmed(n.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
+                  :aria-label="n.label"
                   @click="insertFlowchartNode(n.type, togglePopover)"
                 >
                   <ShapeGlyph family="flowchart" :type="n.type" class="h-[18px] w-[18px]" />
@@ -367,6 +373,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
       <Tooltip v-for="mode in modes" :key="mode.tool" :text="mode.label">
         <button
           :class="[buttonBase, toggleClass(editorUi.state.tool === mode.tool)]"
+          :aria-label="mode.label"
           @click="editorUi.setTool(mode.tool)"
         >
           <LucideIcon :name="mode.icon" class="h-4 w-4" />
@@ -377,10 +384,10 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
       <template v-if="isMindmap">
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
         <Tooltip text="Collapse all">
-          <button :class="buttonBase" @click="collapseAll(store, true)"><LucideIcon name="chevrons-down-up" class="h-4 w-4" /></button>
+          <button :class="buttonBase" aria-label="Collapse all" @click="collapseAll(store, true)"><LucideIcon name="chevrons-down-up" class="h-4 w-4" /></button>
         </Tooltip>
         <Tooltip text="Expand all">
-          <button :class="buttonBase" @click="collapseAll(store, false)"><LucideIcon name="chevrons-up-down" class="h-4 w-4" /></button>
+          <button :class="buttonBase" aria-label="Expand all" @click="collapseAll(store, false)"><LucideIcon name="chevrons-up-down" class="h-4 w-4" /></button>
         </Tooltip>
       </template>
 
@@ -388,13 +395,21 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
       <template v-if="isFlowchart">
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
         <Tooltip text="Tidy up">
-          <button :class="buttonBase" @click="flowTidy"><LucideIcon name="grid" class="h-4 w-4" /></button>
+          <button :class="buttonBase" aria-label="Tidy up" @click="flowTidy"><LucideIcon name="grid" class="h-4 w-4" /></button>
         </Tooltip>
         <Tooltip :text="flowDirection === 'TB' ? 'Switch to left → right' : 'Switch to top → bottom'">
-          <button :class="buttonBase" @click="flowFlip"><LucideIcon :name="flowDirection === 'TB' ? 'arrow-right' : 'arrow-down'" class="h-4 w-4" /></button>
+          <button
+            :class="buttonBase"
+            :aria-label="flowDirection === 'TB' ? 'Switch to left to right layout' : 'Switch to top to bottom layout'"
+            @click="flowFlip"
+          ><LucideIcon :name="flowDirection === 'TB' ? 'arrow-right' : 'arrow-down'" class="h-4 w-4" /></button>
         </Tooltip>
         <Tooltip :text="flowNumbered ? 'Clear numbers' : 'Number steps'">
-          <button :class="[buttonBase, toggleClass(flowNumbered)]" @click="flowNumber"><LucideIcon name="list" class="h-4 w-4" /></button>
+          <button
+            :class="[buttonBase, toggleClass(flowNumbered)]"
+            :aria-label="flowNumbered ? 'Clear numbers' : 'Number steps'"
+            @click="flowNumber"
+          ><LucideIcon name="list" class="h-4 w-4" /></button>
         </Tooltip>
       </template>
 
@@ -407,6 +422,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
         <Tooltip v-for="modeTool in surfaceTools" :key="modeTool.tool" :text="modeTool.label">
           <button
             :class="[buttonBase, toggleClass(editorUi.state.tool === modeTool.tool)]"
+            :aria-label="modeTool.label"
             @click="editorUi.setTool(modeTool.tool)"
           >
             <LucideIcon :name="modeTool.icon" class="h-4 w-4" />

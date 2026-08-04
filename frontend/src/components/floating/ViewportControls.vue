@@ -47,7 +47,7 @@ const zoomPercent = computed(() => editorUi.zoomPercent)
     class="absolute bottom-[18px] left-3 z-10 flex items-center gap-1 rounded-[10px] border border-outline-gray-1 bg-surface-base p-[5px] shadow-lg"
   >
     <Tooltip text="Zoom out">
-      <button :class="buttonBase" @click="viewport.zoomStep(-1)">
+      <button :class="buttonBase" aria-label="Zoom out" @click="viewport.zoomStep(-1)">
         <LucideIcon name="minus" class="h-4 w-4" />
       </button>
     </Tooltip>
@@ -71,13 +71,13 @@ const zoomPercent = computed(() => editorUi.zoomPercent)
       </button>
     </Tooltip>
     <Tooltip text="Zoom in">
-      <button :class="buttonBase" @click="viewport.zoomStep(1)">
+      <button :class="buttonBase" aria-label="Zoom in" @click="viewport.zoomStep(1)">
         <LucideIcon name="plus" class="h-4 w-4" />
       </button>
     </Tooltip>
     <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
     <Tooltip text="Fit to view">
-      <button :class="buttonBase" @click="editorUi.fit()">
+      <button :class="buttonBase" aria-label="Fit to view" @click="editorUi.fit()">
         <LucideIcon name="maximize" class="h-4 w-4" />
       </button>
     </Tooltip>
