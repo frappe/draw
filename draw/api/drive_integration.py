@@ -203,21 +203,25 @@ def list_drive_folders(parent: str | None = None) -> dict:
 		from suite.drive.api.list import files as drive_files
 		from suite.drive.api.permissions import get_user_access
 		from suite.drive.utils import get_user_folder, get_valid_breadcrumbs
+		entity = parent or get_user_folder().name
+		# file_kinds=["Folder"] filters the listing to folders (Suite maps the "Folder"
+		# kind to is_folder == 1). Re-check is_folder when mapping in case that changes.
+		rows = drive_files(entity_name=entity, file_kinds=["Folder"])
+		folders = [{"name": r["name"], "title": r.get("file_name")} for r in rows if r.get("is_folder")]
+		# Ancestry from Home down to `entity`; Suite relabels the user's own folder "Home".
+		path = [
+			{"name": node["name"], "title": node["file_name"]}
+			for node in get_valid_breadcrumbs(entity, get_user_access(entity))
+		]
+		return {"drive_installed": True, "current": entity, "path": path, "folders": folders}
 	except ImportError:
 		# Standalone Drive / partial Suite — no folder-browsing API to offer.
 		return absent
-
-	entity = parent or get_user_folder().name
-	# file_kinds=["Folder"] filters the listing to folders (Suite maps the "Folder"
-	# kind to is_folder == 1). Re-check is_folder when mapping in case that changes.
-	rows = drive_files(entity_name=entity, file_kinds=["Folder"])
-	folders = [{"name": r["name"], "title": r.get("file_name")} for r in rows if r.get("is_folder")]
-	# Ancestry from Home down to `entity`; Suite relabels the user's own folder "Home".
-	path = [
-		{"name": node["name"], "title": node["file_name"]}
-		for node in get_valid_breadcrumbs(entity, get_user_access(entity))
-	]
-	return {"drive_installed": True, "current": entity, "path": path, "folders": folders}
+	except Exception:
+		# A broken/partial Drive (e.g. a missing table on an incomplete install) must
+		# never 500 the browser — log for triage and degrade to the drive-absent shape.
+		frappe.log_error(title="Draw: Drive folder listing failed")
+		return absent
 
 
 @frappe.whitelist()
@@ -239,29 +243,33 @@ def diagram_drive_path(name: str) -> dict:
 		from suite.drive.api.permissions import get_user_access
 		from suite.drive.overrides.file import File
 		from suite.drive.utils import get_valid_breadcrumbs
+		# Read-permission first (mirrors register_diagram_in_drive): don't leak the path of a
+		# diagram -- or that one even exists -- to a caller who cannot read it.
+		not_registered = {"drive_installed": True, "registered": False, "path": []}
+		if not frappe.db.exists("Draw Diagram", name):
+			return not_registered
+		if not frappe.has_permission("Draw Diagram", "read", doc=name):
+			return not_registered
+
+		file_name = File.get_for_doc("Draw Diagram", name)
+		if not file_name:
+			# Diagram not yet backed by a Drive File (e.g. made before the integration, or
+			# before Drive was installed); the toolbar shows the static crumb.
+			return not_registered
+
+		# get_valid_breadcrumbs returns root -> ... -> the File itself as the LAST node (the
+		# same shape list_drive_folders treats as "current"). Drop that last node so `path`
+		# is the folder ancestry only -- the diagram's title is the separate last crumb.
+		crumbs = get_valid_breadcrumbs(file_name, get_user_access(file_name))
+		folders = crumbs[:-1] if crumbs else []
+		# Suite relabels the user's own root as "Home".
+		path = [{"name": node["name"], "title": node["file_name"]} for node in folders]
+		return {"drive_installed": True, "registered": True, "path": path}
 	except ImportError:
 		# Standalone Drive / partial Suite -- no breadcrumb API to offer.
 		return absent
-
-	# Read-permission first (mirrors register_diagram_in_drive): don't leak the path of a
-	# diagram -- or that one even exists -- to a caller who cannot read it.
-	not_registered = {"drive_installed": True, "registered": False, "path": []}
-	if not frappe.db.exists("Draw Diagram", name):
-		return not_registered
-	if not frappe.has_permission("Draw Diagram", "read", doc=name):
-		return not_registered
-
-	file_name = File.get_for_doc("Draw Diagram", name)
-	if not file_name:
-		# Diagram not yet backed by a Drive File (e.g. made before the integration, or
-		# before Drive was installed); the toolbar shows the static crumb.
-		return not_registered
-
-	# get_valid_breadcrumbs returns root -> ... -> the File itself as the LAST node (the
-	# same shape list_drive_folders treats as "current"). Drop that last node so `path`
-	# is the folder ancestry only -- the diagram's title is the separate last crumb.
-	crumbs = get_valid_breadcrumbs(file_name, get_user_access(file_name))
-	folders = crumbs[:-1] if crumbs else []
-	# Suite relabels the user's own root as "Home".
-	path = [{"name": node["name"], "title": node["file_name"]} for node in folders]
-	return {"drive_installed": True, "registered": True, "path": path}
+	except Exception:
+		# A broken/partial Drive (e.g. a missing table) must never 500 the editor -- log
+		# and degrade to the drive-absent shape; the toolbar shows the static crumb.
+		frappe.log_error(title="Draw: Drive breadcrumb failed")
+		return absent
