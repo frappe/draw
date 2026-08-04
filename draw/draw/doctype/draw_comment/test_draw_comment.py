@@ -15,6 +15,17 @@ import frappe
 
 
 class TestDrawComment(IntegrationTestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		# Register the "comment" permission type + the Draw User owner perms (the
+		# after_install/after_migrate work), so an owner granted the role below holds
+		# read/write/comment on their own diagram — the production state, where every
+		# owner is a Draw User (the role is granted lazily on opening Draw).
+		from draw.setup import ensure_setup
+
+		ensure_setup()
+
 	def _user(self, email):
 		# A real, enabled user with NO Draw role — proving access flows from the
 		# diagram's share/permission alone, exactly like the sharing tests.
@@ -46,6 +57,11 @@ class TestDrawComment(IntegrationTestCase):
 		)
 		if owner:
 			frappe.db.set_value("Draw Diagram", doc.name, "owner", owner)
+			# A real owner is a Draw User (granted on opening Draw); without the role the
+			# owner-scoped if_owner perms — including comment/write — don't apply to them.
+			from draw.setup import ROLE
+
+			frappe.get_doc("User", owner).add_roles(ROLE)
 			doc.reload()
 		return doc
 
