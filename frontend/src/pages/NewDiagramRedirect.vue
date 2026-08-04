@@ -9,19 +9,22 @@ import { useRouter, useRoute } from 'vue-router'
 import { Button, Spinner } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { createAndOpenDiagram } from './newDiagram.js'
+import { errorMessage } from '@/utils/errorText.js'
 
 const router = useRouter()
 const route = useRoute()
 const failed = ref(false)
+const reason = ref('')
 
 onMounted(async () => {
   const parent = route.query.parent || null
   try {
     await createAndOpenDiagram(router, parent)
   } catch (error) {
-    // Don't strand the user on a blank spinner — surface a short error and a
-    // way Home. The diagram wasn't created, so there's nothing to recover.
+    // Don't strand the user on a blank spinner — surface the reason and a way
+    // Home. The diagram wasn't created, so there's nothing to recover.
     console.error('Create diagram failed:', error)
+    reason.value = errorMessage(error, 'Something went wrong. Please try again from the Frappe Draw home.')
     failed.value = true
   }
 })
@@ -40,9 +43,7 @@ onMounted(async () => {
       </div>
       <div>
         <h1 class="text-lg font-semibold text-ink-gray-9">Couldn't create the diagram</h1>
-        <p class="mt-1 max-w-sm text-sm text-ink-gray-5">
-          Something went wrong. Please try again from the Frappe Draw home.
-        </p>
+        <p class="mt-1 max-w-sm whitespace-pre-line text-sm text-ink-gray-5">{{ reason }}</p>
       </div>
       <Button variant="subtle" @click="router.replace({ name: 'Home' })">
         Go to Frappe Draw

@@ -5,8 +5,9 @@
 // folders (#115): diagrams are one flat, pinnable list.
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button } from 'frappe-ui'
+import { Button, toast } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
+import { errorMessage } from '@/utils/errorText.js'
 import Sidebar from '@/components/home/Sidebar.vue'
 import TileGrid from '@/components/home/TileGrid.vue'
 import EmptyState from '@/components/home/EmptyState.vue'
@@ -55,10 +56,11 @@ async function create() {
     // `new` selects the title for inline renaming on the fresh canvas.
     router.push({ name: 'Editor', params: { name }, query: { new: '1' } })
   } catch (error) {
-    // Surface the real reason instead of failing silently (toasts aren't mounted).
-    const detail = error?.messages?.join('\n') || error?.exc_type || error?.message || String(error)
+    // Say why, in the UI. A refused create (the common case: no permission on
+    // Draw Diagram) used to leave the empty state sitting there with the reason
+    // only in the console (#174).
     console.error('Create diagram failed:', error)
-    window.alert('Could not create the diagram:\n\n' + detail)
+    toast.error('Could not create the diagram', { text: errorMessage(error) })
   } finally {
     isCreating.value = false
   }

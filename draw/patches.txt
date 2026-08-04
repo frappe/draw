@@ -10,3 +10,6 @@
 # Back-fill: grant the Draw User role to existing System Users that pre-date the
 # lazy grant on Draw access (#73). Idempotent, so it is safe on every migrate.
 draw.patches.v0_0.grant_draw_user_role
+# Repair: restore the doctype-declared perm rows that Draw's own Custom DocPerm
+# rows switched off, leaving System Managers unable to create a diagram (#174).
+draw.patches.v0_0.restore_declared_permissions

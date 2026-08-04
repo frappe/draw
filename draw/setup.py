@@ -89,9 +89,25 @@ def _owner_permission_flags(doctype: str) -> dict:
 	return flags
 
 
+def _keep_declared_permissions(doctype: str) -> None:
+	"""Copy the doctype's own permission rows into Custom DocPerm before we add ours.
+
+	Custom DocPerm rows do not merge with the rows a doctype declares in its JSON —
+	they REPLACE them wholesale (`frappe.model.meta.Meta.set_custom_permissions`).
+	So the Draw User row below silently switched off the System Manager row in
+	draw_diagram.json, and a fresh install ended up with nobody who could create a
+	diagram (GitHub #174). Core's `setup_custom_perms` copies the declared rows over
+	and no-ops once any Custom DocPerm exists for the doctype, so this runs once and
+	never overwrites what an operator has edited since."""
+	from frappe.permissions import setup_custom_perms
+
+	setup_custom_perms(doctype)
+
+
 def _ensure_owner_permission(doctype: str) -> None:
 	"""Add an if_owner perm row for Draw User on the given doctype, or grant
 	`comment` on a row that predates it."""
+	_keep_declared_permissions(doctype)
 	flags = _owner_permission_flags(doctype)
 	fields = ["name", "comment"] if flags.get("comment") else ["name"]
 	row = frappe.db.get_value(
