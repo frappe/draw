@@ -1,0 +1,138 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-08-04 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "diagram",
+  "parent_comment",
+  "content",
+  "section_break_anchor",
+  "anchor_type",
+  "shape_id",
+  "column_break_anchor",
+  "board_x",
+  "board_y",
+  "section_break_resolve",
+  "resolved",
+  "resolved_by",
+  "resolved_on"
+ ],
+ "fields": [
+  {
+   "fieldname": "diagram",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Diagram",
+   "options": "Draw Diagram",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "description": "Set on a reply; points at the thread's root comment. Empty on a root.",
+   "fieldname": "parent_comment",
+   "fieldtype": "Link",
+   "label": "Parent Comment",
+   "options": "Draw Comment",
+   "search_index": 1
+  },
+  {
+   "fieldname": "content",
+   "fieldtype": "Long Text",
+   "in_list_view": 1,
+   "label": "Content",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_anchor",
+   "fieldtype": "Section Break",
+   "label": "Anchor"
+  },
+  {
+   "default": "board",
+   "description": "Where a thread's root pin sits: on a shape, at a point on the open board, or unanchored (panel only). Ignored on replies.",
+   "fieldname": "anchor_type",
+   "fieldtype": "Select",
+   "label": "Anchor Type",
+   "options": "shape\nboard\ngeneral"
+  },
+  {
+   "depends_on": "eval:doc.anchor_type=='shape'",
+   "description": "The shapes[] id the pin is anchored to (anchor_type = shape). The pin tracks the shape's bottom-right corner.",
+   "fieldname": "shape_id",
+   "fieldtype": "Data",
+   "label": "Shape Id"
+  },
+  {
+   "fieldname": "column_break_anchor",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.anchor_type=='board'",
+   "fieldname": "board_x",
+   "fieldtype": "Float",
+   "label": "Board X",
+   "precision": "6"
+  },
+  {
+   "depends_on": "eval:doc.anchor_type=='board'",
+   "fieldname": "board_y",
+   "fieldtype": "Float",
+   "label": "Board Y",
+   "precision": "6"
+  },
+  {
+   "fieldname": "section_break_resolve",
+   "fieldtype": "Section Break",
+   "label": "Resolution"
+  },
+  {
+   "default": "0",
+   "description": "Whether the thread is resolved. Meaningful only on a root comment.",
+   "fieldname": "resolved",
+   "fieldtype": "Check",
+   "label": "Resolved"
+  },
+  {
+   "fieldname": "resolved_by",
+   "fieldtype": "Link",
+   "label": "Resolved By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "resolved_on",
+   "fieldtype": "Datetime",
+   "label": "Resolved On",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-04 00:00:00",
+ "modified_by": "Administrator",
+ "module": "Draw",
+ "name": "Draw Comment",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 0
+}
