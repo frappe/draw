@@ -480,6 +480,39 @@ class TestDrawDiagram(IntegrationTestCase):
 			self.assertFalse(result["registered"])
 			self.assertEqual(result["path"], [])
 
+	def test_list_drive_folders_degrades_without_raising_on_a_broken_drive(self):
+		# Even if drive_available() reports True while the Suite Drive API is unavailable
+		# or a query fails (a partial/broken install), the folder browser must degrade to
+		# the not-installed shape rather than raise — so the Move dialog can never 500.
+		# (With Drive absent, forcing drive_available True makes the Suite import fail,
+		# exercising the same graceful-degradation path.)
+		from unittest.mock import patch
+
+		from draw.api import drive_integration as di
+
+		if di.drive_available():
+			self.skipTest("Frappe Drive installed — this exercises the degrade path")
+		with patch.object(di, "drive_available", return_value=True):
+			result = di.list_drive_folders()
+			self.assertFalse(result["drive_installed"])
+			self.assertEqual(result["folders"], [])
+			self.assertEqual(result["path"], [])
+
+	def test_diagram_drive_path_degrades_without_raising_on_a_broken_drive(self):
+		# Same robustness contract for the breadcrumb endpoint: a broken/unavailable
+		# Drive degrades to the not-installed shape instead of 500-ing the editor.
+		from unittest.mock import patch
+
+		from draw.api import drive_integration as di
+
+		if di.drive_available():
+			self.skipTest("Frappe Drive installed — this exercises the degrade path")
+		doc = self._make("unified", {"schemaVersion": 1, "diagramType": "unified"})
+		with patch.object(di, "drive_available", return_value=True):
+			result = di.diagram_drive_path(doc.name)
+			self.assertFalse(result["drive_installed"])
+			self.assertEqual(result["path"], [])
+
 	def test_inserted_image_is_attached_to_the_diagram(self):
 		# #74: inserted images upload through draw.api.diagram.upload_diagram_image,
 		# which inserts the File server-side ATTACHED to the diagram (so Suite's Drive
