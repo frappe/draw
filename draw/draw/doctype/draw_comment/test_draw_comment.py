@@ -315,6 +315,7 @@ class TestDrawComment(IntegrationTestCase):
 
 		listed = list_comments(doc.name)
 		self.assertTrue(listed["can_comment"])
+		self.assertFalse(listed["can_moderate"], "a commenter is not a moderator")
 		self.assertEqual(len(listed["comments"]), 1)
 		self.assertEqual(listed["comments"][0]["author"], "Cmt Lister")
 
@@ -322,7 +323,12 @@ class TestDrawComment(IntegrationTestCase):
 		frappe.set_user(viewer)
 		as_viewer = list_comments(doc.name)
 		self.assertFalse(as_viewer["can_comment"])
+		self.assertFalse(as_viewer["can_moderate"])
 		self.assertEqual(len(as_viewer["comments"]), 1)
+
+		# The owner moderates.
+		frappe.set_user(owner)
+		self.assertTrue(list_comments(doc.name)["can_moderate"])
 
 	# ----- notifications -----
 

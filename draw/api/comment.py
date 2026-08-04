@@ -85,12 +85,14 @@ def _can_moderate(diagram: str) -> bool:
 @frappe.whitelist()
 def list_comments(diagram: str) -> dict:
 	"""Every comment on a diagram the caller may read, enriched for the editor:
-	{ can_comment, comments: [ {name, parent_comment, content, anchor_type, shape_id,
-	board_x, board_y, resolved, resolved_by, resolved_on, owner, author, author_image,
-	creation} ] }.
+	{ can_comment, can_moderate, comments: [ {name, parent_comment, content,
+	anchor_type, shape_id, board_x, board_y, resolved, resolved_by, resolved_on, owner,
+	author, author_image, creation} ] }.
 
 	`can_comment` drives the editor UI: a plain viewer gets the read-only thread list
-	but no compose box. Rows come back oldest-first so a thread reads top to bottom.
+	but no compose box. `can_moderate` (owner / editor) lets the UI offer deletion of
+	someone else's comment; the author can always remove their own. Rows come back
+	oldest-first so a thread reads top to bottom.
 	"""
 	_readable_diagram(diagram)
 	rows = frappe.get_all(
@@ -113,7 +115,11 @@ def list_comments(diagram: str) -> dict:
 		order_by="creation asc",
 	)
 	_attach_authors(rows)
-	return {"can_comment": _can_comment(diagram), "comments": rows}
+	return {
+		"can_comment": _can_comment(diagram),
+		"can_moderate": _can_moderate(diagram),
+		"comments": rows,
+	}
 
 
 def _attach_authors(rows: list) -> None:
