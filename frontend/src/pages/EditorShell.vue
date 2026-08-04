@@ -31,9 +31,12 @@ import FlowchartLayoutToolbar from '@/components/floating/FlowchartLayoutToolbar
 import MindmapLayoutToolbar from '@/components/floating/MindmapLayoutToolbar.vue'
 import WhiteboardSelectionEditor from '@/components/floating/WhiteboardSelectionEditor.vue'
 import CollaboratorCursors from '@/components/canvas/CollaboratorCursors.vue'
+import CommentPinsLayer from '@/components/comments/CommentPinsLayer.vue'
+import CommentsPanel from '@/components/comments/CommentsPanel.vue'
 import BottomPalette from '@/components/floating/BottomPalette.vue'
 import ViewportControls from '@/components/floating/ViewportControls.vue'
 import ShortcutsDialog from '@/components/ShortcutsDialog.vue'
+import { createComments, provideComments } from '@/composables/useComments.js'
 
 const props = defineProps({
   name: { type: String, required: true },
@@ -54,6 +57,12 @@ resetFlowchartUi()
 whiteboardUi.reset()
 provideDiagramStore(store)
 provideEditorUi(editorUi)
+
+// Comments (#108). Provided for the toolbar toggle, the canvas pins, and the side
+// panel; loaded once mounted (keyed by the diagram name). Server-backed (see
+// useComments) so comment-level users — who never join the peer-to-peer edit room —
+// still see and post comments.
+const comments = provideComments(createComments(props.name))
 
 // Active mode module for this diagram's type (spec diagram-types §0/G1). The
 // unified canvas keeps its own strategy throughout: a mind map / flowchart on it
@@ -156,6 +165,8 @@ function rename(title) {
 const route = useRoute()
 const router = useRouter()
 onMounted(() => {
+  // Load this diagram's comment threads once (realtime keeps them fresh after).
+  comments.load()
   // Consume the ?new flag (title auto-select) so a later refresh of this URL
   // won't re-open the title editor.
   if (route.query.new) {
@@ -178,6 +189,8 @@ onMounted(() => {
     <div class="flex min-h-0 flex-1">
       <main class="relative min-h-0 min-w-0 flex-1">
         <DiagramCanvas />
+        <!-- Comment pins over the canvas (#108): follow pan/zoom + their shape. -->
+        <CommentPinsLayer />
         <Minimap />
         <WhiteboardMinimap v-if="modeStrategy.type === 'whiteboard'" />
         <MindMapOverlay v-if="chromeType === 'mindmap'" />
@@ -198,6 +211,9 @@ onMounted(() => {
         <ViewportControls />
         <BottomPalette />
       </main>
+
+      <!-- Comments side panel (#108), docked right when open. -->
+      <CommentsPanel v-if="editorUi.state.commentsPanelOpen" />
     </div>
 
     <ShortcutsDialog />

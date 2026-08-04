@@ -13,6 +13,7 @@ import TitleEditor from './TitleEditor.vue'
 import SaveIndicator from './SaveIndicator.vue'
 import ExportMenu from './ExportMenu.vue'
 import ShareMenu from './ShareMenu.vue'
+import CommentsToggle from './CommentsToggle.vue'
 import DriveMenu from './DriveMenu.vue'
 import OverflowMenu from './OverflowMenu.vue'
 import PresenceAvatars from './PresenceAvatars.vue'
@@ -102,6 +103,7 @@ function openInDrive(name) {
     <div class="ml-auto flex items-center gap-2">
       <ExportMenu />
       <DriveMenu />
+      <CommentsToggle />
       <ShareMenu />
       <!-- "…" overflow: Rename / Show info / Favourite / Delete (#111). -->
       <OverflowMenu @rename="titleEditor?.startEditing()" />

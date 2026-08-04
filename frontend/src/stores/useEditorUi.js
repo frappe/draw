@@ -20,6 +20,14 @@ export function createEditorUi() {
     // placement cursor and the next click drops the starter's first node at the click
     // point. Cleared by placing it, by Escape, or by arming any other tool.
     pendingStarter: null,
+    // Add-comment armed for click-to-place (#108), mirroring pendingStarter: while
+    // true the canvas shows the comment cursor and the next click drops a comment
+    // pin — on the shape under the pointer, or at the board point if it misses every
+    // shape. Its own flag (not a tool) so it can be armed from any type without
+    // disturbing the current tool. Cleared by placing, by Escape, or by arming a tool.
+    pendingComment: false,
+    // Whether the comments side panel (thread list) is open (#108).
+    commentsPanelOpen: false,
     gridVisible: false,
     gridDensity: 'dense',
     // The canvas is an infinite surface by default (no fixed paper bounds).
@@ -57,10 +65,12 @@ function assembleUi(state, viewport) {
 function attachTools(ui, state) {
   ui.setTool = (tool) => {
     state.pendingStarter = null
+    state.pendingComment = false
     state.tool = tool
   }
   ui.setDrawShape = (type) => {
     state.pendingStarter = null
+    state.pendingComment = false
     state.drawShapeType = type
     state.lastShapeType = type
     state.tool = 'draw'
@@ -71,9 +81,26 @@ function attachTools(ui, state) {
   // and the drop-on-click off state.pendingStarter.
   ui.armStarter = (starter) => {
     state.tool = 'select'
+    state.pendingComment = false
     state.pendingStarter = starter
   }
   ui.clearStarter = () => (state.pendingStarter = null)
+
+  // Arm add-comment click-to-place (#108). Like a starter it leaves the tool on
+  // select and rides its own flag; arming it disarms a pending starter so the two
+  // placement modes never both hold. Opening the panel too, so a placed comment's
+  // thread is visible where it lands.
+  ui.armComment = () => {
+    state.tool = 'select'
+    state.pendingStarter = null
+    state.pendingComment = true
+    state.commentsPanelOpen = true
+  }
+  ui.clearComment = () => (state.pendingComment = false)
+  ui.toggleCommentsPanel = () => {
+    state.commentsPanelOpen = !state.commentsPanelOpen
+    if (!state.commentsPanelOpen) state.pendingComment = false
+  }
 }
 
 // Grid display (dots only — dragged shapes align via smart guides, not the grid).

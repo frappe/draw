@@ -11,6 +11,7 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick, provide, inject } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
+import { useComments } from '@/composables/useComments.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import { themeVarStyle } from '@/diagram/theme.js'
 import { axisAlignedBBox, anchorPoint, pointInShape, unionBounds } from '@/diagram/geometry.js'
@@ -55,6 +56,7 @@ const store = useDiagramStore()
 const editorUi = useEditorUi()
 const modeStrategy = useModeStrategy()
 const viewport = editorUi.viewport
+const comments = useComments()
 
 // Surface-interaction delegation seam (Part G1/G4): when the active strategy sets
 // handlesSurfaceInteraction (flowchart/whiteboard), the type's interaction object
@@ -533,8 +535,15 @@ function onSurfacePointerDown(event) {
   // A press anywhere but a section's title (which stops propagation) clears the
   // section selection, so its handles/menu disappear.
   editorUi.clearSection()
+  // A press on the canvas closes an open comment thread card (#108). Its own pin and
+  // card controls live in the overlay, not on this surface, so they aren't affected.
+  if (comments?.activeThread?.value) comments.closeThread()
   // Hand tool always pans, for every type (shared transform, Part G4).
   if (editorUi.state.tool === 'hand') return viewport.startPan(event)
+  // An armed add-comment (#108) drops a comment pin at the click — on the shape under
+  // the pointer, or the board point if it misses — then disarms. Before the type
+  // routing (like the starter below) so an armed comment click always places.
+  if (placeArmedComment(event)) return
   // A catalog-armed starter (mind map / flowchart) drops its first node at the click
   // point, then disarms — the arm-then-click model shape tools use (#75). Handled
   // before the select/whiteboard/flowchart routing so an armed click always places.
@@ -669,6 +678,21 @@ function onSurfaceDoubleClick(event) {
   if (connector) return editing.beginConnectorLabelEdit(connector.id)
 }
 
+// Consume an armed add-comment click (#108): anchor the pin to the shape under the
+// pointer, or drop it at the board point if the click misses every shape, then open
+// its composer. Returns true when it handled the press so normal routing is skipped.
+function placeArmedComment(event) {
+  // `comments` is absent in the read-only viewer (no provider there); the pending
+  // flag can never be set without the toolbar, but guard the dereference anyway.
+  if (!comments || !editorUi.state.pendingComment || event.button !== 0) return false
+  const point = selection.toLogicalFor(event, surface.value, viewport)
+  const shape = topShapeAt(point)
+  if (shape) comments.startDraft({ anchorType: 'shape', shapeId: shape.id })
+  else comments.startDraft({ anchorType: 'board', x: point.x, y: point.y })
+  editorUi.clearComment()
+  return true
+}
+
 // Topmost shape under a point. By default skips hidden + locked shapes (they
 // aren't grabbable); the context menu passes includeLocked so a locked shape can
 // still be right-clicked to unlock it. Hidden shapes are never hit.
@@ -744,6 +768,8 @@ const surfaceCursor = computed(() => {
   // A starter armed for click-to-place (#75) shows the same placement crosshair as an
   // armed shape tool, so it reads as "click to drop it here".
   if (editorUi.state.pendingStarter) return DRAW_CURSOR
+  // An armed add-comment (#108) reads as "click to drop a comment here".
+  if (editorUi.state.pendingComment) return DRAW_CURSOR
   if (tool === 'hand') return 'grab'
   if (tool === 'draw') return DRAW_CURSOR
   if (tool === 'pen') return PEN_CURSOR

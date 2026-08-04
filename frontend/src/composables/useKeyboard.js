@@ -230,6 +230,8 @@ export function escape(store, editorUi) {
   // the placement cursor disappears without dropping anything (#75) — the arm carries
   // tool === 'select', so this must come before the deselect fall-through.
   if (editorUi.state.pendingStarter) return editorUi.clearStarter()
+  // An armed add-comment placement (#108) cancels the same way, before deselect.
+  if (editorUi.state.pendingComment) return editorUi.clearComment()
   if (editorUi.state.tool !== 'select') return editorUi.setTool('select')
   store.clearSelection()
 }

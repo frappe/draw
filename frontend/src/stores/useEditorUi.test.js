@@ -48,3 +48,43 @@ describe('a pending starter is cleared by arming any tool', () => {
     expect(ui.state.tool).toBe('select')
   })
 })
+
+// Add-comment arming (#108) is a third placement mode that must never coexist with a
+// draw tool or a pending starter — the same mutual-exclusion the starter has.
+describe('armComment', () => {
+  it('arms add-comment, drops the tool to select, and opens the panel', () => {
+    const ui = createEditorUi()
+    ui.setDrawShape('ellipse')
+    ui.armComment()
+    expect(ui.state.pendingComment).toBe(true)
+    expect(ui.state.tool).toBe('select')
+    expect(ui.state.commentsPanelOpen).toBe(true)
+  })
+
+  it('arming a comment disarms a pending starter (and vice versa)', () => {
+    const ui = createEditorUi()
+    ui.armStarter({ kind: 'mindmap' })
+    ui.armComment()
+    expect(ui.state.pendingStarter).toBeNull()
+    expect(ui.state.pendingComment).toBe(true)
+
+    ui.armStarter({ kind: 'flowchart', nodeType: 'process' })
+    expect(ui.state.pendingComment).toBe(false)
+    expect(ui.state.pendingStarter).toEqual({ kind: 'flowchart', nodeType: 'process' })
+  })
+
+  it('arming any tool clears a pending comment', () => {
+    const ui = createEditorUi()
+    ui.armComment()
+    ui.setTool('hand')
+    expect(ui.state.pendingComment).toBe(false)
+  })
+
+  it('closing the panel disarms add-comment', () => {
+    const ui = createEditorUi()
+    ui.armComment()
+    ui.toggleCommentsPanel() // open -> closed
+    expect(ui.state.commentsPanelOpen).toBe(false)
+    expect(ui.state.pendingComment).toBe(false)
+  })
+})
