@@ -1,10 +1,11 @@
 <script setup>
-// Editor page — owns the diagram store. Loads the Draw Diagram doc, parses its
-// document, creates + provides the store and editor UI, then composes the
-// toolbar, palettes, canvas, and floating palette (CONVENTIONS integration).
+// The editor itself — owns the diagram store. Takes the already-loaded Draw
+// Diagram resource from EditorPage (which is what decides whether the document
+// loaded at all), parses its document, creates + provides the store and editor
+// UI, then composes the toolbar, palettes, canvas, and floating palette
+// (CONVENTIONS integration).
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { loadDiagram } from '@/data/diagrams.js'
 import { parseDiagramDocument, isUnifiedDocument } from '@/diagram/schema.js'
 import { isMindmapShape, isFlowchartShape } from '@/diagram/freeFloating.js'
 import { createDiagramStore, provideDiagramStore } from '@/stores/useDiagramStore.js'
@@ -40,9 +41,13 @@ import { createComments, provideComments } from '@/composables/useComments.js'
 
 const props = defineProps({
   name: { type: String, required: true },
+  // The loaded document resource. Mounted only once its doc has arrived (#173),
+  // so the store is always hydrated from the real document, never from a blank
+  // one that a refused load left behind.
+  diagram: { type: Object, required: true },
 })
 
-const diagram = loadDiagram(props.name)
+const diagram = props.diagram
 const store = createDiagramStore(parseDiagramDocument(diagram.doc?.document), props.name)
 const editorUi = createEditorUi()
 const whiteboardUi = useWhiteboardUi()
