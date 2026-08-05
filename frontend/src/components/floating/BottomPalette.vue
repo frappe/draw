@@ -115,7 +115,8 @@ const filteredTools = computed(() => matches(CREATE_TOOLS.filter((t) => !t.surfa
 // Mind map + flowchart frames are unified-only (they lay themselves out inside a
 // frame on the shared canvas).
 const filteredFlowchartNodes = computed(() => (isUnified.value ? matches(FLOWCHART_NODES) : []))
-const showMindmap = computed(() => isUnified.value && (!query.value || 'mind map'.includes(query.value)))
+// The tile is labelled "Parent Node" (#255) but stays findable under "mind map" too.
+const showMindmap = computed(() => isUnified.value && (!query.value || 'parent node mind map'.includes(query.value)))
 const hasNoMatches = computed(
   () =>
     !filteredShapes.value.length &&
@@ -326,7 +327,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
 
             <div v-if="showMindmap" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Mind map</div>
             <div v-if="showMindmap" class="grid grid-cols-6 gap-1">
-              <Tooltip text="Mind map">
+              <Tooltip text="Parent Node">
                 <button
                   :class="[tileBase, isMindmapStarterArmed() ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
                   @click="insertMindmap(togglePopover)"
