@@ -6,7 +6,7 @@
 import { DEFAULT_PRESET_NAME, findPreset } from './canvasPresets.js'
 import { createEmptyMindMap } from './mindmapModel.js'
 import { createFlowchart } from './flowchartModel.js'
-import { createWhiteboard, WHITEBOARD_KINDS } from './whiteboardModel.js'
+import { createWhiteboard, WHITEBOARD_KINDS, emptyTableContent } from './whiteboardModel.js'
 import { flattenSubmodels } from './freeFloating.js'
 
 // v2 (free-floating, #122): the unified canvas no longer keeps mind-map/flowchart
@@ -128,8 +128,37 @@ function migrateDocument(document) {
   }
   backfillWhiteboardZIndex(migrated)
   backfillMindmapShaped(migrated)
+  backfillTableContent(migrated)
   migrated.schemaVersion = SCHEMA_VERSION
   return migrated
+}
+
+// Tables moved from a `cells` map to a Tiptap document (frappe-ui's Table,
+// #254). A document saved before that carries `cells` (or neither field, for a
+// table created but never edited) and no `content` — seed one from the old
+// `rows`/`cols` grid, copying any committed cell text across. Idempotent: a
+// table that already has `content` is left alone.
+function backfillTableContent(document) {
+  const model = document.whiteboard
+  if (!model) return
+  for (const table of model.tables || []) {
+    if (table.content) continue
+    // Predates #134's explicit-size requirement; a table saved before that
+    // always rendered as a fixed 3×3 grid.
+    if (!table.rows) table.rows = 3
+    if (!table.cols) table.cols = 3
+    const content = emptyTableContent(table.rows, table.cols)
+    const rows = content.content[0].content
+    for (const [key, text] of Object.entries(table.cells || {})) {
+      const [row, col] = key.split(',').map(Number)
+      const cell = rows[row]?.content[col]
+      if (cell && text) cell.content = [{ type: 'paragraph', content: [{ type: 'text', text }] }]
+    }
+    table.content = content
+    if (!table.w) table.w = table.cols * (table.cellW || 120)
+    if (!table.h) table.h = table.rows * (table.cellH || 40)
+    delete table.cells
+  }
 }
 
 // Whiteboard objects gained a zIndex when stacking became document-wide (#27).

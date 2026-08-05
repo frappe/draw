@@ -36,9 +36,6 @@ import {
   addTable,
   removeTable,
   tableById,
-  setTableCell,
-  applyVote,
-  clearVote,
   whiteboardObjectsInZOrder,
   maxWhiteboardZIndex,
 } from '@/diagram/whiteboardModel.js'
@@ -466,10 +463,7 @@ function attachWhiteboard(store, state, history) {
     })
   store.removeStroke = (id) => {
     if (!state.whiteboard) return
-    history.commit('Erase', () => {
-      removeStroke(state.whiteboard, id)
-      clearVote(state.whiteboard, 'stroke', id)
-    })
+    history.commit('Erase', () => removeStroke(state.whiteboard, id))
   }
   store.addStickyNote = (x, y, partial = {}) => {
     if (!state.whiteboard) return null
@@ -486,18 +480,10 @@ function attachWhiteboard(store, state, history) {
     })
   store.removeStickyNote = (id) => {
     if (!state.whiteboard) return
-    history.commit('Delete sticky', () => {
-      removeStickyNote(state.whiteboard, id)
-      clearVote(state.whiteboard, 'sticky', id)
-    })
+    history.commit('Delete sticky', () => removeStickyNote(state.whiteboard, id))
   }
   attachWhiteboardLines(store, state, history)
   attachWhiteboardTables(store, state, history)
-  // Per-object up/down vote (T3): one undoable unit; dir is 'up' | 'down'.
-  store.voteWhiteboardObject = (kind, id, dir, delta = 1) => {
-    if (!state.whiteboard) return
-    history.commit('Vote', () => applyVote(state.whiteboard, kind, id, dir, delta))
-  }
   // Generic per-type model update (e.g. sketch-style toggle) as one undoable unit.
   store.updateWhiteboardModel = (label, mutatorFn) => {
     if (!state.whiteboard) return
@@ -512,7 +498,6 @@ function attachWhiteboard(store, state, history) {
   const removeWhiteboardObjectsInto = (items) => {
     for (const { kind, id } of items || []) {
       WB_REMOVE[kind]?.(state.whiteboard, id)
-      clearVote(state.whiteboard, kind, id) // don't leak votes for deleted objects
     }
   }
   store.removeWhiteboardObjects = (items) => {
@@ -551,14 +536,13 @@ function attachWhiteboardLines(store, state, history) {
     })
   store.removeLine = (id) => {
     if (!state.whiteboard) return
-    history.commit('Delete line', () => {
-      removeLine(state.whiteboard, id)
-      clearVote(state.whiteboard, 'line', id)
-    })
+    history.commit('Delete line', () => removeLine(state.whiteboard, id))
   }
 }
 
-// Simple fixed-grid tables with per-cell text. One undoable unit each.
+// Tables backed by a Tiptap document (frappe-ui's Table, #254). One undoable
+// unit each; `updateTable` also carries content edits and measured w/h
+// (label 'Update table' coalesces a rapid run into one undo step).
 function attachWhiteboardTables(store, state, history) {
   store.addTable = (x, y, partial = {}) => {
     if (!state.whiteboard) return null
@@ -573,17 +557,19 @@ function attachWhiteboardTables(store, state, history) {
       const table = tableById(state.whiteboard || {}, id)
       if (table) applyPatch(table, patch)
     })
-  store.setTableCell = (id, row, col, text) =>
-    history.commit('Edit cell', () => {
+  // A straight reference swap, not applyPatch's deep-merge: `content` is a
+  // Tiptap document, and merging it field-by-field into the existing object
+  // would mutate it in place rather than replace it, defeating frappe-ui's
+  // useEditor reference check that skips re-applying an edit it just emitted
+  // (so every keystroke would re-run setContent and could reset the caret).
+  store.updateTableContent = (id, content) =>
+    history.commit('Update table', () => {
       const table = tableById(state.whiteboard || {}, id)
-      if (table) setTableCell(table, row, col, text)
+      if (table) table.content = content
     })
   store.removeTable = (id) => {
     if (!state.whiteboard) return
-    history.commit('Delete table', () => {
-      removeTable(state.whiteboard, id)
-      clearVote(state.whiteboard, 'table', id)
-    })
+    history.commit('Delete table', () => removeTable(state.whiteboard, id))
   }
 }
 

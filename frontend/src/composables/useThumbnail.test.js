@@ -10,6 +10,27 @@ const { documentToSvg, isDocumentEmpty, safeColor } = await import('./useThumbna
 // saved thumbnail, and the home + trash tile previews all go through it. So anything
 // it omits is missing from every one of those at once.
 
+// A whiteboard table's grid lives in a Tiptap document (frappe-ui's Table, #254):
+// one `table` node of `rows` × `cols` cells, optionally seeded with text at
+// specific (row, col) positions.
+function tableContent(rows, cols, textAt = {}) {
+  return {
+    type: 'doc',
+    content: [
+      {
+        type: 'table',
+        content: Array.from({ length: rows }, (_, r) => ({
+          type: 'tableRow',
+          content: Array.from({ length: cols }, (_, c) => ({
+            type: 'tableCell',
+            content: [{ type: 'paragraph', content: textAt[`${r},${c}`] ? [{ type: 'text', text: textAt[`${r},${c}`] }] : [] }],
+          })),
+        })),
+      },
+    ],
+  }
+}
+
 function unifiedDocument() {
   return {
     schemaVersion: 1,
@@ -37,8 +58,7 @@ function unifiedDocument() {
       ],
       stickyNotes: [{ id: 'w2', x: 700, y: 200, w: 180, h: 180, color: '#FEF3C7', text: 'STICKY-TEXT' }],
       lines: [{ id: 'wl1', x1: 300, y1: 500, x2: 620, y2: 500, color: '#AA0011', width: 3, start: 'none', end: 'arrow' }],
-      tables: [{ id: 'wt1', x: 300, y: 560, rows: 2, cols: 2, cellW: 120, cellH: 40, color: '#00AA55', cells: { '0,0': 'TABLE-CELL' } }],
-      votes: {},
+      tables: [{ id: 'wt1', x: 300, y: 560, rows: 2, cols: 2, cellW: 120, cellH: 40, color: '#00AA55', content: tableContent(2, 2, { '0,0': 'TABLE-CELL' }) }],
       sketchStyle: false,
     },
     mindmap: {
@@ -365,14 +385,15 @@ describe('no persisted value can escape its SVG attribute', () => {
 })
 
 describe('table dimensions from an untrusted document (D5)', () => {
-  it('clamps an absurd row/col count so the render cannot hang', () => {
-    // rows/cols come from the untrusted document and drive a nested loop, so a
-    // shared/public diagram with rows:1e9 would otherwise loop ~1e18 times and hang
-    // every viewer's browser on the tile/thumbnail/export render. Cells are clamped
-    // to MAX_TABLE_DIM (200) per axis, so at most 200*200 cell rects are emitted.
+  it('clamps an oversized table grid so the render cannot hang', () => {
+    // The grid now comes from the table's real `content` (frappe-ui's Table,
+    // #254), not the spoofable `rows`/`cols` creation hints, so a document can no
+    // longer declare rows:1e9 to blow up a nested loop from two small integers.
+    // A genuinely oversized `content` grid is still clamped to MAX_TABLE_DIM
+    // (200) per axis, so at most 200*200 cell rects are emitted.
     const doc = { ...unifiedDocument(), diagramType: 'whiteboard', mindmap: null, flowchart: null }
     doc.whiteboard.tables = [
-      { id: 'wt-huge', x: 0, y: 0, rows: 1e9, cols: 1e9, cellW: 40, cellH: 20, color: '#00AA55', cells: {} },
+      { id: 'wt-huge', x: 0, y: 0, cellW: 40, cellH: 20, color: '#00AA55', content: tableContent(250, 250) },
     ]
 
     const svg = documentToSvg(doc)
@@ -384,7 +405,7 @@ describe('table dimensions from an untrusted document (D5)', () => {
     // The clamp must not shrink a legitimate table: 2x2 = 4 cells.
     const doc = { ...unifiedDocument(), diagramType: 'whiteboard', mindmap: null, flowchart: null }
     doc.whiteboard.tables = [
-      { id: 'wt', x: 0, y: 0, rows: 2, cols: 2, cellW: 40, cellH: 20, color: '#00AA55', cells: {} },
+      { id: 'wt', x: 0, y: 0, cellW: 40, cellH: 20, color: '#00AA55', content: tableContent(2, 2) },
     ]
     expect((documentToSvg(doc).match(/stroke="#00AA55"/g) || []).length).toBe(4)
   })
@@ -416,7 +437,7 @@ describe('isDocumentEmpty', () => {
     doc.shapes = []
     doc.connectors = []
     doc.sections = []
-    doc.whiteboard = { strokes: [], stickyNotes: [], lines: [], tables: [], votes: {}, sketchStyle: false }
+    doc.whiteboard = { strokes: [], stickyNotes: [], lines: [], tables: [], sketchStyle: false }
     doc.mindmap.nodes = []
     doc.flowchart.nodes = []
     doc.flowchart.edges = []

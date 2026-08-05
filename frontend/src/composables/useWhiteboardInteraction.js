@@ -16,8 +16,8 @@ import { registerModeInteraction, unregisterModeInteraction, useModeInteraction 
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { simplifyStroke } from '@/diagram/strokeSimplify.js'
 import {
-  strokeAt, lineAt, tableAt, tableCellAt,
-  whiteboardObjectBoxes, whiteboardObjectsInZOrder, translateWhiteboardObject, clearVote,
+  strokeAt, lineAt, tableAt,
+  whiteboardObjectBoxes, whiteboardObjectsInZOrder, translateWhiteboardObject,
 } from '@/diagram/whiteboardModel.js'
 import { eraseInkAt, eraseObjectsAt, sweepPoints } from '@/diagram/eraser.js'
 import { rectsIntersect } from '@/diagram/geometry.js'
@@ -203,7 +203,7 @@ function finishErase(store, erasing) {
 }
 
 // Object mode: the erased ids go through the shared delete path, which also drops
-// their votes and any connector left dangling by a deleted shape.
+// any connector left dangling by a deleted shape.
 function commitObjectErase(store, original, removed) {
   const isBlock = (item) => item.kind === 'shape' || item.kind === 'connector'
   const items = removed.filter((item) => !isBlock(item))
@@ -213,29 +213,18 @@ function commitObjectErase(store, original, removed) {
 }
 
 // Ink mode: a rubbed stroke is replaced by fresh-id sub-paths, so the eroded
-// arrays themselves are the commit. Clear the votes of every object that didn't
-// survive so model.votes doesn't leak stale keys across the session (the
-// keyboard/Delete path already clears via removeStroke).
+// arrays themselves are the commit.
 function commitInkErase(store, original) {
   const model = store.state.whiteboard
-  // Older documents may carry no `lines` array at all; normalise so the commit and
-  // the vote sweep below always see a list.
+  // Older documents may carry no `lines` array at all; normalise so the commit
+  // always sees a list.
   const final = { strokes: model.strokes || [], lines: model.lines || [] }
   model.strokes = original.strokes
   model.lines = original.lines
   store.updateWhiteboardModel('Erase', (m) => {
     m.strokes = final.strokes
     m.lines = final.lines
-    clearGoneVotes(m, 'stroke', original.strokes, final.strokes)
-    clearGoneVotes(m, 'line', original.lines, final.lines)
   })
-}
-
-function clearGoneVotes(model, kind, before, after) {
-  const surviving = new Set(after.map((object) => object.id))
-  for (const object of before) {
-    if (!surviving.has(object.id)) clearVote(model, kind, object.id)
-  }
 }
 
 // Commit the line on pointer-up; discard a degenerate (zero-length) drag.
@@ -420,13 +409,12 @@ export function startGroupMove(event, store, editorUi, ui) {
 // Press on a whiteboard table (select tool). Like the sticky, the table owns its
 // own press once selected: a drag past a small threshold moves it (with every
 // co-selected object), while a press that never crosses the threshold stays a
-// plain click that drops the caret into the cell under it (Frappe-Writer T2 cell
-// edit). Live-mutates the model for a smooth preview, then commits the whole
-// translation as ONE undoable unit (#133). `point` is the press in canvas units.
-export function startTableMove(event, store, editorUi, ui, table, point) {
+// plain click that opens the table's frappe-ui rich-text editor (#254). Live-
+// mutates the model for a smooth preview, then commits the whole translation as
+// ONE undoable unit (#133).
+export function startTableMove(event, store, editorUi, ui, table) {
   const model = store.state.whiteboard
   const items = ui.state.selection.map((item) => ({ ...item }))
-  const cell = tableCellAt(table, point)
   const startX = event.clientX
   const startY = event.clientY
   let lastDx = 0
@@ -456,11 +444,11 @@ export function startTableMove(event, store, editorUi, ui, table, point) {
       })
       return
     }
-    // A plain click (a real release, not a cancelled gesture) opens the cell under
-    // the press for inline editing (T2). editingCell is set directly — no reselect —
-    // so it survives (setSelection would clear it).
-    if (cell && finishEvent?.type !== 'pointercancel') {
-      ui.state.editingCell = { tableId: table.id, row: cell.row, col: cell.col }
+    // A plain click (a real release, not a cancelled gesture) opens the table for
+    // editing. editingCell is set directly — no reselect — so it survives
+    // (setSelection would clear it).
+    if (finishEvent?.type !== 'pointercancel') {
+      ui.state.editingCell = { tableId: table.id }
     }
   }
   window.addEventListener('pointermove', move)
@@ -470,16 +458,15 @@ export function startTableMove(event, store, editorUi, ui, table, point) {
   window.addEventListener('pointercancel', finish)
 }
 
-// Double-click inside a table edits the cell under the cursor; anywhere else it
-// creates a text box with the caret ready (spec W1). Text reuses the shared
-// text-editing path so it lives in the common shapes[] array (C9).
+// Double-click inside a table opens it for editing; anywhere else it creates a
+// text box with the caret ready (spec W1). Text reuses the shared text-editing
+// path so it lives in the common shapes[] array (C9).
 function onDoubleClick(context, store) {
   const point = context.point
   const ui = useWhiteboardUi()
   const table = tableAt(store.state.whiteboard, point)
   if (table) {
-    const cell = tableCellAt(table, point)
-    ui.state.editingCell = { tableId: table.id, row: cell.row, col: cell.col }
+    ui.state.editingCell = { tableId: table.id }
     ui.selectTable(table.id)
     return true
   }

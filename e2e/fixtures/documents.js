@@ -9,6 +9,27 @@
 // These mirror frontend/src/diagram/schema.js. Keep them in step with it: a spec
 // that seeds a stale shape is testing nothing useful.
 
+// A whiteboard table's grid lives in a Tiptap document (frappe-ui's Table, #254):
+// one `table` node of `rows` × `cols` cells, optionally seeded with text at
+// specific (row, col) positions.
+function tableContent(rows, cols, textAt = {}) {
+  return {
+    type: 'doc',
+    content: [
+      {
+        type: 'table',
+        content: Array.from({ length: rows }, (_, r) => ({
+          type: 'tableRow',
+          content: Array.from({ length: cols }, (_, c) => ({
+            type: 'tableCell',
+            content: [{ type: 'paragraph', content: textAt[`${r},${c}`] ? [{ type: 'text', text: textAt[`${r},${c}`] }] : [] }],
+          })),
+        })),
+      },
+    ],
+  }
+}
+
 const CANVAS = {
   sizePreset: 'Widescreen 16:9',
   width: 1280,
@@ -57,7 +78,7 @@ export function emptyFlowchart(origin = { x: 0, y: 0 }) {
 }
 
 export function emptyWhiteboard() {
-  return { strokes: [], stickyNotes: [], lines: [], tables: [], votes: {}, sketchStyle: false }
+  return { strokes: [], stickyNotes: [], lines: [], tables: [], sketchStyle: false }
 }
 
 // A root plus three branches — enough for navigation, cross-links and focus mode.
@@ -100,7 +121,7 @@ export function whiteboardWithObjects() {
     ...seededWhiteboard(),
     lines: [{ id: 'wl1', x1: 300, y1: 500, x2: 620, y2: 500, color: '#AA0011', width: 3, start: 'none', end: 'arrow' }],
     tables: [
-      { id: 'wt1', x: 300, y: 560, rows: 2, cols: 2, cellW: 120, cellH: 40, color: '#00AA55', cells: { '0,0': 'CELL-TEXT' } },
+      { id: 'wt1', x: 300, y: 560, rows: 2, cols: 2, cellW: 120, cellH: 40, color: '#00AA55', content: tableContent(2, 2, { '0,0': 'CELL-TEXT' }) },
     ],
   }
 }
@@ -119,7 +140,6 @@ export function seededWhiteboard() {
     stickyNotes: [{ id: 'w2', x: 700, y: 200, w: 180, h: 180, color: '#FEF3C7', text: 'note' }],
     lines: [],
     tables: [],
-    votes: {},
     sketchStyle: false,
   }
 }

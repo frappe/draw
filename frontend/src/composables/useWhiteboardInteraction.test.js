@@ -39,7 +39,7 @@ describe('startTableMove', () => {
     const y0 = table.y
 
     // Press inside the table, drag well past the threshold, release.
-    startTableMove({ clientX: 120, clientY: 120 }, store, editorUi, ui, table, { x: 120, y: 120 })
+    startTableMove({ clientX: 120, clientY: 120 }, store, editorUi, ui, table)
     pointer('pointermove', 170, 150) // +50, +30 screen px (zoom 1 → canvas units)
     pointer('pointerup', 170, 150)
 
@@ -51,28 +51,27 @@ describe('startTableMove', () => {
     expect(ui.state.editingCell).toBeNull()
   })
 
-  it('treats a sub-threshold press as a click that opens the cell under it (no move)', () => {
+  it('treats a sub-threshold press as a click that opens the table for editing (no move)', () => {
     const { table, store, editorUi, ui, id } = setup()
     const x0 = table.x
     const y0 = table.y
 
     // A 1px wiggle (below the drag threshold) then release: this stays a plain click.
-    startTableMove({ clientX: 150, clientY: 150 }, store, editorUi, ui, table, { x: 150, y: 150 })
+    startTableMove({ clientX: 150, clientY: 150 }, store, editorUi, ui, table)
     pointer('pointermove', 151, 151)
     pointer('pointerup', 151, 151)
 
     expect(table.x, 'a click must not move the table').toBe(x0)
     expect(table.y).toBe(y0)
     expect(store.updateWhiteboardModel).not.toHaveBeenCalled()
-    // (150,150) is 50px right / 50px down of the origin → column 0, row 1 (T2 edit).
-    expect(ui.state.editingCell).toEqual({ tableId: id, row: 1, col: 0 })
+    expect(ui.state.editingCell).toEqual({ tableId: id })
   })
 
   it('abandons a cancelled press: no move, no cell-edit, and no leaked listener', () => {
     const { table, store, editorUi, ui } = setup()
     const x0 = table.x
 
-    startTableMove({ clientX: 150, clientY: 150 }, store, editorUi, ui, table, { x: 150, y: 150 })
+    startTableMove({ clientX: 150, clientY: 150 }, store, editorUi, ui, table)
     window.dispatchEvent(new Event('pointercancel'))
     pointer('pointermove', 300, 300) // a leaked move listener would shift the table here
 
@@ -90,7 +89,7 @@ describe('startTableMove', () => {
       { kind: 'sticky', id: stickyId },
     ]
 
-    startTableMove({ clientX: 120, clientY: 120 }, store, editorUi, ui, table, { x: 120, y: 120 })
+    startTableMove({ clientX: 120, clientY: 120 }, store, editorUi, ui, table)
     pointer('pointermove', 130, 120) // +10, 0
     pointer('pointerup', 130, 120)
 
