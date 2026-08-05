@@ -37,6 +37,7 @@ import ConnectorView from './ConnectorView.vue'
 import SmartGuidesLayer from './SmartGuidesLayer.vue'
 import HoverArrows from './HoverArrows.vue'
 import SelectionLayer from './SelectionLayer.vue'
+import HoverOutline from './HoverOutline.vue'
 import MindmapHoverHandles from './MindmapHoverHandles.vue'
 import FlowchartHoverHandles from './FlowchartHoverHandles.vue'
 import TextEditor from './TextEditor.vue'
@@ -941,6 +942,11 @@ const surfaceCursor = computed(() => {
              So the single shared overlay lives last, still gated to the block
              substrate (a legacy whiteboard mounts its own copy above instead). -->
         <TextEditor v-if="showBlockLayer" />
+
+        <!-- Hover affordance: a subtle outline on the shape under the cursor.
+             Painted last (same reason as the editor) so an opaque shape can't
+             occlude it on the unified canvas (#261). -->
+        <HoverOutline v-if="showBlockLayer" />
       </g>
     </svg>
 
