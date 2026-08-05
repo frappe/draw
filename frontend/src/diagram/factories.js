@@ -53,6 +53,8 @@ export function createShape(partial = {}, themePreset) {
     y: 0,
     ...DEFAULT_SHAPE_SIZE,
     rotation: 0,
+    flipX: false,
+    flipY: false,
     opacity: 1,
     zIndex: 0,
     fill: style.fill,

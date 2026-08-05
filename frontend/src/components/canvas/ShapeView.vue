@@ -65,11 +65,24 @@ const center = computed(() => ({
   y: props.shape.y + props.shape.h / 2,
 }))
 
-const transform = computed(() =>
-  props.shape.rotation
-    ? `rotate(${props.shape.rotation} ${center.value.x} ${center.value.y})`
-    : null,
-)
+// Flip mirrors the shape's own content (triangle apex, arrow direction, image,
+// text) in its local frame, applied *before* rotation swings the whole thing
+// around — so it composes correctly with a rotated shape without touching the
+// rotation angle (Transform section, D10). SVG applies the rightmost transform
+// first, so the mirror (translate/scale/translate) sits to the right of rotate.
+const transform = computed(() => {
+  const { rotation, flipX, flipY } = props.shape
+  const parts = []
+  if (rotation) parts.push(`rotate(${rotation} ${center.value.x} ${center.value.y})`)
+  if (flipX || flipY) {
+    parts.push(
+      `translate(${center.value.x} ${center.value.y})`,
+      `scale(${flipX ? -1 : 1} ${flipY ? -1 : 1})`,
+      `translate(${-center.value.x} ${-center.value.y})`,
+    )
+  }
+  return parts.length ? parts.join(' ') : null
+})
 
 // Corner radius for the rect branch, from the shared helper so the draw preview
 // (which ghosts through this same component) renders identical corners (#130).

@@ -19,12 +19,20 @@ function flip(axis) {
   store.commit('Flip', () => shapes.value.forEach((shape) => flipShape(shape, axis, center)))
 }
 
-// Reflect one shape's bbox about the line and invert its rotation.
+// Reflect one shape's bbox about the line and toggle its own flip flag, which
+// mirrors the shape's own content (triangle apex, arrow direction, image, text
+// alignment — see ShapeView's `transform`). Rotation is left untouched: the
+// flip flag is applied in the shape's local frame *before* rotation, so a
+// rotated shape still flips correctly without any rotation-angle math (D10).
 function flipShape(shape, axis, center) {
   const box = axisAlignedBBox(shape)
-  shape.rotation = (360 - (shape.rotation || 0)) % 360
-  if (axis === 'x') shape.x += 2 * center - box.x - (box.x + box.w)
-  else shape.y += 2 * center - box.y - (box.y + box.h)
+  if (axis === 'x') {
+    shape.x += 2 * center - box.x - (box.x + box.w)
+    shape.flipX = !shape.flipX
+  } else {
+    shape.y += 2 * center - box.y - (box.y + box.h)
+    shape.flipY = !shape.flipY
+  }
 }
 
 // Center of the axis-aligned box enclosing the whole selection.
@@ -40,7 +48,7 @@ function selectionCenter() {
     <!-- Rotation is done with the on-canvas rotation handle now (D10), so the
          rotate-left/right buttons are gone. Swap lives in Distribute & size (a
          positional op) to avoid duplicating it here; Transform is just flips. -->
-    <div class="grid grid-cols-6 gap-1.5">
+    <div class="grid grid-cols-2 gap-1.5">
       <ActionTile icon="flip-horizontal" label="Flip H" @click="flip('x')" />
       <ActionTile icon="flip-vertical" label="Flip V" @click="flip('y')" />
     </div>
