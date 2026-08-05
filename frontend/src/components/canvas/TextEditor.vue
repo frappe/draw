@@ -68,13 +68,19 @@ watch(
     // Sanitised on the way in as well as on the way out (ShapeView): TipTap's schema
     // would drop unknown nodes anyway, but editing a shared shape should not be the
     // one path where unsanitised markup from someone else's document is parsed.
-    const html = shape.value
+    let html = shape.value
       ? sanitizeRichText(shape.value.text?.html) || contentToHtml(shape.value.text?.content)
       : contentToHtml(connector.value?.label)
+    // Seed a default label into an empty shape (e.g. "New idea" on a dropped node),
+    // then select it below so the first keystroke replaces it — drop-to-type (#263).
+    if (shape.value && !shape.value.text?.content && editing.session.seedIfEmpty) {
+      html = contentToHtml(editing.session.seedIfEmpty)
+    }
     editor.value.commands.setContent(html, false)
     setActiveEditor(editor.value)
     await nextTick()
     editor.value.commands.focus('end')
+    if (editing.session.selectAll) editor.value.commands.selectAll()
     autoGrow()
   },
 )
