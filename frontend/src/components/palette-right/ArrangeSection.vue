@@ -19,7 +19,7 @@ const canUngroup = computed(() => shapes.value.some((shape) => shape.groupId))
 
 <template>
   <PaletteSection v-if="hasShapes" label="Arrange">
-    <div class="grid grid-cols-3 gap-1.5">
+    <div class="grid grid-cols-2 gap-1.5">
       <ActionTile icon="chevrons-up" label="To front" @click="store.bringToFront(shapeIds)" />
       <ActionTile icon="chevron-up" label="Forward" @click="store.bringForward(shapeIds)" />
       <ActionTile icon="chevron-down" label="Backward" @click="store.sendBackward(shapeIds)" />
