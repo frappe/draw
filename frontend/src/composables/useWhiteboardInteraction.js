@@ -40,12 +40,13 @@ export function useWhiteboardInteraction(store, editorUi) {
   const drawing = { active: false, points: [] }
   const erasing = { active: false }
   const lining = { active: false, start: null }
-  const ctx = { store, editorUi, ui, drawing, erasing, lining }
+  const lasering = { active: false }
+  const ctx = { store, editorUi, ui, drawing, erasing, lining, lasering }
 
   const handlers = {
     onPointerDown: (event, context) => onPointerDown(event, context, ctx),
-    onPointerMove: (event, context) => onPointerMove(event, context, ui, drawing, erasing, store, lining),
-    onPointerUp: (event, context) => onPointerUp(event, context, store, ui, drawing, erasing, lining),
+    onPointerMove: (event, context) => onPointerMove(event, context, ui, drawing, erasing, store, lining, lasering),
+    onPointerUp: (event, context) => onPointerUp(event, context, store, ui, drawing, erasing, lining, lasering),
     onDoubleClick: (event, context) => onDoubleClick(context, store),
   }
   registerModeInteraction(interactionRef, 'whiteboard', handlers)
@@ -58,11 +59,14 @@ export function useWhiteboardInteraction(store, editorUi) {
 
 function onPointerDown(event, context, ctx) {
   if (event.button !== 0) return
-  const { store, editorUi, ui, drawing, erasing, lining } = ctx
+  const { store, editorUi, ui, drawing, erasing, lining, lasering } = ctx
   const tool = editorUi.state.tool
   if (tool === 'pen' || tool === 'highlighter') return beginStroke(context, ui, drawing, tool)
   if (tool === 'eraser') return beginErase(context, store, ui, erasing)
-  if (tool === 'laser') return ui.pushLaserPoint(context.point)
+  if (tool === 'laser') {
+    lasering.active = true
+    return ui.setLaserDot(context.point)
+  }
   if (tool === 'sticky') return placeSticky(context, store, ui)
   if (tool === 'line') return beginLine(context, ui, lining)
   if (tool === 'table') return placeTable(context, store, editorUi, ui)
@@ -168,7 +172,7 @@ function restoreErasable(state, original) {
   state.connectors = original.connectors
 }
 
-function onPointerMove(event, context, ui, drawing, erasing, store, lining) {
+function onPointerMove(event, context, ui, drawing, erasing, store, lining, lasering) {
   if (drawing.active) {
     drawing.points.push(context.point)
     // Re-assign so the live preview re-renders (a pushed array isn't reactive).
@@ -180,13 +184,18 @@ function onPointerMove(event, context, ui, drawing, erasing, store, lining) {
     return
   }
   if (erasing.active) return eraseAlong(context.point, store, erasing)
-  if (context.editorUi.state.tool === 'laser') return ui.pushLaserPoint(context.point)
+  if (context.editorUi.state.tool === 'laser') {
+    // Only leave a trail while the button is held (#253): hovering just moves the
+    // dot, dragging accumulates a fading trail behind it.
+    return lasering.active ? ui.pushLaserPoint(context.point) : ui.setLaserDot(context.point)
+  }
 }
 
-function onPointerUp(event, context, store, ui, drawing, erasing, lining) {
+function onPointerUp(event, context, store, ui, drawing, erasing, lining, lasering) {
   if (drawing.active) return finishStroke(ui, drawing, store)
   if (lining.active) return finishLine(ui, lining, store)
   if (erasing.active) return finishErase(store, erasing)
+  if (lasering.active) lasering.active = false
 }
 
 // Commit the whole erase gesture as one undoable unit: rewind to the pre-drag

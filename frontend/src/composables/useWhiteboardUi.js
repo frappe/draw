@@ -143,6 +143,15 @@ function attachLaser(api, laserTrail, laserClock) {
     laserClock.value = at
     schedulePrune()
   }
+  // Move the dot without leaving a trail behind it (armed but not drawing, #253):
+  // replaces the trail rather than accumulating, so trailSegments() has only one
+  // point to work with and renders nothing.
+  api.setLaserDot = (point) => {
+    const at = performance.now()
+    laserTrail.value = [{ x: point.x, y: point.y, at }]
+    laserClock.value = at
+    schedulePrune()
+  }
   api.clearLaser = () => {
     laserTrail.value = []
     if (raf) cancelAnimationFrame(raf)

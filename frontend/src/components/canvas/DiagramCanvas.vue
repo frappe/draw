@@ -774,6 +774,8 @@ const surfaceCursor = computed(() => {
   if (tool === 'draw') return DRAW_CURSOR
   if (tool === 'pen') return PEN_CURSOR
   if (tool === 'eraser') return eraserCursor(whiteboardUi.state.eraserSize, viewport.state.zoom)
+  // Armed laser shows only the red dot, not the OS arrow on top of it (#253).
+  if (tool === 'laser') return 'none'
   if (CROSSHAIR_TOOLS.includes(tool)) return 'crosshair'
   return 'default'
 })

@@ -18,7 +18,7 @@ import { isUnifiedDocument } from '@/diagram/schema.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useWhiteboardInteraction } from '@/composables/useWhiteboardInteraction.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
-import { LASER_COLOR, LASER_HEAD_RADIUS, LASER_FADE_MS } from '@/diagram/laser.js'
+import { trailSegments, LASER_COLOR, LASER_HEAD_RADIUS, LASER_FADE_MS } from '@/diagram/laser.js'
 import { roughenSegment } from '@/diagram/sketch.js'
 import { pointsToPath } from '@/diagram/svgPath.js'
 import { HIGHLIGHTER_OPACITY } from '@/diagram/whiteboardColors.js'
@@ -119,10 +119,25 @@ const voteBadges = computed(() => {
   return out
 })
 
+// Laser trail rendered as a tapering, self-fading line behind the pointer (spec
+// C5, #253). Only non-empty while actively drawing: hovering keeps the trail at a
+// single point (interaction layer replaces rather than accumulates), so
+// trailSegments() naturally has nothing to draw between one point and itself.
+// Reading ui.laserClock makes this re-run on every animation frame the composable
+// ticks, so the trail keeps fading after the pointer stops.
+const laserSegments = computed(() => {
+  const now = ui.laserClock.value || performance.now()
+  return trailSegments(ui.laserTrail.value, now).map((segment, index) => ({
+    key: index,
+    d: pointsToPath([segment.from, segment.to]),
+    opacity: segment.opacity,
+    width: segment.width,
+  }))
+})
+
 // The laser dot: the newest trail point, fading on the laserClock so a resting
 // pointer dims out instead of blinking off. Reading ui.laserClock makes this
-// re-run on every animation frame the composable ticks. (The trail itself was
-// dropped — just the dot now, #102.)
+// re-run on every animation frame the composable ticks.
 const laserHead = computed(() => {
   const points = ui.laserTrail.value
   if (!points.length) return null
@@ -226,9 +241,21 @@ const laserHead = computed(() => {
         style="font-family: Inter, sans-serif">👎 {{ badge.down }}</text>
     </g>
 
-    <!-- Laser pointer: just the dot, no trail (#102). Transient — never persisted
-         or exported. Takes no pointer events so it can't eat the moves under it. -->
+    <!-- Laser pointer: a fading trail while actively drawing, plus the head dot
+         (#253). Transient — never persisted or exported. Takes no pointer events
+         so it can't eat the moves under it. -->
     <g style="pointer-events: none">
+      <path
+        v-for="segment in laserSegments"
+        :key="segment.key"
+        :d="segment.d"
+        fill="none"
+        :stroke="LASER_COLOR"
+        :stroke-width="segment.width"
+        :stroke-opacity="segment.opacity * 0.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
       <circle
         v-if="laserHead"
         data-testid="laser-dot"
