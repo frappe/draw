@@ -18,8 +18,6 @@ import { startGroupMove } from '@/composables/useWhiteboardInteraction.js'
 // Shared drag flag (see useShapeTransform.js): hides this note's own floating
 // toolbar while it's actively being dragged, not just while selected (#248).
 import { isDragging } from '@/composables/useShapeTransform.js'
-import { voteFor } from '@/diagram/whiteboardModel.js'
-import VoteButtons from '@/components/floating/VoteButtons.vue'
 import { isAdditiveEvent } from '@/composables/pointer.js'
 import { safeHref } from '@/utils/safeUrl.js'
 import { contrastInk, STICKY_COLORS } from '@/diagram/whiteboardColors.js'
@@ -75,13 +73,6 @@ function removeSticky() {
   store.removeStickyNote(props.note.id)
   ui.clearSelection()
 }
-// Up/down vote (T3), chat-reaction style; the tally renders as a badge (drawn by
-// the whiteboard layer). `voteFor` gives the current counts for the label.
-const votes = computed(() => voteFor(store.state.whiteboard, 'sticky', props.note.id))
-function vote(dir) {
-  store.voteWhiteboardObject('sticky', props.note.id, dir)
-}
-
 // Keep the (non-editing) DOM text in sync with the model without interpolating
 // inside the contentEditable, mirroring the shared TextEditor so user keystrokes
 // are never clobbered by a re-render.
@@ -308,8 +299,6 @@ function openLink(event) {
         >
           <LucideIcon name="strikethrough" class="h-4 w-4" />
         </button>
-        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-        <VoteButtons :votes="votes" @vote="vote" />
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
         <button class="flex h-7 w-7 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2" title="Duplicate" aria-label="Duplicate" @pointerdown.stop @click="duplicate">
           <LucideIcon name="copy" class="h-4 w-4" />

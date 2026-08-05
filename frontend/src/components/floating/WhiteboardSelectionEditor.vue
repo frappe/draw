@@ -12,11 +12,10 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
 import { isDragging } from '@/composables/useShapeTransform.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
-import { lineById, tableById, whiteboardObjectBoxes, voteFor } from '@/diagram/whiteboardModel.js'
+import { lineById, tableById, whiteboardObjectBoxes } from '@/diagram/whiteboardModel.js'
 import { unionBounds } from '@/diagram/geometry.js'
 import LineOptions from './LineOptions.vue'
 import TableOptions from './TableOptions.vue'
-import VoteButtons from './VoteButtons.vue'
 
 const store = useDiagramStore()
 const ui = useWhiteboardUi()
@@ -32,8 +31,7 @@ const label = computed(() => ({ line: 'Line', table: 'Table' })[kind.value] || '
 const icon = computed(() => ({ line: 'minus', table: 'table' })[kind.value] || 'edit-2')
 
 // Show for a multi-selection, or a lone non-sticky object (a lone sticky uses its
-// own floating toolbar). A lone object also gets up/down vote; strokes get just
-// vote + Delete.
+// own floating toolbar).
 const show = computed(() => multi.value || Boolean(selected.value && kind.value !== 'sticky'))
 
 // Combined bounding box (canvas units) of the selection, for positioning.
@@ -46,15 +44,6 @@ const box = computed(() => {
 })
 
 const style = useCanvasToolbarStyle(box)
-
-// Per-object up/down vote (T3), chat-reaction style. Shown for a lone object
-// (any kind); the tally renders as a badge on the object itself.
-const votes = computed(() =>
-  selected.value ? voteFor(store.state.whiteboard, selected.value.kind, selected.value.id) : { up: 0, down: 0 },
-)
-function vote(dir) {
-  if (selected.value) store.voteWhiteboardObject(selected.value.kind, selected.value.id, dir)
-}
 
 function remove() {
   store.removeWhiteboardObjects([...selection.value])
@@ -102,12 +91,6 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
           />
         </template>
       </Popover>
-
-      <!-- Up / down vote for a lone object (chat-reaction style, T3). -->
-      <template v-if="!multi && selected">
-        <VoteButtons :votes="votes" @vote="vote" />
-        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-      </template>
 
       <Tooltip :text="multi ? 'Delete selection' : 'Delete'">
         <button class="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50" @mousedown.prevent @click="remove">

@@ -4,8 +4,8 @@
 // same elements. Lives inside the canvas viewport <g>, so every coordinate is in
 // canvas units (Part G4). Renders, bottom→top: shared connectors, then every
 // base shape and board object (strokes, lines, tables, sticky notes) in one
-// zIndex-ordered pass, then the transient in-progress stroke/line, vote badges
-// and laser trail (never persisted/exported, spec C5/C10/G8).
+// zIndex-ordered pass, then the transient in-progress stroke/line and laser
+// trail (never persisted/exported, spec C5/C10/G8).
 //
 // This component also OWNS instantiating the whiteboard surface-interaction
 // composable: it only mounts when the active type is whiteboard, has the store/
@@ -22,11 +22,7 @@ import { trailSegments, LASER_COLOR, LASER_HEAD_RADIUS, LASER_FADE_MS } from '@/
 import { roughenSegment } from '@/diagram/sketch.js'
 import { pointsToPath } from '@/diagram/svgPath.js'
 import { HIGHLIGHTER_OPACITY } from '@/diagram/whiteboardColors.js'
-import {
-  whiteboardObjectBoxes,
-  whiteboardObjectsInZOrder,
-  isWhiteboardEmpty,
-} from '@/diagram/whiteboardModel.js'
+import { whiteboardObjectsInZOrder, isWhiteboardEmpty } from '@/diagram/whiteboardModel.js'
 import ConnectorView from './ConnectorView.vue'
 import ShapeView from './ShapeView.vue'
 import WhiteboardStickyNote from './WhiteboardStickyNote.vue'
@@ -103,21 +99,6 @@ const hintCenter = computed(() => ({
   x: (store.state.canvas.width || 1280) / 2,
   y: (store.state.canvas.height || 720) / 2,
 }))
-
-// Per-object vote badges (T3): a small pill at each voted object's top-right
-// showing 👍/👎 tallies, chat-reaction style. The common case is an empty vote
-// map, so bail before scanning every object's geometry.
-const voteBadges = computed(() => {
-  const votes = props.whiteboard.votes || {}
-  if (!Object.keys(votes).length) return []
-  const out = []
-  for (const o of whiteboardObjectBoxes(props.whiteboard)) {
-    const v = votes[`${o.kind}:${o.id}`]
-    if (!v || (!v.up && !v.down)) continue
-    out.push({ key: `${o.kind}:${o.id}`, x: o.box.x + o.box.w - 6, y: o.box.y + 4, up: v.up || 0, down: v.down || 0 })
-  }
-  return out
-})
 
 // Laser trail rendered as a tapering, self-fading line behind the pointer (spec
 // C5, #253). Only non-empty while actively drawing: hovering keeps the trail at a
@@ -224,22 +205,6 @@ const laserHead = computed(() => {
 
     <!-- Live line being dragged (before commit). -->
     <WhiteboardLine v-if="liveLine" :line="liveLine" />
-
-    <!-- Per-object vote badges (T3): a small pill tallying 👍/👎, top-right of the
-         object. Non-interactive — votes are cast from the object's edit menu. -->
-    <g
-      v-for="badge in voteBadges"
-      :key="badge.key"
-      :transform="`translate(${badge.x} ${badge.y})`"
-      style="pointer-events: none"
-    >
-      <rect x="-1" y="0" rx="8" height="18" :width="badge.up && badge.down ? 62 : 38"
-        fill="#FFFFFF" stroke="#E2E8F0" stroke-width="1" />
-      <text v-if="badge.up" x="6" y="9" dominant-baseline="central" font-size="11"
-        style="font-family: Inter, sans-serif">👍 {{ badge.up }}</text>
-      <text v-if="badge.down" :x="badge.up ? 34 : 6" y="9" dominant-baseline="central" font-size="11"
-        style="font-family: Inter, sans-serif">👎 {{ badge.down }}</text>
-    </g>
 
     <!-- Laser pointer: a fading trail while actively drawing, plus the head dot
          (#253). Transient — never persisted or exported. Takes no pointer events

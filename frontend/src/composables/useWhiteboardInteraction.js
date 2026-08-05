@@ -17,7 +17,7 @@ import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { simplifyStroke } from '@/diagram/strokeSimplify.js'
 import {
   strokeAt, lineAt, tableAt, tableCellAt,
-  whiteboardObjectBoxes, whiteboardObjectsInZOrder, translateWhiteboardObject, clearVote,
+  whiteboardObjectBoxes, whiteboardObjectsInZOrder, translateWhiteboardObject,
 } from '@/diagram/whiteboardModel.js'
 import { eraseInkAt, eraseObjectsAt, sweepPoints } from '@/diagram/eraser.js'
 import { rectsIntersect } from '@/diagram/geometry.js'
@@ -215,7 +215,7 @@ function finishErase(store, erasing) {
 }
 
 // Object mode: the erased ids go through the shared delete path, which also drops
-// their votes and any connector left dangling by a deleted shape.
+// any connector left dangling by a deleted shape.
 function commitObjectErase(store, original, removed) {
   const isBlock = (item) => item.kind === 'shape' || item.kind === 'connector'
   const items = removed.filter((item) => !isBlock(item))
@@ -225,29 +225,18 @@ function commitObjectErase(store, original, removed) {
 }
 
 // Ink mode: a rubbed stroke is replaced by fresh-id sub-paths, so the eroded
-// arrays themselves are the commit. Clear the votes of every object that didn't
-// survive so model.votes doesn't leak stale keys across the session (the
-// keyboard/Delete path already clears via removeStroke).
+// arrays themselves are the commit.
 function commitInkErase(store, original) {
   const model = store.state.whiteboard
-  // Older documents may carry no `lines` array at all; normalise so the commit and
-  // the vote sweep below always see a list.
+  // Older documents may carry no `lines` array at all; normalise so the commit
+  // always sees a list.
   const final = { strokes: model.strokes || [], lines: model.lines || [] }
   model.strokes = original.strokes
   model.lines = original.lines
   store.updateWhiteboardModel('Erase', (m) => {
     m.strokes = final.strokes
     m.lines = final.lines
-    clearGoneVotes(m, 'stroke', original.strokes, final.strokes)
-    clearGoneVotes(m, 'line', original.lines, final.lines)
   })
-}
-
-function clearGoneVotes(model, kind, before, after) {
-  const surviving = new Set(after.map((object) => object.id))
-  for (const object of before) {
-    if (!surviving.has(object.id)) clearVote(model, kind, object.id)
-  }
 }
 
 // Commit the line on pointer-up; discard a degenerate (zero-length) drag.

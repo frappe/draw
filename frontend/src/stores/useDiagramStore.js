@@ -37,8 +37,6 @@ import {
   removeTable,
   tableById,
   setTableCell,
-  applyVote,
-  clearVote,
   whiteboardObjectsInZOrder,
   maxWhiteboardZIndex,
 } from '@/diagram/whiteboardModel.js'
@@ -539,10 +537,7 @@ function attachWhiteboard(store, state, history) {
     })
   store.removeStroke = (id) => {
     if (!state.whiteboard) return
-    history.commit('Erase', () => {
-      removeStroke(state.whiteboard, id)
-      clearVote(state.whiteboard, 'stroke', id)
-    })
+    history.commit('Erase', () => removeStroke(state.whiteboard, id))
   }
   store.addStickyNote = (x, y, partial = {}) => {
     if (!state.whiteboard) return null
@@ -559,18 +554,10 @@ function attachWhiteboard(store, state, history) {
     })
   store.removeStickyNote = (id) => {
     if (!state.whiteboard) return
-    history.commit('Delete sticky', () => {
-      removeStickyNote(state.whiteboard, id)
-      clearVote(state.whiteboard, 'sticky', id)
-    })
+    history.commit('Delete sticky', () => removeStickyNote(state.whiteboard, id))
   }
   attachWhiteboardLines(store, state, history)
   attachWhiteboardTables(store, state, history)
-  // Per-object up/down vote (T3): one undoable unit; dir is 'up' | 'down'.
-  store.voteWhiteboardObject = (kind, id, dir, delta = 1) => {
-    if (!state.whiteboard) return
-    history.commit('Vote', () => applyVote(state.whiteboard, kind, id, dir, delta))
-  }
   // Generic per-type model update (e.g. sketch-style toggle) as one undoable unit.
   store.updateWhiteboardModel = (label, mutatorFn) => {
     if (!state.whiteboard) return
@@ -585,7 +572,6 @@ function attachWhiteboard(store, state, history) {
   const removeWhiteboardObjectsInto = (items) => {
     for (const { kind, id } of items || []) {
       WB_REMOVE[kind]?.(state.whiteboard, id)
-      clearVote(state.whiteboard, kind, id) // don't leak votes for deleted objects
     }
   }
   store.removeWhiteboardObjects = (items) => {
@@ -624,10 +610,7 @@ function attachWhiteboardLines(store, state, history) {
     })
   store.removeLine = (id) => {
     if (!state.whiteboard) return
-    history.commit('Delete line', () => {
-      removeLine(state.whiteboard, id)
-      clearVote(state.whiteboard, 'line', id)
-    })
+    history.commit('Delete line', () => removeLine(state.whiteboard, id))
   }
 }
 
@@ -653,10 +636,7 @@ function attachWhiteboardTables(store, state, history) {
     })
   store.removeTable = (id) => {
     if (!state.whiteboard) return
-    history.commit('Delete table', () => {
-      removeTable(state.whiteboard, id)
-      clearVote(state.whiteboard, 'table', id)
-    })
+    history.commit('Delete table', () => removeTable(state.whiteboard, id))
   }
 }
 

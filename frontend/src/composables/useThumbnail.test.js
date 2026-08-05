@@ -38,7 +38,6 @@ function unifiedDocument() {
       stickyNotes: [{ id: 'w2', x: 700, y: 200, w: 180, h: 180, color: '#FEF3C7', text: 'STICKY-TEXT' }],
       lines: [{ id: 'wl1', x1: 300, y1: 500, x2: 620, y2: 500, color: '#AA0011', width: 3, start: 'none', end: 'arrow' }],
       tables: [{ id: 'wt1', x: 300, y: 560, rows: 2, cols: 2, cellW: 120, cellH: 40, color: '#00AA55', cells: { '0,0': 'TABLE-CELL' } }],
-      votes: {},
       sketchStyle: false,
     },
     mindmap: {
@@ -416,7 +415,7 @@ describe('isDocumentEmpty', () => {
     doc.shapes = []
     doc.connectors = []
     doc.sections = []
-    doc.whiteboard = { strokes: [], stickyNotes: [], lines: [], tables: [], votes: {}, sketchStyle: false }
+    doc.whiteboard = { strokes: [], stickyNotes: [], lines: [], tables: [], sketchStyle: false }
     doc.mindmap.nodes = []
     doc.flowchart.nodes = []
     doc.flowchart.edges = []

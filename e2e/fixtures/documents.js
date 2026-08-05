@@ -57,7 +57,7 @@ export function emptyFlowchart(origin = { x: 0, y: 0 }) {
 }
 
 export function emptyWhiteboard() {
-  return { strokes: [], stickyNotes: [], lines: [], tables: [], votes: {}, sketchStyle: false }
+  return { strokes: [], stickyNotes: [], lines: [], tables: [], sketchStyle: false }
 }
 
 // A root plus three branches — enough for navigation, cross-links and focus mode.
@@ -119,7 +119,6 @@ export function seededWhiteboard() {
     stickyNotes: [{ id: 'w2', x: 700, y: 200, w: 180, h: 180, color: '#FEF3C7', text: 'note' }],
     lines: [],
     tables: [],
-    votes: {},
     sketchStyle: false,
   }
 }

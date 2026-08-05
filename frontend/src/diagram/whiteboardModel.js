@@ -76,7 +76,7 @@ export function makeTable(x, y, partial = {}) {
 }
 
 export function createWhiteboard(sketchStyle = false) {
-  return { sketchStyle, strokes: [], stickyNotes: [], lines: [], tables: [], votes: {} }
+  return { sketchStyle, strokes: [], stickyNotes: [], lines: [], tables: [] }
 }
 
 // True when a whiteboard has no drawn content — no strokes, stickies, lines,
@@ -125,34 +125,6 @@ export function maxWhiteboardZIndex(model) {
     for (const object of WB_LIST[kind](model)) max = Math.max(max, object.zIndex || 0)
   }
   return max
-}
-
-// --- Per-object votes (T3): a chat-reaction-style up/down tally attached to any
-// board object (stroke/sticky/line/table/image), keyed by "kind:id". Kept in one
-// map on the model rather than on each heterogeneous object, so rendering and
-// cleanup stay in a single place. Replaces the old free-floating stamp/dot tool.
-export function voteKey(kind, id) {
-  return `${kind}:${id}`
-}
-
-export function voteFor(model, kind, id) {
-  return (model?.votes || {})[voteKey(kind, id)] || { up: 0, down: 0 }
-}
-
-// Bump the up or down tally for an object, never below zero. Returns nothing;
-// callers wrap it in a history commit.
-export function applyVote(model, kind, id, dir, delta = 1) {
-  if (!model.votes) model.votes = {}
-  const key = voteKey(kind, id)
-  const current = model.votes[key] || { up: 0, down: 0 }
-  const next = { ...current, [dir]: Math.max(0, (current[dir] || 0) + delta) }
-  if (!next.up && !next.down) delete model.votes[key]
-  else model.votes[key] = next
-}
-
-// Drop an object's votes when it is deleted so the map never leaks stale keys.
-export function clearVote(model, kind, id) {
-  if (model?.votes) delete model.votes[voteKey(kind, id)]
 }
 
 export function tableById(model, id) {
