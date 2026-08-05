@@ -7,6 +7,8 @@
 // connectors expose a draggable midpoint control handle.
 import { ref, computed, nextTick } from 'vue'
 import { anchorPoint } from '@/diagram/geometry.js'
+import { ROLE } from '@/diagram/freeFloating.js'
+import { branchPathPoints } from '@/diagram/mindmapLayout.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useConnectorDrawing } from '@/composables/useConnectorDrawing.js'
@@ -60,6 +62,11 @@ const dashArray = computed(() => {
 const pathData = computed(() => {
   const a = start.value
   const b = end.value
+  // A mind-map branch is a structural edge: draw the symmetric cubic that leaves the
+  // parent and eases into the child horizontally (both tangents flat), so up/down
+  // branches mirror — not the generic quadratic whose lone control sits at the
+  // parent's y and makes a downward branch plunge into the child (#266).
+  if (props.connector.role === ROLE.mindmapBranch) return branchPathPoints(a, b)
   if (props.connector.type === 'curved') return `M ${a.x} ${a.y} Q ${control.value.x} ${control.value.y} ${b.x} ${b.y}`
   if (props.connector.type === 'elbow') return elbowPath(a, b, elbowMidX.value, style.value.corner)
   return `M ${a.x} ${a.y} L ${b.x} ${b.y}`
