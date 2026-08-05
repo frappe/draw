@@ -902,8 +902,6 @@ const surfaceCursor = computed(() => {
               stroke-width="1.5"
             />
           </g>
-
-          <TextEditor />
         </template>
 
         <!-- Mind-map mode: the laid-out tree (spec diagram-types Part A). Legacy
@@ -936,6 +934,13 @@ const surfaceCursor = computed(() => {
             <TextEditor />
           </template>
         </template>
+
+        <!-- The inline text editor must paint ABOVE every shape layer — including
+             the whiteboard-owned shapes on the unified canvas, whose opaque node
+             fills would otherwise occlude the live caret + text until blur (#258).
+             So the single shared overlay lives last, still gated to the block
+             substrate (a legacy whiteboard mounts its own copy above instead). -->
+        <TextEditor v-if="showBlockLayer" />
       </g>
     </svg>
 
