@@ -10,6 +10,7 @@ import { Popover, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
+import { isDragging } from '@/composables/useShapeTransform.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { lineById, tableById, whiteboardObjectBoxes, voteFor } from '@/diagram/whiteboardModel.js'
 import { unionBounds } from '@/diagram/geometry.js'
@@ -66,7 +67,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
 <template>
   <Teleport to="body">
     <div
-      v-if="show && box"
+      v-if="show && box && !isDragging"
       data-wb-toolbar
       class="fixed z-30 flex max-w-[50vw] -translate-x-1/2 -translate-y-full items-center gap-0.5 rounded-lg border border-outline-gray-2 bg-surface-base p-1 shadow-lg"
       :style="style"

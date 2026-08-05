@@ -15,6 +15,9 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { startGroupMove } from '@/composables/useWhiteboardInteraction.js'
+// Shared drag flag (see useShapeTransform.js): hides this note's own floating
+// toolbar while it's actively being dragged, not just while selected (#248).
+import { isDragging } from '@/composables/useShapeTransform.js'
 import { voteFor } from '@/diagram/whiteboardModel.js'
 import VoteButtons from '@/components/floating/VoteButtons.vue'
 import { isAdditiveEvent } from '@/composables/pointer.js'
@@ -108,7 +111,10 @@ const sketchOutline = computed(() =>
 // A drag gesture shared by move (whole note) and resize (corner). The delta is
 // converted from screen pixels to canvas units by dividing by the live zoom.
 let releaseGesture = null
-function startGesture(event, apply) {
+// `track` marks this gesture as a body move (not a resize) so the floating
+// toolbar can hide itself for the duration (#248) — resize leaves it showing,
+// matching the block/flowchart/whiteboard toolbars, which only gate on move.
+function startGesture(event, apply, { track = false } = {}) {
   event.stopPropagation()
   if (editorUi.state.tool !== 'select') return
   ui.selectSticky(props.note.id)
@@ -116,6 +122,9 @@ function startGesture(event, apply) {
   const startY = event.clientY
   const origin = { x: props.note.x, y: props.note.y, w: props.note.w, h: props.note.h }
   const move = (moveEvent) => {
+    // Any move while the pointer is down is a real drag (no separate threshold
+    // here, matching startGroupMove) — hide the floating toolbar for its duration.
+    if (track) isDragging.value = true
     const zoom = editorUi.viewport.state.zoom
     apply(origin, (moveEvent.clientX - startX) / zoom, (moveEvent.clientY - startY) / zoom)
   }
@@ -123,6 +132,7 @@ function startGesture(event, apply) {
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', up)
     window.removeEventListener('pointercancel', up)
+    if (track) isDragging.value = false
     releaseGesture = null
   }
   releaseGesture = up
@@ -145,8 +155,10 @@ function startMove(event) {
     return startGroupMove(event, store, editorUi, ui)
   }
   if (props.note.hyperlink && !event.shiftKey) return // clicks navigate instead
-  startGesture(event, (origin, dx, dy) =>
-    store.updateStickyNote(props.note.id, { x: origin.x + dx, y: origin.y + dy }),
+  startGesture(
+    event,
+    (origin, dx, dy) => store.updateStickyNote(props.note.id, { x: origin.x + dx, y: origin.y + dy }),
+    { track: true },
   )
 }
 
@@ -274,7 +286,7 @@ function openLink(event) {
          Single-selection only, so it never clutters a multi-selection. -->
     <Teleport to="body">
       <div
-        v-if="solo"
+        v-if="solo && !isDragging"
         class="fixed z-30 flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-lg border border-outline-gray-2 bg-surface-base p-1 shadow-lg"
         :style="toolbarStyle"
       >

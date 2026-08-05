@@ -23,6 +23,9 @@ import { eraseInkAt, eraseObjectsAt, sweepPoints } from '@/diagram/eraser.js'
 import { rectsIntersect } from '@/diagram/geometry.js'
 import { HIGHLIGHTER_WIDTH } from '@/diagram/whiteboardColors.js'
 import { isAdditiveEvent, runMarqueeDrag } from '@/composables/pointer.js'
+// Shared drag flag (see useShapeTransform.js) so WhiteboardSelectionEditor can
+// hide while a group/table is actively being dragged, not just while selected (#248).
+import { isDragging } from '@/composables/useShapeTransform.js'
 
 const ERASER_TOLERANCE = 6 // canvas units of slack around a stroke path
 const MARQUEE_MIN = 3 // ignore sub-3px drags (treat as a click)
@@ -390,6 +393,9 @@ export function startGroupMove(event, store, editorUi, ui) {
   let lastDx = 0
   let lastDy = 0
   const move = (moveEvent) => {
+    // Any move while the pointer is down is a real drag (no separate threshold
+    // here) — hide the floating selection toolbar for its duration (#248).
+    isDragging.value = true
     const zoom = editorUi.viewport.state.zoom
     const dx = (moveEvent.clientX - startX) / zoom
     const dy = (moveEvent.clientY - startY) / zoom
@@ -402,6 +408,7 @@ export function startGroupMove(event, store, editorUi, ui) {
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', up)
     window.removeEventListener('pointercancel', up)
+    isDragging.value = false
     if (!lastDx && !lastDy) return // a click, not a drag → keep the group selected
     // Undo the live preview, then commit the whole move once for clean undo.
     for (const item of items) translateWhiteboardObject(model, item.kind, item.id, -lastDx, -lastDy)
@@ -437,6 +444,8 @@ export function startTableMove(event, store, editorUi, ui, table, point) {
     // cell-edit) at any zoom; the applied delta is divided by zoom for canvas units.
     if (!moving && Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) < TABLE_MOVE_THRESHOLD) return
     moving = true
+    // Past the threshold this is a real drag — hide the floating toolbar (#248).
+    isDragging.value = true
     const zoom = editorUi.viewport.state.zoom
     const dx = (moveEvent.clientX - startX) / zoom
     const dy = (moveEvent.clientY - startY) / zoom
@@ -448,6 +457,7 @@ export function startTableMove(event, store, editorUi, ui, table, point) {
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', finish)
     window.removeEventListener('pointercancel', finish)
+    isDragging.value = false
     if (moving) {
       // Undo the live preview, then commit the whole move once for clean undo.
       for (const item of items) translateWhiteboardObject(model, item.kind, item.id, -lastDx, -lastDy)

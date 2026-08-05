@@ -9,6 +9,7 @@ import LucideIcon from '@/icons/LucideIcon.vue'
 import SwatchGrid from '@/components/floating/SwatchGrid.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
+import { isDragging } from '@/composables/useShapeTransform.js'
 import { unionBounds } from '@/diagram/geometry.js'
 import { SWATCH_PALETTE } from '@/diagram/palette.js'
 import {
@@ -127,7 +128,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
 <template>
   <Teleport to="body">
     <div
-      v-if="nodes.length && box"
+      v-if="nodes.length && box && !isDragging"
       data-flow-toolbar
       class="fixed z-30 flex max-w-[50vw] -translate-x-1/2 -translate-y-full items-center gap-0.5 rounded-lg border border-outline-gray-2 bg-surface-base p-1 shadow-lg"
       :style="style"

@@ -10,6 +10,7 @@ import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { anchorPoint, unionBounds } from '@/diagram/geometry.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
+import { isDragging } from '@/composables/useShapeTransform.js'
 import { activeEditor, richCommands, isMarkActive } from '@/composables/useRichText.js'
 import FillBorderSection from '@/components/palette-right/FillBorderSection.vue'
 import ArrangeSection from '@/components/palette-right/ArrangeSection.vue'
@@ -136,7 +137,7 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
 <template>
   <Teleport to="body">
     <div
-      v-if="count && box"
+      v-if="count && box && !isDragging"
       data-block-toolbar
       class="fixed z-30 flex max-w-[50vw] -translate-x-1/2 -translate-y-full items-center gap-0.5 rounded-lg border border-outline-gray-2 bg-surface-base p-1 shadow-lg"
       :style="style"
