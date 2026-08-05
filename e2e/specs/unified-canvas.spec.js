@@ -256,7 +256,8 @@ test.describe('unified canvas: free-floating mind map & flowchart', () => {
   test('the inserted mind-map node shows its "+" add-handles, and Tab grows a child', async ({ page, diagram }) => {
     const name = await diagram.open('unified', { empty: true })
 
-    await insertMindmapNode(page) // the new root is auto-selected
+    await insertMindmapNode(page) // the new root drops straight into text edit (#263)
+    await page.keyboard.press('Escape') // finish typing the root before growing children
     // The mouse affordance appears for the sole-selected node (#118).
     await expect(mindmapAddHandles(page).first()).toBeVisible()
 
