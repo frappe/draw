@@ -5,7 +5,7 @@
 // first stroke). Options for the active tool sit behind ONE separate "options"
 // disclosure; board-wide settings and the selected-object editor follow. All
 // chrome is Frappe UI.
-import { computed } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { Popover, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
@@ -43,6 +43,21 @@ const ERASER_MODES = [
   { key: 'ink', icon: 'eraser', label: 'Erase' },
   { key: 'object', icon: 'square-x', label: 'Erase by object' },
 ]
+
+const optionsPopoverRef = ref(null)
+
+// Clicking the eraser tool also opens its options popover directly, so its
+// size/settings are reachable from the tool itself rather than only via the
+// separate "sliders" disclosure (#241). The popover only mounts when the
+// active tool has options (v-if="activeHasOptions"), so wait a tick before
+// opening it in case the previous tool had none.
+async function armTool(t) {
+  editorUi.setTool(t.tool)
+  if (t.tool === 'eraser') {
+    await nextTick()
+    optionsPopoverRef.value?.open()
+  }
+}
 
 const activeTool = computed(() => editorUi.state.tool)
 const visibleTools = computed(() => visibleWhiteboardTools(props.exclude))
@@ -109,7 +124,7 @@ function insertTable({ rows, cols }, close) {
       </template>
     </Popover>
     <Tooltip v-else :text="t.label">
-      <button :data-testid="'wtool-' + t.tool" :class="[buttonBase, toggleClass(activeTool === t.tool)]" @click="editorUi.setTool(t.tool)">
+      <button :data-testid="'wtool-' + t.tool" :class="[buttonBase, toggleClass(activeTool === t.tool)]" @click="armTool(t)">
         <LucideIcon :name="t.icon" class="h-4 w-4" />
       </button>
     </Tooltip>
@@ -122,8 +137,9 @@ function insertTable({ rows, cols }, close) {
     </button>
   </Tooltip>
 
-  <!-- Options for the active tool (separate disclosure, shown only when it has any). -->
-  <Popover v-if="activeHasOptions">
+  <!-- Options for the active tool (separate disclosure, shown only when it has any).
+       Also opened directly by the eraser tool button above (#241). -->
+  <Popover v-if="activeHasOptions" ref="optionsPopoverRef">
     <template #target="{ togglePopover }">
       <Tooltip :text="optionsLabel">
         <button :class="buttonBase" @click="togglePopover()">
