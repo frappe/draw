@@ -8,7 +8,7 @@
 // small margin, stretched to enclose any shape that leaves the canvas and
 // auto-shrunk when it returns. Native scrollbars appear when that region (in
 // screen pixels) exceeds the viewport. Browser ctrl-zoom is intercepted.
-import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick, provide, inject } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick, provide, inject } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useComments } from '@/composables/useComments.js'
@@ -17,7 +17,7 @@ import { themeVarStyle } from '@/diagram/theme.js'
 import { axisAlignedBBox, anchorPoint, pointInShape, unionBounds } from '@/diagram/geometry.js'
 import { isVisible, isInteractable } from '@/diagram/shapeFlags.js'
 import { layoutMindMap } from '@/diagram/mindmapLayout.js'
-import { isMindmapShape, mindmapNodeClickAction } from '@/diagram/freeFloating.js'
+import { mindmapNodeClickAction } from '@/diagram/freeFloating.js'
 import { isAdditiveEvent } from '@/composables/pointer.js'
 import { flowchartContentBounds } from '@/diagram/flowchartLayout.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
@@ -29,7 +29,6 @@ import { useImageInsert } from '@/composables/useImageInsert.js'
 import { useCanvasPaste } from '@/composables/useCanvasPaste.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
 import { useClipboard } from '@/composables/useClipboard.js'
-import ContextMenu from './ContextMenu.vue'
 import GridLayer from './GridLayer.vue'
 import SectionView from './SectionView.vue'
 import ShapeView from './ShapeView.vue'
@@ -184,88 +183,17 @@ const NODE_EDIT_CLICK_SLACK = 3
 // frame on the same anchor.
 useCanvasPaste({ imageInsert, clipboard, getCenter: () => viewport.centerPoint() })
 
-// Right-click context menu (suppresses the browser default). Items differ for a
-// shape vs empty canvas.
-const contextMenu = reactive({ show: false, x: 0, y: 0, items: [] })
-
+// Right-click (suppresses the browser default) selects the hit shape, same as a
+// left-click would — it must never open a menu (#244): only the horizontal
+// floating selection toolbar is expected to appear.
 function onContextMenu(event) {
   const point = selection.toLogicalFor(event, surface.value, viewport)
-  const shape = activeType.value === 'block' ? topShapeAt(point, { includeLocked: true }) : null
-  if (shape && shape.locked) {
-    // Don't pull a locked shape into the selection; just offer to unlock it.
-    contextMenu.items = lockedMenuItems(shape)
-  } else if (shape) {
+  const shape = activeType.value === 'block' ? topShapeAt(point) : null
+  if (shape) {
     if (!store.state.selection.includes(shape.id)) store.select(shape.id)
-    contextMenu.items = shapeMenuItems()
-  } else {
-    if (activeType.value === 'block') store.clearSelection()
-    contextMenu.items = emptyMenuItems()
+  } else if (activeType.value === 'block') {
+    store.clearSelection()
   }
-  contextMenu.x = event.clientX
-  contextMenu.y = event.clientY
-  contextMenu.show = true
-}
-
-function shapeMenuItems() {
-  const ids = store.state.selection
-  const items = []
-  if (ids.length === 1) {
-    items.push({ label: 'Edit text', icon: 'type', onClick: () => editing.beginTextEdit(ids[0]) })
-    const shape = store.shapeById(ids[0])
-    // Whimsical convert (#125): flip a non-root mind-map node between a boxed shape
-    // and transparent text. The root is always a box, so it gets no toggle.
-    if (isMindmapShape(shape) && !shape.mindmap?.isRoot) {
-      const shaped = shape.mindmap?.shaped !== false
-      items.push({
-        label: shaped ? 'Convert to text' : 'Convert to shape',
-        icon: shaped ? 'type' : 'square',
-        onClick: () => store.setMindmapNodeShaped(shape.id, !shaped),
-      })
-    }
-  }
-  items.push(
-    { label: 'Duplicate', icon: 'copy', shortcut: '⌘D', onClick: () => store.duplicate(ids) },
-    { label: 'Copy', icon: 'clipboard', shortcut: '⌘C', onClick: () => clipboard.copy() },
-    { divider: true },
-    { label: 'Bring to front', icon: 'chevrons-up', onClick: () => store.bringToFront(ids) },
-    { label: 'Send to back', icon: 'chevrons-down', onClick: () => store.sendToBack(ids) },
-    { divider: true },
-    // Lock keeps it on-canvas but un-grabbable; Hide removes it from view (spec 7.4).
-    { label: 'Lock', icon: 'lock', onClick: () => store.updateShapes(ids, { locked: true }) },
-    { label: 'Hide', icon: 'eye-off', onClick: () => store.updateShapes(ids, { hidden: true }) },
-    { divider: true },
-    { label: 'Delete', icon: 'trash-2', danger: true, shortcut: 'Del', onClick: () => store.removeSelectionOrIds(ids) },
-  )
-  return items
-}
-
-// Minimal menu for a locked shape (it isn't selected, so actions target its id).
-function lockedMenuItems(shape) {
-  return [
-    { label: 'Unlock', icon: 'unlock', onClick: () => store.updateShape(shape.id, { locked: false }) },
-    { label: 'Hide', icon: 'eye-off', onClick: () => store.updateShape(shape.id, { hidden: true }) },
-  ]
-}
-
-function emptyMenuItems() {
-  const items = [
-    { label: 'Paste', icon: 'clipboard', shortcut: '⌘V', onClick: () => clipboard.paste() },
-    { label: 'Select all', icon: 'maximize', shortcut: '⌘A', onClick: () => store.selectAll() },
-  ]
-  // Escape hatch for hidden objects (no layers panel yet): bring them all back.
-  if (store.state.shapes.some((s) => s.hidden)) {
-    items.push({ label: 'Unhide all', icon: 'eye', onClick: () => unhideAll() })
-  }
-  items.push(
-    { divider: true },
-    { label: 'Fit to view', icon: 'maximize-2', onClick: () => editorUi.fit() },
-  )
-  return items
-}
-
-function unhideAll() {
-  const ids = store.state.shapes.filter((s) => s.hidden).map((s) => s.id)
-  if (ids.length) store.updateShapes(ids, { hidden: false })
 }
 
 // SelectionLayer renders the marquee rect via this provided handle (spec §7.2).
@@ -693,12 +621,11 @@ function placeArmedComment(event) {
   return true
 }
 
-// Topmost shape under a point. By default skips hidden + locked shapes (they
-// aren't grabbable); the context menu passes includeLocked so a locked shape can
-// still be right-clicked to unlock it. Hidden shapes are never hit.
-function topShapeAt(point, { includeLocked = false } = {}) {
+// Topmost shape under a point. Skips hidden + locked shapes (they aren't
+// grabbable/selectable).
+function topShapeAt(point) {
   const hits = store.state.shapes.filter(
-    (shape) => isVisible(shape) && (includeLocked || isInteractable(shape)) && pointInShape(point, shape),
+    (shape) => isVisible(shape) && isInteractable(shape) && pointInShape(point, shape),
   )
   if (!hits.length) return null
   return hits.reduce((top, shape) => ((shape.zIndex || 0) >= (top.zIndex || 0) ? shape : top))
@@ -952,14 +879,6 @@ const surfaceCursor = computed(() => {
     <!-- Rulers in screen space (outside the viewport <g>), shown while editing
          text at any zoom (spec §6). -->
     <Rulers />
-
-    <ContextMenu
-      v-if="contextMenu.show"
-      :x="contextMenu.x"
-      :y="contextMenu.y"
-      :items="contextMenu.items"
-      @close="contextMenu.show = false"
-    />
   </div>
 </template>
 
