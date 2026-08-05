@@ -51,6 +51,19 @@ const elbowMidX = computed(() => (start.value.x + end.value.x) / 2)
 const selected = computed(() => store.state.selection.includes(props.connector.id))
 const style = computed(() => props.connector.style || {})
 
+// A mind-map branch is a STRUCTURAL edge (#272): it isn't independently
+// selectable/deletable (no hit path → no context menu, no delete — a child always
+// keeps its one connector), and its colour is DERIVED from the child node's border
+// rather than a stored style, falling back to the default gray for a border-less
+// node. So it always tracks the node it belongs to.
+const DEFAULT_BRANCH_COLOR = '#525252'
+const isBranch = computed(() => props.connector.role === ROLE.mindmapBranch)
+const strokeColor = computed(() => {
+  if (!isBranch.value) return style.value.color
+  const child = store.shapeById(props.connector.mindmap?.childId || props.connector.to?.shapeId)
+  return child?.border?.color || DEFAULT_BRANCH_COLOR
+})
+
 // Dash pattern scales with width so dashes/dots stay proportional at any weight.
 const dashArray = computed(() => {
   const w = style.value.width || 2.2
@@ -173,13 +186,14 @@ const editorWidth = computed(() => Math.max(72, labelWidth.value))
     </defs>
 
     <!-- Wide invisible hit path makes the thin connector easy to click; double-
-         click types a label. -->
-    <path :d="pathData" fill="none" stroke="transparent" stroke-width="14" class="cursor-pointer" @click="onConnectorClick" @dblclick="onConnectorDblClick" />
+         click types a label. Omitted for a structural mind-map branch, which must
+         not be selectable/labelable/deletable on its own (#272). -->
+    <path v-if="!isBranch" :d="pathData" fill="none" stroke="transparent" stroke-width="14" class="cursor-pointer" @click="onConnectorClick" @dblclick="onConnectorDblClick" />
 
     <path
       :d="pathData"
       fill="none"
-      :stroke="style.color"
+      :stroke="strokeColor"
       :stroke-width="style.width"
       :stroke-dasharray="dashArray"
       stroke-linecap="round"
