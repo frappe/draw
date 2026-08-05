@@ -688,9 +688,10 @@ function eraserCursor(radius, zoom) {
 }
 
 // Whiteboard placement/drawing tools show a crosshair so it's clear a click will
-// place/draw (S12: arming Text → crosshair, click starts the text box). Pen and
-// eraser get glyph cursors that look like the tool.
-const CROSSHAIR_TOOLS = ['text', 'sticky', 'line', 'table', 'highlighter']
+// place/draw (S12: arming Text → crosshair, click starts the text box). The
+// merged Draw tool (key 'pen', both its pen and highlighter sub-modes, #242) and
+// eraser get glyph cursors that look like the tool instead.
+const CROSSHAIR_TOOLS = ['text', 'sticky', 'line', 'table']
 const surfaceCursor = computed(() => {
   const tool = editorUi.state.tool
   // A starter armed for click-to-place (#75) shows the same placement crosshair as an

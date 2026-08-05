@@ -3,8 +3,9 @@
 // no text field is focused and no Cmd/Ctrl shortcut already matched, so these
 // keys are safe to treat as bare (the text-edit guard lives in useKeyboard).
 //
-// - tool letters: V select, P pen, H highlighter, E eraser, T text, S sticky,
-//   L laser, N line, G table (grid).
+// - tool letters: V select, P/H arm the merged Draw tool (#242) with the pen /
+//   highlighter sub-mode respectively, E eraser, T text, S sticky, L laser, N
+//   line, G table (grid).
 // - Tab drops an adjacent sticky after the selected one and selects it (W4).
 // - Delete/Backspace removes the selected stroke/sticky/line/table (one undoable
 //   unit, W3/G6). Returns true when consumed (useKeyboard then preventDefaults).
@@ -19,9 +20,12 @@ import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { stickyNoteById } from '@/diagram/whiteboardModel.js'
 
 const TOOL_KEYS = {
-  v: 'select', p: 'pen', h: 'highlighter', e: 'eraser',
+  v: 'select', e: 'eraser',
   t: 'text', s: 'sticky', l: 'laser', n: 'line', g: 'table',
 }
+// P and H both arm the merged Draw tool (#242) but pick a different sub-mode
+// first, so the shortcut still chooses the ink you meant.
+const DRAW_SUB_KEYS = { p: 'pen', h: 'highlighter' }
 
 export function whiteboardKeydown(event, store, editorUi) {
   if (event.altKey) return false
@@ -32,7 +36,14 @@ export function whiteboardKeydown(event, store, editorUi) {
 }
 
 function pickTool(event, editorUi) {
-  const tool = TOOL_KEYS[event.key.toLowerCase()]
+  const key = event.key.toLowerCase()
+  const drawKind = DRAW_SUB_KEYS[key]
+  if (drawKind) {
+    useWhiteboardUi().state.drawKind = drawKind
+    editorUi.setTool('pen')
+    return true
+  }
+  const tool = TOOL_KEYS[key]
   if (!tool) return false
   editorUi.setTool(tool)
   return true

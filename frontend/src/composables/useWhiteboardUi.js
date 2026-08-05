@@ -7,7 +7,7 @@
 // particular is never persisted or exported, spec C5/C10/G8).
 
 import { reactive, ref, readonly } from 'vue'
-import { PEN_COLORS, PEN_WIDTHS, STICKY_COLORS } from '@/diagram/whiteboardColors.js'
+import { PEN_COLORS, PEN_WIDTHS, STICKY_COLORS, HIGHLIGHTER_OPACITY } from '@/diagram/whiteboardColors.js'
 import { pruneTrail } from '@/diagram/laser.js'
 import { ERASER_SIZES } from '@/diagram/eraser.js'
 
@@ -22,6 +22,13 @@ function createWhiteboardUi() {
   const state = reactive({
     penColor: PEN_COLORS[0],
     penWidth: PEN_WIDTHS[1],
+    // The merged Draw tool's sub-mode (#242): 'pen' | 'highlighter', which ink the
+    // next stroke commits as. `drawOpacity` is a highlighter-only opacity
+    // preference (pen strokes always render fully opaque, unaffected by it) —
+    // applied uniformly to every highlighter stroke on the canvas rather than
+    // stored per-stroke, see WhiteboardLayer.vue's strokeOpacity().
+    drawKind: 'pen',
+    drawOpacity: HIGHLIGHTER_OPACITY,
     stickyColor: STICKY_COLORS[0],
     // Eraser (#39): 'ink' rubs out only what the tip covers, 'object' deletes the
     // whole element under it. `eraserSize` is the tip radius in canvas units.

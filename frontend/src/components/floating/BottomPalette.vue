@@ -88,8 +88,10 @@ const LINES = [
 // Everything else you place once, folded into the catalog (#90). `surface` tools
 // (pen / sticky / table) draw onto the whiteboard layer, so they only apply to the
 // unified canvas; text + image are block-owned and work on any create canvas.
+// 'pen' is the merged Draw tool (pen + highlighter, #242); its key stays 'pen'
+// (see whiteboardTools.js) even though the label reads "Draw".
 const CREATE_TOOLS = [
-  { key: 'pen', icon: 'lucide-pen-line', label: 'Pen', surface: true },
+  { key: 'pen', icon: 'lucide-pen-line', label: 'Draw', surface: true },
   { key: 'text', icon: 'lucide-type', label: 'Text', surface: false },
   { key: 'sticky', icon: 'lucide-sticky-note', label: 'Sticky note', surface: true },
   { key: 'image', icon: 'lucide-image', label: 'Image', surface: false },
@@ -224,9 +226,10 @@ const isPointerToolActive = computed(() => editorUi.state.tool === 'select' || e
 // pointer modes. None today beyond whiteboard's, which render via WhiteboardTools.
 const surfaceTools = computed(() => modeStrategy?.value?.surfaceTools || [])
 
-// On the unified bar WhiteboardTools shows ONLY the live annotation modes — pen,
-// sticky, table, text, line and image have moved into the "+" catalog, leaving
-// highlighter / eraser / laser (+ the active tool's options disclosure).
+// On the unified bar WhiteboardTools shows ONLY the live annotation modes — the
+// merged Draw tool (key 'pen', #242), sticky, table, text, line and image have
+// moved into the "+" catalog, leaving eraser / laser (+ the active tool's options
+// disclosure). Repositioning Draw onto the bar itself is #240.
 const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'table']
 
 </script>

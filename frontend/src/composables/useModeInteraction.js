@@ -30,9 +30,10 @@ const MODE_INTERACTION_KEY = 'modeInteraction'
 // collide with block on a shared canvas: 'line' (block owns the connector line),
 // 'text' and 'image' (block owns those). Legacy single-type whiteboards are
 // unaffected — the sole-registrant rule routes every tool to them regardless.
+// 'pen' also covers the merged Draw tool's highlighter sub-mode (#242) — see
+// whiteboardTools.js for why the highlighter no longer has its own tool id.
 const WHITEBOARD_TOOLS = new Set([
   'pen',
-  'highlighter',
   'eraser',
   'sticky',
   'table',

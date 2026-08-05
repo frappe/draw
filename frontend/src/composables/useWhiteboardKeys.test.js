@@ -88,7 +88,17 @@ describe('whiteboardKeydown', () => {
     for (const k of ['v', 'p', 'h', 'e', 't', 's', 'l', 'n', 'g']) {
       expect(whiteboardKeydown(key(k), makeStore(), ui), `${k} is not bound`).toBe(true)
     }
-    expect(ui.calls).toEqual(['select', 'pen', 'highlighter', 'eraser', 'text', 'sticky', 'laser', 'line', 'table'])
+    // P and H both arm the merged Draw tool (#242), whose tool id stays 'pen';
+    // the ink they choose is the sub-mode asserted in the next test.
+    expect(ui.calls).toEqual(['select', 'pen', 'pen', 'eraser', 'text', 'sticky', 'laser', 'line', 'table'])
+  })
+
+  it('P and H pick the Draw ink (#242)', () => {
+    const ui = makeUi()
+    whiteboardKeydown(key('h'), makeStore(), ui)
+    expect(useWhiteboardUi().state.drawKind).toBe('highlighter')
+    whiteboardKeydown(key('p'), makeStore(), ui)
+    expect(useWhiteboardUi().state.drawKind).toBe('pen')
   })
 
   it('leaves the number keys alone, in every tool state', () => {

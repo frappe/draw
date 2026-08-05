@@ -28,7 +28,9 @@ describe('resolveModeHandlers', () => {
 
   it('routes unambiguous whiteboard tools to the whiteboard layer when several are registered', () => {
     const reg = { whiteboard: wb, flowchart: fc }
-    for (const tool of ['pen', 'highlighter', 'eraser', 'sticky', 'table', 'laser']) {
+    // 'highlighter' is no longer a tool id — it merged into Draw (#242), which
+    // routes as 'pen' and picks its ink from ui.state.drawKind.
+    for (const tool of ['pen', 'eraser', 'sticky', 'table', 'laser']) {
       expect(resolveModeHandlers(reg, tool)).toBe(wb)
     }
   })

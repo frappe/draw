@@ -13,10 +13,12 @@ describe('visibleWhiteboardTools', () => {
   })
 
   it('drops the tools the surrounding bar already provides but keeps the eraser', () => {
-    // Mirrors BottomPalette.vue unifiedWhiteboardExclude.
+    // Mirrors BottomPalette.vue unifiedWhiteboardExclude. 'highlighter' is no
+    // longer its own tool — it merged into Draw (#242), whose tool id is 'pen'
+    // and which the catalog owns, so excluding 'pen' removes both inks.
     const exclude = ['text', 'line', 'image', 'pen', 'sticky', 'table']
     const tools = visibleWhiteboardTools(exclude).map((t) => t.tool)
-    expect(tools).toEqual(['highlighter', 'eraser', 'laser'])
+    expect(tools).toEqual(['eraser', 'laser'])
   })
 
   it('shows the whole palette when nothing is excluded', () => {

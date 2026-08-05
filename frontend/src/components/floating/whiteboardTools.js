@@ -4,9 +4,18 @@
 // here touches Vue; the .vue file renders what these return.
 
 // Every tool the whiteboard / unified bar can offer, in palette order.
+//
+// Pen + highlighter are merged into one "Draw" tool (#242): the options popover
+// (WhiteboardTools.vue) picks the ink via ui.state.drawKind ('pen'|'highlighter').
+// The internal `tool` id stays 'pen' (not 'draw') on purpose — 'draw' already names
+// the block canvas's generic shape-drag-draw tool (editorUi.state.tool +
+// drawShapeType, see stores/useEditorUi.js). Reusing that literal here would make
+// the merged Draw tool collide with rectangle/line/etc. placement on the unified
+// canvas (delegatesSurface() in DiagramCanvas.vue routes surface events by tool
+// name), so the label reads "Draw" while the tool id keeps its established 'pen'
+// identity.
 export const WHITEBOARD_TOOLS = [
-  { tool: 'pen', icon: 'pen-line', label: 'Pen' },
-  { tool: 'highlighter', icon: 'highlighter', label: 'Highlighter' },
+  { tool: 'pen', icon: 'pen-line', label: 'Draw' },
   { tool: 'eraser', icon: 'eraser', label: 'Eraser' },
   { tool: 'text', icon: 'type', label: 'Text' },
   { tool: 'sticky', icon: 'sticky-note', label: 'Sticky note' },

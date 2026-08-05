@@ -64,7 +64,10 @@ function onPointerDown(event, context, ctx) {
   if (event.button !== 0) return
   const { store, editorUi, ui, drawing, erasing, lining, lasering } = ctx
   const tool = editorUi.state.tool
-  if (tool === 'pen' || tool === 'highlighter') return beginStroke(context, ui, drawing, tool)
+  // The merged Draw tool (#242) is armed as 'pen'; which ink it lays down is
+  // ui.state.drawKind ('pen' | 'highlighter'), threaded through to beginStroke so
+  // the committed stroke's persisted `kind` still reads 'pen'/'highlighter'.
+  if (tool === 'pen') return beginStroke(context, ui, drawing, ui.state.drawKind)
   if (tool === 'eraser') return beginErase(context, store, ui, erasing)
   if (tool === 'laser') {
     lasering.active = true
