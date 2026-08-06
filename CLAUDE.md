@@ -1,7 +1,7 @@
 # Draw (Frappe Draw) — Development Guide
 
 Frappe Draw is a Vue 3 single-page diagram editor built as a Frappe app. The app
-module is "Frappe Draw" at `draw/`. The SPA is in `frontend/` and serves at route
+directory is `draw/`, and its Frappe module is `Draw`. The SPA is in `frontend/` and serves at route
 `/draw`. DocTypes `Draw Diagram`, `Draw Folder`, and `Draw Comment` already exist.
 
 ## Source of truth — read before coding
@@ -38,8 +38,8 @@ This bench ships its own scoped copies of these skills under
    generated utility and renders nothing. `frontend/src/frappe-ui-tokens.test.js`
    fails if one reappears.
 2. The SVG canvas is the exception. Shapes, connectors, and paper use literal
-   colors and the per-canvas `--t*` theme variables. The canvas stays light in
-   dark mode.
+   color values, not chrome tokens. The canvas stays light in dark mode. See
+   `design/CONVENTIONS.md` for the canvas color model.
 3. Dark mode recolors chrome only, through `data-theme="dark"` on the app root.
 4. Brand violet `#6846E3` is for the logomark and avatar only. Chrome stays
    neutral gray.
