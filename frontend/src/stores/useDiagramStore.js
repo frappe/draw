@@ -10,7 +10,7 @@ import { clone } from '@/utils/clone.js'
 import { findThemePreset, DEFAULT_THEME_PRESET } from '@/diagram/theme.js'
 import { createDiagramDocument, SCHEMA_VERSION, DEFAULT_DIAGRAM_TYPE } from '@/diagram/schema.js'
 import { addChild, addSibling, addRootNode, createMindMap, subtreeIds } from '@/diagram/mindmapModel.js'
-import { isMindmapShape, isFlowchartShape, flattenSubmodels } from '@/diagram/freeFloating.js'
+import { ROLE, isMindmapShape, isFlowchartShape, flattenSubmodels } from '@/diagram/freeFloating.js'
 import { mindmapModelFromShapes } from '@/diagram/freeFloatingGraph.js'
 import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild, flowchartLayoutPatches, mindmapLayoutPatches } from '@/diagram/freeFloatingOps.js'
 import { useAppSettings } from '@/composables/useAppSettings.js'
@@ -191,6 +191,38 @@ function commitStarter(store, state, history, label, submodels, view, origin = n
 // helpers inside commit() so each is one undoable unit (Part G6); layout is
 // derived from the model, never stored. No-ops for non-mindmap diagrams.
 function attachMindMap(store, state, history) {
+  // Write a set of mind-map layout patches back onto the live shapes/connectors.
+  // Shared by the auto-tidy on add (#273) and the explicit Tidy up; the caller runs
+  // it INSIDE a commit() so the re-flow lands in the same undoable unit as the edit.
+  const applyMindmapPatches = (patches) => {
+    for (const patch of patches.nodes) {
+      const shape = state.shapes.find((s) => s.id === patch.id)
+      if (!shape) continue
+      shape.x = patch.x
+      shape.y = patch.y
+    }
+    for (const patch of patches.edges) {
+      const connector = state.connectors.find((c) => c.id === patch.id)
+      if (!connector) continue
+      if (connector.from) connector.from.anchor = patch.fromAnchor
+      if (connector.to) connector.to.anchor = patch.toAnchor
+    }
+  }
+  // Re-flow the whole tree the shape belongs to (auto-tidy per #273), pinned by its
+  // root, so a freshly added node and its shoved-aside siblings settle into the
+  // balanced layout at once. Must run inside the caller's commit().
+  const reflowTree = (memberId) =>
+    applyMindmapPatches(mindmapLayoutPatches(state.shapes, state.connectors, memberId))
+
+  // Densely renumber one parent's child shapes 0..n-1 by their current order (both
+  // sides together — each side's relative order is preserved as a subsequence of the
+  // global sort), keeping the order tags clean integers after a fractional insert.
+  const renumberChildShapes = (parentShapeId) =>
+    state.shapes
+      .filter((s) => s.role === ROLE.mindmapNode && s.mindmap?.parentId === parentShapeId)
+      .sort((a, b) => (a.mindmap?.order ?? 0) - (b.mindmap?.order ?? 0))
+      .forEach((shape, i) => (shape.mindmap.order = i))
+
   // Add a child as a free-floating tagged shape + branch connector (free-floating
   // #122), one undoable unit. Used when the parent is a migrated mind-map SHAPE.
   const addChildShape = (parentShapeId, side) => {
@@ -203,6 +235,50 @@ function attachMindMap(store, state, history) {
     history.commit('Add child', () => {
       state.shapes.push(built.shape)
       state.connectors.push(built.connector)
+      reflowTree(parentShapeId)
+    })
+    return built.shape.id
+  }
+  // Gap insertion (#265): add a child at a specific ordinal `index` among the
+  // parent's children on `side`, instead of always appending. Slots the new child
+  // between the neighbours at that ordinal, then re-flows the tree — all one undoable
+  // unit — so the "+" the user clicked (above / between / below existing children) is
+  // exactly where the new node lands. The sibling group is scoped to the clicked side
+  // (root children carry an explicit side; a deeper node's children all share its one
+  // branch side), so inserting on one side never disturbs the other's ordering.
+  const addChildAt = (parentShapeId, side, index) => {
+    const parentShape = state.shapes.find((s) => s.id === parentShapeId)
+    const defaultShaped = useAppSettings().settings.mindmapChildStyle === 'shape'
+    const built = buildMindmapChild(state.shapes, parentShapeId, state.themePreset, side, defaultShaped)
+    if (!built) return null
+    built.shape.zIndex = nextZIndex(state)
+    const parentIsRoot = !parentShape.mindmap?.parentId
+    const targetSide = built.shape.mindmap.side
+    history.commit('Add child', () => {
+      // The same-side siblings in laid-out order. A root's children interleave both
+      // sides in their global order, so read the ordinal against JUST this side.
+      const sameSide = state.shapes
+        .filter(
+          (s) =>
+            s.role === ROLE.mindmapNode &&
+            s.mindmap?.parentId === parentShapeId &&
+            (!parentIsRoot || s.mindmap?.side === targetSide),
+        )
+        .sort((a, b) => (a.mindmap?.order ?? 0) - (b.mindmap?.order ?? 0))
+      // A fractional order that lands the new child at ordinal `index`: before the
+      // first, between a neighbouring pair, or after the last. renumberChildShapes
+      // densifies it back to a clean integer once it is in place.
+      const orderAt = (i) => sameSide[i].mindmap.order ?? 0
+      let order
+      if (!sameSide.length) order = 0
+      else if (index <= 0) order = orderAt(0) - 0.5
+      else if (index >= sameSide.length) order = orderAt(sameSide.length - 1) + 0.5
+      else order = (orderAt(index - 1) + orderAt(index)) / 2
+      built.shape.mindmap.order = order
+      state.shapes.push(built.shape)
+      state.connectors.push(built.connector)
+      renumberChildShapes(parentShapeId)
+      reflowTree(parentShapeId)
     })
     return built.shape.id
   }
@@ -213,6 +289,15 @@ function attachMindMap(store, state, history) {
     if (!state.mindmap) return null
     let id = null
     history.commit('Add child', () => (id = addChild(state.mindmap, parentId, '', side)))
+    return id
+  }
+  // Gap-insertion add (#265): insert a child at ordinal `index` on `side` and select
+  // it so its own gap handles appear, ready to keep adding. Migrated shapes only —
+  // the "+" handles the pointer op drives never target a legacy sub-model node.
+  store.addChildNodeAt = (parentShapeId, side = null, index = 0) => {
+    if (!isMindmapShape(state.shapes.find((s) => s.id === parentShapeId))) return null
+    const id = addChildAt(parentShapeId, side, index)
+    if (id) store.select([id])
     return id
   }
   // First idea on an empty map (spec: blank mind map starts truly empty).
@@ -232,6 +317,7 @@ function attachMindMap(store, state, history) {
       history.commit('Add sibling', () => {
         state.shapes.push(built.shape)
         state.connectors.push(built.connector)
+        reflowTree(built.shape.mindmap.parentId)
       })
       return built.shape.id
     }
@@ -291,20 +377,7 @@ function attachMindMap(store, state, history) {
   store.applyMindmapShapeLayout = (label, rootId) => {
     const patches = mindmapLayoutPatches(state.shapes, state.connectors, rootId)
     if (!patches.nodes.length) return
-    history.commit(label, () => {
-      for (const patch of patches.nodes) {
-        const shape = state.shapes.find((s) => s.id === patch.id)
-        if (!shape) continue
-        shape.x = patch.x
-        shape.y = patch.y
-      }
-      for (const patch of patches.edges) {
-        const connector = state.connectors.find((c) => c.id === patch.id)
-        if (!connector) continue
-        if (connector.from) connector.from.anchor = patch.fromAnchor
-        if (connector.to) connector.to.anchor = patch.toAnchor
-      }
-    })
+    history.commit(label, () => applyMindmapPatches(patches))
   }
 }
 

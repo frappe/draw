@@ -13,6 +13,7 @@ import {
   insertMindmapNode,
   insertFlowchartNode,
   mindmapAddHandles,
+  surfaceBox,
   flowchartAddHandles,
   ffShape,
   marqueeOver,
@@ -258,7 +259,11 @@ test.describe('unified canvas: free-floating mind map & flowchart', () => {
 
     await insertMindmapNode(page) // the new root drops straight into text edit (#263)
     await page.keyboard.press('Escape') // finish typing the root before growing children
-    // The mouse affordance appears for the sole-selected node (#118).
+    // The "+" handles are hover-only (#265) and the node was created on the click
+    // (so the click's own move never hovered it) — move the pointer onto the node now.
+    const box = await surfaceBox(page)
+    await page.mouse.move(box.x + 12, box.y + 12) // off the node…
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2) // …then onto it
     await expect(mindmapAddHandles(page).first()).toBeVisible()
 
     await page.keyboard.press('Tab') // the keyboard grows a child from the selected node

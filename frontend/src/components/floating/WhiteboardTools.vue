@@ -134,7 +134,7 @@ function insertTable({ rows, cols }, close) {
     <template #body-main>
       <!-- Pen: color + width. -->
       <div v-if="activeTool === 'pen'" class="w-48 p-2">
-        <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Color</div>
+        <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">Color</div>
         <div class="mb-2 grid grid-cols-8 gap-1.5">
           <button
             v-for="c in CHALK_COLORS"
@@ -145,7 +145,7 @@ function insertTable({ rows, cols }, close) {
             @click="ui.state.penColor = c"
           />
         </div>
-        <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Width</div>
+        <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">Width</div>
         <div class="flex gap-2">
           <button
             v-for="w in PEN_WIDTHS"
@@ -161,7 +161,7 @@ function insertTable({ rows, cols }, close) {
 
       <!-- Eraser: mode + tip size (#39). The canvas cursor shows the real tip. -->
       <div v-else-if="activeTool === 'eraser'" class="w-48 p-2">
-        <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Mode</div>
+        <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">Mode</div>
         <div class="mb-2 flex flex-col gap-1">
           <button
             v-for="m in ERASER_MODES"
@@ -175,7 +175,7 @@ function insertTable({ rows, cols }, close) {
             <LucideIcon v-if="ui.state.eraserMode === m.key" name="check" class="ml-auto h-4 w-4 text-ink-gray-9" />
           </button>
         </div>
-        <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Size</div>
+        <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">Size</div>
         <div class="flex gap-2">
           <button
             v-for="size in ERASER_SIZES"
@@ -191,7 +191,7 @@ function insertTable({ rows, cols }, close) {
 
       <!-- Highlighter: color. -->
       <div v-else-if="activeTool === 'highlighter'" class="w-48 p-2">
-        <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Color</div>
+        <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">Color</div>
         <div class="grid grid-cols-8 gap-1.5">
           <button
             v-for="c in CHALK_COLORS"
@@ -206,7 +206,7 @@ function insertTable({ rows, cols }, close) {
 
       <!-- Sticky: color. -->
       <div v-else-if="activeTool === 'sticky'" class="w-48 p-2">
-        <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Color</div>
+        <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">Color</div>
         <div class="grid grid-cols-9 gap-1.5">
           <button
             v-for="c in STICKY_COLORS"

@@ -143,7 +143,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
         </template>
         <template #body-main>
           <div class="w-[196px] p-2">
-            <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Node type</div>
+            <div class="mb-1 text-[10px] font-semibold text-ink-gray-4">Node type</div>
             <div class="grid grid-cols-5 gap-1.5">
               <button
                 v-for="type in NODE_TYPES"
@@ -171,7 +171,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
         </template>
         <template #body-main>
           <div class="w-[204px] p-2">
-            <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Fill</div>
+            <div class="mb-1.5 text-[10px] font-semibold text-ink-gray-4">Fill</div>
             <SwatchGrid :colors="SWATCH_PALETTE" shape="square" class="mb-2" @select="setFill" />
             <button class="flex w-full items-center justify-center gap-1 rounded-md border border-outline-gray-2 py-1 text-[12px] text-ink-gray-6 hover:bg-surface-gray-2" @click="setFill('none')">
               No fill
@@ -191,7 +191,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
         </template>
         <template #body-main>
           <div class="w-[204px] p-2">
-            <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Border</div>
+            <div class="mb-1.5 text-[10px] font-semibold text-ink-gray-4">Border</div>
             <SwatchGrid :colors="SWATCH_PALETTE" shape="ring" class="mb-2" @select="setBorder" />
             <button class="flex w-full items-center justify-center gap-1 rounded-md border border-outline-gray-2 py-1 text-[12px] text-ink-gray-6 hover:bg-surface-gray-2" @click="setBorder(null)">
               Default border
@@ -225,7 +225,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
         </template>
         <template #body-main>
           <div class="w-[236px] p-2">
-            <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Branches</div>
+            <div class="mb-1 text-[10px] font-semibold text-ink-gray-4">Branches</div>
             <div class="flex flex-col gap-1.5">
               <div v-for="branch in node.branches" :key="branch.port" class="flex items-center gap-1.5">
                 <input

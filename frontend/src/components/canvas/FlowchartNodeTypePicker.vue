@@ -21,7 +21,7 @@ const options = NODE_TYPES.map((type) => ({
     @pointerdown.stop
     @pointerup.stop
   >
-    <div class="px-2.5 pb-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">
+    <div class="px-2.5 pb-1 pt-0.5 text-[10px] font-semibold text-ink-gray-5">
       Add node
     </div>
     <!-- Two columns, no scroll — every type is visible at once. -->
