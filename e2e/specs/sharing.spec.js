@@ -43,14 +43,27 @@ function memberRow(page, email) {
   return page.locator('div').filter({ hasText: new RegExp(`^${email}$`) }).first()
 }
 
-// General access is a Writer-style tier menu now (#106), not a <select>: click the
-// trigger to open the tier list, then pick the tier by its stable test id. The tiers
-// are 'restricted' | 'site_users_view' | 'public_view' — the old two-state
+// General access is a frappe-ui <Select> (#292, tiers from #106): click the trigger
+// to open the tier list, then pick the tier by its visible label. The tiers are
+// 'restricted' | 'site_users_view' | 'public_view' — the old two-state
 // 'link'/'restricted' select is gone. The trigger carries the live tier as its
 // data-value, so a caller can wait on it once a change has round-tripped.
+//
+// Options are picked by label rather than a test id: Select renders its own rows
+// via reka-ui and does not forward arbitrary attributes onto them.
+const GENERAL_ACCESS_LABELS = {
+  restricted: 'Restricted',
+  site_users_view: 'All site users can view',
+  public_view: 'Anyone with the link can view',
+}
+
 async function setGeneralAccess(page, tier) {
   await page.getByTestId('general-access-trigger').click()
-  await page.getByTestId(`general-access-option-${tier}`).click()
+  await page
+    .getByRole('option')
+    .filter({ hasText: GENERAL_ACCESS_LABELS[tier] })
+    .first()
+    .click()
 }
 
 test.describe('sharing: inviting people', () => {

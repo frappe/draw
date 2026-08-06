@@ -28,7 +28,13 @@ describe('ShareMenu general-access tiers', () => {
       'site_users_view',
       'public_view',
     ])
-    expect(GENERAL_ACCESS_OPTIONS.map((o) => o.icon)).toEqual(['lock', 'building-2', 'globe'])
+    // Complete lucide utility classes, not bare names — Tailwind's JIT only
+    // emits classes it can read literally in the source (#292).
+    expect(GENERAL_ACCESS_OPTIONS.map((o) => o.icon)).toEqual([
+      'lucide-lock',
+      'lucide-building-2',
+      'lucide-globe',
+    ])
   })
 
   it('is view-only: no edit option on general access', () => {
@@ -36,8 +42,11 @@ describe('ShareMenu general-access tiers', () => {
   })
 
   it('drives the tier menu from the shared option list, with per-tier icons', () => {
-    expect(source).toMatch(/v-for="opt in generalAccessOptions"/)
-    expect(source).toMatch(/:name="opt\.icon"/)
+    // The tier menu is a frappe-ui <Select> (#292), so the list is bound as
+    // :options rather than iterated with v-for. accessSelectOptions is derived
+    // from generalAccessOptions and carries each tier's icon through.
+    expect(source).toMatch(/:options="accessSelectOptions"/)
+    expect(source).toMatch(/generalAccessOptions\.map/)
     expect(source).toContain('share.setGeneralAccess')
   })
 
@@ -57,8 +66,10 @@ describe('ShareMenu per-member options', () => {
   })
 
   it('renders the per-member roles from the shared list and a Remove control', () => {
-    expect(source).toMatch(/v-for="r in memberRoleOptions"/)
-    expect(source).toMatch(/aria-label="Remove"/)
+    // Roles are frappe-ui <Select>s bound to the shared list (#292), and the
+    // Remove control is a <Button> whose accessible name names the member.
+    expect(source).toMatch(/:options="memberRoleOptions"/)
+    expect(source).toMatch(/:label="`Remove \$\{m\.user\}`"/)
     expect(source).toContain('share.setMemberRole')
     expect(source).toContain('share.removeMember')
   })

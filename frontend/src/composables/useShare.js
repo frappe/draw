@@ -22,9 +22,11 @@ const SHARE = {
 // copy. This is the single source of truth the Share dialog renders; general access
 // is VIEW ONLY, so there is deliberately no edit tier here.
 export const GENERAL_ACCESS_OPTIONS = [
-  { value: 'restricted', label: 'Restricted', description: 'Only people with access can open the link', icon: 'lock' },
-  { value: 'site_users_view', label: 'All site users can view', description: 'Everyone signed in to this site', icon: 'building-2' },
-  { value: 'public_view', label: 'Anyone with the link can view', description: 'No sign-in required', icon: 'globe' },
+  // `icon` holds the COMPLETE lucide utility class: Tailwind's JIT only emits
+  // classes it can read literally, so `lucide-${name}` produces no CSS.
+  { value: 'restricted', label: 'Restricted', description: 'Only people with access can open the link', icon: 'lucide-lock' },
+  { value: 'site_users_view', label: 'All site users can view', description: 'Everyone signed in to this site', icon: 'lucide-building-2' },
+  { value: 'public_view', label: 'Anyone with the link can view', description: 'No sign-in required', icon: 'lucide-globe' },
 ]
 
 // Per-member access levels shown in the People list (removal is a separate control).

@@ -66,7 +66,7 @@ describe('general-access options (what the dialog renders)', () => {
       'site_users_view',
       'public_view',
     ])
-    expect(GENERAL_ACCESS_OPTIONS.map((o) => o.icon)).toEqual(['lock', 'building-2', 'globe'])
+    expect(GENERAL_ACCESS_OPTIONS.map((o) => o.icon)).toEqual(['lucide-lock', 'lucide-building-2', 'lucide-globe'])
     for (const o of GENERAL_ACCESS_OPTIONS) expect(o.label).toBeTruthy()
   })
 

@@ -8,7 +8,7 @@
 // Native <select>s for the per-user roles so the change event is reliable.
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Button, Dialog, Avatar } from 'frappe-ui'
+import { Avatar, Button, Dialog, ItemListRow, Select, TextInput } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { loadDiagram } from '@/data/diagrams.js'
 import { GENERAL_ACCESS_OPTIONS, MEMBER_ROLE_OPTIONS, useShare } from '@/composables/useShare.js'
@@ -52,18 +52,24 @@ async function invite(user) {
 }
 
 // General access is a single VIEW-ONLY tier (issue #106): restricted / all site
-// users / anyone with the link. A small popover shows each tier with its icon;
-// setGeneralAccess queues the change so a rapid re-pick is never dropped.
+// users / anyone with the link. A Select shows each tier with its icon and
+// helper line; setGeneralAccess queues the change so a rapid re-pick is never
+// dropped.
 const generalAccessOptions = GENERAL_ACCESS_OPTIONS
 const memberRoleOptions = MEMBER_ROLE_OPTIONS
-const accessMenuOpen = ref(false)
+// The tier list already stores each icon's complete lucide class.
+const accessSelectOptions = generalAccessOptions.map((option) => ({
+  value: option.value,
+  label: option.label,
+  description: option.description,
+  icon: option.icon,
+}))
 const currentAccess = computed(
   () =>
     generalAccessOptions.find((o) => o.value === share.generalAccess.value) ||
     generalAccessOptions[0],
 )
 function chooseAccess(level) {
-  accessMenuOpen.value = false
   share.setGeneralAccess(level)
 }
 
@@ -91,58 +97,32 @@ async function doCopy() {
         <!-- General access (first, Writer order): one VIEW-ONLY tier for everyone. -->
         <div>
           <p class="mb-2 text-sm font-medium text-ink-gray-7">General access</p>
-          <div class="relative">
-            <button
-              type="button"
-              data-testid="general-access-trigger"
-              :data-value="currentAccess.value"
-              class="flex w-full items-center gap-2.5 rounded-md border border-outline-gray-2 bg-surface-base px-3 py-2 text-left hover:border-outline-gray-3"
-              aria-haspopup="listbox"
-              :aria-expanded="accessMenuOpen"
-              @click="accessMenuOpen = !accessMenuOpen"
-            >
-              <span class="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-surface-gray-2 text-ink-gray-7">
-                <LucideIcon :name="currentAccess.icon" class="h-4 w-4" />
-              </span>
-              <span class="min-w-0 flex-1">
-                <span class="block truncate text-[13px] font-medium text-ink-gray-8">{{ currentAccess.label }}</span>
-                <span class="block truncate text-[11px] text-ink-gray-5">{{ currentAccess.description }}</span>
-              </span>
-              <LucideIcon name="chevron-down" class="h-4 w-4 flex-none text-ink-gray-5" />
-            </button>
-
-            <!-- Tier menu. The transparent backdrop closes it on an outside click. -->
-            <template v-if="accessMenuOpen">
-              <div class="fixed inset-0 z-10" @click="accessMenuOpen = false" />
-              <ul
-                role="listbox"
-                aria-label="General access"
-                class="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-md border border-outline-gray-2 bg-surface-base py-1 shadow-lg"
+          <Select
+            :model-value="share.generalAccess.value"
+            :options="accessSelectOptions"
+            size="lg"
+            variant="outline"
+            aria-label="General access"
+            @update:model-value="chooseAccess"
+          >
+            <template #prefix>
+              <span
+                class="flex size-8 flex-none items-center justify-center rounded-full bg-surface-gray-2 text-ink-gray-7"
               >
-                <li v-for="opt in generalAccessOptions" :key="opt.value">
-                  <button
-                    type="button"
-                    role="option"
-                    :data-testid="'general-access-option-' + opt.value"
-                    :aria-selected="opt.value === share.generalAccess.value"
-                    class="flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-surface-gray-2"
-                    @click="chooseAccess(opt.value)"
-                  >
-                    <LucideIcon :name="opt.icon" class="h-4 w-4 flex-none text-ink-gray-6" />
-                    <span class="min-w-0 flex-1">
-                      <span class="block truncate text-[13px] text-ink-gray-8">{{ opt.label }}</span>
-                      <span class="block truncate text-[11px] text-ink-gray-5">{{ opt.description }}</span>
-                    </span>
-                    <LucideIcon
-                      v-if="opt.value === share.generalAccess.value"
-                      name="check"
-                      class="h-4 w-4 flex-none text-ink-gray-7"
-                    />
-                  </button>
-                </li>
-              </ul>
+                <span :class="currentAccess.icon" class="size-4" aria-hidden="true" />
+              </span>
             </template>
-          </div>
+            <template #trigger="{ label }">
+              <span
+                data-testid="general-access-trigger"
+                :data-value="currentAccess.value"
+                class="min-w-0 flex-1 text-left"
+              >
+                <span class="block truncate text-base font-medium text-ink-gray-8">{{ label }}</span>
+                <span class="block truncate text-sm text-ink-gray-5">{{ currentAccess.description }}</span>
+              </span>
+            </template>
+          </Select>
         </div>
 
         <!-- People -->
@@ -152,11 +132,14 @@ async function doCopy() {
           <!-- Invite by email + role. -->
           <div class="relative flex gap-2">
             <div class="relative flex-1">
-              <input
+              <TextInput
                 v-model="query"
+                class="w-full"
                 type="text"
+                size="lg"
+                variant="outline"
                 placeholder="Add people by email…"
-                class="h-9 w-full rounded-md border border-outline-gray-2 bg-surface-base px-3 text-sm text-ink-gray-8 outline-none focus:border-outline-gray-3"
+                label="Add people by email"
                 @keydown.enter="query.trim() && invite(query.trim())"
               />
               <!-- Search results dropdown. -->
@@ -164,27 +147,33 @@ async function doCopy() {
                 v-if="results.length"
                 class="absolute left-0 right-0 top-10 z-10 max-h-56 overflow-auto rounded-md border border-outline-gray-2 bg-surface-base py-1 shadow-lg"
               >
-                <button
+                <ItemListRow
                   v-for="u in results"
                   :key="u.name"
-                  class="flex w-full items-center gap-2.5 px-3 py-1.5 text-left hover:bg-surface-gray-2"
+                  as="button"
+                  size="lg"
+                  class="w-full"
                   @click="invite(u.name)"
                 >
-                  <Avatar size="sm" :image="u.user_image" :label="u.full_name || u.name" />
-                  <span class="min-w-0">
-                    <span class="block truncate text-[13px] text-ink-gray-8">{{ u.full_name || u.name }}</span>
-                    <span class="block truncate text-[11px] text-ink-gray-5">{{ u.name }}</span>
-                  </span>
-                </button>
+                  <template #prefix>
+                    <Avatar size="sm" :image="u.user_image" :label="u.full_name || u.name" />
+                  </template>
+                  <template #label>
+                    <span class="min-w-0 text-left">
+                      <span class="block truncate text-base text-ink-gray-8">{{ u.full_name || u.name }}</span>
+                      <span class="block truncate text-sm text-ink-gray-5">{{ u.name }}</span>
+                    </span>
+                  </template>
+                </ItemListRow>
               </div>
             </div>
-            <select
+            <Select
               v-model="inviteRole"
+              :options="memberRoleOptions"
+              size="lg"
+              variant="outline"
               aria-label="Access level for the person being added"
-              class="h-9 rounded-md border border-outline-gray-2 bg-surface-base px-2 text-sm text-ink-gray-8 outline-none"
-            >
-              <option v-for="r in memberRoleOptions" :key="r.value" :value="r.value">{{ r.label }}</option>
-            </select>
+            />
           </div>
 
           <!-- Members list (owner first, then shared users). -->
@@ -203,22 +192,23 @@ async function doCopy() {
                 <div class="truncate text-[13px] text-ink-gray-8">{{ m.full_name || m.user }}</div>
                 <div class="truncate text-[11px] text-ink-gray-5">{{ m.user }}</div>
               </div>
-              <select
-                :value="m.level || (m.can_edit ? 'edit' : 'view')"
+              <Select
+                :model-value="m.level || (m.can_edit ? 'edit' : 'view')"
+                :options="memberRoleOptions"
+                size="md"
+                variant="outline"
                 :aria-label="`Access level for ${m.user}`"
-                class="h-8 rounded-md border border-outline-gray-2 bg-surface-base px-2 text-[13px] text-ink-gray-8 outline-none"
-                @change="share.setMemberRole(m.user, $event.target.value)"
-              >
-                <option v-for="r in memberRoleOptions" :key="r.value" :value="r.value">{{ r.label }}</option>
-              </select>
-              <button
-                class="flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-5 hover:bg-surface-gray-2"
-                title="Remove"
-                aria-label="Remove"
+                @update:model-value="share.setMemberRole(m.user, $event)"
+              />
+              <Button
+                variant="ghost"
+                theme="gray"
+                size="md"
+                icon="lucide-x"
+                tooltip="Remove"
+                :label="`Remove ${m.user}`"
                 @click="share.removeMember(m.user)"
-              >
-                <LucideIcon name="x" class="h-4 w-4" />
-              </button>
+              />
             </div>
           </div>
         </div>
