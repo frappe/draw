@@ -37,9 +37,12 @@ This bench ships its own scoped copies of these skills under
    example `border-ink-gray-9`, `bg-surface-white`, `text-ink-white`) has no
    generated utility and renders nothing. `frontend/src/frappe-ui-tokens.test.js`
    fails if one reappears.
-2. The SVG canvas is the exception. Shapes, connectors, and paper use literal
-   color values, not chrome tokens. The canvas stays light in dark mode. See
-   `design/CONVENTIONS.md` for the canvas color model.
+2. The SVG canvas is the exception. It uses literal color values and per-canvas
+   theme presets, not chrome tokens. Shapes read the preset triad through `--t*`
+   CSS variables that `DiagramCanvas` sets on the canvas wrapper via
+   `data-fdpreset`. The presets live in `diagram/theme.js` (ocean, slate, violet,
+   sunset). Connectors are neutral gray, independent of the preset. The canvas
+   stays light in dark mode.
 3. Dark mode recolors chrome only, through `data-theme="dark"` on the app root.
 4. Brand violet `#6846E3` is for the logomark and avatar only. Chrome stays
    neutral gray.
