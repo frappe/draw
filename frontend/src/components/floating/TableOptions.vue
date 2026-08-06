@@ -4,7 +4,7 @@
 // (T2); in 'edit' mode (a selected table) that picker is hidden and the size is
 // adjusted with add/remove row & column steppers instead. Pure: emits a patch.
 import { ref, computed } from 'vue'
-import LucideIcon from '@/icons/LucideIcon.vue'
+import { Button } from 'frappe-ui'
 import { CHALK_COLORS } from '@/diagram/whiteboardColors.js'
 
 const props = defineProps({
@@ -65,25 +65,17 @@ function step(field, delta) {
     <div class="mb-2 flex items-center justify-between">
       <span class="text-[12px] text-ink-gray-7">Rows</span>
       <div class="flex items-center gap-1.5">
-        <button class="flex h-6 w-6 items-center justify-center rounded text-ink-gray-7 hover:bg-surface-gray-2" @click="step('rows', -1)">
-          <LucideIcon name="minus" class="h-3.5 w-3.5" />
-        </button>
+        <Button variant="ghost" theme="gray" size="sm" icon="lucide-minus" label="Remove row" @click="step('rows', -1)" />
         <span class="w-5 text-center text-[13px] font-medium text-ink-gray-9">{{ rows }}</span>
-        <button class="flex h-6 w-6 items-center justify-center rounded text-ink-gray-7 hover:bg-surface-gray-2" @click="step('rows', 1)">
-          <LucideIcon name="plus" class="h-3.5 w-3.5" />
-        </button>
+        <Button variant="ghost" theme="gray" size="sm" icon="lucide-plus" label="Add row" @click="step('rows', 1)" />
       </div>
     </div>
     <div class="mb-2 flex items-center justify-between">
       <span class="text-[12px] text-ink-gray-7">Columns</span>
       <div class="flex items-center gap-1.5">
-        <button class="flex h-6 w-6 items-center justify-center rounded text-ink-gray-7 hover:bg-surface-gray-2" @click="step('cols', -1)">
-          <LucideIcon name="minus" class="h-3.5 w-3.5" />
-        </button>
+        <Button variant="ghost" theme="gray" size="sm" icon="lucide-minus" label="Remove column" @click="step('cols', -1)" />
         <span class="w-5 text-center text-[13px] font-medium text-ink-gray-9">{{ cols }}</span>
-        <button class="flex h-6 w-6 items-center justify-center rounded text-ink-gray-7 hover:bg-surface-gray-2" @click="step('cols', 1)">
-          <LucideIcon name="plus" class="h-3.5 w-3.5" />
-        </button>
+        <Button variant="ghost" theme="gray" size="sm" icon="lucide-plus" label="Add column" @click="step('cols', 1)" />
       </div>
     </div>
     <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">Color</div>

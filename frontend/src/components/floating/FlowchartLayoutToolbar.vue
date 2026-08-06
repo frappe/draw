@@ -10,8 +10,7 @@
 // the selected shape already shows the block selection editor there, and these are
 // map-wide actions (they re-flow the whole chart), not per-node edits.
 import { computed } from 'vue'
-import { Tooltip } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
+import { Button } from 'frappe-ui'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { isFlowchartShape } from '@/diagram/freeFloating.js'
@@ -55,9 +54,6 @@ function flip() {
 function number() {
   store.applyFlowchartShapeLayout('Number steps', (m) => autoNumberFlow(m), rootId.value)
 }
-
-const btn =
-  'flex h-8 items-center gap-1.5 rounded-md px-2 text-[13px] text-ink-gray-7 hover:bg-surface-gray-2'
 </script>
 
 <template>
@@ -67,24 +63,33 @@ const btn =
       data-flow-layout-toolbar
       class="fixed left-1/2 top-[14px] z-20 flex -translate-x-1/2 items-center gap-0.5 rounded-lg border border-outline-gray-2 bg-surface-base p-1 shadow-lg"
     >
-      <Tooltip text="Tidy up — re-flow the whole chart">
-        <button :class="btn" @click="tidy">
-          <LucideIcon name="grid" class="h-4 w-4" />
-          <span>Tidy up</span>
-        </button>
-      </Tooltip>
-      <Tooltip :text="direction === 'TB' ? 'Flow left → right' : 'Flow top → bottom'">
-        <button :class="btn" @click="flip">
-          <LucideIcon :name="direction === 'TB' ? 'arrow-right' : 'arrow-down'" class="h-4 w-4" />
-          <span>Flip</span>
-        </button>
-      </Tooltip>
-      <Tooltip :text="numbered ? 'Clear step numbers' : 'Number the steps'">
-        <button :class="[btn, numbered && 'bg-surface-gray-3 text-ink-gray-9']" @click="number">
-          <LucideIcon name="list" class="h-4 w-4" />
-          <span>Number</span>
-        </button>
-      </Tooltip>
+      <Button
+        variant="ghost"
+        theme="gray"
+        size="md"
+        icon-left="lucide-grid-2x2"
+        label="Tidy up"
+        tooltip="Tidy up — re-flow the whole chart"
+        @click="tidy"
+      />
+      <Button
+        variant="ghost"
+        theme="gray"
+        size="md"
+        :icon-left="direction === 'TB' ? 'lucide-arrow-right' : 'lucide-arrow-down'"
+        label="Flip"
+        :tooltip="direction === 'TB' ? 'Flow left → right' : 'Flow top → bottom'"
+        @click="flip"
+      />
+      <Button
+        :variant="numbered ? 'subtle' : 'ghost'"
+        theme="gray"
+        size="md"
+        icon-left="lucide-list"
+        label="Number"
+        :tooltip="numbered ? 'Clear step numbers' : 'Number the steps'"
+        @click="number"
+      />
     </div>
   </Teleport>
 </template>

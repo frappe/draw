@@ -11,8 +11,7 @@
 // selected shape already shows the block selection editor there, and Tidy is a map-wide
 // action (it re-flows the whole tree), not a per-node edit.
 import { computed } from 'vue'
-import { Tooltip } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
+import { Button } from 'frappe-ui'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { isMindmapShape } from '@/diagram/freeFloating.js'
@@ -33,9 +32,6 @@ function tidy() {
   editorUi.pulseLayoutAnimation()
   store.applyMindmapShapeLayout('Tidy up', rootId.value)
 }
-
-const btn =
-  'flex h-8 items-center gap-1.5 rounded-md px-2 text-[13px] text-ink-gray-7 hover:bg-surface-gray-2'
 </script>
 
 <template>
@@ -45,12 +41,15 @@ const btn =
       data-mindmap-layout-toolbar
       class="fixed left-1/2 top-[14px] z-20 flex -translate-x-1/2 items-center gap-0.5 rounded-lg border border-outline-gray-2 bg-surface-base p-1 shadow-lg"
     >
-      <Tooltip text="Tidy up — re-flow the whole mind map">
-        <button :class="btn" @click="tidy">
-          <LucideIcon name="grid" class="h-4 w-4" />
-          <span>Tidy up</span>
-        </button>
-      </Tooltip>
+      <Button
+        variant="ghost"
+        theme="gray"
+        size="md"
+        icon-left="lucide-grid-2x2"
+        label="Tidy up"
+        tooltip="Tidy up — re-flow the whole mind map"
+        @click="tidy"
+      />
     </div>
   </Teleport>
 </template>

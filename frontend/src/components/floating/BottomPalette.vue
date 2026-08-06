@@ -7,8 +7,7 @@
 // the guides control stay on the bar so switching them never needs a menu. Legacy
 // single-type docs keep their own map/tool actions. Wired to editorUi + viewport.
 import { computed, ref } from 'vue'
-import { Tooltip, Popover, TextInput } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
+import { Button, Popover, TextInput } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
@@ -206,10 +205,13 @@ function endTileDrag(close) {
 // mode is currently active, and the tooltip names the mode a click switches to
 // (mirroring flowFlip's "Switch to …" wording below). The underlying tool value
 // stays literally 'select' or 'hand' — DiagramCanvas/useKeyboard read those directly.
+// `icon` holds the COMPLETE lucide utility class. Tailwind's JIT only emits
+// classes it can read literally in the source, so both spellings have to appear
+// here rather than being built as `lucide-${name}` in the template.
 const pointerMode = computed(() =>
   editorUi.state.tool === 'hand'
-    ? { icon: 'hand', label: 'Switch to Select' }
-    : { icon: 'mouse-pointer', label: 'Switch to Hand' },
+    ? { icon: 'lucide-hand', label: 'Switch to Select' }
+    : { icon: 'lucide-mouse-pointer', label: 'Switch to Hand' },
 )
 function togglePointerTool() {
   editorUi.setTool(editorUi.state.tool === 'hand' ? 'select' : 'hand')
@@ -225,12 +227,6 @@ const surfaceTools = computed(() => modeStrategy?.value?.surfaceTools || [])
 // highlighter / eraser / laser (+ the active tool's options disclosure).
 const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'table']
 
-const buttonBase =
-  'flex h-[34px] w-[34px] items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2'
-function toggleClass(active) {
-  return active ? 'bg-surface-gray-2 text-ink-gray-9' : ''
-}
-const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-surface-gray-2'
 </script>
 
 <template>
@@ -243,28 +239,30 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
          side clusters keep the "+" in the middle (#90). -->
     <template v-if="isCreateCanvas">
       <div class="flex flex-1 basis-0 items-center justify-end gap-1">
-        <Tooltip :text="pointerMode.label">
-          <button
-            :class="[buttonBase, toggleClass(isPointerToolActive)]"
-            @click="togglePointerTool"
-          >
-            <LucideIcon :name="pointerMode.icon" class="h-4 w-4" />
-          </button>
-        </Tooltip>
+        <Button
+          :variant="isPointerToolActive ? 'subtle' : 'ghost'"
+          theme="gray"
+          size="md"
+          :icon="pointerMode.icon"
+          :tooltip="pointerMode.label"
+          :label="pointerMode.label"
+          @click="togglePointerTool"
+        />
       </div>
 
       <!-- The primary "add" action: a larger, solid, circular "+" (#83). -->
       <Popover>
         <template #target="{ togglePopover }">
-          <Tooltip text="Add">
-            <button
-              class="mx-1 flex h-[38px] w-[38px] items-center justify-center rounded-full bg-surface-gray-10 text-ink-base shadow-sm transition-colors hover:bg-surface-gray-9 active:bg-surface-gray-8"
-              aria-label="Add"
-              @click="togglePopover()"
-            >
-              <LucideIcon name="plus" class="h-5 w-5" />
-            </button>
-          </Tooltip>
+          <Button
+            class="mx-1 !size-[38px] !rounded-full shadow-sm"
+            variant="solid"
+            theme="gray"
+            size="lg"
+            icon="lucide-plus"
+            tooltip="Add"
+            label="Add"
+            @click="togglePopover()"
+          />
         </template>
         <template #body-main="{ togglePopover }">
           <!-- Six-across catalog: wider than tall, everything visible at a glance. -->
@@ -280,32 +278,41 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
 
             <div v-if="filteredShapes.length" class="mb-1 text-[10px] font-semibold text-ink-gray-4">Shapes</div>
             <div v-if="filteredShapes.length" class="grid grid-cols-6 gap-1">
-              <Tooltip v-for="s in filteredShapes" :key="s.type" :text="s.label">
-                <button
-                  :class="[tileBase, isArmed(s.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
-                  :draggable="!NON_DRAGGABLE_SHAPES.includes(s.type)"
-                  @click="arm(s.type, togglePopover)"
-                  @dragstart="startTileDrag($event, s.type)"
-                  @dragend="endTileDrag(togglePopover)"
-                >
+              <Button
+                v-for="s in filteredShapes"
+                :key="s.type"
+                :variant="isArmed(s.type) ? 'subtle' : 'ghost'"
+                theme="gray"
+                size="md"
+                :tooltip="s.label"
+                :label="s.label"
+                :draggable="!NON_DRAGGABLE_SHAPES.includes(s.type)"
+                @click="arm(s.type, togglePopover)"
+                @dragstart="startTileDrag($event, s.type)"
+                @dragend="endTileDrag(togglePopover)"
+              >
+                <template #icon>
                   <ShapeGlyph family="block" :type="s.type" class="h-[18px] w-[18px]" />
-                </button>
-              </Tooltip>
+                </template>
+              </Button>
             </div>
 
             <div v-if="filteredLines.length" class="mb-1 mt-2.5 text-[10px] font-semibold text-ink-gray-4">Lines &amp; connectors</div>
             <div v-if="filteredLines.length" class="grid grid-cols-6 gap-1">
-              <Tooltip v-for="con in filteredLines" :key="con.type" :text="con.label">
-                <button
-                  :class="[tileBase, isArmed(con.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
-                  draggable="true"
-                  @click="arm(con.type, togglePopover)"
-                  @dragstart="startTileDrag($event, con.type)"
-                  @dragend="endTileDrag(togglePopover)"
-                >
-                  <LucideIcon :name="con.icon" class="h-[18px] w-[18px]" />
-                </button>
-              </Tooltip>
+              <Button
+                v-for="con in filteredLines"
+                :key="con.type"
+                :variant="isArmed(con.type) ? 'subtle' : 'ghost'"
+                theme="gray"
+                size="md"
+                :icon="`lucide-${con.icon}`"
+                :tooltip="con.label"
+                :label="con.label"
+                draggable="true"
+                @click="arm(con.type, togglePopover)"
+                @dragstart="startTileDrag($event, con.type)"
+                @dragend="endTileDrag(togglePopover)"
+              />
             </div>
 
             <div v-if="filteredTools.length" class="mb-1 mt-2.5 text-[10px] font-semibold text-ink-gray-4">Draw &amp; insert</div>
@@ -315,49 +322,57 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
                      closes the picker and the catalog (#134). -->
                 <Popover v-if="t.key === 'table'">
                   <template #target="{ togglePopover: togglePicker }">
-                    <Tooltip :text="t.label">
-                      <button :class="[tileBase, 'text-ink-gray-7']" @click="togglePicker()">
-                        <LucideIcon :name="t.icon" class="h-[18px] w-[18px]" />
-                      </button>
-                    </Tooltip>
+                    <Button variant="ghost" theme="gray" size="md" :icon="`lucide-${t.icon}`" :tooltip="t.label" :label="t.label" @click="togglePicker()" />
                   </template>
                   <template #body-main="{ togglePopover: closePicker }">
                     <TableSizePicker @pick="insertTable($event); closePicker(); togglePopover()" />
                   </template>
                 </Popover>
-                <Tooltip v-else :text="t.label">
-                  <button
-                    :class="[tileBase, isCreateToolActive(t) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
-                    @click="runCreateTool(t, togglePopover)"
-                  >
-                    <LucideIcon :name="t.icon" class="h-[18px] w-[18px]" />
-                  </button>
-                </Tooltip>
+                <Button
+                  v-else
+                  :variant="isCreateToolActive(t) ? 'subtle' : 'ghost'"
+                  theme="gray"
+                  size="md"
+                  :icon="`lucide-${t.icon}`"
+                  :tooltip="t.label"
+                  :label="t.label"
+                  @click="runCreateTool(t, togglePopover)"
+                />
               </template>
             </div>
 
             <div v-if="showMindmap" class="mb-1 mt-2.5 text-[10px] font-semibold text-ink-gray-4">Mind map</div>
             <div v-if="showMindmap" class="grid grid-cols-6 gap-1">
-              <Tooltip text="Parent Node">
-                <button
-                  :class="[tileBase, isMindmapStarterArmed() ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
-                  @click="insertMindmap(togglePopover)"
-                >
+              <Button
+                :variant="isMindmapStarterArmed() ? 'subtle' : 'ghost'"
+                theme="gray"
+                size="md"
+                tooltip="Parent Node"
+                label="Parent Node"
+                @click="insertMindmap(togglePopover)"
+              >
+                <template #icon>
                   <ShapeGlyph family="mindmap" class="h-[18px] w-[18px]" />
-                </button>
-              </Tooltip>
+                </template>
+              </Button>
             </div>
 
             <div v-if="filteredFlowchartNodes.length" class="mb-1 mt-2.5 text-[10px] font-semibold text-ink-gray-4">Flowchart</div>
             <div v-if="filteredFlowchartNodes.length" class="grid grid-cols-6 gap-1">
-              <Tooltip v-for="n in filteredFlowchartNodes" :key="n.type" :text="n.label">
-                <button
-                  :class="[tileBase, isFlowchartStarterArmed(n.type) ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7']"
-                  @click="insertFlowchartNode(n.type, togglePopover)"
-                >
+              <Button
+                v-for="n in filteredFlowchartNodes"
+                :key="n.type"
+                :variant="isFlowchartStarterArmed(n.type) ? 'subtle' : 'ghost'"
+                theme="gray"
+                size="md"
+                :tooltip="n.label"
+                :label="n.label"
+                @click="insertFlowchartNode(n.type, togglePopover)"
+              >
+                <template #icon>
                   <ShapeGlyph family="flowchart" :type="n.type" class="h-[18px] w-[18px]" />
-                </button>
-              </Tooltip>
+                </template>
+              </Button>
             </div>
 
             <p v-if="hasNoMatches" class="px-1 py-2 text-center text-xs text-ink-gray-4">No matches</p>
@@ -376,38 +391,45 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
     <!-- LEGACY single-type docs (mind map / flowchart / whiteboard): their own
          pointer modes + map/tool actions + guides, unchanged. -->
     <template v-else>
-      <Tooltip :text="pointerMode.label">
-        <button
-          :class="[buttonBase, toggleClass(isPointerToolActive)]"
-          @click="togglePointerTool"
-        >
-          <LucideIcon :name="pointerMode.icon" class="h-4 w-4" />
-        </button>
-      </Tooltip>
+      <Button
+        :variant="isPointerToolActive ? 'subtle' : 'ghost'"
+        theme="gray"
+        size="md"
+        :icon="pointerMode.icon"
+        :tooltip="pointerMode.label"
+        :label="pointerMode.label"
+        @click="togglePointerTool"
+      />
 
       <!-- Mind map: map-wide actions (per-node editing is in the floating toolbar). -->
       <template v-if="isMindmap">
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-        <Tooltip text="Collapse all">
-          <button :class="buttonBase" @click="collapseAll(store, true)"><LucideIcon name="chevrons-down-up" class="h-4 w-4" /></button>
-        </Tooltip>
-        <Tooltip text="Expand all">
-          <button :class="buttonBase" @click="collapseAll(store, false)"><LucideIcon name="chevrons-up-down" class="h-4 w-4" /></button>
-        </Tooltip>
+        <Button variant="ghost" theme="gray" size="md" icon="lucide-chevrons-down-up" tooltip="Collapse all" label="Collapse all" @click="collapseAll(store, true)" />
+        <Button variant="ghost" theme="gray" size="md" icon="lucide-chevrons-up-down" tooltip="Expand all" label="Expand all" @click="collapseAll(store, false)" />
       </template>
 
       <!-- Flowchart: map-wide layout actions. -->
       <template v-if="isFlowchart">
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-        <Tooltip text="Tidy up">
-          <button :class="buttonBase" @click="flowTidy"><LucideIcon name="grid" class="h-4 w-4" /></button>
-        </Tooltip>
-        <Tooltip :text="flowDirection === 'TB' ? 'Switch to left → right' : 'Switch to top → bottom'">
-          <button :class="buttonBase" @click="flowFlip"><LucideIcon :name="flowDirection === 'TB' ? 'arrow-right' : 'arrow-down'" class="h-4 w-4" /></button>
-        </Tooltip>
-        <Tooltip :text="flowNumbered ? 'Clear numbers' : 'Number steps'">
-          <button :class="[buttonBase, toggleClass(flowNumbered)]" @click="flowNumber"><LucideIcon name="list" class="h-4 w-4" /></button>
-        </Tooltip>
+        <Button variant="ghost" theme="gray" size="md" icon="lucide-grid-2x2" tooltip="Tidy up" label="Tidy up" @click="flowTidy" />
+        <Button
+          variant="ghost"
+          theme="gray"
+          size="md"
+          :icon="flowDirection === 'TB' ? 'lucide-arrow-right' : 'lucide-arrow-down'"
+          :tooltip="flowDirection === 'TB' ? 'Switch to left → right' : 'Switch to top → bottom'"
+          label="Flow direction"
+          @click="flowFlip"
+        />
+        <Button
+          :variant="flowNumbered ? 'subtle' : 'ghost'"
+          theme="gray"
+          size="md"
+          icon="lucide-list"
+          :tooltip="flowNumbered ? 'Clear numbers' : 'Number steps'"
+          label="Number steps"
+          @click="flowNumber"
+        />
       </template>
 
       <!-- Whiteboard tools: full set for a whiteboard doc. -->
@@ -416,14 +438,17 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
       <!-- Any other type declaring extra surface tools (seam; none today). -->
       <template v-else-if="surfaceTools.length">
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-        <Tooltip v-for="modeTool in surfaceTools" :key="modeTool.tool" :text="modeTool.label">
-          <button
-            :class="[buttonBase, toggleClass(editorUi.state.tool === modeTool.tool)]"
-            @click="editorUi.setTool(modeTool.tool)"
-          >
-            <LucideIcon :name="modeTool.icon" class="h-4 w-4" />
-          </button>
-        </Tooltip>
+        <Button
+          v-for="modeTool in surfaceTools"
+          :key="modeTool.tool"
+          :variant="editorUi.state.tool === modeTool.tool ? 'subtle' : 'ghost'"
+          theme="gray"
+          size="md"
+          :icon="`lucide-${modeTool.icon}`"
+          :tooltip="modeTool.label"
+          :label="modeTool.label"
+          @click="editorUi.setTool(modeTool.tool)"
+        />
       </template>
     </template>
   </div>

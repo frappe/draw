@@ -17,7 +17,10 @@ describe('the Parent Node catalog tile (#255)', () => {
   const src = readSrc('./BottomPalette.vue')
 
   it('labels the mind-map tile "Parent Node"', () => {
-    expect(src).toContain('<Tooltip text="Parent Node">')
+    // The tile is a frappe-ui <Button> (#289), so the label rides its `tooltip`
+    // (hover text) and `label` (accessible name) props rather than a <Tooltip>.
+    expect(src).toContain('tooltip="Parent Node"')
+    expect(src).toContain('label="Parent Node"')
   })
 
   it('stays findable under both "parent" and "mind" catalog searches', () => {

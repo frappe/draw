@@ -4,8 +4,7 @@
 // in its own group, consistently for EVERY diagram type (block/flowchart/
 // mindmap/whiteboard). Wired to the shared viewport + editorUi.
 import { computed, ref, nextTick } from 'vue'
-import { TextInput, Tooltip } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
+import { Button, TextInput } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import GuidesMenu from './GuidesMenu.vue'
@@ -17,9 +16,6 @@ const modeStrategy = useModeStrategy()
 // Guides live here now (next to fit-to-view) rather than in the create palette
 // (#95). Still hidden on the whiteboard, where a dotted grid isn't wanted (Q4).
 const isWhiteboard = computed(() => modeStrategy?.value?.type === 'whiteboard')
-
-const buttonBase =
-  'flex h-[34px] w-[34px] items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2'
 
 // Click the zoom % to type an exact value (spec 1.6).
 const zoomEditing = ref(false)
@@ -46,11 +42,7 @@ const zoomPercent = computed(() => editorUi.zoomPercent)
   <div
     class="absolute bottom-[18px] left-3 z-10 flex items-center gap-1 rounded-[10px] border border-outline-gray-1 bg-surface-base p-[5px] shadow-lg"
   >
-    <Tooltip text="Zoom out">
-      <button :class="buttonBase" @click="viewport.zoomStep(-1)">
-        <LucideIcon name="minus" class="h-4 w-4" />
-      </button>
-    </Tooltip>
+    <Button variant="ghost" theme="gray" size="md" icon="lucide-minus" tooltip="Zoom out" label="Zoom out" @click="viewport.zoomStep(-1)" />
     <TextInput
       v-if="zoomEditing"
       ref="zoomInput"
@@ -65,25 +57,21 @@ const zoomPercent = computed(() => editorUi.zoomPercent)
       @keydown.esc="zoomEditing = false"
       @blur="commitZoom"
     />
-    <Tooltip v-else text="Click to set zoom (⌘0 = 100%, ⇧1 = fit)">
-      <button
-        class="h-[34px] min-w-[46px] rounded-md px-1.5 text-xs font-medium text-ink-gray-7 hover:bg-surface-gray-2"
-        @click="startZoomEdit"
-      >
-        {{ zoomPercent }}%
-      </button>
-    </Tooltip>
-    <Tooltip text="Zoom in">
-      <button :class="buttonBase" @click="viewport.zoomStep(1)">
-        <LucideIcon name="plus" class="h-4 w-4" />
-      </button>
-    </Tooltip>
+    <Button
+      v-else
+      class="min-w-[46px]"
+      variant="ghost"
+      theme="gray"
+      size="md"
+      tooltip="Click to set zoom (⌘0 = 100%, ⇧1 = fit)"
+      label="Set zoom level"
+      @click="startZoomEdit"
+    >
+      <span class="text-sm font-medium tabular-nums">{{ zoomPercent }}%</span>
+    </Button>
+    <Button variant="ghost" theme="gray" size="md" icon="lucide-plus" tooltip="Zoom in" label="Zoom in" @click="viewport.zoomStep(1)" />
     <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-    <Tooltip text="Fit to view">
-      <button :class="buttonBase" @click="editorUi.fit()">
-        <LucideIcon name="maximize" class="h-4 w-4" />
-      </button>
-    </Tooltip>
+    <Button variant="ghost" theme="gray" size="md" icon="lucide-maximize" tooltip="Fit to view" label="Fit to view" @click="editorUi.fit()" />
     <template v-if="!isWhiteboard">
       <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
       <GuidesMenu />
