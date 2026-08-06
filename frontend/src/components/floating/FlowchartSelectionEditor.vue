@@ -4,8 +4,7 @@
 // wide layout actions live in the bottom palette. Positioned above the node,
 // tracking pan/zoom. Mounted once per editor (EditorShell).
 import { computed } from 'vue'
-import { Popover, TextInput, Tooltip } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
+import { Button, Popover, TextInput } from 'frappe-ui'
 import SwatchGrid from '@/components/floating/SwatchGrid.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
@@ -26,11 +25,13 @@ const store = useDiagramStore()
 
 // Per-type icons for the picker grid (these SHOULD differ per type). The toolbar
 // trigger uses one standardized icon instead of mirroring the node.
+// Complete lucide utility classes, not bare names: Tailwind's JIT only emits
+// classes it can read literally, so `lucide-${name}` yields no CSS at all.
 const TYPE_ICONS = {
-  terminator: 'circle-play', process: 'square', decision: 'git-branch',
-  inputOutput: 'log-in', document: 'file-text', database: 'database',
-  predefinedProcess: 'columns-2', manualInput: 'type', preparation: 'hexagon',
-  offPageRef: 'pentagon', connector: 'circle',
+  terminator: 'lucide-circle-play', process: 'lucide-square', decision: 'lucide-git-branch',
+  inputOutput: 'lucide-log-in', document: 'lucide-file-text', database: 'lucide-database',
+  predefinedProcess: 'lucide-columns-2', manualInput: 'lucide-type', preparation: 'lucide-hexagon',
+  offPageRef: 'lucide-pentagon', connector: 'lucide-circle',
 }
 
 const model = computed(() => store.state.flowchart)
@@ -122,7 +123,6 @@ function remove() {
   store.removeFlowchartNodes(nodes.value.map((n) => n.id))
 }
 
-const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2'
 </script>
 
 <template>
@@ -136,26 +136,24 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
       <!-- Node type — single selection only. -->
       <Popover v-if="node" side="top">
         <template #target="{ togglePopover }">
-          <Tooltip text="Node type">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()">
-              <LucideIcon name="shapes" class="h-4 w-4" />
-            </button>
-          </Tooltip>
+          <Button variant="ghost" theme="gray" size="md" icon="lucide-shapes" tooltip="Node type" label="Node type" @mousedown.prevent @click="togglePopover()" />
         </template>
         <template #body-main>
           <div class="w-[196px] p-2">
             <div class="mb-1 text-[10px] font-semibold text-ink-gray-4">Node type</div>
             <div class="grid grid-cols-5 gap-1.5">
-              <button
+              <Button
                 v-for="type in NODE_TYPES"
                 :key="type"
-                class="flex h-10 items-center justify-center rounded-md border hover:bg-surface-gray-1"
-                :class="node.nodeType === type ? 'border-outline-gray-9 bg-surface-gray-2' : 'border-outline-gray-1'"
-                :title="NODE_TYPE_META[type].label"
+                class="!w-full"
+                size="lg"
+                theme="gray"
+                :variant="node.nodeType === type ? 'subtle' : 'outline'"
+                :icon="TYPE_ICONS[type]"
+                :tooltip="NODE_TYPE_META[type].label"
+                :label="NODE_TYPE_META[type].label"
                 @click="swap(type)"
-              >
-                <LucideIcon :name="TYPE_ICONS[type]" class="h-4 w-4 text-ink-gray-7" />
-              </button>
+              />
             </div>
           </div>
         </template>
@@ -164,19 +162,17 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
       <!-- Fill -->
       <Popover side="top">
         <template #target="{ togglePopover }">
-          <Tooltip text="Fill">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()">
+          <Button variant="ghost" theme="gray" size="md" tooltip="Fill" label="Fill" @mousedown.prevent @click="togglePopover()">
+            <template #icon>
               <span class="h-4 w-4 rounded-full border border-black/10" :style="{ background: fillPreview }" />
-            </button>
-          </Tooltip>
+            </template>
+          </Button>
         </template>
         <template #body-main>
           <div class="w-[204px] p-2">
             <div class="mb-1.5 text-[10px] font-semibold text-ink-gray-4">Fill</div>
             <SwatchGrid :colors="SWATCH_PALETTE" shape="square" class="mb-2" @select="setFill" />
-            <button class="flex w-full items-center justify-center gap-1 rounded-md border border-outline-gray-2 py-1 text-[12px] text-ink-gray-6 hover:bg-surface-gray-2" @click="setFill('none')">
-              No fill
-            </button>
+            <Button class="w-full" variant="outline" theme="gray" size="sm" label="No fill" @click="setFill('none')" />
           </div>
         </template>
       </Popover>
@@ -184,19 +180,17 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
       <!-- Border — its own menu, rendered as rings so it reads as a border. -->
       <Popover side="top">
         <template #target="{ togglePopover }">
-          <Tooltip text="Border">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()">
+          <Button variant="ghost" theme="gray" size="md" tooltip="Border" label="Border" @mousedown.prevent @click="togglePopover()">
+            <template #icon>
               <span class="h-4 w-4 rounded-full border-[3px]" :style="{ borderColor: borderPreview }" />
-            </button>
-          </Tooltip>
+            </template>
+          </Button>
         </template>
         <template #body-main>
           <div class="w-[204px] p-2">
             <div class="mb-1.5 text-[10px] font-semibold text-ink-gray-4">Border</div>
             <SwatchGrid :colors="SWATCH_PALETTE" shape="ring" class="mb-2" @select="setBorder" />
-            <button class="flex w-full items-center justify-center gap-1 rounded-md border border-outline-gray-2 py-1 text-[12px] text-ink-gray-6 hover:bg-surface-gray-2" @click="setBorder(null)">
-              Default border
-            </button>
+            <Button class="w-full" variant="outline" theme="gray" size="sm" label="Default border" @click="setBorder(null)" />
           </div>
         </template>
       </Popover>
@@ -206,23 +200,21 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
       <!-- Text formatting inline (consistent with block diagrams): size, bold,
            italic, alignment. -->
       <div class="flex items-center rounded-md border border-outline-gray-2">
-        <button class="flex h-8 w-6 items-center justify-center text-ink-gray-6 hover:bg-surface-gray-2" @click="stepFontSize(-1)"><LucideIcon name="minus" class="h-3.5 w-3.5" /></button>
-        <span class="w-6 text-center text-[12px] tabular-nums text-ink-gray-8">{{ fontSize }}</span>
-        <button class="flex h-8 w-6 items-center justify-center text-ink-gray-6 hover:bg-surface-gray-2" @click="stepFontSize(1)"><LucideIcon name="plus" class="h-3.5 w-3.5" /></button>
+        <Button variant="ghost" theme="gray" size="md" class="!w-6" icon="lucide-minus" label="Decrease font size" @click="stepFontSize(-1)" />
+        <span class="w-6 text-center text-sm tabular-nums text-ink-gray-8">{{ fontSize }}</span>
+        <Button variant="ghost" theme="gray" size="md" class="!w-6" icon="lucide-plus" label="Increase font size" @click="stepFontSize(1)" />
       </div>
-      <Tooltip text="Bold"><button :class="[btn, tstyle.bold && 'bg-surface-gray-3 text-ink-gray-9']" @click="toggleMark('bold')"><LucideIcon name="bold" class="h-4 w-4" /></button></Tooltip>
-      <Tooltip text="Italic"><button :class="[btn, tstyle.italic && 'bg-surface-gray-3 text-ink-gray-9']" @click="toggleMark('italic')"><LucideIcon name="italic" class="h-4 w-4" /></button></Tooltip>
-      <Tooltip text="Strikethrough"><button :class="[btn, tstyle.strike && 'bg-surface-gray-3 text-ink-gray-9']" @click="toggleMark('strike')"><LucideIcon name="strikethrough" class="h-4 w-4" /></button></Tooltip>
-      <Tooltip text="Align left"><button :class="[btn, (tstyle.align||'center')==='left' && 'bg-surface-gray-3 text-ink-gray-9']" @click="setTextAlign('left')"><LucideIcon name="text-align-start" class="h-4 w-4" /></button></Tooltip>
-      <Tooltip text="Align center"><button :class="[btn, (tstyle.align||'center')==='center' && 'bg-surface-gray-3 text-ink-gray-9']" @click="setTextAlign('center')"><LucideIcon name="text-align-center" class="h-4 w-4" /></button></Tooltip>
-      <Tooltip text="Align right"><button :class="[btn, (tstyle.align||'center')==='right' && 'bg-surface-gray-3 text-ink-gray-9']" @click="setTextAlign('right')"><LucideIcon name="text-align-end" class="h-4 w-4" /></button></Tooltip>
+      <Button :variant="tstyle.bold ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-bold" tooltip="Bold" label="Bold" @click="toggleMark('bold')" />
+      <Button :variant="tstyle.italic ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-italic" tooltip="Italic" label="Italic" @click="toggleMark('italic')" />
+      <Button :variant="tstyle.strike ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-strikethrough" tooltip="Strikethrough" label="Strikethrough" @click="toggleMark('strike')" />
+      <Button :variant="(tstyle.align || 'center') === 'left' ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-text-align-start" tooltip="Align left" label="Align left" @click="setTextAlign('left')" />
+      <Button :variant="(tstyle.align || 'center') === 'center' ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-text-align-center" tooltip="Align center" label="Align center" @click="setTextAlign('center')" />
+      <Button :variant="(tstyle.align || 'center') === 'right' ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-text-align-end" tooltip="Align right" label="Align right" @click="setTextAlign('right')" />
 
       <!-- Decision branches — single selection only. -->
       <Popover v-if="node && node.nodeType === 'decision'" side="top">
         <template #target="{ togglePopover }">
-          <Tooltip text="Branches">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="git-branch" class="h-4 w-4" /></button>
-          </Tooltip>
+          <Button variant="ghost" theme="gray" size="md" icon="lucide-git-branch" tooltip="Branches" label="Branches" @mousedown.prevent @click="togglePopover()" />
         </template>
         <template #body-main>
           <div class="w-[236px] p-2">
@@ -236,24 +228,16 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
                   :label="`Branch ${branch.port} label`"
                   @update:model-value="setBranchLabel(branch.port, $event)"
                 />
-                <button class="flex h-7 w-7 flex-none items-center justify-center rounded-md text-ink-gray-5 hover:bg-surface-gray-2" title="Remove branch" @click="removeBranch(branch.port)">
-                  <LucideIcon name="x" class="h-4 w-4" />
-                </button>
+                <Button class="flex-none" variant="ghost" theme="gray" size="sm" icon="lucide-x" tooltip="Remove branch" label="Remove branch" @click="removeBranch(branch.port)" />
               </div>
-              <button class="mt-1 flex items-center gap-1.5 text-[13px] text-ink-gray-6 hover:text-ink-gray-9" @click="addBranch">
-                <LucideIcon name="plus" class="h-4 w-4" /> Add branch
-              </button>
+              <Button class="mt-1 self-start" variant="ghost" theme="gray" size="sm" icon-left="lucide-plus" label="Add branch" @click="addBranch" />
             </div>
           </div>
         </template>
       </Popover>
 
       <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
-      <Tooltip text="Delete node">
-        <button class="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50" @mousedown.prevent @click="remove">
-          <LucideIcon name="trash-2" class="h-4 w-4" />
-        </button>
-      </Tooltip>
+      <Button variant="ghost" theme="red" size="md" icon="lucide-trash-2" tooltip="Delete node" label="Delete node" @mousedown.prevent @click="remove" />
     </div>
   </Teleport>
 </template>

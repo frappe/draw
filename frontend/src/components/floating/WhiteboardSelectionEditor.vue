@@ -6,8 +6,7 @@
 // sticky is handled by its own richer per-note toolbar, so it's skipped here.
 // Mounted once per editor (EditorShell).
 import { computed } from 'vue'
-import { Popover, Tooltip } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
+import { Button, Popover } from 'frappe-ui'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
 import { isDragging } from '@/composables/useShapeTransform.js'
@@ -28,7 +27,7 @@ const kind = computed(() => selected.value?.kind)
 const line = computed(() => (kind.value === 'line' ? lineById(store.state.whiteboard, selected.value.id) : null))
 const table = computed(() => (kind.value === 'table' ? tableById(store.state.whiteboard, selected.value.id) : null))
 const label = computed(() => ({ line: 'Line', table: 'Table' })[kind.value] || 'Options')
-const icon = computed(() => ({ line: 'minus', table: 'table' })[kind.value] || 'edit-2')
+const icon = computed(() => ({ line: 'lucide-minus', table: 'lucide-table' })[kind.value] || 'lucide-pencil')
 
 // Show for a multi-selection, or a lone non-sticky object (a lone sticky uses its
 // own floating toolbar).
@@ -49,8 +48,6 @@ function remove() {
   store.removeWhiteboardObjects([...selection.value])
   ui.clearSelection()
 }
-
-const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2'
 </script>
 
 <template>
@@ -68,9 +65,16 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
       <!-- Lone line/table: its option controls in a popover. -->
       <Popover v-else-if="line || table" side="top">
         <template #target="{ togglePopover }">
-          <Tooltip :text="`Edit ${label.toLowerCase()}`">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon :name="icon" class="h-4 w-4" /></button>
-          </Tooltip>
+          <Button
+            variant="ghost"
+            theme="gray"
+            size="md"
+            :icon="icon"
+            :tooltip="`Edit ${label.toLowerCase()}`"
+            :label="`Edit ${label.toLowerCase()}`"
+            @mousedown.prevent
+            @click="togglePopover()"
+          />
         </template>
         <template #body-main>
           <LineOptions
@@ -92,11 +96,16 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
         </template>
       </Popover>
 
-      <Tooltip :text="multi ? 'Delete selection' : 'Delete'">
-        <button class="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50" @mousedown.prevent @click="remove">
-          <LucideIcon name="trash-2" class="h-4 w-4" />
-        </button>
-      </Tooltip>
+      <Button
+        variant="ghost"
+        theme="red"
+        size="md"
+        icon="lucide-trash-2"
+        :tooltip="multi ? 'Delete selection' : 'Delete'"
+        :label="multi ? 'Delete selection' : 'Delete'"
+        @mousedown.prevent
+        @click="remove"
+      />
     </div>
   </Teleport>
 </template>

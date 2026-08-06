@@ -14,14 +14,18 @@
 // canvas (delegatesSurface() in DiagramCanvas.vue routes surface events by tool
 // name), so the label reads "Draw" while the tool id keeps its established 'pen'
 // identity.
+//
+// `icon` holds the COMPLETE lucide utility class, not a bare name. Tailwind's
+// JIT only emits classes it can read literally in the source, so a template like
+// `lucide-${name}` produces no CSS and the icon renders blank.
 export const WHITEBOARD_TOOLS = [
-  { tool: 'pen', icon: 'pen-line', label: 'Draw' },
-  { tool: 'eraser', icon: 'eraser', label: 'Eraser' },
-  { tool: 'text', icon: 'type', label: 'Text' },
-  { tool: 'sticky', icon: 'sticky-note', label: 'Sticky note' },
-  { tool: 'line', icon: 'minus', label: 'Line' },
-  { tool: 'table', icon: 'table', label: 'Table' },
-  { tool: 'laser', icon: 'circle-dot', label: 'Laser pointer' },
+  { tool: 'pen', icon: 'lucide-pen-line', label: 'Draw' },
+  { tool: 'eraser', icon: 'lucide-eraser', label: 'Eraser' },
+  { tool: 'text', icon: 'lucide-type', label: 'Text' },
+  { tool: 'sticky', icon: 'lucide-sticky-note', label: 'Sticky note' },
+  { tool: 'line', icon: 'lucide-minus', label: 'Line' },
+  { tool: 'table', icon: 'lucide-table', label: 'Table' },
+  { tool: 'laser', icon: 'lucide-circle-dot', label: 'Laser pointer' },
 ]
 
 // Tools shown on the bar, minus any the surrounding context already provides

@@ -5,8 +5,7 @@
 // each reusing the existing modification sections so all logic (incl. multi-
 // select intersection) is shared. Mounted once per editor (EditorShell).
 import { computed } from 'vue'
-import { Popover, Tooltip, Select } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
+import { Button, Popover, Select } from 'frappe-ui'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { anchorPoint, unionBounds } from '@/diagram/geometry.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
@@ -130,7 +129,6 @@ function toggleAutoFit() {
   if (shapeIds.value.length) store.updateShapes(shapeIds.value, { text: { autoFit: !autoFit.value } })
 }
 
-const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2'
 const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
 </script>
 
@@ -146,9 +144,7 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
       <template v-if="connector">
         <Popover side="top">
           <template #target="{ togglePopover }">
-            <Tooltip text="Line">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="minus" class="h-4 w-4" /></button>
-            </Tooltip>
+            <Button variant="ghost" theme="gray" size="md" icon="lucide-minus" tooltip="Line" label="Line" @mousedown.prevent @click="togglePopover()" />
           </template>
           <template #body-main><div :class="panel"><ConnectorSection :connector="connector" /></div></template>
         </Popover>
@@ -160,22 +156,22 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
              picker); opacity lives with Fill. -->
         <Popover side="top">
           <template #target="{ togglePopover }">
-            <Tooltip text="Fill">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()">
+            <Button variant="ghost" theme="gray" size="md" tooltip="Fill" label="Fill" @mousedown.prevent @click="togglePopover()">
+              <template #icon>
                 <span class="h-4 w-4 rounded-full border border-outline-gray-4" :style="{ background: primaryFill }" />
-              </button>
-            </Tooltip>
+              </template>
+            </Button>
           </template>
           <template #body-main><div :class="panel"><FillBorderSection mode="fill" /><TransparencySection /></div></template>
         </Popover>
 
         <Popover side="top">
           <template #target="{ togglePopover }">
-            <Tooltip text="Border">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()">
+            <Button variant="ghost" theme="gray" size="md" tooltip="Border" label="Border" @mousedown.prevent @click="togglePopover()">
+              <template #icon>
                 <span class="h-4 w-4 rounded-full border-[3px] bg-surface-base" :style="{ borderColor: primaryBorder }" />
-              </button>
-            </Tooltip>
+              </template>
+            </Button>
           </template>
           <template #body-main><div :class="panel"><FillBorderSection mode="border" /></div></template>
         </Popover>
@@ -186,18 +182,18 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
              font, size, bold/italic/underline, align. -->
         <Select :model-value="font" :options="FONTS" class="h-8 w-[92px]" @update:model-value="setFont" @mousedown.stop />
         <div class="flex items-center rounded-md border border-outline-gray-2">
-          <button class="flex h-8 w-6 items-center justify-center text-ink-gray-6 hover:bg-surface-gray-2" @mousedown.prevent @click="stepFontSize(-1)"><LucideIcon name="minus" class="h-3.5 w-3.5" /></button>
-          <span class="w-6 text-center text-[12px] tabular-nums text-ink-gray-8">{{ fontSize }}</span>
-          <button class="flex h-8 w-6 items-center justify-center text-ink-gray-6 hover:bg-surface-gray-2" @mousedown.prevent @click="stepFontSize(1)"><LucideIcon name="plus" class="h-3.5 w-3.5" /></button>
+          <Button variant="ghost" theme="gray" size="md" class="!w-6" icon="lucide-minus" label="Decrease font size" @mousedown.prevent @click="stepFontSize(-1)" />
+          <span class="w-6 text-center text-sm tabular-nums text-ink-gray-8">{{ fontSize }}</span>
+          <Button variant="ghost" theme="gray" size="md" class="!w-6" icon="lucide-plus" label="Increase font size" @mousedown.prevent @click="stepFontSize(1)" />
         </div>
-        <Tooltip text="Bold"><button :class="[btn, markActive('bold') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="markText('bold')"><LucideIcon name="bold" class="h-4 w-4" /></button></Tooltip>
-        <Tooltip text="Italic"><button :class="[btn, markActive('italic') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="markText('italic')"><LucideIcon name="italic" class="h-4 w-4" /></button></Tooltip>
-        <Tooltip text="Underline"><button :class="[btn, markActive('underline') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="markText('underline')"><LucideIcon name="underline" class="h-4 w-4" /></button></Tooltip>
-        <Tooltip text="Strikethrough"><button :class="[btn, markActive('strike') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="markText('strike')"><LucideIcon name="strikethrough" class="h-4 w-4" /></button></Tooltip>
-        <Tooltip text="Align left"><button :class="[btn, alignActive('left') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="setTextAlign('left')"><LucideIcon name="text-align-start" class="h-4 w-4" /></button></Tooltip>
-        <Tooltip text="Align center"><button :class="[btn, alignActive('center') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="setTextAlign('center')"><LucideIcon name="text-align-center" class="h-4 w-4" /></button></Tooltip>
-        <Tooltip text="Align right"><button :class="[btn, alignActive('right') && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="setTextAlign('right')"><LucideIcon name="text-align-end" class="h-4 w-4" /></button></Tooltip>
-        <Tooltip text="Auto-fit text to shape"><button :class="[btn, autoFit && 'bg-surface-gray-3 text-ink-gray-9']" @mousedown.prevent @click="toggleAutoFit"><LucideIcon name="scaling" class="h-4 w-4" /></button></Tooltip>
+        <Button :variant="markActive('bold') ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-bold" tooltip="Bold" label="Bold" @mousedown.prevent @click="markText('bold')" />
+        <Button :variant="markActive('italic') ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-italic" tooltip="Italic" label="Italic" @mousedown.prevent @click="markText('italic')" />
+        <Button :variant="markActive('underline') ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-underline" tooltip="Underline" label="Underline" @mousedown.prevent @click="markText('underline')" />
+        <Button :variant="markActive('strike') ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-strikethrough" tooltip="Strikethrough" label="Strikethrough" @mousedown.prevent @click="markText('strike')" />
+        <Button :variant="alignActive('left') ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-text-align-start" tooltip="Align left" label="Align left" @mousedown.prevent @click="setTextAlign('left')" />
+        <Button :variant="alignActive('center') ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-text-align-center" tooltip="Align center" label="Align center" @mousedown.prevent @click="setTextAlign('center')" />
+        <Button :variant="alignActive('right') ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-text-align-end" tooltip="Align right" label="Align right" @mousedown.prevent @click="setTextAlign('right')" />
+        <Button :variant="autoFit ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-scaling" tooltip="Auto-fit text to shape" label="Auto-fit text to shape" @mousedown.prevent @click="toggleAutoFit" />
 
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
 
@@ -205,9 +201,7 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
              one crammed leaf; each opens just its own section. -->
         <Popover side="top">
           <template #target="{ togglePopover }">
-            <Tooltip text="Arrange">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="layers" class="h-4 w-4" /></button>
-            </Tooltip>
+            <Button variant="ghost" theme="gray" size="md" icon="lucide-layers" tooltip="Arrange" label="Arrange" @mousedown.prevent @click="togglePopover()" />
           </template>
           <template #body-main><div :class="panel"><ArrangeSection /></div></template>
         </Popover>
@@ -216,36 +210,28 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
              so a lone shape doesn't open an empty menu. -->
         <Popover v-if="multi" side="top">
           <template #target="{ togglePopover }">
-            <Tooltip text="Align">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="align-center-horizontal" class="h-4 w-4" /></button>
-            </Tooltip>
+            <Button variant="ghost" theme="gray" size="md" icon="lucide-align-center-horizontal" tooltip="Align" label="Align" @mousedown.prevent @click="togglePopover()" />
           </template>
           <template #body-main><div :class="panel"><AlignSection /></div></template>
         </Popover>
 
         <Popover v-if="multi" side="top">
           <template #target="{ togglePopover }">
-            <Tooltip text="Distribute & size">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="columns-2" class="h-4 w-4" /></button>
-            </Tooltip>
+            <Button variant="ghost" theme="gray" size="md" icon="lucide-columns-2" tooltip="Distribute & size" label="Distribute & size" @mousedown.prevent @click="togglePopover()" />
           </template>
           <template #body-main><div :class="panel"><DistributeSizeSection /></div></template>
         </Popover>
 
         <Popover side="top">
           <template #target="{ togglePopover }">
-            <Tooltip text="Transform">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="flip-horizontal-2" class="h-4 w-4" /></button>
-            </Tooltip>
+            <Button variant="ghost" theme="gray" size="md" icon="lucide-flip-horizontal-2" tooltip="Transform" label="Transform" @mousedown.prevent @click="togglePopover()" />
           </template>
           <template #body-main><div :class="panel"><TransformSection /></div></template>
         </Popover>
 
         <Popover side="top">
           <template #target="{ togglePopover }">
-            <Tooltip text="Link">
-              <button :class="btn" @mousedown.prevent @click="togglePopover()"><LucideIcon name="link" class="h-4 w-4" /></button>
-            </Tooltip>
+            <Button variant="ghost" theme="gray" size="md" icon="lucide-link" tooltip="Link" label="Link" @mousedown.prevent @click="togglePopover()" />
           </template>
           <template #body-main>
             <div :class="panel">
@@ -256,16 +242,10 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
 
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
 
-        <Tooltip text="Duplicate">
-          <button :class="btn" @mousedown.prevent @click="duplicate"><LucideIcon name="copy" class="h-4 w-4" /></button>
-        </Tooltip>
+        <Button variant="ghost" theme="gray" size="md" icon="lucide-copy" tooltip="Duplicate" label="Duplicate" @mousedown.prevent @click="duplicate" />
       </template>
 
-      <Tooltip text="Delete">
-        <button class="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50" @mousedown.prevent @click="remove">
-          <LucideIcon name="trash-2" class="h-4 w-4" />
-        </button>
-      </Tooltip>
+      <Button variant="ghost" theme="red" size="md" icon="lucide-trash-2" tooltip="Delete" label="Delete" @mousedown.prevent @click="remove" />
     </div>
   </Teleport>
 </template>

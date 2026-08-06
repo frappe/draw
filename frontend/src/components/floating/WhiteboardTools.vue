@@ -6,8 +6,7 @@
 // disclosure; board-wide settings and the selected-object editor follow. All
 // chrome is Frappe UI.
 import { computed, nextTick, ref } from 'vue'
-import { Popover, Slider, TabButtons, Tooltip } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
+import { Button, Popover, Slider, TabButtons } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
@@ -114,12 +113,6 @@ function eraserDotStyle(size) {
   return { width: `${dot}px`, height: `${dot}px` }
 }
 
-const buttonBase =
-  'flex h-[34px] w-[34px] items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2'
-function toggleClass(active) {
-  return active ? 'bg-surface-gray-2 text-ink-gray-9' : ''
-}
-
 // New-line defaults live on ui.state; LineOptions emits a partial patch and this
 // copies each present field onto the right default.
 function applyLineDefault(patch) {
@@ -152,39 +145,59 @@ function insertTable({ rows, cols }, close) {
   <template v-for="t in visibleTools" :key="t.tool">
     <Popover v-if="t.tool === 'table'">
       <template #target="{ togglePopover: togglePicker }">
-        <Tooltip :text="t.label">
-          <button :data-testid="'wtool-' + t.tool" :class="[buttonBase, toggleClass(activeTool === t.tool)]" @click="togglePicker()">
-            <LucideIcon :name="t.icon" class="h-4 w-4" />
-          </button>
-        </Tooltip>
+        <Button
+          :data-testid="'wtool-' + t.tool"
+          :variant="activeTool === t.tool ? 'subtle' : 'ghost'"
+          theme="gray"
+          size="md"
+          :icon="t.icon"
+          :tooltip="t.label"
+          :label="t.label"
+          @click="togglePicker()"
+        />
       </template>
       <template #body-main="{ togglePopover }">
         <TableSizePicker @pick="insertTable($event, togglePopover)" />
       </template>
     </Popover>
-    <Tooltip v-else :text="t.label">
-      <button :data-testid="'wtool-' + t.tool" :class="[buttonBase, toggleClass(activeTool === t.tool)]" @click="armTool(t)">
-        <LucideIcon :name="t.icon" class="h-4 w-4" />
-      </button>
-    </Tooltip>
+    <Button
+      v-else
+      :data-testid="'wtool-' + t.tool"
+      :variant="activeTool === t.tool ? 'subtle' : 'ghost'"
+      theme="gray"
+      size="md"
+      :icon="t.icon"
+      :tooltip="t.label"
+      :label="t.label"
+      @click="armTool(t)"
+    />
   </template>
 
   <!-- Insert image (action, not a tool). Hidden when the surrounding palette owns it. -->
-  <Tooltip v-if="showImageInsert" text="Insert image">
-    <button :class="buttonBase" @click="imageInsert.pick(() => editorUi.viewport.centerPoint())">
-      <LucideIcon name="image" class="h-4 w-4" />
-    </button>
-  </Tooltip>
+  <Button
+    v-if="showImageInsert"
+    variant="ghost"
+    theme="gray"
+    size="md"
+    icon="lucide-image"
+    tooltip="Insert image"
+    label="Insert image"
+    @click="imageInsert.pick(() => editorUi.viewport.centerPoint())"
+  />
 
   <!-- Options for the active tool (separate disclosure, shown only when it has any).
        Also opened directly by the eraser tool button above (#241). -->
   <Popover v-if="activeHasOptions" ref="optionsPopoverRef">
     <template #target="{ togglePopover }">
-      <Tooltip :text="optionsLabel">
-        <button :class="buttonBase" @click="togglePopover()">
-          <LucideIcon name="sliders" class="h-4 w-4" />
-        </button>
-      </Tooltip>
+      <Button
+        variant="ghost"
+        theme="gray"
+        size="md"
+        icon="lucide-sliders-horizontal"
+        :tooltip="optionsLabel"
+        :label="optionsLabel"
+        @click="togglePopover()"
+      />
     </template>
     <template #body-main>
       <!-- Draw (#242): pen/highlighter sub-mode picker, shared color, pen-only
