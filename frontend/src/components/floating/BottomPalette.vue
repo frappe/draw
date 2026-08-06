@@ -80,20 +80,20 @@ const NON_DRAGGABLE_SHAPES = ['polygon']
 // arrow connector's id is namespaced so it never collides with the 'arrow'
 // block-arrow SHAPE above (they'd both key `byType` and the draw tool).
 const LINES = [
-  { type: 'line', icon: 'minus', label: 'Line' },
-  { type: 'connector-arrow', icon: 'arrow-right', label: 'Arrow' },
-  { type: 'elbow', icon: 'corner-down-right', label: 'Elbow connector' },
-  { type: 'curved', icon: 'git-commit', label: 'Curved connector' },
+  { type: 'line', icon: 'lucide-minus', label: 'Line' },
+  { type: 'connector-arrow', icon: 'lucide-arrow-right', label: 'Arrow' },
+  { type: 'elbow', icon: 'lucide-corner-down-right', label: 'Elbow connector' },
+  { type: 'curved', icon: 'lucide-git-commit-horizontal', label: 'Curved connector' },
 ]
 // Everything else you place once, folded into the catalog (#90). `surface` tools
 // (pen / sticky / table) draw onto the whiteboard layer, so they only apply to the
 // unified canvas; text + image are block-owned and work on any create canvas.
 const CREATE_TOOLS = [
-  { key: 'pen', icon: 'pen-line', label: 'Pen', surface: true },
-  { key: 'text', icon: 'type', label: 'Text', surface: false },
-  { key: 'sticky', icon: 'sticky-note', label: 'Sticky note', surface: true },
-  { key: 'image', icon: 'image', label: 'Image', surface: false },
-  { key: 'table', icon: 'table', label: 'Table', surface: true },
+  { key: 'pen', icon: 'lucide-pen-line', label: 'Pen', surface: true },
+  { key: 'text', icon: 'lucide-type', label: 'Text', surface: false },
+  { key: 'sticky', icon: 'lucide-sticky-note', label: 'Sticky note', surface: true },
+  { key: 'image', icon: 'lucide-image', label: 'Image', surface: false },
+  { key: 'table', icon: 'lucide-table', label: 'Table', surface: true },
 ]
 // Every flowchart node type (#86): the catalog can seed a chart with any shape,
 // not just the Start terminator. ShapeGlyph draws each tile as the real node shape.
@@ -205,9 +205,11 @@ function endTileDrag(close) {
 // mode is currently active, and the tooltip names the mode a click switches to
 // (mirroring flowFlip's "Switch to …" wording below). The underlying tool value
 // stays literally 'select' or 'hand' — DiagramCanvas/useKeyboard read those directly.
-// `icon` holds the COMPLETE lucide utility class. Tailwind's JIT only emits
-// classes it can read literally in the source, so both spellings have to appear
-// here rather than being built as `lucide-${name}` in the template.
+//
+// `icon` holds the COMPLETE lucide utility class throughout this file. Tailwind's
+// JIT only emits classes it can read literally, so `lucide-${name}` produces no
+// CSS and the icon renders blank — which is why both spellings appear here rather
+// than being assembled in the template.
 const pointerMode = computed(() =>
   editorUi.state.tool === 'hand'
     ? { icon: 'lucide-hand', label: 'Switch to Select' }
@@ -305,7 +307,7 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
                 :variant="isArmed(con.type) ? 'subtle' : 'ghost'"
                 theme="gray"
                 size="md"
-                :icon="`lucide-${con.icon}`"
+                :icon="con.icon"
                 :tooltip="con.label"
                 :label="con.label"
                 draggable="true"
@@ -322,7 +324,7 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
                      closes the picker and the catalog (#134). -->
                 <Popover v-if="t.key === 'table'">
                   <template #target="{ togglePopover: togglePicker }">
-                    <Button variant="ghost" theme="gray" size="md" :icon="`lucide-${t.icon}`" :tooltip="t.label" :label="t.label" @click="togglePicker()" />
+                    <Button variant="ghost" theme="gray" size="md" :icon="t.icon" :tooltip="t.label" :label="t.label" @click="togglePicker()" />
                   </template>
                   <template #body-main="{ togglePopover: closePicker }">
                     <TableSizePicker @pick="insertTable($event); closePicker(); togglePopover()" />
@@ -333,7 +335,7 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
                   :variant="isCreateToolActive(t) ? 'subtle' : 'ghost'"
                   theme="gray"
                   size="md"
-                  :icon="`lucide-${t.icon}`"
+                  :icon="t.icon"
                   :tooltip="t.label"
                   :label="t.label"
                   @click="runCreateTool(t, togglePopover)"
@@ -444,7 +446,7 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
           :variant="editorUi.state.tool === modeTool.tool ? 'subtle' : 'ghost'"
           theme="gray"
           size="md"
-          :icon="`lucide-${modeTool.icon}`"
+          :icon="modeTool.icon"
           :tooltip="modeTool.label"
           :label="modeTool.label"
           @click="editorUi.setTool(modeTool.tool)"
