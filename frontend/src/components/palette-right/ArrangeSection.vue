@@ -19,13 +19,15 @@ const canUngroup = computed(() => shapes.value.some((shape) => shape.groupId))
 
 <template>
   <PaletteSection v-if="hasShapes" label="Arrange">
+    <!-- Two per row (#267), which is also what the now-visible 14px tile labels
+         need — "Backward" / "To front" would truncate in a 3-column tile. -->
     <div class="grid grid-cols-2 gap-1.5">
-      <ActionTile icon="chevrons-up" label="To front" @click="store.bringToFront(shapeIds)" />
-      <ActionTile icon="chevron-up" label="Forward" @click="store.bringForward(shapeIds)" />
-      <ActionTile icon="chevron-down" label="Backward" @click="store.sendBackward(shapeIds)" />
-      <ActionTile icon="chevrons-down" label="To back" @click="store.sendToBack(shapeIds)" />
-      <ActionTile v-if="canGroup" icon="group" label="Group" @click="store.group(shapeIds)" />
-      <ActionTile v-if="canUngroup" icon="ungroup" label="Ungroup" @click="store.ungroup(shapeIds)" />
+      <ActionTile icon="lucide-chevrons-up" label="To front" @click="store.bringToFront(shapeIds)" />
+      <ActionTile icon="lucide-chevron-up" label="Forward" @click="store.bringForward(shapeIds)" />
+      <ActionTile icon="lucide-chevron-down" label="Backward" @click="store.sendBackward(shapeIds)" />
+      <ActionTile icon="lucide-chevrons-down" label="To back" @click="store.sendToBack(shapeIds)" />
+      <ActionTile v-if="canGroup" icon="lucide-group" label="Group" @click="store.group(shapeIds)" />
+      <ActionTile v-if="canUngroup" icon="lucide-ungroup" label="Ungroup" @click="store.ungroup(shapeIds)" />
     </div>
   </PaletteSection>
 </template>

@@ -15,13 +15,13 @@ const shapeCount = computed(() => store.selectedShapes.length)
 
 <template>
   <PaletteSection v-if="shapeCount >= 2" label="Align">
-    <div class="grid grid-cols-6 gap-1.5">
-      <ActionTile icon="align-left" label="Left" @click="align.alignLeft()" />
-      <ActionTile icon="align-center" label="Center" @click="align.alignCenter()" />
-      <ActionTile icon="align-right" label="Right" @click="align.alignRight()" />
-      <ActionTile icon="arrow-up" label="Top" @click="align.alignTop()" />
-      <ActionTile icon="minus" label="Middle" @click="align.alignMiddle()" />
-      <ActionTile icon="arrow-down" label="Bottom" @click="align.alignBottom()" />
+    <div class="grid grid-cols-2 gap-1.5">
+      <ActionTile icon="lucide-text-align-start" label="Left" @click="align.alignLeft()" />
+      <ActionTile icon="lucide-text-align-center" label="Center" @click="align.alignCenter()" />
+      <ActionTile icon="lucide-text-align-end" label="Right" @click="align.alignRight()" />
+      <ActionTile icon="lucide-arrow-up" label="Top" @click="align.alignTop()" />
+      <ActionTile icon="lucide-minus" label="Middle" @click="align.alignMiddle()" />
+      <ActionTile icon="lucide-arrow-down" label="Bottom" @click="align.alignBottom()" />
     </div>
   </PaletteSection>
 </template>

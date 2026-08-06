@@ -20,15 +20,15 @@ const visible = computed(() => canMatch.value)
 
 <template>
   <PaletteSection v-if="visible" label="Distribute & size">
-    <div class="grid grid-cols-3 gap-1.5">
-      <ActionTile v-if="canDistribute" icon="columns" label="Dist. H" @click="dist.distributeHorizontal()" />
-      <ActionTile v-if="canDistribute" icon="rows" label="Dist. V" @click="dist.distributeVertical()" />
-      <ActionTile v-if="canDistribute" icon="minimize-2" label="Remove gaps" @click="dist.removeGaps()" />
-      <ActionTile icon="move-horizontal" label="Width" @click="dist.matchWidth()" />
-      <ActionTile icon="move-vertical" label="Height" @click="dist.matchHeight()" />
-      <ActionTile icon="maximize" label="Same size" @click="dist.matchSize()" />
-      <ActionTile icon="grid" label="Grid" @click="dist.arrangeGrid()" />
-      <ActionTile v-if="canSwap" icon="repeat" label="Swap" @click="dist.swapPositions()" />
+    <div class="grid grid-cols-2 gap-1.5">
+      <ActionTile v-if="canDistribute" icon="lucide-columns-2" label="Dist. H" @click="dist.distributeHorizontal()" />
+      <ActionTile v-if="canDistribute" icon="lucide-rows-2" label="Dist. V" @click="dist.distributeVertical()" />
+      <ActionTile v-if="canDistribute" icon="lucide-minimize-2" label="Remove gaps" @click="dist.removeGaps()" />
+      <ActionTile icon="lucide-move-horizontal" label="Width" @click="dist.matchWidth()" />
+      <ActionTile icon="lucide-move-vertical" label="Height" @click="dist.matchHeight()" />
+      <ActionTile icon="lucide-maximize" label="Same size" @click="dist.matchSize()" />
+      <ActionTile icon="lucide-grid-2x2" label="Grid" @click="dist.arrangeGrid()" />
+      <ActionTile v-if="canSwap" icon="lucide-repeat" label="Swap" @click="dist.swapPositions()" />
     </div>
   </PaletteSection>
 </template>

@@ -202,7 +202,6 @@ defineExpose({ currentColor })
     </div>
 
     <div class="mt-3 flex items-center gap-1.5">
-<<<<<<< HEAD
       <TextInput
         class="flex-1 uppercase"
         variant="outline"
