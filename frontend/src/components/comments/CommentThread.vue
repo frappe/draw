@@ -68,7 +68,7 @@ function timeAgo(iso) {
 
 <template>
   <div
-    class="rounded-lg border bg-surface-white"
+    class="rounded-lg border bg-surface-elevation-1"
     :class="[
       resolved ? 'border-outline-gray-1 opacity-70' : 'border-outline-gray-2',
       variant === 'popover' ? 'w-80 shadow-2xl' : '',

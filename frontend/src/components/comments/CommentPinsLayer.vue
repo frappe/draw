@@ -102,7 +102,7 @@ async function submitDraft(content) {
     <!-- pins -->
     <Tooltip v-for="pin in pins" :key="pin.thread.root.name" :text="commentPreview(pin.thread.root.content)">
       <button
-        class="pointer-events-auto absolute flex h-7 w-7 -translate-y-full items-center justify-center rounded-full rounded-bl-none border border-white bg-surface-gray-7 text-p-xs font-semibold text-ink-white shadow-md transition hover:bg-surface-gray-6"
+        class="pointer-events-auto absolute flex h-7 w-7 -translate-y-full items-center justify-center rounded-full rounded-bl-none border border-white bg-surface-gray-7 text-p-xs font-semibold text-white shadow-md transition hover:bg-surface-gray-6"
         :class="comments.activeThread.value === pin.thread.root.name ? 'ring-2 ring-outline-gray-3' : ''"
         :style="{ left: `${pin.left}px`, top: `${pin.top}px` }"
         @click="openThread(pin.thread)"
@@ -133,7 +133,7 @@ async function submitDraft(content) {
     <!-- draft (placing a new comment) -->
     <div
       v-if="draftCard"
-      class="pointer-events-auto absolute rounded-lg border border-outline-gray-2 bg-surface-white p-3 shadow-2xl"
+      class="pointer-events-auto absolute rounded-lg border border-outline-gray-2 bg-surface-elevation-1 p-3 shadow-2xl"
       :style="{ left: `${draftCard.cardLeft}px`, top: `${draftCard.cardTop}px`, width: `${CARD_W}px` }"
     >
       <CommentComposer autofocus placeholder="Add a comment…" @submit="submitDraft" @cancel="comments.cancelDraft()" />
