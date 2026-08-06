@@ -70,8 +70,8 @@ const groups = computed(() => [
 </script>
 
 <template>
-  <Dialog v-model="shortcutsOpen" :options="{ title: 'Keyboard shortcuts', size: '3xl' }">
-    <template #body-content>
+  <Dialog v-model:open="shortcutsOpen" title="Keyboard shortcuts" size="3xl">
+    <template #default>
       <div class="grid grid-cols-2 gap-x-8 gap-y-5">
         <section v-for="g in groups" :key="g.title">
           <h3 class="mb-2 text-sm font-semibold text-ink-gray-5">{{ g.title }}</h3>

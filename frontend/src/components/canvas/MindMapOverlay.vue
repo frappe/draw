@@ -469,11 +469,11 @@ function activeBtn(on) {
   <!-- In-product confirm for deleting nodes that have sub-branches (replaces the
        native browser confirm). -->
   <Dialog
-    :model-value="!!mindmapUi.confirmDelete"
-    :options="{ title: 'Delete nodes' }"
-    @update:model-value="(v) => { if (!v) mindmapUi.confirmDelete = null }"
+    :open="!!mindmapUi.confirmDelete"
+    title="Delete nodes"
+    @update:open="(v) => { if (!v) mindmapUi.confirmDelete = null }"
   >
-    <template #body-content>
+    <template #default>
       <p class="text-base text-ink-gray-7">{{ mindmapUi.confirmDelete?.label }}</p>
     </template>
     <template #actions>

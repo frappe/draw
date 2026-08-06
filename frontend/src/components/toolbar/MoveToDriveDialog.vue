@@ -80,8 +80,8 @@ async function moveHere() {
 </script>
 
 <template>
-  <Dialog v-model="show" :options="{ title: 'Move to folder' }">
-    <template #body-content>
+  <Dialog v-model:open="show" title="Move to folder">
+    <template #default>
       <div class="flex flex-col gap-3">
         <!-- Breadcrumb: Home down to the folder being viewed; crumbs jump up the tree. -->
         <nav v-if="driveInstalled" class="flex flex-wrap items-center gap-0.5 text-[13px]" aria-label="Folder path">

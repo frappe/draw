@@ -108,8 +108,8 @@ function frappeNow() {
     </Button>
   </Dropdown>
 
-  <Dialog v-model="showInfo" :options="{ title: 'Diagram info' }">
-    <template #body-content>
+  <Dialog v-model:open="showInfo" title="Diagram info">
+    <template #default>
       <dl class="grid grid-cols-[92px_1fr] gap-x-3 gap-y-2 text-[13px]">
         <template v-for="[label, value] in infoRows" :key="label">
           <dt class="text-ink-gray-5">{{ label }}</dt>

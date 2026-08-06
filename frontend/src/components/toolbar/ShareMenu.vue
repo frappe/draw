@@ -85,8 +85,8 @@ async function doCopy() {
     Share
   </Button>
 
-  <Dialog v-model="open" :options="{ title: dialogTitle, size: 'lg' }">
-    <template #body-content>
+  <Dialog v-model:open="open" :title="dialogTitle" size="lg">
+    <template #default>
       <div class="space-y-5">
         <!-- General access (first, Writer order): one VIEW-ONLY tier for everyone. -->
         <div>
