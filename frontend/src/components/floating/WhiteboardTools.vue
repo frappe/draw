@@ -140,7 +140,7 @@ function insertTable({ rows, cols }, close) {
             v-for="c in CHALK_COLORS"
             :key="c"
             class="h-5 w-5 rounded-full border"
-            :class="ui.state.penColor === c ? 'border-[1.5px] border-ink-gray-9' : 'border-outline-gray-2'"
+            :class="ui.state.penColor === c ? 'border-[1.5px] border-outline-gray-9' : 'border-outline-gray-2'"
             :style="{ background: c }"
             @click="ui.state.penColor = c"
           />
@@ -197,7 +197,7 @@ function insertTable({ rows, cols }, close) {
             v-for="c in CHALK_COLORS"
             :key="c"
             class="h-5 w-5 rounded-full border"
-            :class="ui.state.penColor === c ? 'border-[1.5px] border-ink-gray-9' : 'border-outline-gray-2'"
+            :class="ui.state.penColor === c ? 'border-[1.5px] border-outline-gray-9' : 'border-outline-gray-2'"
             :style="{ background: c }"
             @click="ui.state.penColor = c"
           />
@@ -212,7 +212,7 @@ function insertTable({ rows, cols }, close) {
             v-for="c in STICKY_COLORS"
             :key="c"
             class="h-5 w-5 rounded-sm border"
-            :class="ui.state.stickyColor === c ? 'border-[1.5px] border-ink-gray-9' : 'border-outline-gray-2'"
+            :class="ui.state.stickyColor === c ? 'border-[1.5px] border-outline-gray-9' : 'border-outline-gray-2'"
             :style="{ background: c }"
             @click="ui.state.stickyColor = c"
           />

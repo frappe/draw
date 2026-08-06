@@ -61,7 +61,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         v-for="swatch in CHALK_COLORS"
         :key="swatch"
         class="h-5 w-5 rounded-full border"
-        :class="color === swatch ? 'border-[1.5px] border-ink-gray-9' : 'border-outline-gray-2'"
+        :class="color === swatch ? 'border-[1.5px] border-outline-gray-9' : 'border-outline-gray-2'"
         :style="{ background: swatch }"
         @click="emit('change', { color: swatch })"
       />

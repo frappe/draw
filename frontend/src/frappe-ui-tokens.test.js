@@ -1,16 +1,26 @@
-// Regression guard for #287. `bg-surface-white` / `text-ink-white` have CSS
-// variables in frappe-ui/tailwind/colors.js, but the preset never emits the
-// matching utility classes — so in our build they compile to *nothing* and the
-// element renders transparent / its text invisible. (frappe-ui's own Tree.vue
-// has the same latent bug.) Use `bg-surface-elevation-1` / `text-white`.
-// This test fails if either dead class reappears anywhere in the source.
+// Regression guard for #287 and the dead-token cleanup. Some frappe-ui token
+// classes have CSS *variables* in frappe-ui/tailwind/colors.js but NO generated
+// Tailwind utility in our build, so they compile to nothing — the element
+// renders transparent / borderless / with a fallback accent. The trap is a
+// property↔family mismatch: borders come from the `outline-*` family (never
+// `ink-*`); the ring and accent families include neither `surface-*` nor
+// `ink-*`. All verified by compiling against the real tailwind.config.js.
+// Fail if any dead class reappears anywhere in source.
 import { describe, expect, it } from 'vitest'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const SRC = fileURLToPath(new URL('.', import.meta.url))
-const DEAD = ['bg-surface-white', 'text-ink-white']
+
+// [pattern, the working replacement]
+const FORBIDDEN = [
+  [/\bbg-surface-white\b/, 'bg-surface-elevation-1 (bg-surface-white renders transparent)'],
+  [/\btext-ink-white\b/, 'text-white (text-ink-white renders invisible)'],
+  [/\bborder-ink-gray-\d/, 'border-outline-gray-* (the border family is outline, not ink)'],
+  [/\baccent-ink-\w/, 'accent-gray-* (the accent family has no ink tokens)'],
+  [/\bring-surface-\w/, 'ring-white / ring-outline-* (the ring family has no surface tokens)'],
+]
 
 function sourceFiles(dir) {
   const out = []
@@ -23,15 +33,10 @@ function sourceFiles(dir) {
 }
 
 describe('frappe-ui token hygiene (#287)', () => {
-  const files = sourceFiles(SRC)
+  const files = sourceFiles(SRC).map((f) => [f.slice(SRC.length), readFileSync(f, 'utf8')])
 
-  it.each(DEAD)('no source file uses the dead class "%s"', (cls) => {
-    const offenders = files
-      .filter((f) => readFileSync(f, 'utf8').includes(cls))
-      .map((f) => f.slice(SRC.length))
-    expect(
-      offenders,
-      `"${cls}" emits no CSS in this build — use a real surface/ink token (e.g. bg-surface-elevation-1 / text-white)`,
-    ).toEqual([])
+  it.each(FORBIDDEN)('no source uses a dead token class (%s)', (pattern, fix) => {
+    const offenders = files.filter(([, txt]) => pattern.test(txt)).map(([rel]) => rel)
+    expect(offenders, `dead frappe-ui token class — use ${fix}`).toEqual([])
   })
 })

@@ -66,7 +66,7 @@ function onKeydown(event) {
           type="button"
           tabindex="-1"
           class="h-4 w-4 rounded-[3px] border"
-          :class="isCellFilled(r, c, rows, cols) ? 'border-ink-gray-9 bg-surface-gray-3' : 'border-outline-gray-2 bg-surface-gray-1'"
+          :class="isCellFilled(r, c, rows, cols) ? 'border-outline-gray-9 bg-surface-gray-3' : 'border-outline-gray-2 bg-surface-gray-1'"
           :aria-label="`${r} × ${c}`"
           @pointerenter="hover(r, c)"
           @focus="hover(r, c)"

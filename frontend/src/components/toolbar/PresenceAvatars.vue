@@ -33,7 +33,7 @@ const overflow = computed(() => Math.max(0, peers.value.length - MAX))
   <div v-if="peers.length" class="flex items-center -space-x-1.5">
     <Tooltip v-for="a in avatars" :key="a.id" :text="a.tip">
       <div
-        class="flex h-7 w-7 select-none items-center justify-center rounded-full text-xs font-semibold text-white ring-2 ring-surface-base"
+        class="flex h-7 w-7 select-none items-center justify-center rounded-full text-xs font-semibold text-white ring-2 ring-white"
         :style="{ background: colorFor(a.id) }"
       >
         {{ a.initials }}
@@ -41,7 +41,7 @@ const overflow = computed(() => Math.max(0, peers.value.length - MAX))
     </Tooltip>
     <div
       v-if="overflow > 0"
-      class="flex h-7 w-7 select-none items-center justify-center rounded-full bg-surface-gray-3 text-[11px] font-semibold text-ink-gray-7 ring-2 ring-surface-base"
+      class="flex h-7 w-7 select-none items-center justify-center rounded-full bg-surface-gray-3 text-[11px] font-semibold text-ink-gray-7 ring-2 ring-white"
     >
       +{{ overflow }}
     </div>
