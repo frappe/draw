@@ -4,7 +4,7 @@
 // injected comments store; permission is enforced on the server — the affordances
 // here just avoid offering what will be refused.
 import { ref, computed } from 'vue'
-import { Avatar, Button, Tooltip } from 'frappe-ui'
+import { Avatar, Button, Tooltip, dialog, toast } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useComments } from '@/composables/useComments.js'
 import CommentBody from './CommentBody.vue'
@@ -45,8 +45,19 @@ function toggleResolve() {
   comments.resolve(root.value.name, !resolved.value)
 }
 
-async function remove(comment) {
-  await comments.remove(comment.name)
+function remove(comment) {
+  // Deleting a comment is irreversible and the trigger is a one-click icon on
+  // hover, so it asks first (#293).
+  dialog.confirm({
+    title: 'Delete comment?',
+    message: 'This cannot be undone.',
+    theme: 'red',
+    confirmLabel: 'Delete',
+    onConfirm: async () => {
+      await comments.remove(comment.name)
+      toast.success('Comment deleted')
+    },
+  })
 }
 
 // A short, dependency-free relative time ("2h", "3d", "just now").

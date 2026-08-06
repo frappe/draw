@@ -7,7 +7,7 @@
 // Toolbar offers search + sort + a tile/list toggle, becoming a bulk-action bar
 // on selection. Creation is the top-right CTA only. At most MAX_PINNED pinned.
 import { computed, onMounted, reactive, ref, watch, watchEffect } from 'vue'
-import { createListResource, createResource, Dialog, Button, FormControl, Dropdown, TextInput, Tooltip } from 'frappe-ui'
+import { createListResource, createResource, dialog, toast, Dialog, Button, Dropdown, TextInput, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import DiagramCollection from './DiagramCollection.vue'
 import { pinnedOnly, unpinned } from '@/components/home/homeViews.js'
@@ -157,28 +157,27 @@ watchEffect(() => {
   if (masterCheckbox.value) masterCheckbox.value.indeterminate = someSelected.value
 })
 
-const confirmDelete = reactive({ open: false, names: [] })
 function askDelete(names) {
-  confirmDelete.names = names
-  confirmDelete.open = true
-}
-const confirmMessage = computed(() => {
-  const n = confirmDelete.names.length
-  return `Move ${n} diagram${n === 1 ? '' : 's'} to Trash? You can restore ${n === 1 ? 'it' : 'them'} from Trash.`
-})
-async function performDelete() {
-  try {
-    for (const name of confirmDelete.names) {
-      await enriched.setValue.submit({ name, is_trashed: 1, trashed_on: frappeNow() })
-    }
-  } finally {
-    // Always dismiss the dialog and reset — even if a delete errors — so the
-    // popup can never get "stuck" open.
-    confirmDelete.open = false
-    confirmDelete.names = []
-    clearSelection()
-    refresh()
-  }
+  const n = names.length
+  dialog.confirm({
+    title: 'Move to Trash?',
+    message: `Move ${n} diagram${n === 1 ? '' : 's'} to Trash? You can restore ${n === 1 ? 'it' : 'them'} from Trash.`,
+    theme: 'red',
+    confirmLabel: 'Delete',
+    onConfirm: async () => {
+      try {
+        for (const name of names) {
+          await enriched.setValue.submit({ name, is_trashed: 1, trashed_on: frappeNow() })
+        }
+        toast.success(`Moved ${n} diagram${n === 1 ? '' : 's'} to Trash`)
+      } finally {
+        // Always clear and refresh, even if a delete errored, so the list can
+        // never be left showing a diagram that is already trashed.
+        clearSelection()
+        refresh()
+      }
+    },
+  })
 }
 function deleteSelected() {
   askDelete([...selected])
@@ -194,14 +193,16 @@ async function togglePin(diagram) {
   refresh()
 }
 
-const editor = reactive({ open: false, value: '', name: null })
 function startRename(diagram) {
-  Object.assign(editor, { open: true, value: diagram.title, name: diagram.name })
-}
-async function saveEditor() {
-  await enriched.setValue.submit({ name: editor.name, title: editor.value })
-  editor.open = false
-  refresh()
+  dialog.prompt({
+    title: 'Rename diagram',
+    confirmLabel: 'Save',
+    fields: [{ name: 'title', label: 'Title', required: true, defaultValue: diagram.title }],
+    onConfirm: async ({ values }) => {
+      await enriched.setValue.submit({ name: diagram.name, title: values.title })
+      refresh()
+    },
+  })
 }
 
 async function duplicate(diagram) {
@@ -369,25 +370,6 @@ const collectionHandlers = {
       <LucideIcon name="feather" class="h-6 w-6 text-ink-gray-3" />
       <p class="text-[12px] text-ink-gray-4">You've reached the end · made with Frappe Draw</p>
     </div>
-
-    <Dialog v-model="confirmDelete.open" :options="{ title: 'Move to Trash?' }">
-      <template #body-content>
-        <p class="text-base text-ink-gray-7">{{ confirmMessage }}</p>
-      </template>
-      <template #actions>
-        <Button variant="solid" theme="red" @click="performDelete">Delete</Button>
-        <Button variant="subtle" @click="confirmDelete.open = false">Cancel</Button>
-      </template>
-    </Dialog>
-
-    <Dialog v-model="editor.open" :options="{ title: 'Rename diagram' }">
-      <template #body-content>
-        <FormControl type="text" label="Title" v-model="editor.value" />
-      </template>
-      <template #actions>
-        <Button variant="solid" @click="saveEditor">Save</Button>
-      </template>
-    </Dialog>
 
     <!-- Show info (I5): read-only metadata. -->
     <Dialog v-model="info.open" :options="{ title: 'Diagram info' }">

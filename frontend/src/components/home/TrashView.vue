@@ -2,8 +2,8 @@
 // Trash view (spec §2, README "Trash view"): an amber 30-day warning banner
 // over a grid of trashed diagrams, each with Restore and permanent Delete.
 // Loads only trashed diagrams; restore clears the flag, delete removes the doc.
-import { computed, onMounted, reactive } from 'vue'
-import { createListResource, Button, Dialog } from 'frappe-ui'
+import { computed, onMounted } from 'vue'
+import { createListResource, dialog, toast, Button } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { documentToSvg, isDocumentEmpty } from '@/composables/useThumbnail.js'
 
@@ -32,18 +32,18 @@ async function restore(diagram) {
 }
 
 // Permanent delete is irreversible, so it always asks first.
-const confirmPurge = reactive({ open: false, diagram: null })
-
 function askPurge(diagram) {
-  confirmPurge.diagram = diagram
-  confirmPurge.open = true
-}
-
-async function performPurge() {
-  await trashed.delete.submit(confirmPurge.diagram.name)
-  confirmPurge.open = false
-  confirmPurge.diagram = null
-  refresh()
+  dialog.confirm({
+    title: 'Delete permanently?',
+    message: `“${diagram.title}” will be permanently deleted. This cannot be undone.`,
+    theme: 'red',
+    confirmLabel: 'Delete forever',
+    onConfirm: async () => {
+      await trashed.delete.submit(diagram.name)
+      toast.success('Deleted permanently')
+      refresh()
+    },
+  })
 }
 
 function refresh() {
@@ -89,16 +89,5 @@ function refresh() {
       </div>
     </div>
 
-    <Dialog v-model="confirmPurge.open" :options="{ title: 'Delete permanently?' }">
-      <template #body-content>
-        <p class="text-base text-ink-gray-7">
-          “{{ confirmPurge.diagram?.title }}” will be permanently deleted. This cannot be undone.
-        </p>
-      </template>
-      <template #actions>
-        <Button variant="solid" theme="red" @click="performPurge">Delete forever</Button>
-        <Button variant="subtle" @click="confirmPurge.open = false">Cancel</Button>
-      </template>
-    </Dialog>
   </div>
 </template>
