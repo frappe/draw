@@ -1,64 +1,69 @@
 <script setup>
 // Keyboard shortcuts cheat-sheet (press ?). A reference of every shortcut,
-// grouped, with platform-correct modifier labels (⌘ on Mac, Ctrl elsewhere).
+// grouped. Key chips render through frappe-ui's <KeyboardShortcut>, which
+// resolves `Mod` to ⌘ or Ctrl per platform — so nothing here branches on the
+// platform except Redo, whose BINDING (not just its glyph) differs.
+//
+// Rows are either a combo (`combo`, plus `alt` for equivalent alternatives) or
+// free-form guidance ('Arrow keys', 'Alt-drag', 'Drag on empty'), which is not a
+// key combination and stays plain text.
 import { computed } from 'vue'
-import { Dialog } from 'frappe-ui'
+import { Dialog, KeyboardShortcut } from 'frappe-ui'
 import { shortcutsOpen } from '@/composables/useShortcutsHelp.js'
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '')
-const mod = isMac ? '⌘' : 'Ctrl'
 
 const groups = computed(() => [
   {
     title: 'Essentials',
     items: [
-      [`${mod} Z`, 'Undo'],
-      [`${mod} ${isMac ? '⇧ Z' : 'Y'}`, 'Redo'],
-      [`${mod} C / X / V`, 'Copy / Cut / Paste'],
-      [`${mod} D`, 'Duplicate'],
-      [`${mod} A`, 'Select all'],
-      ['Delete / Backspace', 'Delete selection'],
-      ['Esc', 'Deselect · cancel tool · exit edit'],
+      { combo: 'Mod+Z', label: 'Undo' },
+      isMac ? { combo: 'Mod+Shift+Z', label: 'Redo' } : { combo: 'Ctrl+Y', label: 'Redo' },
+      { combo: 'Mod+C', alt: ['Mod+X', 'Mod+V'], label: 'Copy / Cut / Paste' },
+      { combo: 'Mod+D', label: 'Duplicate' },
+      { combo: 'Mod+A', label: 'Select all' },
+      { combo: 'Delete', alt: ['Backspace'], label: 'Delete selection' },
+      { combo: 'Esc', label: 'Deselect · cancel tool · exit edit' },
     ],
   },
   {
     title: 'Move & arrange',
     items: [
-      ['Arrow keys', 'Nudge 1px'],
-      ['⇧ Arrow', 'Nudge 10px'],
-      ['Alt-drag', 'Duplicate & drag'],
-      ['Drag on empty', 'Marquee select'],
-      ['⇧ click', 'Add / remove from selection'],
+      { text: 'Arrow keys', label: 'Nudge 1px' },
+      { text: '⇧ Arrow', label: 'Nudge 10px' },
+      { text: 'Alt-drag', label: 'Duplicate & drag' },
+      { text: 'Drag on empty', label: 'Marquee select' },
+      { text: '⇧ click', label: 'Add / remove from selection' },
     ],
   },
   {
     title: 'Create',
     items: [
-      ['Double-click', 'Add text / edit'],
-      ['Click a shape, drag', 'Move'],
-      ['?', 'This shortcuts sheet'],
+      { text: 'Double-click', label: 'Add text / edit' },
+      { text: 'Click a shape, drag', label: 'Move' },
+      { combo: '?', label: 'This shortcuts sheet' },
     ],
   },
   {
     title: 'Mind map',
     items: [
-      ['Tab', 'Add child'],
-      ['Enter', 'Add sibling'],
+      { combo: 'Tab', label: 'Add child' },
+      { combo: 'Enter', label: 'Add sibling' },
     ],
   },
   {
     title: 'Flowchart',
     items: [
-      ['Enter', 'Add Process'],
-      ['D', 'Add Decision'],
+      { combo: 'Enter', label: 'Add Process' },
+      { combo: 'D', label: 'Add Decision' },
     ],
   },
   {
     title: 'Whiteboard tools',
     items: [
-      ['P / H / E', 'Pen / Highlighter / Eraser'],
-      ['N / G', 'Line / Table'],
-      ['L / S', 'Laser / Sticky'],
+      { combo: 'P', alt: ['H', 'E'], label: 'Pen / Highlighter / Eraser' },
+      { combo: 'N', alt: ['G'], label: 'Line / Table' },
+      { combo: 'L', alt: ['S'], label: 'Laser / Sticky' },
     ],
   },
 ])
@@ -69,11 +74,18 @@ const groups = computed(() => [
     <template #body-content>
       <div class="grid grid-cols-2 gap-x-8 gap-y-5">
         <section v-for="g in groups" :key="g.title">
-          <h3 class="mb-2 text-[11px] font-semibold text-ink-gray-5">{{ g.title }}</h3>
+          <h3 class="mb-2 text-sm font-semibold text-ink-gray-5">{{ g.title }}</h3>
           <div class="flex flex-col gap-1.5">
             <div v-for="(row, i) in g.items" :key="i" class="flex items-center justify-between gap-3">
-              <span class="text-[13px] text-ink-gray-7">{{ row[1] }}</span>
-              <kbd class="whitespace-nowrap rounded-md border border-outline-gray-2 bg-surface-gray-2 px-2 py-0.5 text-[11px] font-medium text-ink-gray-8">{{ row[0] }}</kbd>
+              <span class="text-sm text-ink-gray-7">{{ row.label }}</span>
+              <KeyboardShortcut
+                v-if="row.combo"
+                bg
+                :combo="row.combo"
+                :alt-combos="row.alt || []"
+                class="shrink-0"
+              />
+              <span v-else class="shrink-0 whitespace-nowrap text-sm text-ink-gray-5">{{ row.text }}</span>
             </div>
           </div>
         </section>
