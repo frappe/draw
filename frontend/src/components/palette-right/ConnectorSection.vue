@@ -3,6 +3,7 @@
 // arrowhead style (Google-Slides style), line color, width and dash. Writes
 // through store.updateConnector, which shallow-merges nested style/arrowheads.
 import { computed } from 'vue'
+import { TextInput } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import PaletteSection from './PaletteSection.vue'
@@ -50,12 +51,15 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
 <template>
   <!-- Label: text shown centred on the connector (opaque pill, over the line). -->
   <PaletteSection label="Label">
-    <input
-      :value="connector.label"
+    <TextInput
+      class="w-full"
       type="text"
+      size="md"
+      variant="outline"
+      :model-value="connector.label"
       placeholder="Add label…"
-      class="h-8 w-full rounded-md border border-outline-gray-2 px-2 text-[13px] text-ink-gray-8 outline-none focus:border-outline-gray-4"
-      @input="setLabel($event.target.value)"
+      label="Connector label"
+      @update:model-value="setLabel"
     />
   </PaletteSection>
 

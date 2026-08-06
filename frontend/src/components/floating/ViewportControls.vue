@@ -4,7 +4,7 @@
 // in its own group, consistently for EVERY diagram type (block/flowchart/
 // mindmap/whiteboard). Wired to the shared viewport + editorUi.
 import { computed, ref, nextTick } from 'vue'
-import { Tooltip } from 'frappe-ui'
+import { TextInput, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
@@ -29,8 +29,8 @@ function startZoomEdit() {
   zoomDraft.value = String(editorUi.zoomPercent)
   zoomEditing.value = true
   nextTick(() => {
-    zoomInput.value?.focus()
-    zoomInput.value?.select()
+    zoomInput.value?.el?.focus()
+    zoomInput.value?.el?.select()
   })
 }
 function commitZoom() {
@@ -51,13 +51,16 @@ const zoomPercent = computed(() => editorUi.zoomPercent)
         <LucideIcon name="minus" class="h-4 w-4" />
       </button>
     </Tooltip>
-    <input
+    <TextInput
       v-if="zoomEditing"
       ref="zoomInput"
       v-model="zoomDraft"
+      class="w-[56px] [&_input]:text-center"
       type="text"
+      size="md"
+      variant="outline"
       inputmode="numeric"
-      class="h-[34px] w-[52px] rounded-md border border-outline-gray-2 bg-surface-base text-center text-xs font-medium text-ink-gray-8 outline-none focus:border-outline-gray-3"
+      label="Zoom level"
       @keydown.enter="commitZoom"
       @keydown.esc="zoomEditing = false"
       @blur="commitZoom"

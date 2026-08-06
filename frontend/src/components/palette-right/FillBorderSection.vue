@@ -3,6 +3,7 @@
 // fill / border colour across the whole selection; a compact weight + dash row
 // updates the border. Field text/heights match the rest of the palette.
 import { computed } from 'vue'
+import { TextInput } from 'frappe-ui'
 import PaletteSection from './PaletteSection.vue'
 import ColorPicker from './ColorPicker.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
@@ -92,17 +93,19 @@ function applyQuickStyle(preset) {
     </div>
 
     <div v-if="showBorder" class="mt-2.5 flex gap-1.5">
-      <label class="flex h-8 flex-1 items-center gap-1 rounded-md border border-outline-gray-2 px-2">
-        <input
-          type="number"
-          min="0"
-          step="0.1"
-          :value="weight"
-          class="w-full bg-transparent text-xs leading-none text-ink-gray-7 outline-none"
-          @change="setWeight($event.target.value)"
-        />
-        <span class="text-[11px] text-ink-gray-5">px</span>
-      </label>
+      <TextInput
+        class="flex-1"
+        type="number"
+        size="md"
+        variant="outline"
+        :model-value="weight"
+        label="Border weight in pixels"
+        @update:model-value="setWeight"
+      >
+        <template #suffix>
+          <span class="text-sm text-ink-gray-5">px</span>
+        </template>
+      </TextInput>
       <div class="flex flex-1 gap-1">
         <button
           v-for="style in dashStyles"

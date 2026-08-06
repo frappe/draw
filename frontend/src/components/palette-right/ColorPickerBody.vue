@@ -5,6 +5,7 @@
 // (6-digit when opaque, 8-digit #RRGGBBAA otherwise). Rendered directly wherever
 // the full picker should be inline, or inside ColorPicker's popover.
 import { reactive, computed, watch, onBeforeUnmount } from 'vue'
+import { TextInput } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { recentColors, pushRecentColor } from '@/composables/useRecentColors.js'
 import { SWATCH_PALETTE } from '@/diagram/palette.js'
@@ -202,15 +203,18 @@ defineExpose({ currentColor })
     </div>
 
     <div class="mt-3 flex items-center gap-1.5">
-      <div class="flex flex-1 items-center gap-1.5 rounded-md border border-outline-gray-2 px-2">
-        <span class="text-[11px] text-ink-gray-5">#</span>
-        <input
-          :value="currentColor.replace('#', '')"
-          maxlength="8"
-          class="h-7 w-full bg-transparent text-[11px] font-medium uppercase text-ink-gray-8 outline-none"
-          @change="onHex($event.target.value)"
-        />
-      </div>
+      <TextInput
+        class="flex-1 uppercase"
+        variant="outline"
+        maxlength="8"
+        :model-value="currentColor.replace('#', '')"
+        label="Hex colour"
+        @update:model-value="onHex"
+      >
+        <template #prefix>
+          <span class="text-sm text-ink-gray-5">#</span>
+        </template>
+      </TextInput>
       <button
         v-if="supportsEyedropper"
         class="flex h-7 w-7 flex-none items-center justify-center rounded-md border border-outline-gray-2 text-ink-gray-6 hover:bg-surface-gray-2"

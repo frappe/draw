@@ -3,7 +3,7 @@
 // sticky-note link). Stored as shape.link; ShapeView renders a small badge that
 // opens it. A bare "example.com" is normalised to https:// on save.
 import { computed } from 'vue'
-import LucideIcon from '@/icons/LucideIcon.vue'
+import { Button, TextInput } from 'frappe-ui'
 import PaletteSection from './PaletteSection.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 
@@ -32,23 +32,28 @@ function normalize(value) {
 
 <template>
   <PaletteSection label="Link">
-    <div class="flex items-center gap-1.5 rounded-md border border-outline-gray-2 px-2">
-      <LucideIcon name="link" class="h-3.5 w-3.5 flex-none text-ink-gray-5" />
-      <input
-        :value="link"
-        placeholder="Add a link…"
-        class="h-7 w-full bg-transparent text-[12px] text-ink-gray-8 outline-none"
-        @change="setLink($event.target.value)"
-      />
-      <button
-        v-if="link"
-        class="flex h-5 w-5 flex-none items-center justify-center rounded text-ink-gray-5 hover:bg-surface-gray-2"
-        title="Remove link"
-        aria-label="Remove link"
-        @click="clearLink"
-      >
-        <LucideIcon name="x" class="h-3.5 w-3.5" />
-      </button>
-    </div>
+    <TextInput
+      class="w-full"
+      variant="outline"
+      :model-value="link"
+      placeholder="Add a link…"
+      label="Link URL"
+      @update:model-value="setLink"
+    >
+      <template #prefix>
+        <span class="lucide-link size-4 text-ink-gray-5" aria-hidden="true" />
+      </template>
+      <template v-if="link" #suffix>
+        <Button
+          variant="ghost"
+          theme="gray"
+          size="sm"
+          icon="lucide-x"
+          tooltip="Remove link"
+          label="Remove link"
+          @click="clearLink"
+        />
+      </template>
+    </TextInput>
   </PaletteSection>
 </template>

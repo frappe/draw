@@ -4,7 +4,7 @@
 // wide layout actions live in the bottom palette. Positioned above the node,
 // tracking pan/zoom. Mounted once per editor (EditorShell).
 import { computed } from 'vue'
-import { Popover, Tooltip } from 'frappe-ui'
+import { Popover, TextInput, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import SwatchGrid from '@/components/floating/SwatchGrid.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
@@ -228,10 +228,12 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
             <div class="mb-1 text-[10px] font-semibold text-ink-gray-4">Branches</div>
             <div class="flex flex-col gap-1.5">
               <div v-for="branch in node.branches" :key="branch.port" class="flex items-center gap-1.5">
-                <input
-                  :value="branch.label"
-                  class="min-w-0 flex-1 rounded-md border border-outline-gray-2 px-2 py-1 text-[13px] text-ink-gray-8 outline-none focus:border-outline-gray-4"
-                  @change="setBranchLabel(branch.port, $event.target.value)"
+                <TextInput
+                  class="min-w-0 flex-1"
+                  variant="outline"
+                  :model-value="branch.label"
+                  :label="`Branch ${branch.port} label`"
+                  @update:model-value="setBranchLabel(branch.port, $event)"
                 />
                 <button class="flex h-7 w-7 flex-none items-center justify-center rounded-md text-ink-gray-5 hover:bg-surface-gray-2" title="Remove branch" @click="removeBranch(branch.port)">
                   <LucideIcon name="x" class="h-4 w-4" />

@@ -5,7 +5,7 @@
 // parses to notify them. Enter submits (Shift+Enter = newline); Escape cancels —
 // unless the mention menu is open, which then owns those keys.
 import { ref, nextTick } from 'vue'
-import { call, Button } from 'frappe-ui'
+import { call, Button, Textarea } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { buildMentionToken } from './commentMarkup.js'
 
@@ -31,7 +31,7 @@ let mentionStart = 0
 let searchToken = 0
 
 function focus() {
-  nextTick(() => textarea.value?.focus())
+  nextTick(() => textarea.value?.el?.focus())
 }
 if (props.autofocus) focus()
 defineExpose({ focus })
@@ -57,7 +57,7 @@ function cancel() {
 // ----- @mention detection -----
 
 function onInput() {
-  const el = textarea.value
+  const el = textarea.value?.el
   if (!el) return
   const upto = text.value.slice(0, el.selectionStart)
   // An @ at the start or after whitespace, then a run without whitespace/newline.
@@ -86,7 +86,7 @@ function closeMention() {
 }
 
 function pickMention(user) {
-  const el = textarea.value
+  const el = textarea.value?.el
   const before = text.value.slice(0, mentionStart)
   const after = text.value.slice(el ? el.selectionStart : text.value.length)
   const inserted = `${buildMentionToken({ name: user.name, full_name: user.full_name })} `
@@ -136,12 +136,14 @@ function onKeydown(event) {
 
 <template>
   <div class="relative">
-    <textarea
+    <Textarea
       ref="textarea"
       v-model="text"
+      class="w-full"
+      variant="outline"
       :placeholder="placeholder"
-      rows="2"
-      class="w-full resize-none rounded-md border border-outline-gray-2 bg-surface-elevation-1 px-2.5 py-1.5 text-p-sm text-ink-gray-8 placeholder:text-ink-gray-4 focus:border-outline-gray-3 focus:outline-none focus:ring-0"
+      :rows="2"
+      label="Write a comment"
       @input="onInput"
       @keydown="onKeydown"
     />

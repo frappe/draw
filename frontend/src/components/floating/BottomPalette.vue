@@ -7,7 +7,7 @@
 // the guides control stay on the bar so switching them never needs a menu. Legacy
 // single-type docs keep their own map/tool actions. Wired to editorUi + viewport.
 import { computed, ref } from 'vue'
-import { Tooltip, Popover } from 'frappe-ui'
+import { Tooltip, Popover, TextInput } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
@@ -260,11 +260,13 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
         <template #body-main="{ togglePopover }">
           <!-- Six-across catalog: wider than tall, everything visible at a glance. -->
           <div class="w-[256px] p-2">
-            <input
+            <TextInput
               v-model="shapeQuery"
+              class="mb-2 w-full"
               type="text"
+              variant="outline"
               placeholder="Search…"
-              class="mb-2 h-7 w-full rounded-md border border-outline-gray-2 bg-surface-base px-2 text-xs text-ink-gray-8 outline-none placeholder:text-ink-gray-4 focus:border-outline-gray-3"
+              label="Search the insert catalog"
             />
 
             <div v-if="filteredShapes.length" class="mb-1 text-[10px] font-semibold text-ink-gray-4">Shapes</div>
