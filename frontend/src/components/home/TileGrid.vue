@@ -261,7 +261,7 @@ const collectionHandlers = {
           ref="masterCheckbox"
           type="checkbox"
           :checked="allSelected"
-          class="ml-1 mr-1 h-4 w-4 flex-none cursor-pointer accent-[#171717]"
+          class="ml-1 mr-1 h-4 w-4 flex-none cursor-pointer [accent-color:var(--ink-gray-9)]"
           :aria-label="allSelected || someSelected ? 'Clear selection' : 'Select all'"
           @change="toggleSelectAll"
         />
@@ -316,7 +316,7 @@ const collectionHandlers = {
             ref="masterCheckbox"
             type="checkbox"
             :checked="allSelected"
-            class="h-4 w-4 cursor-pointer accent-[#171717]"
+            class="h-4 w-4 cursor-pointer [accent-color:var(--ink-gray-9)]"
             :aria-label="allSelected || someSelected ? 'Clear selection' : 'Select all'"
             @change="toggleSelectAll"
           />

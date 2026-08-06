@@ -4,7 +4,7 @@
 // carry the title, created + edited times, a selection checkbox, and a ⋯ menu
 // (Pin/Unpin · Rename · Duplicate · Delete).
 import { computed } from 'vue'
-import { Dropdown, toast } from 'frappe-ui'
+import { Checkbox, Dropdown, toast } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { documentToSvg, isDocumentEmpty } from '@/composables/useThumbnail.js'
 
@@ -108,13 +108,14 @@ const TIME_UNITS = [
     class="group relative flex items-center gap-3 rounded-lg border px-3 py-1.5"
     :class="selected ? 'border-outline-blue-2 bg-surface-blue-1' : 'border-outline-gray-1 bg-surface-base hover:bg-surface-gray-1'"  >
     <!-- List-view select checkbox is always visible (Drive-style, I2). -->
-    <button
-      class="flex h-[18px] w-[18px] flex-none items-center justify-center rounded-[5px] border"
-      :class="selected ? 'border-outline-blue-3 bg-surface-blue-3 text-white' : 'border-outline-gray-4 text-transparent hover:border-outline-gray-6'"
-      @click.stop="emit('toggle-select', diagram.name)"
-    >
-      <LucideIcon name="check" class="h-3 w-3" />
-    </button>
+    <Checkbox
+      class="flex-none"
+      size="sm"
+      :model-value="selected"
+      :aria-label="`Select ${diagram.title || 'Untitled'}`"
+      @click.stop
+      @update:model-value="emit('toggle-select', diagram.name)"
+    />
 
     <!-- One-click star (Gmail-style pin). -->
     <button
@@ -155,16 +156,15 @@ const TIME_UNITS = [
     v-else
     class="group relative overflow-hidden rounded-xl border text-left transition-shadow"
     :class="selected ? 'border-outline-blue-3 ring-1 ring-outline-blue-2' : 'border-outline-gray-1'"  >
-    <button
-      class="absolute left-2 top-2 z-10 flex h-[20px] w-[20px] items-center justify-center rounded-[6px] border shadow-sm transition-opacity"
-      :class="[
-        selected ? 'border-outline-blue-3 bg-surface-blue-3 text-white' : 'border-outline-gray-4 bg-surface-base text-transparent',
-        selected || selectionActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
-      ]"
-      @click.stop="emit('toggle-select', diagram.name)"
-    >
-      <LucideIcon name="check" class="h-3 w-3" />
-    </button>
+    <Checkbox
+      class="absolute left-2 top-2 z-10 transition-opacity"
+      :class="selected || selectionActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+      size="sm"
+      :model-value="selected"
+      :aria-label="`Select ${diagram.title || 'Untitled'}`"
+      @click.stop
+      @update:model-value="emit('toggle-select', diagram.name)"
+    />
 
     <!-- One-click star (Gmail-style pin): always shown when pinned, on hover otherwise. -->
     <button
