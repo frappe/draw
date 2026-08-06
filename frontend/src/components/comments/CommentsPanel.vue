@@ -32,13 +32,15 @@ function focusThread(thread) {
         <LucideIcon name="message-square" class="h-4 w-4" />
         Comments
       </div>
-      <button
-        class="rounded p-1 text-ink-gray-5 hover:bg-surface-gray-3"
-        aria-label="Close comments"
+      <Button
+        variant="ghost"
+        theme="gray"
+        size="sm"
+        icon="lucide-x"
+        tooltip="Close comments"
+        label="Close comments"
         @click="editorUi.toggleCommentsPanel()"
-      >
-        <LucideIcon name="x" class="h-4 w-4" />
-      </button>
+      />
     </div>
 
     <!-- add + arming hint -->

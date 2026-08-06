@@ -6,7 +6,7 @@
 // <main>), so a board point (x,y) maps to surface pixels (panX + x*zoom, panY +
 // y*zoom) — no rect math, unlike the body-teleported cursors.
 import { ref, computed } from 'vue'
-import { Tooltip } from 'frappe-ui'
+import { Button, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
@@ -119,13 +119,15 @@ async function submitDraft(content) {
       :style="{ left: `${activeCard.cardLeft}px`, top: `${activeCard.cardTop}px`, width: `${CARD_W}px` }"
     >
       <div class="mb-1 flex justify-end">
-        <button
-          class="rounded p-1 text-ink-gray-5 hover:bg-surface-gray-3"
-          aria-label="Close comment"
+        <Button
+          variant="ghost"
+          theme="gray"
+          size="sm"
+          icon="lucide-x"
+          tooltip="Close comment"
+          label="Close comment"
           @click="comments.closeThread()"
-        >
-          <LucideIcon name="x" class="h-4 w-4" />
-        </button>
+        />
       </div>
       <CommentThread :thread="activeCard.thread" variant="popover" />
     </div>

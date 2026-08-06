@@ -109,16 +109,26 @@ function timeAgo(iso) {
               <span class="shrink-0 text-p-xs text-ink-gray-4">{{ timeAgo(comment.creation) }}</span>
               <!-- per-comment actions, on hover -->
               <div class="ml-auto flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100">
-                <Tooltip v-if="canEdit(comment)" text="Edit">
-                  <button class="rounded p-1 text-ink-gray-5 hover:bg-surface-gray-2" @click="editingName = comment.name">
-                    <LucideIcon name="pencil" class="h-3.5 w-3.5" />
-                  </button>
-                </Tooltip>
-                <Tooltip v-if="canDelete(comment)" text="Delete">
-                  <button class="rounded p-1 text-ink-gray-5 hover:bg-surface-gray-2" @click="remove(comment)">
-                    <LucideIcon name="trash-2" class="h-3.5 w-3.5" />
-                  </button>
-                </Tooltip>
+                <Button
+                  v-if="canEdit(comment)"
+                  variant="ghost"
+                  theme="gray"
+                  size="sm"
+                  icon="lucide-pencil"
+                  tooltip="Edit"
+                  label="Edit comment"
+                  @click="editingName = comment.name"
+                />
+                <Button
+                  v-if="canDelete(comment)"
+                  variant="ghost"
+                  theme="red"
+                  size="sm"
+                  icon="lucide-trash-2"
+                  tooltip="Delete"
+                  label="Delete comment"
+                  @click="remove(comment)"
+                />
               </div>
             </div>
 

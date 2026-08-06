@@ -5,7 +5,7 @@
 // folders (#115): diagrams are one flat, pinnable list.
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button, Dropdown, TabButtons, toast } from 'frappe-ui'
+import { Alert, Button, Dropdown, TabButtons, toast } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { errorMessage } from '@/utils/errorText.js'
 import Logomark from '@/components/Logomark.vue'
@@ -129,25 +129,19 @@ function open(name) {
           </Button>
         </div>
 
-        <div
+        <Alert
           v-if="showInstallDriveBanner"
-          class="mb-6 flex items-center gap-3 rounded-lg border border-outline-gray-1 bg-surface-gray-1 px-4 py-3"
+          class="mb-6"
+          theme="yellow"
+          title="Install Drive to track your files"
+          description="Your diagrams save to Draw. Add Frappe Drive to keep them alongside the rest of your files."
+          dismissible
+          @dismiss="bannerDismissed = true"
         >
-          <LucideIcon name="hard-drive" class="h-5 w-5 shrink-0 text-ink-gray-6" />
-          <div class="min-w-0 flex-1">
-            <div class="text-base font-medium text-ink-gray-8">Install Drive to track your files</div>
-            <div class="text-p-sm text-ink-gray-6">
-              Your diagrams save to Draw. Add Frappe Drive to keep them alongside the rest of your files.
-            </div>
-          </div>
-          <button
-            aria-label="Dismiss"
-            class="shrink-0 rounded p-1 text-ink-gray-5 hover:bg-surface-gray-3 hover:text-ink-gray-7"
-            @click="bannerDismissed = true"
-          >
-            <LucideIcon name="x" class="h-4 w-4" />
-          </button>
-        </div>
+          <template #icon>
+            <span class="lucide-hard-drive size-5 shrink-0" aria-hidden="true" />
+          </template>
+        </Alert>
 
         <EmptyState v-if="isEmpty" @create="create" />
         <TileGrid v-else :mode="view" @create="create" @open="open" />
