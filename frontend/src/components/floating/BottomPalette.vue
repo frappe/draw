@@ -267,7 +267,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
               class="mb-2 h-7 w-full rounded-md border border-outline-gray-2 bg-surface-base px-2 text-xs text-ink-gray-8 outline-none placeholder:text-ink-gray-4 focus:border-outline-gray-3"
             />
 
-            <div v-if="filteredShapes.length" class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Shapes</div>
+            <div v-if="filteredShapes.length" class="mb-1 text-[10px] font-semibold text-ink-gray-4">Shapes</div>
             <div v-if="filteredShapes.length" class="grid grid-cols-6 gap-1">
               <Tooltip v-for="s in filteredShapes" :key="s.type" :text="s.label">
                 <button
@@ -282,7 +282,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
               </Tooltip>
             </div>
 
-            <div v-if="filteredLines.length" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Lines &amp; connectors</div>
+            <div v-if="filteredLines.length" class="mb-1 mt-2.5 text-[10px] font-semibold text-ink-gray-4">Lines &amp; connectors</div>
             <div v-if="filteredLines.length" class="grid grid-cols-6 gap-1">
               <Tooltip v-for="con in filteredLines" :key="con.type" :text="con.label">
                 <button
@@ -297,7 +297,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
               </Tooltip>
             </div>
 
-            <div v-if="filteredTools.length" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Draw &amp; insert</div>
+            <div v-if="filteredTools.length" class="mb-1 mt-2.5 text-[10px] font-semibold text-ink-gray-4">Draw &amp; insert</div>
             <div v-if="filteredTools.length" class="grid grid-cols-6 gap-1">
               <template v-for="t in filteredTools" :key="t.key">
                 <!-- Table: opens the size picker; picking inserts the table, then
@@ -325,7 +325,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
               </template>
             </div>
 
-            <div v-if="showMindmap" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Mind map</div>
+            <div v-if="showMindmap" class="mb-1 mt-2.5 text-[10px] font-semibold text-ink-gray-4">Mind map</div>
             <div v-if="showMindmap" class="grid grid-cols-6 gap-1">
               <Tooltip text="Parent Node">
                 <button
@@ -337,7 +337,7 @@ const tileBase = 'flex h-9 w-9 items-center justify-center rounded-md hover:bg-s
               </Tooltip>
             </div>
 
-            <div v-if="filteredFlowchartNodes.length" class="mb-1 mt-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Flowchart</div>
+            <div v-if="filteredFlowchartNodes.length" class="mb-1 mt-2.5 text-[10px] font-semibold text-ink-gray-4">Flowchart</div>
             <div v-if="filteredFlowchartNodes.length" class="grid grid-cols-6 gap-1">
               <Tooltip v-for="n in filteredFlowchartNodes" :key="n.type" :text="n.label">
                 <button
