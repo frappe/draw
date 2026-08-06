@@ -3,6 +3,7 @@
 // shape object. Geometry is in logical canvas units. Text boxes render with no
 // fill and no border (spec §5.1). Interaction is layered on later.
 import { computed, ref } from 'vue'
+import LucideIcon from '@/icons/LucideIcon.vue'
 import { useTextEditing, shapeTextArea, textStyleCss } from '@/composables/useTextEditing.js'
 import { useAutoFitText } from '@/composables/useAutoFitText.js'
 import { sanitizeRichText } from '@/utils/sanitizeHtml.js'
@@ -400,13 +401,14 @@ useAutoFitText(richEl, () => ({
     >
       <title>{{ safeLink }}</title>
       <circle :cx="shape.x + shape.w - 13" :cy="shape.y + 13" r="9" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1" />
-      <text
-        :x="shape.x + shape.w - 13"
-        :y="shape.y + 13"
-        text-anchor="middle"
-        dominant-baseline="central"
-        font-size="10"
-      >🔗</text>
+      <LucideIcon
+        name="link"
+        :x="shape.x + shape.w - 18"
+        :y="shape.y + 8"
+        width="10"
+        height="10"
+        class="text-ink-gray-7"
+      />
     </a>
 
     <!-- Legacy plain text (shapes with only a plain `content` string, no rich
