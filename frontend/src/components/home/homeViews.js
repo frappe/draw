@@ -6,12 +6,16 @@
 // Nav is a flat list (no folders, #115): Home · Recent · Shared with you · Pinned ·
 // Trash. "All diagrams" was dropped in favour of the more useful Shared + Pinned.
 
+// `icon` holds the COMPLETE lucide utility class, not a bare name. Tailwind's
+// JIT only emits classes it can read literally in the source, so a template like
+// `lucide-${name}` produces no CSS and the icon renders blank — it happens to
+// work only when frappe-ui itself uses the same class somewhere.
 export const SIDEBAR_NAV = [
-  { key: 'home', label: 'Home', feather: 'home' },
-  { key: 'recent', label: 'Recent', feather: 'clock' },
-  { key: 'shared', label: 'Shared with you', feather: 'share-2' },
-  { key: 'pinned', label: 'Pinned', feather: 'pin' },
-  { key: 'trash', label: 'Trash', feather: 'trash-2' },
+  { key: 'home', label: 'Home', icon: 'lucide-house' },
+  { key: 'recent', label: 'Recent', icon: 'lucide-clock' },
+  { key: 'shared', label: 'Shared with you', icon: 'lucide-share-2' },
+  { key: 'pinned', label: 'Pinned', icon: 'lucide-pin' },
+  { key: 'trash', label: 'Trash', icon: 'lucide-trash-2' },
 ]
 
 // Page heading per view. Trash is intentionally absent — it renders its own

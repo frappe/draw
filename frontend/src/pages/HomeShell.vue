@@ -5,15 +5,17 @@
 // folders (#115): diagrams are one flat, pinnable list.
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Button, toast } from 'frappe-ui'
+import { Button, Dropdown, TabButtons, toast } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { errorMessage } from '@/utils/errorText.js'
-import Sidebar from '@/components/home/Sidebar.vue'
+import Logomark from '@/components/Logomark.vue'
+import SettingsDialog from '@/components/home/SettingsDialog.vue'
 import TileGrid from '@/components/home/TileGrid.vue'
 import EmptyState from '@/components/home/EmptyState.vue'
 import TrashView from '@/components/home/TrashView.vue'
-import { VIEW_TITLES } from '@/components/home/homeViews.js'
+import { SIDEBAR_NAV, VIEW_TITLES } from '@/components/home/homeViews.js'
 import { diagrams, createDiagram } from '@/data/diagrams.js'
+import { logout } from '@/data/session.js'
 import { getDriveAvailability, shouldShowInstallDriveBanner } from '@/data/drive.js'
 
 const router = useRouter()
@@ -37,9 +39,33 @@ const isEmpty = computed(() => list.value.length === 0)
 
 const title = computed(() => VIEW_TITLES[view.value] || 'Home')
 
-function navigate(next) {
-  view.value = next
+// The view switcher replaces the old sidebar nav (#308). Same model, so the
+// view set stays defined once in homeViews.js, which already stores each icon's
+// complete lucide class.
+const viewTabs = computed(() =>
+  SIDEBAR_NAV.map((item) => ({ value: item.key, label: item.label, iconLeft: item.icon })),
+)
+
+// Real logged-in user, injected into the page boot by www/draw.py.
+const fullName = computed(() => window.full_name || 'You')
+const showSettings = ref(false)
+
+// Log out, keeping the user here with an error if the session survives — a
+// silent no-op would look like the old "403 Not Permitted" logout.
+async function signOut() {
+  try {
+    await logout()
+  } catch (error) {
+    toast.error('Could not log out', { text: error?.message || '' })
+  }
 }
+
+// App menu, mirroring the Frappe Slides navbar dropdown.
+const appMenu = computed(() => [
+  { label: 'Apps', icon: 'lucide-layout-grid', onClick: () => (window.location.href = '/apps') },
+  { label: 'Settings', icon: 'lucide-settings', onClick: () => (showSettings.value = true) },
+  { label: 'Log out', icon: 'lucide-log-out', onClick: signOut },
+])
 
 // Guard against double-submission: a fast double-click (or a stray double event)
 // on "Create" would otherwise fire create() twice and insert two diagrams.
@@ -72,8 +98,24 @@ function open(name) {
 </script>
 
 <template>
-  <div class="flex h-screen">
-    <Sidebar :active="view" @navigate="navigate" />
+  <div class="flex h-screen flex-col">
+    <!-- Top bar (#308): app identity + menu on the left, view switcher beside it.
+         No sidebar — the gallery gets the full width. -->
+    <header
+      class="flex flex-none items-center gap-4 border-b border-outline-gray-1 bg-surface-base px-9 py-2"
+    >
+      <Dropdown :options="appMenu">
+        <Button variant="ghost" theme="gray" size="md" :label="`Frappe Draw — ${fullName}`">
+          <template #prefix><Logomark :size="22" /></template>
+          <span class="text-base font-medium text-ink-gray-8">Frappe Draw</span>
+          <template #suffix>
+            <span class="lucide-chevron-down size-4 text-ink-gray-5" aria-hidden="true" />
+          </template>
+        </Button>
+      </Dropdown>
+
+      <TabButtons v-model="view" size="sm" :options="viewTabs" />
+    </header>
 
     <main class="min-h-0 flex-1 overflow-y-auto px-9 py-7">
       <TrashView v-if="view === 'trash'" />
@@ -111,5 +153,7 @@ function open(name) {
         <TileGrid v-else :mode="view" @create="create" @open="open" />
       </template>
     </main>
+
+    <SettingsDialog v-model:open="showSettings" />
   </div>
 </template>

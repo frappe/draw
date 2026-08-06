@@ -5,12 +5,11 @@ import path from 'node:path'
 import { SIDEBAR_NAV, VIEW_TITLES, isPinned, pinnedOnly, unpinned } from './homeViews.js'
 
 // Browser-free (node env, no @vue/test-utils): assert the view MODEL the home
-// sidebar renders and the pin FILTERS its views use, then source-check that the SFCs
+// view switcher renders and the pin FILTERS its views use, then source-check that the SFCs
 // actually bind that model — a regression guard against the old nav / inline filters
 // creeping back. Mirrors ShareMenu.test.js (import the model, string-check the SFC).
 const here = path.dirname(fileURLToPath(import.meta.url))
 const read = (rel) => readFileSync(path.join(here, rel), 'utf8')
-const sidebar = read('Sidebar.vue')
 const tileGrid = read('TileGrid.vue')
 const homeShell = read('../../pages/HomeShell.vue')
 
@@ -30,8 +29,11 @@ describe('sidebar nav set (#116)', () => {
     expect(SIDEBAR_NAV.some((n) => n.key === 'all' || /all diagrams/i.test(n.label))).toBe(false)
   })
 
-  it('gives every item a feather icon', () => {
-    for (const item of SIDEBAR_NAV) expect(item.feather).toBeTruthy()
+  it('gives every item a complete lucide utility class', () => {
+    // Not a bare icon name: Tailwind's JIT only emits classes it can read
+    // literally, so building one with `lucide-${name}` yields no CSS and a
+    // blank icon (#308).
+    for (const item of SIDEBAR_NAV) expect(item.icon).toMatch(/^lucide-[a-z0-9-]+$/)
   })
 
   it('page titles cover every non-trash view', () => {
@@ -66,9 +68,11 @@ describe('pin filters (#116)', () => {
 })
 
 describe('the SFCs bind the shared model', () => {
-  it('Sidebar renders SIDEBAR_NAV (not an inline nav array)', () => {
-    expect(sidebar).toContain('SIDEBAR_NAV')
-    expect(sidebar).not.toContain("label: 'All diagrams'")
+  it('HomeShell renders SIDEBAR_NAV (not an inline nav array)', () => {
+    // The sidebar was removed in #308; the same nav model now drives the top
+    // bar's view switcher, so the binding guard moved to HomeShell.
+    expect(homeShell).toContain('SIDEBAR_NAV')
+    expect(homeShell).not.toContain("label: 'All diagrams'")
   })
 
   it('HomeShell titles pages from VIEW_TITLES', () => {
