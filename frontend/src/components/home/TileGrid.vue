@@ -7,7 +7,7 @@
 // Toolbar offers search + sort + a tile/list toggle, becoming a bulk-action bar
 // on selection. Creation is the top-right CTA only. At most MAX_PINNED pinned.
 import { computed, onMounted, reactive, ref, watch, watchEffect } from 'vue'
-import { createListResource, createResource, dialog, toast, Dialog, Button, Dropdown, TextInput, Tooltip } from 'frappe-ui'
+import { createListResource, createResource, dialog, toast, Dialog, Button, Dropdown, TabButtons, TextInput, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import DiagramCollection from './DiagramCollection.vue'
 import { pinnedOnly, unpinned } from '@/components/home/homeViews.js'
@@ -290,17 +290,15 @@ const collectionHandlers = {
         </Dropdown>
       </template>
 
-      <div class="ml-auto flex items-center rounded-md border border-outline-gray-2 p-0.5">
-        <button
-          v-for="option in [{ key: 'tile', icon: 'grid' }, { key: 'list', icon: 'list' }]"
-          :key="option.key"
-          class="flex h-7 w-7 items-center justify-center rounded"
-          :class="view === option.key ? 'bg-surface-gray-3 text-ink-gray-9' : 'text-ink-gray-5 hover:bg-surface-gray-2'"
-          @click="view = option.key"
-        >
-          <LucideIcon :name="option.icon" class="h-4 w-4" />
-        </button>
-      </div>
+      <TabButtons
+        v-model="view"
+        class="ml-auto"
+        size="sm"
+        :options="[
+          { value: 'tile', label: 'Tile view', icon: 'lucide-grid-2x2' },
+          { value: 'list', label: 'List view', icon: 'lucide-list' },
+        ]"
+      />
     </div>
 
     <!-- List-view column header (mirrors the row columns). The Select-all master

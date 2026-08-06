@@ -3,7 +3,7 @@
 // arrowhead style (Google-Slides style), line color, width and dash. Writes
 // through store.updateConnector, which shallow-merges nested style/arrowheads.
 import { computed } from 'vue'
-import { TextInput } from 'frappe-ui'
+import { TabButtons, TextInput } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import PaletteSection from './PaletteSection.vue'
@@ -44,6 +44,15 @@ function setLabel(value) {
   store.updateConnector(props.connector.id, { label: value })
 }
 
+const DASH_OPTIONS = [
+  { value: 'solid', label: 'Solid' },
+  { value: 'dashed', label: 'Dashed' },
+  { value: 'dotted', label: 'Dotted' },
+]
+const CORNER_OPTIONS = [
+  { value: 'rounded', label: 'Rounded' },
+  { value: 'sharp', label: 'Sharp' },
+]
 const cellActive = 'bg-surface-gray-3 text-ink-gray-9'
 const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
 </script>
@@ -112,32 +121,22 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         <span class="w-5 rounded-full bg-surface-gray-10" :style="{ height: Math.max(1, w - 0.5) + 'px' }" />
       </button>
     </div>
-    <div class="flex gap-1">
-      <button
-        v-for="d in ['solid', 'dashed', 'dotted']"
-        :key="d"
-        class="h-7 flex-1 rounded-md text-[12px] capitalize"
-        :class="(style.dash || 'solid') === d ? cellActive : cellIdle"
-        @click="setStyle({ dash: d })"
-      >
-        {{ d }}
-      </button>
-    </div>
+    <TabButtons
+      :model-value="style.dash || 'solid'"
+      size="sm"
+      :options="DASH_OPTIONS"
+      @update:model-value="setStyle({ dash: $event })"
+    />
 
     <!-- Elbow routes can bend with rounded or sharp corners (spec 3.6). -->
     <template v-if="connector.type === 'elbow'">
       <div class="mb-2 mt-2 text-[10px] font-semibold text-ink-gray-5">Corners</div>
-      <div class="flex gap-1">
-        <button
-          v-for="c in ['rounded', 'sharp']"
-          :key="c"
-          class="h-7 flex-1 rounded-md text-[12px] capitalize"
-          :class="(style.corner || 'rounded') === c ? cellActive : cellIdle"
-          @click="setStyle({ corner: c })"
-        >
-          {{ c }}
-        </button>
-      </div>
+      <TabButtons
+        :model-value="style.corner || 'rounded'"
+        size="sm"
+        :options="CORNER_OPTIONS"
+        @update:model-value="setStyle({ corner: $event })"
+      />
     </template>
   </PaletteSection>
 </template>

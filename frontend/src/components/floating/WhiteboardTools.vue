@@ -6,7 +6,7 @@
 // disclosure; board-wide settings and the selected-object editor follow. All
 // chrome is Frappe UI.
 import { computed, nextTick, ref } from 'vue'
-import { Popover, Tooltip } from 'frappe-ui'
+import { Popover, TabButtons, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
@@ -39,10 +39,18 @@ const OPTION_TOOLS = ['pen', 'highlighter', 'eraser', 'sticky', 'line']
 // Eraser modes (#39). 'ink' is the classic whiteboard eraser — it takes only what
 // the tip covers; 'object' takes the whole element under it, the only way to erase
 // a table, sticky, shape or connector.
+// `icon` holds the COMPLETE lucide utility class. Tailwind's JIT only emits
+// classes it can read literally, so `lucide-${name}` produces no CSS.
 const ERASER_MODES = [
-  { key: 'ink', icon: 'eraser', label: 'Erase' },
-  { key: 'object', icon: 'square-x', label: 'Erase by object' },
+  { key: 'ink', icon: 'lucide-eraser', label: 'Erase' },
+  { key: 'object', icon: 'lucide-square-x', label: 'Erase by object' },
 ]
+// TabButtons shape for the same list.
+const ERASER_MODE_TABS = ERASER_MODES.map((m) => ({
+  value: m.key,
+  label: m.label,
+  iconLeft: m.icon,
+}))
 
 const optionsPopoverRef = ref(null)
 
@@ -181,19 +189,7 @@ function insertTable({ rows, cols }, close) {
       <!-- Eraser: mode + tip size (#39). The canvas cursor shows the real tip. -->
       <div v-else-if="activeTool === 'eraser'" class="w-48 p-2">
         <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">Mode</div>
-        <div class="mb-2 flex flex-col gap-1">
-          <button
-            v-for="m in ERASER_MODES"
-            :key="m.key"
-            class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-surface-gray-2"
-            :class="ui.state.eraserMode === m.key ? 'bg-surface-gray-2 text-ink-gray-9' : 'text-ink-gray-7'"
-            @click="ui.state.eraserMode = m.key"
-          >
-            <LucideIcon :name="m.icon" class="h-4 w-4 text-ink-gray-6" />
-            {{ m.label }}
-            <LucideIcon v-if="ui.state.eraserMode === m.key" name="check" class="ml-auto h-4 w-4 text-ink-gray-9" />
-          </button>
-        </div>
+        <TabButtons v-model="ui.state.eraserMode" class="mb-2" size="sm" vertical :options="ERASER_MODE_TABS" />
         <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">Size</div>
         <div class="flex gap-2">
           <button

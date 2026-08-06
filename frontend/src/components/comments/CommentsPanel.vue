@@ -3,7 +3,7 @@
 // diagram, with an Open / Resolved filter and resolve/reply inline. Docked on the
 // right of the editor; toggled from the toolbar. Clicking a thread focuses its pin.
 import { ref, computed } from 'vue'
-import { Button } from 'frappe-ui'
+import { Button, TabButtons } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useComments } from '@/composables/useComments.js'
@@ -13,6 +13,10 @@ const editorUi = useEditorUi()
 const comments = useComments()
 
 const tab = ref('open')
+const filterTabs = computed(() => [
+  { value: 'open', label: `Open ${comments.openThreads.value.length}` },
+  { value: 'resolved', label: `Resolved ${comments.resolvedThreads.value.length}` },
+])
 const shown = computed(() => (tab.value === 'open' ? comments.openThreads.value : comments.resolvedThreads.value))
 
 function armAdd() {
@@ -53,19 +57,8 @@ function focusThread(thread) {
     </div>
 
     <!-- filter -->
-    <div class="flex gap-1 px-3 pb-2 text-p-sm">
-      <button
-        v-for="option in ['open', 'resolved']"
-        :key="option"
-        class="rounded px-2 py-0.5 capitalize"
-        :class="tab === option ? 'bg-surface-gray-3 font-medium text-ink-gray-9' : 'text-ink-gray-6 hover:bg-surface-gray-2'"
-        @click="tab = option"
-      >
-        {{ option }}
-        <span class="text-ink-gray-4">
-          {{ option === 'open' ? comments.openThreads.value.length : comments.resolvedThreads.value.length }}
-        </span>
-      </button>
+    <div class="px-3 pb-2">
+      <TabButtons v-model="tab" size="sm" :options="filterTabs" />
     </div>
 
     <!-- list -->
