@@ -1,15 +1,34 @@
 <script setup>
-// App settings dialog, opened from the home sidebar. Holds the document DEFAULTS
-// for new diagrams — the theme preset that colours their shapes and the canvas
-// background — written straight to the persisted settings singleton
-// (useAppSettings), so a choice survives reloads and applies to the next diagram
-// created. All chrome is Frappe UI. No dark mode (removed in #91).
-import { Dialog } from 'frappe-ui'
+// App settings, opened from the Home top bar. Holds the document DEFAULTS for new
+// diagrams — the theme preset that colours their shapes, the canvas background,
+// and the mind-map child style — written straight to the persisted settings
+// singleton (useAppSettings), so a choice survives reloads and applies to the next
+// diagram created. No dark mode (removed in #91).
+//
+// Built on frappe-ui's SettingsDialog family (#301): a sidebar of grouped tabs, a
+// pinned panel header, and one SettingsRow per setting. There is one tab today;
+// the structure is what makes adding a second one a two-line change.
+import { ref } from 'vue'
+import {
+  Button,
+  SettingsBody,
+  SettingsContent,
+  SettingsDialog,
+  SettingsHeader,
+  SettingsNavGroup,
+  SettingsNavItem,
+  SettingsPanel,
+  SettingsRow,
+  SettingsSidebar,
+  TabButtons,
+} from 'frappe-ui'
 import { useAppSettings } from '@/composables/useAppSettings.js'
 import { THEME_PRESETS, DEFAULT_THEME_PRESET } from '@/diagram/theme.js'
 
 const open = defineModel('open', { type: Boolean, default: false })
 const { settings } = useAppSettings()
+
+const tab = ref('diagram-defaults')
 
 // Presets in display order — the neutral default (slate) first, then the rest as
 // declared in theme.js. Each tile previews its triad's three stroke colours,
@@ -36,72 +55,84 @@ const childStyleOptions = [
   { value: 'text', label: 'Text' },
   { value: 'shape', label: 'Shape' },
 ]
-const cellActive = 'bg-surface-gray-3 text-ink-gray-9'
-const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
 </script>
 
 <template>
-  <Dialog v-model="open" :options="{ title: 'Settings', size: 'lg' }">
-    <template #body-content>
-      <div class="flex flex-col gap-6">
-        <section>
-          <div class="text-[13px] font-medium text-ink-gray-8">Default color theme</div>
-          <p class="mb-3 mt-0.5 text-[12px] text-ink-gray-5">Colours the shapes in diagrams you create.</p>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="preset in themePresets"
-              :key="preset.name"
-              type="button"
-              :aria-pressed="settings.defaultThemePreset === preset.name"
-              class="flex flex-col items-center gap-1.5 rounded-lg border p-2 transition-colors"
-              :class="settings.defaultThemePreset === preset.name ? 'border-outline-gray-8' : 'border-outline-gray-2 hover:border-outline-gray-3'"
-              @click="settings.defaultThemePreset = preset.name"
-            >
-              <span class="flex h-8 w-12 overflow-hidden rounded-[5px] border border-black/10">
-                <span v-for="band in preset.bands" :key="band" class="flex-1" :style="{ background: band }" />
-              </span>
-              <span class="text-[11px] text-ink-gray-7">{{ preset.label }}</span>
-            </button>
-          </div>
-        </section>
+  <SettingsDialog v-model="open" v-model:tab="tab" size="4xl">
+    <SettingsSidebar>
+      <SettingsNavGroup>
+        <SettingsNavItem value="diagram-defaults">
+          <template #prefix>
+            <span class="lucide-palette size-4 text-ink-gray-6" aria-hidden="true" />
+          </template>
+          Diagram defaults
+        </SettingsNavItem>
+      </SettingsNavGroup>
+    </SettingsSidebar>
 
-        <section>
-          <div class="text-[13px] font-medium text-ink-gray-8">Default canvas background</div>
-          <p class="mb-3 mt-0.5 text-[12px] text-ink-gray-5">The page colour behind new diagrams. None exports transparent.</p>
-          <div class="flex flex-wrap gap-2">
-            <button
-              v-for="option in backgroundOptions"
-              :key="option.label"
-              type="button"
-              :aria-pressed="settings.defaultCanvasBackground === option.value"
-              class="flex flex-col items-center gap-1.5 rounded-lg border p-2 transition-colors"
-              :class="settings.defaultCanvasBackground === option.value ? 'border-outline-gray-8' : 'border-outline-gray-2 hover:border-outline-gray-3'"
-              @click="settings.defaultCanvasBackground = option.value"
-            >
-              <span class="h-8 w-12 rounded-[5px] border border-black/10" :style="{ background: option.value || CHECKER }" />
-              <span class="text-[11px] text-ink-gray-7">{{ option.label }}</span>
-            </button>
-          </div>
-        </section>
+    <SettingsContent>
+      <SettingsPanel value="diagram-defaults">
+        <SettingsHeader
+          title="Diagram defaults"
+          description="Applied to diagrams you create from now on. Existing diagrams keep their own settings."
+        />
+        <SettingsBody>
+          <SettingsRow title="Default color theme" description="Colours the shapes in diagrams you create.">
+            <div class="flex flex-wrap justify-end gap-2">
+              <Button
+                v-for="preset in themePresets"
+                :key="preset.name"
+                class="!h-auto !w-auto !p-2"
+                theme="gray"
+                size="md"
+                :variant="settings.defaultThemePreset === preset.name ? 'subtle' : 'outline'"
+                :label="preset.label"
+                :tooltip="preset.label"
+                @click="settings.defaultThemePreset = preset.name"
+              >
+                <template #icon>
+                  <span class="flex h-8 w-12 overflow-hidden rounded-[5px] border border-outline-gray-2">
+                    <span v-for="band in preset.bands" :key="band" class="flex-1" :style="{ background: band }" />
+                  </span>
+                </template>
+              </Button>
+            </div>
+          </SettingsRow>
 
-        <section>
-          <div class="text-[13px] font-medium text-ink-gray-8">Mind map child nodes</div>
-          <p class="mb-3 mt-0.5 text-[12px] text-ink-gray-5">How a new child node looks by default. Text is Whimsical-style; Shape draws a box like the root.</p>
-          <div class="inline-flex gap-1 rounded-lg border border-outline-gray-2 p-1">
-            <button
-              v-for="option in childStyleOptions"
-              :key="option.value"
-              type="button"
-              :aria-pressed="settings.mindmapChildStyle === option.value"
-              class="h-7 w-20 rounded-md text-[12px] transition-colors"
-              :class="settings.mindmapChildStyle === option.value ? cellActive : cellIdle"
-              @click="settings.mindmapChildStyle = option.value"
-            >
-              {{ option.label }}
-            </button>
-          </div>
-        </section>
-      </div>
-    </template>
-  </Dialog>
+          <SettingsRow
+            title="Default canvas background"
+            description="The page colour behind new diagrams. None exports transparent."
+          >
+            <div class="flex flex-wrap justify-end gap-2">
+              <Button
+                v-for="option in backgroundOptions"
+                :key="option.label"
+                class="!h-auto !w-auto !p-2"
+                theme="gray"
+                size="md"
+                :variant="settings.defaultCanvasBackground === option.value ? 'subtle' : 'outline'"
+                :label="option.label"
+                :tooltip="option.label"
+                @click="settings.defaultCanvasBackground = option.value"
+              >
+                <template #icon>
+                  <span
+                    class="h-8 w-12 rounded-[5px] border border-outline-gray-2"
+                    :style="{ background: option.value || CHECKER }"
+                  />
+                </template>
+              </Button>
+            </div>
+          </SettingsRow>
+
+          <SettingsRow
+            title="Mind map child nodes"
+            description="How a new child node looks by default. Text is Whimsical-style; Shape draws a box like the root."
+          >
+            <TabButtons v-model="settings.mindmapChildStyle" size="sm" :options="childStyleOptions" />
+          </SettingsRow>
+        </SettingsBody>
+      </SettingsPanel>
+    </SettingsContent>
+  </SettingsDialog>
 </template>
