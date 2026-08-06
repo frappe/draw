@@ -161,7 +161,7 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
           <template #target="{ togglePopover }">
             <Tooltip text="Fill">
               <button :class="btn" @mousedown.prevent @click="togglePopover()">
-                <span class="h-4 w-4 rounded-full border border-ink-gray-4" :style="{ background: primaryFill }" />
+                <span class="h-4 w-4 rounded-full border border-outline-gray-4" :style="{ background: primaryFill }" />
               </button>
             </Tooltip>
           </template>

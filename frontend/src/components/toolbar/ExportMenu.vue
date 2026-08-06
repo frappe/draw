@@ -67,7 +67,7 @@ const rowClass =
             </div>
           </div>
           <label class="mt-1.5 flex cursor-pointer select-none items-center gap-1.5 text-xs text-ink-gray-5">
-            <input v-model="transparent" type="checkbox" class="h-3 w-3 accent-ink-gray-8" />
+            <input v-model="transparent" type="checkbox" class="h-3 w-3 accent-gray-800" />
             Transparent background
           </label>
         </div>

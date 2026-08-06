@@ -149,7 +149,7 @@ const btn = 'flex h-8 w-8 items-center justify-center rounded-md text-ink-gray-7
                 v-for="type in NODE_TYPES"
                 :key="type"
                 class="flex h-10 items-center justify-center rounded-md border hover:bg-surface-gray-1"
-                :class="node.nodeType === type ? 'border-ink-gray-9 bg-surface-gray-2' : 'border-outline-gray-1'"
+                :class="node.nodeType === type ? 'border-outline-gray-9 bg-surface-gray-2' : 'border-outline-gray-1'"
                 :title="NODE_TYPE_META[type].label"
                 @click="swap(type)"
               >

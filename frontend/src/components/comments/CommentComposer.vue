@@ -141,7 +141,7 @@ function onKeydown(event) {
       v-model="text"
       :placeholder="placeholder"
       rows="2"
-      class="w-full resize-none rounded-md border border-outline-gray-2 bg-surface-white px-2.5 py-1.5 text-p-sm text-ink-gray-8 placeholder:text-ink-gray-4 focus:border-outline-gray-3 focus:outline-none focus:ring-0"
+      class="w-full resize-none rounded-md border border-outline-gray-2 bg-surface-elevation-1 px-2.5 py-1.5 text-p-sm text-ink-gray-8 placeholder:text-ink-gray-4 focus:border-outline-gray-3 focus:outline-none focus:ring-0"
       @input="onInput"
       @keydown="onKeydown"
     />
@@ -149,7 +149,7 @@ function onKeydown(event) {
     <!-- @mention picker -->
     <div
       v-if="mentionOpen"
-      class="absolute left-0 right-0 z-20 mt-1 max-h-48 overflow-y-auto rounded-md border border-outline-gray-2 bg-surface-white py-1 shadow-xl"
+      class="absolute left-0 right-0 z-20 mt-1 max-h-48 overflow-y-auto rounded-md border border-outline-gray-2 bg-surface-elevation-1 py-1 shadow-xl"
     >
       <button
         v-for="(user, i) in mentionResults"

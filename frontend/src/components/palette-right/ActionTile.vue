@@ -14,7 +14,7 @@ defineEmits(['click'])
 <template>
   <button
     class="flex h-12 flex-col items-center justify-center gap-1 rounded-md border bg-surface-base hover:border-outline-gray-3 hover:bg-surface-gray-1"
-    :class="active ? 'border-ink-gray-9 bg-surface-gray-2' : 'border-outline-gray-1'"
+    :class="active ? 'border-outline-gray-9 bg-surface-gray-2' : 'border-outline-gray-1'"
     @click="$emit('click')"
   >
     <LucideIcon :name="icon" class="h-[18px] w-[18px] text-ink-gray-7" />
