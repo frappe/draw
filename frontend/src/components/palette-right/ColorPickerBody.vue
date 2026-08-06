@@ -5,8 +5,7 @@
 // (6-digit when opaque, 8-digit #RRGGBBAA otherwise). Rendered directly wherever
 // the full picker should be inline, or inside ColorPicker's popover.
 import { reactive, computed, watch, onBeforeUnmount } from 'vue'
-import { TextInput } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
+import { Button, TextInput } from 'frappe-ui'
 import { recentColors, pushRecentColor } from '@/composables/useRecentColors.js'
 import { SWATCH_PALETTE } from '@/diagram/palette.js'
 
@@ -203,6 +202,7 @@ defineExpose({ currentColor })
     </div>
 
     <div class="mt-3 flex items-center gap-1.5">
+<<<<<<< HEAD
       <TextInput
         class="flex-1 uppercase"
         variant="outline"
@@ -215,15 +215,17 @@ defineExpose({ currentColor })
           <span class="text-sm text-ink-gray-5">#</span>
         </template>
       </TextInput>
-      <button
+      <Button
         v-if="supportsEyedropper"
-        class="flex h-7 w-7 flex-none items-center justify-center rounded-md border border-outline-gray-2 text-ink-gray-6 hover:bg-surface-gray-2"
-        title="Pick a colour from the screen"
-        aria-label="Eyedropper"
+        class="flex-none"
+        variant="outline"
+        theme="gray"
+        size="sm"
+        icon="lucide-pipette"
+        tooltip="Pick a colour from the screen"
+        label="Eyedropper"
         @click="pickEyedropper"
-      >
-        <LucideIcon name="pipette" class="h-4 w-4" />
-      </button>
+      />
     </div>
 
     <div v-if="recentColors.length" class="mt-2.5">

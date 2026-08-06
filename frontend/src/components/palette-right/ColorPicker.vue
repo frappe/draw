@@ -5,7 +5,7 @@
 //    a popover, where a nested popover wouldn't open — e.g. the block Fill/Border
 //    menus and the connector menu).
 import { computed } from 'vue'
-import { Popover } from 'frappe-ui'
+import { Button, Popover } from 'frappe-ui'
 import ColorPickerBody from './ColorPickerBody.vue'
 
 const props = defineProps({
@@ -37,13 +37,19 @@ function onUpdate(color) {
     <span v-if="label" class="w-12 shrink-0 text-[11px] text-ink-gray-6">{{ label }}</span>
     <Popover>
       <template #target="{ togglePopover }">
-        <button
-          class="flex h-8 flex-1 items-center gap-2 rounded-md border border-outline-gray-2 px-2 hover:border-outline-gray-3"
+        <Button
+          class="!flex-1 !justify-start"
+          variant="outline"
+          theme="gray"
+          size="md"
+          :label="`Colour ${swatch}`"
           @click="togglePopover()"
         >
-          <span class="h-4 w-4 rounded-[3px] border border-black/10" :style="{ background: swatch }" />
-          <span class="text-[11px] font-medium uppercase text-ink-gray-7">{{ swatch }}</span>
-        </button>
+          <template #prefix>
+            <span class="h-4 w-4 rounded-[3px] border border-outline-gray-2" :style="{ background: swatch }" />
+          </template>
+          <span class="text-sm font-medium uppercase text-ink-gray-7">{{ swatch }}</span>
+        </Button>
       </template>
       <template #body-main>
         <div class="w-[208px] p-2.5">
