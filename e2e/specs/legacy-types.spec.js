@@ -247,17 +247,17 @@ test.describe('whiteboard', () => {
     const box = await strokePath.boundingBox()
 
     await toolByIcon(page, 'eraser').click()
-    // Switch the eraser into object mode from its options disclosure (#39). The
-    // mode buttons deliberately leave the popover open (like the pen's colour and
-    // width), so close it by toggling its own button. NOT with Escape: Escape is
-    // universal and resets the tool to select before any per-mode handling, so it
-    // disarms the eraser and the drag below silently becomes a marquee.
-    await toolByIcon(page, 'sliders').click()
+    // Arming the eraser opens its options popover directly (#241), so switch it into
+    // object mode straight from there — no separate 'sliders' click. The mode buttons
+    // deliberately leave the popover open (like the pen's colour and width), so it is
+    // dismissed by toggling the tool below. NOT with Escape: Escape is universal and
+    // resets the tool to select before any per-mode handling, so it disarms the eraser
+    // and the drag below silently becomes a marquee.
     const objectMode = page.locator(POPOVER).getByRole('button', { name: 'Erase by object' })
     await objectMode.waitFor({ state: 'visible' })
     await objectMode.click()
-    // Dismiss by clicking the eraser tool itself: an outside click closes the
-    // popover, and re-arming the tool that is already active changes nothing.
+    // Dismiss by clicking the eraser tool itself: an outside click closes the popover,
+    // and re-arming the already-active tool is a no-op (#241), so it doesn't reopen.
     await toolByIcon(page, 'eraser').click()
     await expect(objectMode).toBeHidden()
     // Guard the precondition: if the tool were disarmed, the assertion below would
