@@ -16,7 +16,7 @@ import { registerModeInteraction, unregisterModeInteraction, useModeInteraction 
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { simplifyStroke } from '@/diagram/strokeSimplify.js'
 import {
-  strokeAt, lineAt, tableAt, tableCellAt,
+  strokeAt, lineAt, tableAt,
   whiteboardObjectBoxes, whiteboardObjectsInZOrder, translateWhiteboardObject, clearVote,
 } from '@/diagram/whiteboardModel.js'
 import { eraseInkAt, eraseObjectsAt, sweepPoints } from '@/diagram/eraser.js'
@@ -420,13 +420,12 @@ export function startGroupMove(event, store, editorUi, ui) {
 // Press on a whiteboard table (select tool). Like the sticky, the table owns its
 // own press once selected: a drag past a small threshold moves it (with every
 // co-selected object), while a press that never crosses the threshold stays a
-// plain click that drops the caret into the cell under it (Frappe-Writer T2 cell
-// edit). Live-mutates the model for a smooth preview, then commits the whole
-// translation as ONE undoable unit (#133). `point` is the press in canvas units.
-export function startTableMove(event, store, editorUi, ui, table, point) {
+// plain click that opens the table's frappe-ui rich-text editor (#254). Live-
+// mutates the model for a smooth preview, then commits the whole translation as
+// ONE undoable unit (#133).
+export function startTableMove(event, store, editorUi, ui, table) {
   const model = store.state.whiteboard
   const items = ui.state.selection.map((item) => ({ ...item }))
-  const cell = tableCellAt(table, point)
   const startX = event.clientX
   const startY = event.clientY
   let lastDx = 0
@@ -456,11 +455,11 @@ export function startTableMove(event, store, editorUi, ui, table, point) {
       })
       return
     }
-    // A plain click (a real release, not a cancelled gesture) opens the cell under
-    // the press for inline editing (T2). editingCell is set directly — no reselect —
-    // so it survives (setSelection would clear it).
-    if (cell && finishEvent?.type !== 'pointercancel') {
-      ui.state.editingCell = { tableId: table.id, row: cell.row, col: cell.col }
+    // A plain click (a real release, not a cancelled gesture) opens the table for
+    // editing. editingCell is set directly — no reselect — so it survives
+    // (setSelection would clear it).
+    if (finishEvent?.type !== 'pointercancel') {
+      ui.state.editingCell = { tableId: table.id }
     }
   }
   window.addEventListener('pointermove', move)
@@ -470,16 +469,15 @@ export function startTableMove(event, store, editorUi, ui, table, point) {
   window.addEventListener('pointercancel', finish)
 }
 
-// Double-click inside a table edits the cell under the cursor; anywhere else it
-// creates a text box with the caret ready (spec W1). Text reuses the shared
-// text-editing path so it lives in the common shapes[] array (C9).
+// Double-click inside a table opens it for editing; anywhere else it creates a
+// text box with the caret ready (spec W1). Text reuses the shared text-editing
+// path so it lives in the common shapes[] array (C9).
 function onDoubleClick(context, store) {
   const point = context.point
   const ui = useWhiteboardUi()
   const table = tableAt(store.state.whiteboard, point)
   if (table) {
-    const cell = tableCellAt(table, point)
-    ui.state.editingCell = { tableId: table.id, row: cell.row, col: cell.col }
+    ui.state.editingCell = { tableId: table.id }
     ui.selectTable(table.id)
     return true
   }

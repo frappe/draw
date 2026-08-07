@@ -36,11 +36,10 @@ import {
   addTable,
   removeTable,
   tableById,
-  setTableCell,
-  applyVote,
-  clearVote,
   whiteboardObjectsInZOrder,
   maxWhiteboardZIndex,
+  applyVote,
+  clearVote,
 } from '@/diagram/whiteboardModel.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 
@@ -564,13 +563,13 @@ function attachWhiteboard(store, state, history) {
       clearVote(state.whiteboard, 'sticky', id)
     })
   }
-  attachWhiteboardLines(store, state, history)
-  attachWhiteboardTables(store, state, history)
   // Per-object up/down vote (T3): one undoable unit; dir is 'up' | 'down'.
   store.voteWhiteboardObject = (kind, id, dir, delta = 1) => {
     if (!state.whiteboard) return
     history.commit('Vote', () => applyVote(state.whiteboard, kind, id, dir, delta))
   }
+  attachWhiteboardLines(store, state, history)
+  attachWhiteboardTables(store, state, history)
   // Generic per-type model update (e.g. sketch-style toggle) as one undoable unit.
   store.updateWhiteboardModel = (label, mutatorFn) => {
     if (!state.whiteboard) return
@@ -631,7 +630,9 @@ function attachWhiteboardLines(store, state, history) {
   }
 }
 
-// Simple fixed-grid tables with per-cell text. One undoable unit each.
+// Tables backed by a Tiptap document (frappe-ui's Table, #254). One undoable
+// unit each; `updateTable` also carries content edits and measured w/h
+// (label 'Update table' coalesces a rapid run into one undo step).
 function attachWhiteboardTables(store, state, history) {
   store.addTable = (x, y, partial = {}) => {
     if (!state.whiteboard) return null
@@ -646,10 +647,15 @@ function attachWhiteboardTables(store, state, history) {
       const table = tableById(state.whiteboard || {}, id)
       if (table) applyPatch(table, patch)
     })
-  store.setTableCell = (id, row, col, text) =>
-    history.commit('Edit cell', () => {
+  // A straight reference swap, not applyPatch's deep-merge: `content` is a
+  // Tiptap document, and merging it field-by-field into the existing object
+  // would mutate it in place rather than replace it, defeating frappe-ui's
+  // useEditor reference check that skips re-applying an edit it just emitted
+  // (so every keystroke would re-run setContent and could reset the caret).
+  store.updateTableContent = (id, content) =>
+    history.commit('Update table', () => {
       const table = tableById(state.whiteboard || {}, id)
-      if (table) setTableCell(table, row, col, text)
+      if (table) table.content = content
     })
   store.removeTable = (id) => {
     if (!state.whiteboard) return

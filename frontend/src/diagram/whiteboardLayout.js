@@ -5,6 +5,7 @@
 // transient and never contributes (spec C10). Refined by the W-step agent.
 
 import { axisAlignedBBox } from './geometry.js'
+import { tableWidth, tableHeight } from './whiteboardModel.js'
 
 const PAD = 80
 const FALLBACK = { w: 800, h: 600 }
@@ -67,6 +68,6 @@ function unionLines(box, model) {
 function unionTables(box, model) {
   for (const table of model?.tables || []) {
     expand(box, table.x, table.y)
-    expand(box, table.x + table.cols * table.cellW, table.y + table.rows * table.cellH)
+    expand(box, table.x + tableWidth(table), table.y + tableHeight(table))
   }
 }

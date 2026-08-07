@@ -462,30 +462,50 @@ function whiteboardLine(line) {
   return out
 }
 
-// Tables: the grid plus whatever text the cells hold. Size comes from cols*cellW /
-// rows*cellH (there are no w/h fields on the model).
-// A table's rows/cols come from the untrusted document and drive a nested loop, so
-// a shared/public diagram with rows:1e9 would hang every viewer on the tile/export
-// render. Clamp to a generous ceiling — far above any real table.
+// Tables: the grid plus whatever text the cells hold. A table's grid now lives in
+// its Tiptap `content` (frappe-ui's Table, #254) — the row/col count comes from
+// the actual `content` arrays, not the spoofable `rows`/`cols` creation hints, so
+// a shared/public diagram can't declare rows:1e9 to hang every viewer's render.
+// Still clamp to a generous ceiling in case `content` itself carries an
+// oversized grid.
 const MAX_TABLE_DIM = 200
 
 function tableDim(value) {
   return Math.max(0, Math.min(MAX_TABLE_DIM, Math.floor(num(value))))
 }
 
+// Plain text of one Tiptap table-cell node (paragraphs joined, marks ignored —
+// good enough for a thumbnail preview).
+function tableCellText(node) {
+  if (!node) return ''
+  if (node.type === 'text') return node.text || ''
+  return (node.content || []).map(tableCellText).join('')
+}
+
+function tableRowsFromContent(content) {
+  const tableNode = (content?.content || []).find((node) => node?.type === 'table')
+  return tableNode?.content || []
+}
+
 function whiteboardTable(table) {
-  const cols = tableDim(table.cols)
-  const rows = tableDim(table.rows)
-  const cellW = num(table.cellW, 120)
-  const cellH = num(table.cellH, 40)
+  const rowsData = tableRowsFromContent(table.content)
+  const rows = tableDim(rowsData.length)
+  let colCount = 0
+  for (let r = 0; r < rows; r += 1) colCount = Math.max(colCount, (rowsData[r]?.content || []).length)
+  const cols = tableDim(colCount)
+  const w = num(table.w, cols * num(table.cellW, 120))
+  const h = num(table.h, rows * num(table.cellH, 40))
+  const cellW = cols ? w / cols : num(table.cellW, 120)
+  const cellH = rows ? h / rows : num(table.cellH, 40)
   const color = safeColor(table.color, '#171717')
   let out = ''
   for (let r = 0; r < rows; r += 1) {
+    const rowCells = rowsData[r]?.content || []
     for (let c = 0; c < cols; c += 1) {
       const x = num(table.x) + c * cellW
       const y = num(table.y) + r * cellH
       out += `<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" fill="none" stroke="${color}" stroke-width="1" stroke-opacity="0.45"/>`
-      const text = (table.cells || {})[`${r},${c}`] // key format matches setTableCell
+      const text = tableCellText(rowCells[c]).trim()
       if (text) {
         out += `<text x="${x + 8}" y="${y + cellH / 2 + 5}" fill="${color}" font-size="13" font-family="Inter, sans-serif">${escapeText(text)}</text>`
       }

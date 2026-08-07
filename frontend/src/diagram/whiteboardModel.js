@@ -57,20 +57,46 @@ export function makeLine(x1, y1, x2, y2, partial = {}) {
 export const TABLE_CELL_W = 120
 export const TABLE_CELL_H = 40
 
-// A simple fixed grid table. `cells` maps "row,col" → text. `rows`/`cols` are
-// required: every creation path supplies an explicit size (the size picker, or
-// the armed-tool default) — there is no built-in 3×3 fallback anymore (#134).
+// The cell content is a Tiptap/ProseMirror document (frappe-ui's Table, #254) —
+// one `table` node holding `rows` × `cols` empty-paragraph cells.
+export function emptyTableContent(rows, cols) {
+  return {
+    type: 'doc',
+    content: [
+      {
+        type: 'table',
+        content: Array.from({ length: rows }, () => ({
+          type: 'tableRow',
+          content: Array.from({ length: cols }, () => ({
+            type: 'tableCell',
+            content: [{ type: 'paragraph' }],
+          })),
+        })),
+      },
+    ],
+  }
+}
+
+// A table backed by a Tiptap document (`content`) rendered/edited with
+// frappe-ui's Table extension (#254). `rows`/`cols` are only the size the table
+// was created at — the picker, or the armed-tool default (#134) — used to seed
+// `content` and the initial `w`/`h`; row/column count afterwards lives in
+// `content` itself (rows and columns can be added/removed from the table menu).
 export function makeTable(x, y, partial = {}) {
+  const cellW = partial.cellW || TABLE_CELL_W
+  const cellH = partial.cellH || TABLE_CELL_H
   return {
     id: nextId('wt'),
     x,
     y,
     rows: partial.rows,
     cols: partial.cols,
-    cellW: partial.cellW || TABLE_CELL_W,
-    cellH: partial.cellH || TABLE_CELL_H,
+    cellW,
+    cellH,
     color: partial.color || '#171717',
-    cells: partial.cells || {},
+    content: partial.content || emptyTableContent(partial.rows, partial.cols),
+    w: partial.w || partial.cols * cellW,
+    h: partial.h || partial.rows * cellH,
     zIndex: partial.zIndex || 0,
   }
 }
@@ -185,17 +211,6 @@ export function removeTable(model, id) {
   model.tables = (model.tables || []).filter((table) => table.id !== id)
 }
 
-// Set (or clear) the text of one table cell, keyed "row,col" (Part C9).
-export function setTableCell(table, row, col, text) {
-  const key = `${row},${col}`
-  if (text) table.cells = { ...table.cells, [key]: text }
-  else {
-    const next = { ...table.cells }
-    delete next[key]
-    table.cells = next
-  }
-}
-
 export function strokeById(model, id) {
   return model.strokes.find((stroke) => stroke.id === id)
 }
@@ -258,12 +273,16 @@ export function lineAt(model, point, tolerance) {
   return hit
 }
 
+// The live box, measured from the rendered Tiptap table once it has mounted
+// (#254 — column/row count and sizing live in `content`, not `cols`/`rows`
+// after creation). Falls back to the creation-time grid for a table that
+// hasn't measured yet (first paint) or predates `w`/`h` (legacy docs).
 export function tableWidth(table) {
-  return table.cols * table.cellW
+  return table.w || table.cols * table.cellW
 }
 
 export function tableHeight(table) {
-  return table.rows * table.cellH
+  return table.h || table.rows * table.cellH
 }
 
 // The topmost table whose bounding box contains the point, or null.
@@ -331,14 +350,5 @@ export function translateWhiteboardObject(model, kind, id, dx, dy) {
   } else if (kind === 'table') {
     const t = tableById(model, id)
     if (t) { t.x += dx; t.y += dy }
-  }
-}
-
-// Which cell of `table` the point falls in, as { row, col }, or null if outside.
-export function tableCellAt(table, point) {
-  if (tableAt({ tables: [table] }, point) !== table) return null
-  return {
-    row: Math.min(table.rows - 1, Math.floor((point.y - table.y) / table.cellH)),
-    col: Math.min(table.cols - 1, Math.floor((point.x - table.x) / table.cellW)),
   }
 }

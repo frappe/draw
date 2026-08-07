@@ -42,7 +42,8 @@ function createWhiteboardUi() {
     selected: null,
     // The live rubber-band marquee box {x,y,w,h} in canvas units, or null.
     marquee: null,
-    // The table cell being edited inline: { tableId, row, col } or null.
+    // The table currently open for editing: { tableId } or null (#254 — the
+    // frappe-ui rich-text table manages its own cell focus internally).
     editingCell: null,
     // A sticky id that should open its inline editor (e.g. right after it's
     // created); the sticky component consumes and clears it.
