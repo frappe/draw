@@ -253,7 +253,9 @@ test.describe('whiteboard', () => {
     // dismissed by toggling the tool below. NOT with Escape: Escape is universal and
     // resets the tool to select before any per-mode handling, so it disarms the eraser
     // and the drag below silently becomes a marquee.
-    const objectMode = page.locator(POPOVER).getByRole('button', { name: 'Erase by object' })
+    // TabButtons renders each mode through reka-ui's RadioGroupItem, so the tab is a
+    // <button role="radio"> — getByRole('button') no longer reaches it.
+    const objectMode = page.locator(POPOVER).getByRole('radio', { name: 'Erase by object' })
     await objectMode.waitFor({ state: 'visible' })
     await objectMode.click()
     // Dismiss by clicking the eraser tool itself: an outside click closes the popover,
