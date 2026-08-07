@@ -51,6 +51,19 @@ export async function canvasTransform(page) {
 //
 // Instead, build a selector from the glyph's own geometry, read out of the app's
 // icon table — so it stays correct if an icon's path data is ever updated.
+//
+// There are now TWO ways an icon reaches the DOM, and a lookup has to match either:
+//
+//   1. the local `<LucideIcon>` shim, which renders an inline `<svg>` — matched by
+//      geometry, as above;
+//   2. frappe-ui's `icon="lucide-*"` props (Button, Pill/TabButtons, …), which render
+//      a `<span>` carrying the preset's `lucide-*` CSS class and NO svg at all —
+//      matched by that class.
+//
+// So the selector is a comma-separated pair. Matching only the svg form is what
+// makes a button silently unfindable the moment it is migrated to frappe-ui, and
+// the resulting 90s click timeout looks like a broken control rather than a stale
+// locator.
 export function iconSelector(name) {
   const resolved = LUCIDE_ALIAS[name] || name
   const nodes = ICON_NODES[resolved]
@@ -64,7 +77,7 @@ export function iconSelector(name) {
       .join('')
     return `:has(svg ${tag}${attrSel})`
   })
-  return `button${parts.join('')}`
+  return `button${parts.join('')}, button:has(.lucide-${resolved}), button.lucide-${resolved}`
 }
 
 export function buttonByIcon(page, name, scope) {
