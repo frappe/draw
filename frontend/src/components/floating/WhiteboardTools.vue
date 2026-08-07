@@ -48,12 +48,15 @@ const optionsPopoverRef = ref(null)
 
 // Clicking the eraser tool also opens its options popover directly, so its
 // size/settings are reachable from the tool itself rather than only via the
-// separate "sliders" disclosure (#241). The popover only mounts when the
-// active tool has options (v-if="activeHasOptions"), so wait a tick before
-// opening it in case the previous tool had none.
+// separate "sliders" disclosure (#241). Only on the arm transition though, not on
+// a repeat click of the already-active tool: clicking an armed tool must stay a
+// no-op so an open options popover can be dismissed by clicking the tool again.
+// The popover only mounts when the active tool has options (v-if="activeHasOptions"),
+// so wait a tick before opening it in case the previous tool had none.
 async function armTool(t) {
+  const wasActive = editorUi.state.tool === t.tool
   editorUi.setTool(t.tool)
-  if (t.tool === 'eraser') {
+  if (t.tool === 'eraser' && !wasActive) {
     await nextTick()
     optionsPopoverRef.value?.open()
   }
