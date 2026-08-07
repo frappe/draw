@@ -29,9 +29,21 @@ async function openShareDialog(page) {
   await expect(page.getByTestId('general-access-trigger')).toBeVisible()
 }
 
+// Both role pickers (the invite row and each member row) are frappe-ui <Select>s
+// now (#292). Select renders its rows through reka-ui, so the control is NOT a
+// native <select> and selectOption() fails with "Element is not a <select>
+// element". Open the trigger by its accessible name, then click the option by its
+// visible label — the same shape as setGeneralAccess below.
+const MEMBER_ROLE_LABELS = { view: 'Can view', comment: 'Can comment', edit: 'Can edit' }
+
+async function setRole(page, triggerLabel, level) {
+  await page.getByLabel(triggerLabel).click()
+  await page.getByRole('option').filter({ hasText: MEMBER_ROLE_LABELS[level] }).first().click()
+}
+
 // Invite by typing the address and picking the search result.
 async function invite(page, email, level) {
-  if (level) await page.getByLabel('Access level for the person being added').selectOption(level)
+  if (level) await setRole(page, 'Access level for the person being added', level)
   await page.getByPlaceholder('Add people by email…').fill(email)
   const result = page.getByRole('button', { name: new RegExp(email, 'i') }).first()
   await result.waitFor({ state: 'visible' })
@@ -109,7 +121,7 @@ test.describe('sharing: inviting people', () => {
       })
       .toBe('view')
 
-    await page.getByLabel(`Access level for ${TARGET}`).selectOption('edit')
+    await setRole(page, `Access level for ${TARGET}`, 'edit')
 
     await expect
       .poll(async () => (await fetchShares(page, name)).find((s) => s.user === TARGET)?.level, {
