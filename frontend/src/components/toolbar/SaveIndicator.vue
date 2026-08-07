@@ -1,42 +1,35 @@
 <script setup>
-// Saved / Saving… trust indicator (spec §4.4, §8, README §4a). Binds to the
-// autosave status: green check "Saved" at rest, a spinning loader "Saving…"
-// during the ~1.5s debounce, and a red warning if a save fails. Green check is
-// the only functional color here; everything else is neutral chrome.
+// Save PROBLEM indicator (spec §4.4, §8, README §4a). The healthy path is silent:
+// a diagram that is saving normally, or is saved, shows nothing at all — steady
+// state needs no chrome, and advertising "Saved" trains people to ignore the one
+// place a real problem would appear (#307).
 //
 // `message` is autosave's freeze reason ("changed elsewhere — reload", "you're
 // offline"). It wins over the status label: a frozen editor still accepts every
 // edit, so "Save failed" alone left the user with no idea their work had stopped
 // being kept, or what to do about it (GitHub #171).
 import { computed } from 'vue'
-import LucideIcon from '@/icons/LucideIcon.vue'
 
 const props = defineProps({
   status: { type: String, default: 'saved' },
   message: { type: String, default: '' },
 })
 
-const meta = computed(() => {
-  if (props.message) {
-    return { label: props.message, icon: 'alert-circle', tone: 'text-red-600', spin: false }
-  }
-  if (props.status === 'saving') {
-    return { label: 'Saving…', icon: 'loader', tone: 'text-ink-gray-5', spin: true }
-  }
-  if (props.status === 'error') {
-    return { label: 'Save failed', icon: 'alert-circle', tone: 'text-red-600', spin: false }
-  }
-  return { label: 'Saved', icon: 'check', tone: 'text-green-600', spin: false }
+// Only a freeze reason or an outright save failure surfaces.
+const problem = computed(() => {
+  if (props.message) return props.message
+  if (props.status === 'error') return 'Save failed'
+  return ''
 })
 </script>
 
 <template>
-  <div class="flex flex-none items-center gap-1 text-xs text-ink-gray-5">
-    <LucideIcon
-      :name="meta.icon"
-      class="h-3.5 w-3.5"
-      :class="[meta.tone, { 'animate-spin': meta.spin }]"
-    />
-    <span class="max-w-64 truncate" :title="meta.label">{{ meta.label }}</span>
+  <div
+    v-if="problem"
+    class="flex flex-none items-center gap-1 text-sm text-ink-red-6"
+    role="status"
+  >
+    <span class="lucide-circle-alert size-4 shrink-0" aria-hidden="true" />
+    <span class="max-w-64 truncate" :title="problem">{{ problem }}</span>
   </div>
 </template>

@@ -36,6 +36,7 @@ def get_context(context):
 		"csrf_token": get_csrf_token(),
 		"user_id": frappe.session.user,
 		"full_name": frappe.utils.get_fullname(frappe.session.user),
+		"socketio_port": frappe.conf.socketio_port,
 	}
 	context.no_cache = 1
 	return context

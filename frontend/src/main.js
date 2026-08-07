@@ -7,5 +7,8 @@ import './index.css'
 
 const app = createApp(App)
 app.use(router)
-app.use(FrappeUI)
+// window.socketio_port comes from the boot payload (draw/www/draw.py) — without
+// it frappe-ui's socket client falls back to its hardcoded default of 9000,
+// which polls forever on any bench whose site isn't on that port (#177).
+app.use(FrappeUI, { socketio: { port: window.socketio_port } })
 app.mount('#app')

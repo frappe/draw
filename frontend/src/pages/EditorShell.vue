@@ -1,11 +1,11 @@
 <script setup>
-// Editor page — owns the diagram store. Loads the Draw Diagram doc, parses its
-// document, creates + provides the store and editor UI, then composes the
-// toolbar, palettes, canvas, and floating palette (CONVENTIONS integration).
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+// The editor itself — owns the diagram store. Takes the already-loaded Draw
+// Diagram resource from EditorPage (which is what decides whether the document
+// loaded at all), parses its document, creates + provides the store and editor
+// UI, then composes the toolbar, palettes, canvas, and floating palette
+// (CONVENTIONS integration).
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Button } from 'frappe-ui'
-import { loadDiagram } from '@/data/diagrams.js'
 import { parseDiagramDocument, isUnifiedDocument } from '@/diagram/schema.js'
 import { isMindmapShape, isFlowchartShape } from '@/diagram/freeFloating.js'
 import { createDiagramStore, provideDiagramStore } from '@/stores/useDiagramStore.js'
@@ -41,9 +41,13 @@ import { createComments, provideComments } from '@/composables/useComments.js'
 
 const props = defineProps({
   name: { type: String, required: true },
+  // The loaded document resource. Mounted only once its doc has arrived (#173),
+  // so the store is always hydrated from the real document, never from a blank
+  // one that a refused load left behind.
+  diagram: { type: Object, required: true },
 })
 
-const diagram = loadDiagram(props.name)
+const diagram = props.diagram
 const store = createDiagramStore(parseDiagramDocument(diagram.doc?.document), props.name)
 const editorUi = createEditorUi()
 const whiteboardUi = useWhiteboardUi()
@@ -165,26 +169,6 @@ function rename(title) {
 // so a later refresh of this URL won't re-open the title editor.
 const route = useRoute()
 const router = useRouter()
-
-// design/SPEC.md: desktop browsers only, min width 1280px, no touch/mobile editor.
-// Below that the toolbar, minimap and floating palette overlap and steal each
-// other's pointer events (#175) rather than degrading gracefully, so gate the
-// whole editor on width instead of trying to reflow chrome that was never
-// designed for it.
-const MIN_EDITOR_WIDTH = 1280
-const viewportWidth = ref(window.innerWidth)
-function updateViewportWidth() {
-  viewportWidth.value = window.innerWidth
-}
-const tooNarrow = computed(() => viewportWidth.value < MIN_EDITOR_WIDTH)
-
-onMounted(() => {
-  window.addEventListener('resize', updateViewportWidth)
-})
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', updateViewportWidth)
-})
-
 onMounted(() => {
   // Load this diagram's comment threads once (realtime keeps them fresh after).
   comments.load()
@@ -199,19 +183,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div
-    v-if="tooNarrow"
-    class="flex h-screen flex-col items-center justify-center gap-4 bg-surface-base px-6 text-center"
-  >
-    <h1 class="text-lg font-semibold text-ink-gray-9">Open on a larger screen</h1>
-    <p class="max-w-sm text-sm text-ink-gray-5">
-      The diagram editor needs at least {{ MIN_EDITOR_WIDTH }}px of width. Try a laptop or
-      desktop browser.
-    </p>
-    <Button variant="subtle" @click="router.push({ name: 'Home' })">Go to Frappe Draw</Button>
-  </div>
-
-  <div v-else class="flex h-screen flex-col bg-surface-base text-ink-gray-9">
+  <div class="flex h-screen flex-col bg-surface-base text-ink-gray-9">
     <TopToolbar
       :title="diagram.doc?.title || 'Untitled diagram'"
       :save-status="autosave.status.value"

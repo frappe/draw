@@ -165,3 +165,83 @@ describe('store.applyMindmapShapeLayout (free-floating #122 P3)', () => {
     expect(store.state.shapes.map((s) => ({ id: s.id, x: s.x, y: s.y }))).toEqual(before)
   })
 })
+
+// A migrated map whose root already carries `sides` children (in that order, each
+// pinned to the named side), flattened to tagged shapes and re-flowed.
+function migratedMindmapStoreWith(sides) {
+  const mm = createMindMap('Root')
+  const ids = sides.map((side, i) => addChild(mm, mm.rootId, `C${i}`, side))
+  const doc = flattenSubmodels({ ...createDiagramDocument(undefined, 'unified'), mindmap: mm })
+  const store = createDiagramStore(doc)
+  return { store, rootId: mm.rootId, ids }
+}
+
+// The laid-out vertical centre of a shape (children stack top→bottom on their side).
+const centreY = (store, id) => store.shapeById(id).y + store.shapeById(id).h / 2
+
+// Gap insertion (#265): addChildNodeAt drops a child at a chosen ordinal on a side and
+// re-flows the tree so the new node lands in that slot.
+describe('store.addChildNodeAt (gap insertion #265)', () => {
+  it('inserts BETWEEN two children on a side — the new node ends up vertically between them', () => {
+    const { store, rootId, ids } = migratedMindmapStoreWith(['right', 'right', 'right'])
+    const newId = store.addChildNodeAt(rootId, 'right', 1) // between C0 and C1
+    expect(store.shapeById(newId).mindmap.parentId).toBe(rootId)
+    expect(store.shapeById(newId).mindmap.side).toBe('right')
+    // After the re-flow the new node sits between its two neighbours.
+    expect(centreY(store, newId)).toBeGreaterThan(centreY(store, ids[0]))
+    expect(centreY(store, newId)).toBeLessThan(centreY(store, ids[1]))
+    // Ordinal 1: exactly one right child is above it, the rest below.
+    const rightYs = [ids[0], ids[1], ids[2]].map((id) => centreY(store, id))
+    const above = rightYs.filter((y) => y < centreY(store, newId)).length
+    expect(above).toBe(1)
+  })
+
+  it('inserts ABOVE the top child at ordinal 0, and BELOW the last past the end', () => {
+    const { store, rootId, ids } = migratedMindmapStoreWith(['right', 'right'])
+    const topId = store.addChildNodeAt(rootId, 'right', 0)
+    expect(centreY(store, topId)).toBeLessThan(centreY(store, ids[0]))
+    const botId = store.addChildNodeAt(rootId, 'right', 99) // clamps to the end
+    expect(centreY(store, botId)).toBeGreaterThan(centreY(store, ids[1]))
+  })
+
+  it('scopes the ordinal to the clicked side on a two-sided root', () => {
+    const { store, rootId, ids } = migratedMindmapStoreWith(['right', 'left', 'right'])
+    // ids[0], ids[2] are the two right children; ids[1] is the lone left child.
+    const rootCentreX = store.shapeById(rootId).x + store.shapeById(rootId).w / 2
+    const leftCentreBefore = centreY(store, ids[1])
+    const newId = store.addChildNodeAt(rootId, 'right', 1) // between the two right children
+    expect(store.shapeById(newId).mindmap.side).toBe('right')
+    expect(centreY(store, newId)).toBeGreaterThan(centreY(store, ids[0]))
+    expect(centreY(store, newId)).toBeLessThan(centreY(store, ids[2]))
+    // The left branch keeps its side and slot — the insert only reshuffled the right
+    // side, so the lone left child stays left of the root and barely moves (a re-flow
+    // only re-rounds it, never reorders it).
+    expect(store.shapeById(ids[1]).mindmap.side).toBe('left')
+    expect(store.shapeById(ids[1]).x + store.shapeById(ids[1]).w / 2).toBeLessThan(rootCentreX)
+    expect(Math.abs(centreY(store, ids[1]) - leftCentreBefore)).toBeLessThanOrEqual(1)
+  })
+
+  it('adds the first child at the same level (empty side) and selects the new node', () => {
+    const { store, rootId } = migratedMindmapStoreWith([])
+    const newId = store.addChildNodeAt(rootId, 'right', 0)
+    expect(store.shapeById(newId)).toBeTruthy()
+    expect(store.state.selection).toEqual([newId])
+  })
+
+  it('inserts + re-flows in ONE undoable commit', () => {
+    const { store, rootId } = migratedMindmapStoreWith(['right', 'right'])
+    const shapesBefore = store.state.shapes.length
+    const newId = store.addChildNodeAt(rootId, 'right', 1)
+    expect(store.state.shapes.length).toBe(shapesBefore + 1)
+    store.undo()
+    expect(store.state.shapes.length).toBe(shapesBefore)
+    expect(store.shapeById(newId)).toBeFalsy()
+  })
+
+  it('returns null for a parent that is not a migrated mind-map shape', () => {
+    const { store } = migratedFlowchartStore()
+    const before = store.state.shapes.length
+    expect(store.addChildNodeAt('nope', 'right', 0)).toBeNull()
+    expect(store.state.shapes.length).toBe(before)
+  })
+})

@@ -223,7 +223,7 @@ defineExpose({ currentColor })
     </div>
 
     <div v-if="recentColors.length" class="mt-2.5">
-      <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Recent</div>
+      <div class="mb-1 text-[10px] font-semibold text-ink-gray-4">Recent</div>
       <div class="grid grid-cols-6 gap-1.5">
         <button
           v-for="color in recentColors"

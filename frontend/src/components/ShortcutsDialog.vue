@@ -69,7 +69,7 @@ const groups = computed(() => [
     <template #body-content>
       <div class="grid grid-cols-2 gap-x-8 gap-y-5">
         <section v-for="g in groups" :key="g.title">
-          <h3 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-gray-5">{{ g.title }}</h3>
+          <h3 class="mb-2 text-[11px] font-semibold text-ink-gray-5">{{ g.title }}</h3>
           <div class="flex flex-col gap-1.5">
             <div v-for="(row, i) in g.items" :key="i" class="flex items-center justify-between gap-3">
               <span class="text-[13px] text-ink-gray-7">{{ row[1] }}</span>

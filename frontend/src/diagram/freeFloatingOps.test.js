@@ -6,6 +6,7 @@ import {
   flowchartLayoutPatches,
   flowchartDirectionOfShapes,
   mindmapLayoutPatches,
+  mindmapDragTargets,
 } from './freeFloatingOps.js'
 import { flattenSubmodels, ROLE } from './freeFloating.js'
 import { createMindMap, addChild } from './mindmapModel.js'
@@ -23,6 +24,37 @@ function rootShapes() {
   })
   return { shapes: doc.shapes, connectors: doc.connectors, rootId: model.rootId }
 }
+
+// #273: mind-map nodes are auto-laid-out. A drag on a child moves nothing; a drag on
+// a root moves the whole tree; a non-mind-map shape drags freely.
+describe('mindmapDragTargets (#273)', () => {
+  it('returns null for a shape that is not a mind-map node', () => {
+    expect(mindmapDragTargets([{ id: 'r1', role: 'shape' }], 'r1')).toBeNull()
+    expect(mindmapDragTargets([], 'missing')).toBeNull()
+  })
+
+  it('returns an empty set for a child — auto-laid-out, not freely draggable', () => {
+    const { shapes, rootId } = rootShapes()
+    const child = buildMindmapChild(shapes, rootId, 'ocean')
+    expect(mindmapDragTargets([...shapes, child.shape], child.shape.id)).toEqual([])
+  })
+
+  it('returns just the root when it has no children', () => {
+    const { shapes, rootId } = rootShapes()
+    expect(mindmapDragTargets(shapes, rootId)).toEqual([rootId])
+  })
+
+  it('returns the whole tree for a root — dragging it moves the map', () => {
+    let { shapes, rootId } = rootShapes()
+    const c1 = buildMindmapChild(shapes, rootId, 'ocean')
+    let all = [...shapes, c1.shape]
+    const c2 = buildMindmapChild(all, rootId, 'ocean')
+    all = [...all, c2.shape]
+    const set = mindmapDragTargets(all, rootId)
+    expect(set).toEqual(expect.arrayContaining([rootId, c1.shape.id, c2.shape.id]))
+    expect(set).toHaveLength(3)
+  })
+})
 
 describe('buildMindmapChild', () => {
   it('builds a tagged child shape + branch connector bound to the parent', () => {

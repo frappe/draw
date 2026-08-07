@@ -65,13 +65,13 @@ const flow = computed(() => {
       <path v-else-if="type === 'arrow'" d="M2 9 H13 V5 L22 12 L13 19 V15 H2 Z" />
     </template>
 
-    <!-- Mind map: a central rounded node with a curved branch to each side. -->
+    <!-- Mind map (#255): a single parent node on the left with three curved
+         connectors branching off to the right — the "Parent Node" glyph. -->
     <template v-else-if="family === 'mindmap'">
-      <rect x="8" y="9" width="8" height="6" rx="2" />
-      <path d="M8 12 C5 12 5 6 2.5 6" />
-      <path d="M16 12 C19 12 19 18 21.5 18" />
-      <circle cx="2.5" cy="6" r="1.5" fill="currentColor" stroke="none" />
-      <circle cx="21.5" cy="18" r="1.5" fill="currentColor" stroke="none" />
+      <rect x="2" y="9" width="7" height="6" rx="2" />
+      <path d="M9 12 C13 12 14 5 20 5" />
+      <path d="M9 12 H20" />
+      <path d="M9 12 C13 12 14 19 20 19" />
     </template>
   </svg>
 </template>

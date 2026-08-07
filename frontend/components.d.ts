@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AccessNotice: typeof import('./src/components/AccessNotice.vue')['default']
     ActionTile: typeof import('./src/components/palette-right/ActionTile.vue')['default']
     AlignSection: typeof import('./src/components/palette-right/AlignSection.vue')['default']
     ArrangeSection: typeof import('./src/components/palette-right/ArrangeSection.vue')['default']

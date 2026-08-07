@@ -31,7 +31,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
 
 <template>
   <div class="w-52 p-2">
-    <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Start</div>
+    <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">Start</div>
     <div class="mb-2 flex gap-1">
       <button
         v-for="s in startStyles"
@@ -43,7 +43,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         <LucideIcon :name="s.icon" class="h-4 w-4" />
       </button>
     </div>
-    <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">End</div>
+    <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">End</div>
     <div class="mb-2 flex gap-1">
       <button
         v-for="s in endStyles"
@@ -55,18 +55,18 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         <LucideIcon :name="s.icon" class="h-4 w-4" />
       </button>
     </div>
-    <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Color</div>
+    <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">Color</div>
     <div class="mb-2 grid grid-cols-8 gap-1.5">
       <button
         v-for="swatch in CHALK_COLORS"
         :key="swatch"
         class="h-5 w-5 rounded-full border"
-        :class="color === swatch ? 'border-[1.5px] border-ink-gray-9' : 'border-outline-gray-2'"
+        :class="color === swatch ? 'border-[1.5px] border-outline-gray-9' : 'border-outline-gray-2'"
         :style="{ background: swatch }"
         @click="emit('change', { color: swatch })"
       />
     </div>
-    <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Width</div>
+    <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">Width</div>
     <div class="flex gap-2">
       <button
         v-for="w in PEN_WIDTHS"

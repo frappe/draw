@@ -28,7 +28,7 @@ export function useTextEditing(store, editorUi) {
 }
 
 function createTextEditing(store, editorUi) {
-  const session = reactive({ shapeId: null, connectorId: null })
+  const session = reactive({ shapeId: null, connectorId: null, selectAll: false, seedIfEmpty: null })
   const api = { session, store, editorUi }
   attachEditingState(api, session)
   attachShapeEditing(api, session, store)
@@ -44,9 +44,14 @@ function attachEditingState(api, session) {
 }
 
 function attachShapeEditing(api, session, store) {
-  api.beginTextEdit = (shapeId) => {
+  // opts.seedIfEmpty seeds a default label into an empty shape (e.g. "New idea" on a
+  // freshly dropped node); opts.selectAll selects the seeded/existing text so the
+  // first keystroke replaces it — the drop-to-type flow (#263).
+  api.beginTextEdit = (shapeId, opts = {}) => {
     session.connectorId = null
     session.shapeId = shapeId
+    session.selectAll = !!opts.selectAll
+    session.seedIfEmpty = opts.seedIfEmpty || null
     store.select(shapeId)
   }
 }

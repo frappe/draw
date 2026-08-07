@@ -42,7 +42,7 @@ function step(field, delta) {
     <!-- CREATE only: grid picker — sweep to size, click to commit (T2/Q8). -->
     <template v-if="mode === 'create'">
       <div class="mb-1 flex items-center justify-between">
-        <span class="text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Size</span>
+        <span class="text-[10px] font-semibold text-ink-gray-5">Size</span>
         <span class="text-[11px] font-medium text-ink-gray-7">{{ labelC }} × {{ labelR }}</span>
       </div>
       <div class="mb-2.5 inline-grid gap-0.5" style="grid-template-columns: repeat(8, 1fr)" @pointerleave="hoverR = 0; hoverC = 0">
@@ -51,7 +51,7 @@ function step(field, delta) {
             v-for="c in GRID_COLS"
             :key="`${r}-${c}`"
             class="h-[14px] w-[14px] rounded-[2px] border"
-            :class="r <= (hoverR || rows) && c <= (hoverC || cols) ? 'border-ink-gray-9 bg-surface-gray-3' : 'border-outline-gray-2'"
+            :class="r <= (hoverR || rows) && c <= (hoverC || cols) ? 'border-outline-gray-9 bg-surface-gray-3' : 'border-outline-gray-2'"
             @pointerenter="hoverR = r; hoverC = c"
             @click="pickGrid(r, c)"
           />
@@ -60,7 +60,7 @@ function step(field, delta) {
     </template>
 
     <!-- EDIT only: an "add/remove row · column" hint above the steppers. -->
-    <div v-else class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Add / remove</div>
+    <div v-else class="mb-1 text-[10px] font-semibold text-ink-gray-5">Add / remove</div>
 
     <div class="mb-2 flex items-center justify-between">
       <span class="text-[12px] text-ink-gray-7">Rows</span>
@@ -86,13 +86,13 @@ function step(field, delta) {
         </button>
       </div>
     </div>
-    <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-5">Color</div>
+    <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">Color</div>
     <div class="grid grid-cols-8 gap-1.5">
       <button
         v-for="swatch in CHALK_COLORS"
         :key="swatch"
         class="h-5 w-5 rounded-full border"
-        :class="color === swatch ? 'border-[1.5px] border-ink-gray-9' : 'border-outline-gray-2'"
+        :class="color === swatch ? 'border-[1.5px] border-outline-gray-9' : 'border-outline-gray-2'"
         :style="{ background: swatch }"
         @click="emit('change', { color: swatch })"
       />

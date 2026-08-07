@@ -8,6 +8,7 @@ import { isInteractable } from '@/diagram/shapeFlags.js'
 import { useShapeTransform } from '@/composables/useShapeTransform.js'
 import { useMarquee } from '@/composables/useMarquee.js'
 import { isAdditiveEvent } from '@/composables/pointer.js'
+import { mindmapDragTargets } from '@/diagram/freeFloatingOps.js'
 
 export function useSelection(store, editorUi) {
   const transform = useShapeTransform(store)
@@ -75,6 +76,15 @@ function selectAndMove(store, transform, shape, event, toLogical, start) {
     return
   }
   if (!store.state.selection.includes(shape.id)) store.select(groupIds)
+  // Mind-map nodes are auto-laid-out (#273): a child can't be freely dragged (the
+  // press selects it but nothing moves), and dragging a root moves its whole tree as
+  // one unit. mindmapDragTargets returns null for a normal shape (free drag below),
+  // [] for a child (no move), or the tree's shape ids for a root.
+  const mmDrag = mindmapDragTargets(store.state.shapes, shape.id)
+  if (mmDrag !== null) {
+    if (mmDrag.length) transform.startMove({ toLogical, start, ids: mmDrag })
+    return
+  }
   const ids = store.state.selection.filter((id) => store.shapeById(id))
   transform.startMove({ toLogical, start, ids })
 }

@@ -259,7 +259,7 @@ function activeBtn(on) {
         </template>
         <template #body-main>
           <div class="w-[204px] p-2">
-            <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Fill</div>
+            <div class="mb-1.5 text-[10px] font-semibold text-ink-gray-4">Fill</div>
             <SwatchGrid :colors="SWATCH_PALETTE" shape="square" class="mb-2" @select="setFill" />
             <button class="flex w-full items-center justify-center gap-1 rounded-md border border-outline-gray-2 py-1 text-[12px] text-ink-gray-6 hover:bg-surface-gray-2" @click="setFill(null)">
               Match branch
@@ -279,7 +279,7 @@ function activeBtn(on) {
         </template>
         <template #body-main>
           <div class="w-[204px] p-2">
-            <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Branch</div>
+            <div class="mb-1.5 text-[10px] font-semibold text-ink-gray-4">Branch</div>
             <SwatchGrid :colors="SWATCH_PALETTE" @select="setColor" />
           </div>
         </template>
@@ -296,7 +296,7 @@ function activeBtn(on) {
         </template>
         <template #body-main>
           <div class="w-[204px] p-2">
-            <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Border</div>
+            <div class="mb-1.5 text-[10px] font-semibold text-ink-gray-4">Border</div>
             <SwatchGrid :colors="SWATCH_PALETTE" shape="ring" class="mb-2" @select="setBorder" />
             <button class="flex w-full items-center justify-center gap-1 rounded-md border border-outline-gray-2 py-1 text-[12px] text-ink-gray-6 hover:bg-surface-gray-2" @click="setBorder(null)">
               Match branch
@@ -317,13 +317,13 @@ function activeBtn(on) {
         </template>
         <template #body-main>
           <div class="w-[168px] p-2">
-            <div class="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Connector</div>
+            <div class="mb-1.5 text-[10px] font-semibold text-ink-gray-4">Connector</div>
             <div class="flex gap-1">
               <button
                 v-for="d in ['solid', 'dashed', 'dotted']"
                 :key="d"
                 class="flex h-8 flex-1 items-center justify-center rounded-md border"
-                :class="linkDashValue === d ? 'border-ink-gray-9 bg-surface-gray-2' : 'border-outline-gray-2 hover:bg-surface-gray-1'"
+                :class="linkDashValue === d ? 'border-outline-gray-9 bg-surface-gray-2' : 'border-outline-gray-2 hover:bg-surface-gray-1'"
                 :title="d"
                 @click="setLinkDash(d)"
               >
@@ -350,7 +350,7 @@ function activeBtn(on) {
         </template>
         <template #body-main>
           <div class="w-[196px] p-2">
-            <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Shape</div>
+            <div class="mb-1 text-[10px] font-semibold text-ink-gray-4">Shape</div>
             <div class="flex flex-wrap gap-1.5">
               <button
                 v-for="s in SHAPES"
@@ -384,7 +384,7 @@ function activeBtn(on) {
         </template>
         <template #body-main>
           <div class="w-[160px] p-2">
-            <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Text size</div>
+            <div class="mb-1 text-[10px] font-semibold text-ink-gray-4">Text size</div>
             <div class="flex items-center gap-1.5">
               <button class="flex h-7 w-7 items-center justify-center rounded-md border border-outline-gray-2 text-ink-gray-7 hover:bg-surface-gray-2" @click="stepFontSize(-1)">
                 <LucideIcon name="minus" class="h-3.5 w-3.5" />
@@ -409,7 +409,7 @@ function activeBtn(on) {
         </template>
         <template #body-main>
           <div class="w-[172px] p-2">
-            <div class="mb-1 text-[10px] font-semibold uppercase tracking-wider text-ink-gray-4">Marker</div>
+            <div class="mb-1 text-[10px] font-semibold text-ink-gray-4">Marker</div>
             <div class="flex flex-wrap gap-1.5">
               <button
                 v-for="icon in MARKER_ICONS"
@@ -459,7 +459,7 @@ function activeBtn(on) {
   <Teleport to="body">
     <button
       v-if="isBlank"
-      class="fixed left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-dashed border-outline-gray-3 bg-surface-base px-5 py-3 text-[14px] font-medium text-ink-gray-7 shadow-sm hover:border-ink-gray-8 hover:text-ink-gray-9"
+      class="fixed left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-dashed border-outline-gray-3 bg-surface-base px-5 py-3 text-[14px] font-medium text-ink-gray-7 shadow-sm hover:border-outline-gray-8 hover:text-ink-gray-9"
       @click="addFirstIdea"
     >
       <LucideIcon name="plus" class="h-4 w-4" /> Add your first idea

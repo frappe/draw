@@ -218,15 +218,21 @@ export function hiddenDescendantCount(model, id) {
   return subtreeIds(model, id).length - 1
 }
 
+// A smooth cubic between two edge points, fanning horizontally: each control point
+// shares its endpoint's y, so the curve leaves the parent AND eases into the child
+// horizontally (tangents flat at both ends) and mirrors for up vs down branches.
+// Shared by the legacy layout and the free-floating branch connector (#266).
+export function branchPathPoints(start, end) {
+  const midX = (start.x + end.x) / 2
+  return `M ${start.x} ${start.y} C ${midX} ${start.y} ${midX} ${end.y} ${end.x} ${end.y}`
+}
+
 // A smooth cubic-bezier path from a parent box edge to a child box edge, fanning
 // horizontally (control points pulled toward each other on x). `side` is +1 when
 // the child sits to the right of the parent, -1 to the left (spec A4 curves).
 export function branchPath(parentBox, childBox) {
   const side = childBox.x >= parentBox.x ? 1 : -1
-  const start = edgePoint(parentBox, side)
-  const end = edgePoint(childBox, -side)
-  const midX = (start.x + end.x) / 2
-  return `M ${start.x} ${start.y} C ${midX} ${start.y} ${midX} ${end.y} ${end.x} ${end.y}`
+  return branchPathPoints(edgePoint(parentBox, side), edgePoint(childBox, -side))
 }
 
 // The middle of a box's left (side<0) or right (side>0) edge.

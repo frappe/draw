@@ -54,7 +54,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
               type="button"
               :aria-pressed="settings.defaultThemePreset === preset.name"
               class="flex flex-col items-center gap-1.5 rounded-lg border p-2 transition-colors"
-              :class="settings.defaultThemePreset === preset.name ? 'border-ink-gray-8' : 'border-outline-gray-2 hover:border-outline-gray-3'"
+              :class="settings.defaultThemePreset === preset.name ? 'border-outline-gray-8' : 'border-outline-gray-2 hover:border-outline-gray-3'"
               @click="settings.defaultThemePreset = preset.name"
             >
               <span class="flex h-8 w-12 overflow-hidden rounded-[5px] border border-black/10">
@@ -75,7 +75,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
               type="button"
               :aria-pressed="settings.defaultCanvasBackground === option.value"
               class="flex flex-col items-center gap-1.5 rounded-lg border p-2 transition-colors"
-              :class="settings.defaultCanvasBackground === option.value ? 'border-ink-gray-8' : 'border-outline-gray-2 hover:border-outline-gray-3'"
+              :class="settings.defaultCanvasBackground === option.value ? 'border-outline-gray-8' : 'border-outline-gray-2 hover:border-outline-gray-3'"
               @click="settings.defaultCanvasBackground = option.value"
             >
               <span class="h-8 w-12 rounded-[5px] border border-black/10" :style="{ background: option.value || CHECKER }" />

@@ -92,6 +92,15 @@ export function useShapeCreation(store, editorUi) {
     if (starter.kind === 'mindmap') store.insertMindmapStarter(null, point)
     else if (starter.kind === 'flowchart') store.insertFlowchartStarter(null, starter.nodeType, point)
     editorUi.setTool('select')
+    // A dropped mind-map root drops you straight into typing (#263): the insert
+    // selected it, so edit it with "New idea" pre-selected — the first keystroke
+    // replaces it; Escape / clicking away keeps it.
+    if (starter.kind === 'mindmap') {
+      const rootId = store.state.selection[0]
+      // Bind the editing singleton to this store (a no-op in the app, where it is
+      // already bound) so the drop works outside a mounted editor too.
+      if (rootId) useTextEditing(store, editorUi).beginTextEdit(rootId, { selectAll: true, seedIfEmpty: 'New idea' })
+    }
     return true
   }
 

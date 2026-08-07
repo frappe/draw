@@ -9,6 +9,7 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useShapeTransform } from '@/composables/useShapeTransform.js'
 import { shapeCenter, unionBounds } from '@/diagram/geometry.js'
+import { ROLE } from '@/diagram/freeFloating.js'
 
 const HANDLE = 12
 const ROTATION_ARM = 28
@@ -37,6 +38,12 @@ const marquee = inject('selectionMarquee', null)
 
 const selected = computed(() => store.selectedShapes)
 const single = computed(() => (selected.value.length === 1 ? selected.value[0] : null))
+// Mind-map / flowchart nodes are auto-laid-out and non-rotatable, so a selected
+// node shows only its selection outline — no resize handles, no rotation knob
+// (#261/#262). Their add-node CTAs live on hover, not selection.
+const singleIsNode = computed(
+  () => single.value?.role === ROLE.mindmapNode || single.value?.role === ROLE.flowchartNode,
+)
 // A group is selected when every selected shape shares one non-empty groupId —
 // show a single bounding box around the whole group (it already moves as a unit).
 const isGroup = computed(() => {
@@ -136,8 +143,9 @@ function startRotate(event) {
       :stroke-width="strokeWidth"
     />
 
-    <!-- Handles + rotation handle: single selection only, rotating with it. -->
-    <g v-if="single" :transform="groupTransform">
+    <!-- Handles + rotation handle: single selection only, rotating with it. Skipped
+         for mind-map / flowchart nodes, which show a plain border instead (#261/#262). -->
+    <g v-if="single && !singleIsNode" :transform="groupTransform">
       <line
         :x1="box.x + box.w / 2"
         :y1="box.y"

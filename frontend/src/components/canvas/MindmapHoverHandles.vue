@@ -2,11 +2,12 @@
 // On-canvas "+" add-handles for MIGRATED mind-map nodes (issue #118, the "+"-handles
 // part). After the free-floating refactor (#122) a mind-map node is an ordinary shape
 // with role 'mindmap-node'; keyboard add already works (Tab=child, Enter=sibling), but
-// mouse users had no affordance. This overlay gives them the same on-canvas "+" the
-// legacy MindMapNodeLayer.vue draws: a "+" reveals next to a node while it is hovered
-// or the sole selection (select tool only), and clicking it adds — a root grows a
-// child on either side, any other node grows a child on its branch side or a sibling
-// just below.
+// mouse users had no affordance. This overlay gives them an on-canvas gap-insertion
+// column (#265/#264): while a node is hovered (select tool only) a "+" reveals for
+// every slot a new child could take — above the top child, below the bottom one, and
+// in each gap between — and clicking one inserts a child at that ordinal and re-flows
+// the tree. A root offers a column on both sides; any other node only on its branch
+// side; a childless node offers a single "+" at its own mid-height.
 //
 // It mirrors HoverArrows.vue's structure: a <g> inside the viewport transform that
 // attaches a pointermove listener to the SVG surface, converts the pointer to logical
@@ -93,19 +94,13 @@ onBeforeUnmount(() => {
   svg.removeEventListener('pointerleave', onPointerLeave)
 })
 
-// The nodes that should show handles right now: the hovered one AND the sole
-// selection (both, like MindMapNodeLayer.showAdd), deduped via the pure predicate.
-const targetIds = computed(() => {
-  const selection = store.state.selection
-  const sole = selection.length === 1 ? selection[0] : null
-  return Object.keys(ctx.value.boxes).filter((id) =>
-    shouldShowHandles({
-      hovered: hoveredId.value === id,
-      soleSelected: sole === id,
-      selectTool: selectTool.value,
-    }),
-  )
-})
+// The nodes that should show handles right now: only the hovered one (#265), via
+// the pure predicate — the gap column is a hover affordance, not a selection one.
+const targetIds = computed(() =>
+  Object.keys(ctx.value.boxes).filter((id) =>
+    shouldShowHandles({ hovered: hoveredId.value === id, selectTool: selectTool.value }),
+  ),
+)
 
 const handles = computed(() => targetIds.value.flatMap((id) => handlesForNode(id, ctx.value)))
 
@@ -120,15 +115,22 @@ function glyphPath(handle) {
   return `M${handle.cx - GLYPH} ${handle.cy} H${handle.cx + GLYPH} M${handle.cx} ${handle.cy - GLYPH} V${handle.cy + GLYPH}`
 }
 
-// Add a child / a sibling through the existing representation-aware store ops, then
-// select the new node so its own handles appear (ready to keep adding). The ops
-// build the tagged shape + branch connector and commit as one undoable unit.
+// The dotted stub from the node's edge (at its mid-height) out to the "+": a smooth
+// cubic for a gap handle offset above/below the mid, a straight dash for the lone
+// childless-node handle sitting level with the edge. Control points share each
+// endpoint's y so the curve leaves the node and eases into the "+" horizontally.
+function stubPath(handle) {
+  const { stubX: sx, stubY: sy, cx: hx, cy: hy } = handle
+  if (handle.straight) return `M${sx} ${sy} L${hx} ${hy}`
+  const mx = (sx + hx) / 2
+  return `M${sx} ${sy} C${mx} ${sy} ${mx} ${hy} ${hx} ${hy}`
+}
+
+// Insert a child at the clicked gap through the existing store op, which opens the
+// ordinal slot, re-flows the tree, and selects the new node so its own handles
+// appear (ready to keep adding) — all as one undoable unit.
 function add(handle) {
-  const newId =
-    handle.kind === 'child'
-      ? store.addChildNode(handle.nodeId, handle.side)
-      : store.addSiblingNode(handle.nodeId)
-  if (newId) store.select([newId])
+  store.addChildNodeAt(handle.nodeId, handle.side, handle.index)
 }
 </script>
 
@@ -144,15 +146,14 @@ function add(handle) {
       @click.stop="add(handle)"
       @pointerdown.stop
     >
-      <title>{{ handle.kind === 'child' ? 'Add child' : 'Add sibling' }}</title>
-      <line
-        :x1="handle.stubX"
-        :y1="handle.stubY"
-        :x2="handle.cx"
-        :y2="handle.cy"
+      <title>Add node</title>
+      <path
+        :d="stubPath(handle)"
         :stroke="colorOf(handle.nodeId)"
         stroke-width="2"
         stroke-linecap="round"
+        stroke-dasharray="2 3"
+        fill="none"
         style="pointer-events: none"
       />
       <circle :cx="handle.cx" :cy="handle.cy" :r="ADD_R" :fill="colorOf(handle.nodeId)" />

@@ -108,7 +108,7 @@ function applyQuickStyle(preset) {
           v-for="style in dashStyles"
           :key="style"
           class="flex h-8 flex-1 items-center justify-center rounded-md border"
-          :class="dash === style ? 'border-ink-gray-9 bg-surface-gray-2' : 'border-outline-gray-2 hover:bg-surface-gray-1'"
+          :class="dash === style ? 'border-outline-gray-9 bg-surface-gray-2' : 'border-outline-gray-2 hover:bg-surface-gray-1'"
           :title="style"
           :aria-label="style"
           @click="setDash(style)"

@@ -6,7 +6,7 @@
 // resource; either path surfaces a permission error as the access-denied state.
 import { ref, computed, onMounted } from 'vue'
 import { Button, Spinner } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
+import AccessNotice from '@/components/AccessNotice.vue'
 import { call } from 'frappe-ui'
 import { useRouter } from 'vue-router'
 import DiagramCanvas from '@/components/canvas/DiagramCanvas.vue'
@@ -90,24 +90,15 @@ function isMethodMissing(error) {
         <Spinner class="h-6 w-6 text-ink-gray-5" />
       </div>
 
-      <div
+      <AccessNotice
         v-else-if="status === 'denied'"
-        class="flex h-full flex-col items-center justify-center gap-4 px-6 text-center"
+        title="You need access"
+        message="This diagram is private. Ask the owner to turn on global access, or sign in with an account that can view it."
       >
-        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-surface-gray-2">
-          <LucideIcon name="lock" class="h-5 w-5 text-ink-gray-5" />
-        </div>
-        <div>
-          <h1 class="text-lg font-semibold text-ink-gray-9">You need access</h1>
-          <p class="mt-1 max-w-sm text-sm text-ink-gray-5">
-            This diagram is private. Ask the owner to turn on global access, or sign in
-            with an account that can view it.
-          </p>
-        </div>
         <Button variant="subtle" @click="router.push({ name: 'Home' })">
           Go to Frappe Draw
         </Button>
-      </div>
+      </AccessNotice>
 
       <DiagramCanvas v-else />
 

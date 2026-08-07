@@ -36,7 +36,7 @@ function addFirstStep() {
   <Teleport to="body">
     <button
       v-if="isBlank"
-      class="fixed left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-dashed border-outline-gray-3 bg-surface-base px-5 py-3 text-[14px] font-medium text-ink-gray-7 shadow-sm hover:border-ink-gray-8 hover:text-ink-gray-9"
+      class="fixed left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-dashed border-outline-gray-3 bg-surface-base px-5 py-3 text-[14px] font-medium text-ink-gray-7 shadow-sm hover:border-outline-gray-8 hover:text-ink-gray-9"
       @click="addFirstStep"
     >
       <LucideIcon name="plus" class="h-4 w-4" /> Add first step

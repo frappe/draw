@@ -2,12 +2,11 @@ import { describe, it, expect } from 'vitest'
 import {
   ADD_R,
   ADD_OFFSET,
-  SIB_DY,
+  GLYPH,
   HOVER_OUT,
   buildContext,
   branchSideOf,
   childCount,
-  offersAddChild,
   handlesForNode,
   shouldShowHandles,
   nodeAtPoint,
@@ -46,13 +45,19 @@ function sampleTree() {
   ]
 }
 
-describe('geometry constants match MindMapNodeLayer', () => {
-  it('keeps the "+" sizes and spacing', () => {
+// A right-branch parent 'p' with `n` children stacked top→bottom below it, so one
+// side carries a known number of children (for the N+1 gap-handle count).
+function nodeWithChildren(n) {
+  const shapes = [mmNode('root', null, 0, 100, 120, 44), mmNode('p', 'root', 300, 100, 140, 40)]
+  for (let i = 0; i < n; i += 1) shapes.push(mmNode(`c${i}`, 'p', 600, 60 + i * 60, 140, 40))
+  return shapes
+}
+
+describe('geometry constants', () => {
+  it('keeps the "+" sizes and reach', () => {
     expect(ADD_R).toBe(11)
     expect(ADD_OFFSET).toBe(28)
-    // One diameter + a 6px gap, so the child "+" and sibling "+" never overlap.
-    expect(SIB_DY).toBe(ADD_R * 2 + 6)
-    expect(SIB_DY - 2 * ADD_R).toBe(6)
+    expect(GLYPH).toBe(4.5)
     expect(HOVER_OUT).toBe(ADD_OFFSET + ADD_R + 12)
   })
 })
@@ -78,48 +83,86 @@ describe('branchSideOf', () => {
   })
 })
 
+// Gap-insertion handles (#265): N children on a side → N+1 "+" handles, one in each
+// slot a new child could occupy (above the top, below the bottom, between each pair).
 describe('handlesForNode', () => {
-  it('gives a root an add-child "+" on both sides and no sibling', () => {
+  it('gives a childless node one straight "+" at its mid-height', () => {
     const ctx = buildContext(sampleTree())
-    const handles = handlesForNode('root', ctx)
-    expect(handles.map((h) => h.kind)).toEqual(['child', 'child'])
-    const sides = handles.map((h) => h.side).sort()
-    expect(sides).toEqual(['left', 'right'])
-    // Right "+": centre 28px past the right edge, at mid-height; stub leaves the edge.
-    const right = handles.find((h) => h.side === 'right')
-    expect(right).toMatchObject({ cx: 0 + 120 + ADD_OFFSET, cy: 100 + 22, stubX: 120, stubY: 122 })
-    const left = handles.find((h) => h.side === 'left')
-    expect(left).toMatchObject({ cx: 0 - ADD_OFFSET, cy: 122, stubX: 0, stubY: 122 })
+    const handles = handlesForNode('right', ctx) // 'right' is childless
+    expect(handles).toHaveLength(1)
+    // Straight stub, level with the node edge, on the branch side, 28px past the edge.
+    expect(handles[0]).toMatchObject({
+      index: 0,
+      side: 'right',
+      straight: true,
+      cx: 440 + ADD_OFFSET,
+      cy: 120,
+      stubX: 440,
+      stubY: 120,
+    })
   })
 
-  it('gives a right-hand child a child "+" on its side plus a sibling "+" below', () => {
-    const ctx = buildContext(sampleTree())
-    const handles = handlesForNode('right', ctx)
-    expect(handles.map((h) => h.kind)).toEqual(['child', 'sibling'])
-    const [child, sibling] = handles
-    // Both on the right, past the node's right edge (x 300..440).
-    expect(child).toMatchObject({ side: 'right', cx: 440 + ADD_OFFSET, cy: 120, stubX: 440, stubY: 120 })
-    // Sibling sits one drop below the child "+", stub still leaves the node mid-height.
-    expect(sibling).toMatchObject({ side: 'right', cx: 440 + ADD_OFFSET, cy: 120 + SIB_DY, stubX: 440, stubY: 120 })
-    // The two circles clear each other vertically.
-    expect(sibling.cy - child.cy).toBeGreaterThanOrEqual(2 * ADD_R)
+  it('gives a one-child side two curved handles, above and below the child', () => {
+    const ctx = buildContext(treeWithGrandchild())
+    const handles = handlesForNode('right', ctx) // 'right' has one child, 'grand'
+    expect(handles).toHaveLength(2)
+    expect(handles.every((h) => h.straight === false)).toBe(true)
+    const grand = ctx.boxes['grand']
+    const grandCentre = grand.y + grand.h / 2
+    expect(handles[0].cy).toBeLessThan(grandCentre) // above
+    expect(handles[1].cy).toBeGreaterThan(grandCentre) // below
+    // The stub always leaves the node's OWN edge at its mid-height, whatever the gap y.
+    expect(handles.every((h) => h.stubX === 440 && h.stubY === 120 && h.cx === 440 + ADD_OFFSET)).toBe(true)
   })
 
-  it('mirrors everything to the left for a left-hand child', () => {
+  it('shows N+1 handles for N children on a side', () => {
+    expect(handlesForNode('p', buildContext(nodeWithChildren(0)))).toHaveLength(1)
+    expect(handlesForNode('p', buildContext(nodeWithChildren(1)))).toHaveLength(2)
+    expect(handlesForNode('p', buildContext(nodeWithChildren(2)))).toHaveLength(3)
+    expect(handlesForNode('p', buildContext(nodeWithChildren(3)))).toHaveLength(4)
+  })
+
+  it('interleaves the handle y\'s with the children (H,C,H,…,H)', () => {
+    const ctx = buildContext(nodeWithChildren(3))
+    const handleYs = handlesForNode('p', ctx).map((h) => ['H', h.cy])
+    const childYs = ['c0', 'c1', 'c2'].map((id) => ['C', ctx.boxes[id].y + ctx.boxes[id].h / 2])
+    const merged = [...handleYs, ...childYs].sort((a, b) => a[1] - b[1])
+    expect(merged.map((m) => m[0]).join('')).toBe('HCHCHCH')
+  })
+
+  it('numbers the handles 0..N top→bottom and tags them with the side', () => {
+    const ctx = buildContext(nodeWithChildren(3))
+    const handles = handlesForNode('p', ctx)
+    expect(handles.map((h) => h.index)).toEqual([0, 1, 2, 3])
+    expect(handles.every((h) => h.side === 'right')).toBe(true)
+    // Each key is unique so Vue can track them.
+    expect(new Set(handles.map((h) => h.key)).size).toBe(handles.length)
+  })
+
+  it('gives a root a gap column on BOTH sides, a non-root only on its branch side', () => {
     const ctx = buildContext(sampleTree())
-    const [child, sibling] = handlesForNode('left', ctx)
-    // Left node spans x -300..-160; "+" sits 28px past the LEFT edge.
-    expect(child).toMatchObject({ side: 'left', cx: -300 - ADD_OFFSET, cy: 120, stubX: -300, stubY: 120 })
-    expect(sibling).toMatchObject({ side: 'left', cx: -300 - ADD_OFFSET, cy: 120 + SIB_DY })
+    const root = handlesForNode('root', ctx)
+    expect(new Set(root.map((h) => h.side))).toEqual(new Set(['left', 'right']))
+    // One child per side → two handles per side (above + below).
+    expect(root.filter((h) => h.side === 'right')).toHaveLength(2)
+    expect(root.filter((h) => h.side === 'left')).toHaveLength(2)
+    // A non-root node only ever offers its own branch side.
+    expect(handlesForNode('right', ctx).every((h) => h.side === 'right')).toBe(true)
+    expect(handlesForNode('left', ctx).every((h) => h.side === 'left')).toBe(true)
+  })
+
+  it('mirrors the left branch past the node\'s left edge', () => {
+    const ctx = buildContext(sampleTree())
+    const [handle] = handlesForNode('left', ctx) // left node spans x -300..-160
+    expect(handle).toMatchObject({ side: 'left', cx: -300 - ADD_OFFSET, cy: 120, stubX: -300, stubY: 120 })
   })
 
   it('places the "+" clear of the node box (no overlap with the border)', () => {
     const ctx = buildContext(sampleTree())
-    const [child] = handlesForNode('right', ctx)
-    // Nearest edge of the circle is ADD_OFFSET - ADD_R past the node edge (> 0).
+    const [handle] = handlesForNode('right', ctx)
     const nodeRightEdge = 440
-    expect(child.cx - ADD_R).toBeGreaterThan(nodeRightEdge)
-    expect(child.cx - ADD_R - nodeRightEdge).toBe(ADD_OFFSET - ADD_R)
+    expect(handle.cx - ADD_R).toBeGreaterThan(nodeRightEdge)
+    expect(handle.cx - ADD_R - nodeRightEdge).toBe(ADD_OFFSET - ADD_R)
   })
 
   it('returns nothing for a non-mindmap / unknown id', () => {
@@ -135,16 +178,17 @@ describe('handlesForNode', () => {
     const out = flattenSubmodels(docWith({ mindmap: model }))
     const ctx = buildContext(out.shapes, out.connectors)
 
-    expect(handlesForNode(model.rootId, ctx).map((h) => h.kind)).toEqual(['child', 'child'])
-    const childHandles = handlesForNode(a, ctx)
-    expect(childHandles.map((h) => h.kind)).toEqual(['child', 'sibling'])
-    // 'Alpha' was pinned right, so its handles sit to the right of its box.
+    // The root grows a gap column on both sides.
+    expect(new Set(handlesForNode(model.rootId, ctx).map((h) => h.side))).toEqual(new Set(['left', 'right']))
+    // 'Alpha' is childless, so it offers a single straight "+" to the right of its box.
+    const [handle] = handlesForNode(a, ctx)
+    expect(handle.straight).toBe(true)
     const box = ctx.boxes[a]
-    expect(childHandles[0].cx).toBeGreaterThan(box.x + box.w)
+    expect(handle.cx).toBeGreaterThan(box.x + box.w)
   })
 })
 
-// sampleTree() with a grandchild hung off 'right', so 'right' now has a child of
+// sampleTree() with a grandchild hung off 'right', so 'right' now has one child of
 // its own while 'left' and the grandchild stay childless.
 function treeWithGrandchild() {
   return [...sampleTree(), mmNode('grand', 'right', 600, 100, 140, 40)]
@@ -160,45 +204,14 @@ describe('childCount', () => {
   })
 })
 
-describe('offersAddChild (#129)', () => {
-  it('offers the add-child "+" until a non-root node has a child', () => {
-    const ctx = buildContext(treeWithGrandchild())
-    // A childless non-root still offers it; once it has a child it does not.
-    expect(offersAddChild('left', ctx)).toBe(true)
-    expect(offersAddChild('grand', ctx)).toBe(true)
-    expect(offersAddChild('right', ctx)).toBe(false)
-    // A root always offers it (both sides), children or not.
-    expect(offersAddChild('root', ctx)).toBe(true)
-  })
-})
-
-describe('handlesForNode after the first child (#129)', () => {
-  it('offers add-child + sibling on a childless node (0 children → add child)', () => {
-    const ctx = buildContext(treeWithGrandchild())
-    expect(handlesForNode('left', ctx).map((h) => h.kind)).toEqual(['child', 'sibling'])
-  })
-
-  it('drops the redundant add-child once a child exists (≥1 child → only sibling)', () => {
-    const ctx = buildContext(treeWithGrandchild())
-    const handles = handlesForNode('right', ctx)
-    expect(handles.map((h) => h.kind)).toEqual(['sibling'])
-    // The one remaining "+" is the add-another-child (sibling) op, on the branch side.
-    expect(handles[0]).toMatchObject({ kind: 'sibling', side: 'right' })
-  })
-
-  it('leaves a root with both add-child "+" even after it has children', () => {
-    const ctx = buildContext(treeWithGrandchild())
-    expect(handlesForNode('root', ctx).map((h) => h.kind)).toEqual(['child', 'child'])
-  })
-})
-
 describe('shouldShowHandles', () => {
-  it('shows only with the select tool, when hovered or sole-selected', () => {
+  it('shows only while hovered under the select tool (#265)', () => {
     expect(shouldShowHandles({ selectTool: true, hovered: true })).toBe(true)
-    expect(shouldShowHandles({ selectTool: true, soleSelected: true })).toBe(true)
+    // Not on selection any more — the gap column is a hover-only affordance.
+    expect(shouldShowHandles({ selectTool: true, soleSelected: true })).toBe(false)
     expect(shouldShowHandles({ selectTool: true })).toBe(false)
-    // Never while another tool is armed, even if hovered/selected.
-    expect(shouldShowHandles({ selectTool: false, hovered: true, soleSelected: true })).toBe(false)
+    // Never while another tool is armed.
+    expect(shouldShowHandles({ selectTool: false, hovered: true })).toBe(false)
     expect(shouldShowHandles()).toBe(false)
   })
 })
@@ -223,22 +236,24 @@ describe('nodeAtPoint', () => {
 })
 
 describe('hoverRegionOf', () => {
-  it('extends past the branch side and below the sibling "+"', () => {
-    const ctx = buildContext(sampleTree())
+  it('reaches out on the branch side and spans the whole gap column with margin (#264)', () => {
+    const ctx = buildContext(treeWithGrandchild())
     const region = hoverRegionOf('right', ctx)
     const box = ctx.boxes['right']
     // Reaches out on the branch (right) side to cover the "+", only a hair on the other.
     expect(region.x).toBe(box.x - 6)
     expect(region.x + region.w).toBe(box.x + box.w + HOVER_OUT)
-    // Tall enough to cover the sibling "+" below the box.
-    expect(region.h).toBe(box.h + SIB_DY + ADD_R + 14)
-    // The child and sibling "+" centres both fall inside the region.
+    // Covers the extreme handle y's — the top ("above the child") and bottom ("below
+    // the child") — with margin, so the pointer never drops the hover in the gap.
+    const cys = handlesForNode('right', ctx).map((h) => h.cy)
+    expect(region.y).toBeLessThan(Math.min(...cys) - ADD_R)
+    expect(region.y + region.h).toBeGreaterThan(Math.max(...cys) + ADD_R)
     for (const h of handlesForNode('right', ctx)) {
       expect(pointInBox({ x: h.cx, y: h.cy }, region)).toBe(true)
     }
   })
 
-  it('a root reaches out on both sides', () => {
+  it('a root reaches out on both sides and covers both columns', () => {
     const ctx = buildContext(sampleTree())
     const region = hoverRegionOf('root', ctx)
     const box = ctx.boxes['root']

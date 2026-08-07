@@ -7,6 +7,7 @@
 
 import { createShape, createConnector, nextId } from './factories.js'
 import { mindmapModelFromShapes, flowchartModelFromShapes, flowchartComponentIds, mindmapComponentIds } from './freeFloatingGraph.js'
+import { subtreeIds } from './mindmapModel.js'
 import { layoutMindMap } from './mindmapLayout.js'
 import { resolveNodeColor, nodeFill, readableInk } from './mindmapColors.js'
 import { makeFlowchartNode, defaultNodeText, nodeSize, pickFreeBranch } from './flowchartModel.js'
@@ -22,6 +23,18 @@ const GAP_Y = 16
 
 function mindmapShape(shapes, id) {
   return (shapes || []).find((shape) => shape.id === id && shape.role === ROLE.mindmapNode)
+}
+
+// Which shapes a drag on a mind-map node should move (#273). Returns null when the
+// shape isn't a mind-map node (normal free drag); an EMPTY array for a CHILD, which
+// is auto-laid-out and so not freely draggable (the press selects it but nothing
+// moves); or the whole tree's shape ids for a ROOT, since dragging the root moves
+// the entire map as a unit (its attached branch connectors follow their endpoints).
+export function mindmapDragTargets(shapes, shapeId) {
+  const shape = mindmapShape(shapes, shapeId)
+  if (!shape) return null
+  if (shape.mindmap?.parentId) return []
+  return subtreeIds(mindmapModelFromShapes(shapes), shapeId)
 }
 
 // Children of a node in the reconstructed model, optionally on one side (root

@@ -3,6 +3,7 @@ import { createMindMap, addChild, toggleCollapsed } from './mindmapModel.js'
 import {
   layoutMindMap,
   branchPath,
+  branchPathPoints,
   isNodeHidden,
   hiddenDescendantCount,
   offsetPositions,
@@ -130,6 +131,21 @@ describe('mindmapLayout', () => {
     const d = branchPath(parent, child)
     expect(d).toMatch(/^M 100 20 C/) // right edge of parent
     expect(d.trim().endsWith('200 120')).toBe(true) // left edge of child
+  })
+
+  // #266: the branch cubic must leave the parent AND ease into the child
+  // horizontally — both control points share their endpoint's y (flat tangents) —
+  // so a downward branch mirrors an upward one instead of plunging into the child.
+  it('branchPathPoints keeps flat tangents at both ends and mirrors up vs down', () => {
+    const down = branchPathPoints({ x: 0, y: 0 }, { x: 100, y: 40 })
+    const up = branchPathPoints({ x: 0, y: 0 }, { x: 100, y: -40 })
+    // C <c1x> <c1y=start.y> <c2x> <c2y=end.y> <endx> <endy>
+    expect(down).toBe('M 0 0 C 50 0 50 40 100 40')
+    expect(up).toBe('M 0 0 C 50 0 50 -40 100 -40')
+    // branchPath is now defined in terms of this helper (same edge-point cubic).
+    expect(branchPath({ x: 0, y: 0, w: 20, h: 40 }, { x: 100, y: 0, w: 20, h: 40 })).toBe(
+      branchPathPoints({ x: 20, y: 20 }, { x: 100, y: 20 }),
+    )
   })
 })
 
