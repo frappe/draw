@@ -1,9 +1,12 @@
 <script setup>
 // Export menu (#104): one flat list, no section headers. PNG carries an inline
-// 1–4× scale selector + a transparent-background toggle; JPEG / SVG / PDF are
-// plain rows; Print sits below a divider. Export is always the whole diagram —
-// the old "Selection only" and "Output" (copy/outline) groups were dropped.
-import { ref } from 'vue'
+// 1–4× scale selector; JPEG / SVG / PDF are plain rows; Print sits below a
+// divider. Export is always the whole diagram — the old "Selection only" and
+// "Output" (copy/outline) groups were dropped.
+//
+// PNG transparency is not a per-export choice (#226): it follows the canvas
+// background, so "No color" exports transparent and a coloured canvas keeps
+// its colour.
 import { Button, Popover } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useExport } from '@/composables/useExport.js'
@@ -13,10 +16,9 @@ const store = useDiagramStore()
 const exporter = useExport(store)
 
 const PNG_SCALES = [1, 2, 3, 4]
-const transparent = ref(false)
 
 function exportPng(scale, close) {
-  exporter.exportPng(scale, transparent.value)
+  exporter.exportPng(scale)
   close?.()
 }
 
@@ -48,7 +50,7 @@ const rowClass =
     </template>
     <template #body-main="{ togglePopover }">
       <div class="w-56 p-1.5">
-        <!-- PNG: scale selector + transparent toggle -->
+        <!-- PNG: scale selector -->
         <div class="rounded-md px-2 py-1.5">
           <div class="flex items-center justify-between">
             <span class="flex items-center gap-2 text-[13px] text-ink-gray-8">
@@ -66,10 +68,6 @@ const rowClass =
               </button>
             </div>
           </div>
-          <label class="mt-1.5 flex cursor-pointer select-none items-center gap-1.5 text-xs text-ink-gray-5">
-            <input v-model="transparent" type="checkbox" class="h-3 w-3 accent-gray-800" />
-            Transparent background
-          </label>
         </div>
 
         <button v-for="f in FORMATS" :key="f.label" :class="rowClass" @click="runFormat(f, togglePopover)">

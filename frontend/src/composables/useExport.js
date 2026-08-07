@@ -20,10 +20,11 @@ export function useExport(store, getTitle) {
   const fileName = () => sanitizeFileName((getTitle && getTitle()) || 'diagram')
 
   return {
-    exportPng: (scale = 2, transparent = false) =>
-      guard(() => exportRaster(store, 'png', scale, fileName(), transparent ? 'transparent' : '#FFFFFF')),
-    exportPngTransparent: () => guard(() => exportRaster(store, 'png', 2, fileName(), 'transparent')),
-    exportPngWhite: () => guard(() => exportRaster(store, 'png', 2, fileName(), '#FFFFFF')),
+    // No `transparent` argument: passing no background makes exportRaster fall
+    // through to the canvas's own background, so a "No color" canvas exports
+    // transparent and a coloured one keeps its colour (#226). The old
+    // per-export toggle duplicated that setting and could contradict it.
+    exportPng: (scale = 2) => guard(() => exportRaster(store, 'png', scale, fileName())),
     exportJpeg: () => guard(() => exportRaster(store, 'jpeg', 1, fileName())),
     exportSvg: () => guard(() => exportSvgFile(store, fileName())),
     exportPdf: () => guard(() => exportPdfFile(store, fileName())),

@@ -31,12 +31,11 @@ async function exportVia(page, label) {
 }
 
 // PNG is no longer one menu row per scale (#104): the Export menu has a single PNG
-// row carrying a 1–4× scale button strip and a "Transparent background" checkbox.
-// Pick the scale by its "N×" button, setting the checkbox first when a transparent
-// export is wanted. `×` is the same U+00D7 the button renders ({{ s }}×).
-async function exportPng(page, scale, { transparent = false } = {}) {
+// row carrying a 1–4× scale button strip. Pick the scale by its "N×" button. `×`
+// is the same U+00D7 the button renders ({{ s }}×). There is no transparency
+// checkbox to drive — PNG transparency follows the canvas background (#226).
+async function exportPng(page, scale) {
   await page.getByRole('button', { name: 'Export', exact: true }).click()
-  await page.getByLabel('Transparent background').setChecked(transparent)
   const item = page.getByRole('button', { name: `${scale}×`, exact: true })
   await item.waitFor({ state: 'visible' })
   const [download] = await Promise.all([page.waitForEvent('download'), item.click()])
@@ -156,7 +155,7 @@ test.describe('export: hygiene', () => {
 
     await exportVia(page, 'SVG')
     await exportPng(page, 2)
-    await exportPng(page, 1, { transparent: true })
+    await exportPng(page, 1)
     await exportVia(page, 'JPEG')
     await exportVia(page, 'PDF')
 
