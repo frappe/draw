@@ -177,10 +177,28 @@ test.describe('flowchart', () => {
   })
 })
 
+// Pen and highlighter are ONE "Draw" tool now (#242) — there is no separate
+// highlighter button to click. Arm Draw (its tool id is still 'pen', see
+// whiteboardTools.js), then pick the ink in the tool's options popover, and close
+// the popover again so it can't sit over the canvas the drag needs to reach.
+async function armDraw(page, kind) {
+  await page.getByTestId('wtool-pen').click()
+  const options = toolByIcon(page, 'sliders')
+  await options.click()
+  // The ink picker is TabButtons, which renders each tab through reka-ui's
+  // RadioGroupItem — so the tab is a <button role="radio">, NOT role="button".
+  const ink = page
+    .locator(POPOVER)
+    .getByRole('radio', { name: kind === 'highlighter' ? 'Highlighter' : 'Pen', exact: true })
+  await ink.waitFor({ state: 'visible' })
+  await ink.click()
+  await options.click()
+}
+
 test.describe('whiteboard', () => {
   test('the pen draws a stroke that persists', async ({ page, diagram }) => {
     const name = await diagram.open('whiteboard', { empty: true })
-    await toolByIcon(page, 'pen-line').click()
+    await armDraw(page, 'pen')
     await dragOnCanvas(page, { x: 300, y: 250 }, { x: 620, y: 400 }, 14)
 
     await expect
@@ -188,16 +206,18 @@ test.describe('whiteboard', () => {
       .toBeGreaterThan(0)
   })
 
-  test('the highlighter draws a distinct stroke kind', async ({ page, diagram }) => {
+  test('the Draw tool\'s highlighter ink records a distinct stroke kind', async ({ page, diagram }) => {
     const name = await diagram.open('whiteboard', { empty: true })
-    await toolByIcon(page, 'highlighter').click()
+    await armDraw(page, 'highlighter')
     await dragOnCanvas(page, { x: 280, y: 300 }, { x: 600, y: 320 }, 12)
 
+    // The persisted stroke.kind is what the merge had to preserve: the tool
+    // collapsed to one button, but the document schema still distinguishes the two.
     await expect
       .poll(async () => {
         const strokes = (await diagram.saved(name)).whiteboard.strokes
         return strokes.length && strokes[strokes.length - 1].kind
-      }, { message: 'highlighter did not record a highlighter-kind stroke', timeout: 20_000 })
+      }, { message: 'the highlighter ink did not record a highlighter-kind stroke', timeout: 20_000 })
       .toBe('highlighter')
   })
 
@@ -307,7 +327,12 @@ test.describe('whiteboard', () => {
     const errors = watchForErrors(page)
     await diagram.open('whiteboard', { empty: true })
 
-    for (const icon of ['pen-line', 'highlighter', 'sticky-note', 'eraser']) {
+    // Both Draw inks, then the tools that are still their own buttons (#242).
+    for (const kind of ['pen', 'highlighter']) {
+      await armDraw(page, kind)
+      await dragOnCanvas(page, { x: 300, y: 260 }, { x: 520, y: 360 }, 8)
+    }
+    for (const icon of ['sticky-note', 'eraser']) {
       await toolByIcon(page, icon).click()
       await dragOnCanvas(page, { x: 300, y: 260 }, { x: 520, y: 360 }, 8)
     }
