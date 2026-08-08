@@ -12,6 +12,7 @@ const props = defineProps({
   cols: { type: Number, default: 3 },
   color: { type: String, default: '#171717' },
   hasHeader: { type: Boolean, default: false },
+  align: { type: String, default: 'left' },
   // 'create' → grid picker to size a new table; 'edit' → steppers on the table.
   mode: { type: String, default: 'create', validator: (v) => ['create', 'edit'].includes(v) },
 })
@@ -19,6 +20,13 @@ const emit = defineEmits(['change'])
 
 const MIN = 1
 const MAX = 10
+
+// Cell text alignment. `icon` is a complete lucide class (JIT reads it literally).
+const ALIGN_OPTIONS = [
+  { value: 'left', label: 'Align left', icon: 'lucide-align-left' },
+  { value: 'center', label: 'Align center', icon: 'lucide-align-center' },
+  { value: 'right', label: 'Align right', icon: 'lucide-align-right' },
+]
 
 // Hover grid: choose rows×cols by sweeping over cells; click commits both.
 const GRID_ROWS = 6
@@ -88,6 +96,24 @@ function step(field, delta) {
       :model-value="hasHeader"
       @update:model-value="emit('change', { hasHeader: $event })"
     />
+
+    <!-- Cell text alignment — edit only, a property of the whole table (#338). -->
+    <template v-if="mode === 'edit'">
+      <div class="mb-1 text-xs font-semibold text-ink-gray-5">Alignment</div>
+      <div class="mb-2.5 flex gap-1">
+        <Button
+          v-for="option in ALIGN_OPTIONS"
+          :key="option.value"
+          :variant="align === option.value ? 'subtle' : 'ghost'"
+          theme="gray"
+          size="sm"
+          :icon="option.icon"
+          :tooltip="option.label"
+          :label="option.label"
+          @click="emit('change', { align: option.value })"
+        />
+      </div>
+    </template>
 
     <div class="mb-1 text-xs font-semibold text-ink-gray-5">Color</div>
     <div class="grid grid-cols-8 gap-1.5">

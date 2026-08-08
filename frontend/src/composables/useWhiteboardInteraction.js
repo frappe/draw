@@ -16,7 +16,8 @@ import { registerModeInteraction, unregisterModeInteraction, useModeInteraction 
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { simplifyStroke } from '@/diagram/strokeSimplify.js'
 import {
-  strokeAt, lineAt, tableAt, tableCellAt,
+  strokeAt, lineAt, tableAt, tableCellAt, tableById,
+  colWidthsOf, rowHeightsOf, resizeTableColumn, resizeTableRow, MIN_TABLE_CELL,
   whiteboardObjectBoxes, whiteboardObjectsInZOrder, translateWhiteboardObject,
 } from '@/diagram/whiteboardModel.js'
 import { eraseInkAt, eraseObjectsAt, sweepPoints } from '@/diagram/eraser.js'
@@ -478,6 +479,44 @@ export function startTableMove(event, store, editorUi, ui, table, point) {
   window.addEventListener('pointerup', finish)
   // Match startGroupMove: a pointercancel must tear the listeners down and land any
   // in-progress move as one undoable step, never stranding the preview.
+  window.addEventListener('pointercancel', finish)
+}
+
+// Drag a column's right edge (or a row's bottom edge) to resize it (#338). Live-
+// previews on the reactive model, then commits the final size as one undoable
+// step — mirrors startTableMove. `axis` is 'col' | 'row', `index` the 0-based
+// column/row the dragged edge belongs to.
+export function startTableResize(event, store, editorUi, table, axis, index) {
+  event.stopPropagation()
+  const model = store.state.whiteboard
+  const live = tableById(model, table.id)
+  if (!live) return
+  const startPos = axis === 'col' ? event.clientX : event.clientY
+  const start = (axis === 'col' ? colWidthsOf(live) : rowHeightsOf(live))[index]
+  const apply = axis === 'col' ? resizeTableColumn : resizeTableRow
+  let size = start
+  isDragging.value = true
+
+  const move = (moveEvent) => {
+    const zoom = editorUi.viewport.state.zoom
+    const pos = axis === 'col' ? moveEvent.clientX : moveEvent.clientY
+    size = Math.max(MIN_TABLE_CELL, start + (pos - startPos) / zoom)
+    apply(live, index, size) // live preview
+  }
+  const finish = () => {
+    window.removeEventListener('pointermove', move)
+    window.removeEventListener('pointerup', finish)
+    window.removeEventListener('pointercancel', finish)
+    isDragging.value = false
+    if (Math.round(size) === Math.round(start)) return // a click, not a resize
+    // Undo the live preview, then commit the final size once for clean undo.
+    apply(live, index, start)
+    store.updateWhiteboardModel(axis === 'col' ? 'Resize column' : 'Resize row', (m) =>
+      apply(tableById(m, table.id), index, size),
+    )
+  }
+  window.addEventListener('pointermove', move)
+  window.addEventListener('pointerup', finish)
   window.addEventListener('pointercancel', finish)
 }
 

@@ -72,6 +72,12 @@ export function makeTable(x, y, partial = {}) {
     color: partial.color || '#171717',
     // First row rendered as a header (tinted band + bold text) when set (#338).
     hasHeader: partial.hasHeader ?? false,
+    // Horizontal text alignment for every cell: 'left' | 'center' | 'right'.
+    align: partial.align || 'left',
+    // Per-column widths / per-row heights only materialise once a border is
+    // dragged; absent means every column/row keeps the uniform cellW/cellH.
+    colWidths: partial.colWidths,
+    rowHeights: partial.rowHeights,
     cells: partial.cells || {},
     zIndex: partial.zIndex || 0,
   }
@@ -247,12 +253,79 @@ export function tableCols(table) {
   return Math.max(0, Math.min(MAX_TABLE_DIM, Math.floor(table.cols) || 0))
 }
 
+// Smallest a column/row can be dragged to, so a cell never collapses to nothing.
+export const MIN_TABLE_CELL = 24
+
+// Effective per-column widths / per-row heights. The stored arrays are optional
+// and may be short (only the dragged indices are set), so fall back to the
+// uniform cellW/cellH per index — old documents and un-resized tables are
+// unchanged, and a resize only has to record the columns it touched.
+export function colWidthsOf(table) {
+  const stored = table.colWidths || []
+  return Array.from({ length: tableCols(table) }, (_, c) =>
+    Math.max(MIN_TABLE_CELL, stored[c] || table.cellW),
+  )
+}
+
+export function rowHeightsOf(table) {
+  const stored = table.rowHeights || []
+  return Array.from({ length: tableRows(table) }, (_, r) =>
+    Math.max(MIN_TABLE_CELL, stored[r] || table.cellH),
+  )
+}
+
+// Cumulative start offsets (length n+1); offsets[i] is the left/top edge of i.
+function cumulative(sizes) {
+  const out = [0]
+  for (const size of sizes) out.push(out[out.length - 1] + size)
+  return out
+}
+export const colOffsets = (table) => cumulative(colWidthsOf(table))
+export const rowOffsets = (table) => cumulative(rowHeightsOf(table))
+
 export function tableWidth(table) {
-  return tableCols(table) * table.cellW
+  const offsets = colOffsets(table)
+  return offsets[offsets.length - 1]
 }
 
 export function tableHeight(table) {
-  return tableRows(table) * table.cellH
+  const offsets = rowOffsets(table)
+  return offsets[offsets.length - 1]
+}
+
+// The pixel box {x,y,w,h} of one cell (canvas units), honouring per-column/row
+// sizes. The single source of truth for cell geometry used by render + hit-test.
+export function cellBox(table, row, col) {
+  const cx = colOffsets(table)
+  const ry = rowOffsets(table)
+  return {
+    x: table.x + cx[col],
+    y: table.y + ry[row],
+    w: cx[col + 1] - cx[col],
+    h: ry[row + 1] - ry[row],
+  }
+}
+
+// Which segment of `offsets` contains `pos` (its index), clamped to the last one.
+function segmentIndex(offsets, pos) {
+  for (let i = 0; i < offsets.length - 1; i += 1) {
+    if (pos < offsets[i + 1]) return i
+  }
+  return Math.max(0, offsets.length - 2)
+}
+
+// Resize one column / row, seeding the size array from the uniform default so
+// only the dragged index changes. Min-clamped; wrapped in a store commit each.
+export function resizeTableColumn(table, col, width) {
+  const widths = colWidthsOf(table)
+  widths[col] = Math.max(MIN_TABLE_CELL, Math.round(width))
+  table.colWidths = widths
+}
+
+export function resizeTableRow(table, row, height) {
+  const heights = rowHeightsOf(table)
+  heights[row] = Math.max(MIN_TABLE_CELL, Math.round(height))
+  table.rowHeights = heights
 }
 
 // The topmost table whose bounding box contains the point, or null.
@@ -327,7 +400,7 @@ export function translateWhiteboardObject(model, kind, id, dx, dy) {
 export function tableCellAt(table, point) {
   if (tableAt({ tables: [table] }, point) !== table) return null
   return {
-    row: Math.min(tableRows(table) - 1, Math.floor((point.y - table.y) / table.cellH)),
-    col: Math.min(tableCols(table) - 1, Math.floor((point.x - table.x) / table.cellW)),
+    row: segmentIndex(rowOffsets(table), point.y - table.y),
+    col: segmentIndex(colOffsets(table), point.x - table.x),
   }
 }

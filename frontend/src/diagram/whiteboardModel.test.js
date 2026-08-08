@@ -12,6 +12,12 @@ import {
   tableWidth,
   tableHeight,
   MAX_TABLE_DIM,
+  MIN_TABLE_CELL,
+  colWidthsOf,
+  cellBox,
+  resizeTableColumn,
+  resizeTableRow,
+  tableCellAt,
 } from './whiteboardModel.js'
 import { contrastInk } from './whiteboardColors.js'
 
@@ -81,6 +87,44 @@ describe('whiteboard table (#338)', () => {
     const huge = { rows: 1e9, cols: 1e9, cellW: 120, cellH: 40 }
     expect(tableWidth(huge)).toBe(MAX_TABLE_DIM * 120)
     expect(tableHeight(huge)).toBe(MAX_TABLE_DIM * 40)
+  })
+})
+
+describe('whiteboard table resize + alignment (#338)', () => {
+  const base = { x: 10, y: 20, rows: 3, cols: 3, cellW: 100, cellH: 40 }
+
+  it('defaults align to left and columns/rows to the uniform size', () => {
+    expect(makeTable(0, 0, { rows: 2, cols: 2 }).align).toBe('left')
+    expect(colWidthsOf(base)).toEqual([100, 100, 100])
+  })
+
+  it('resizes a single column/row, seeding the arrays from the uniform default', () => {
+    const table = { ...base }
+    resizeTableColumn(table, 1, 160)
+    expect(table.colWidths).toEqual([100, 160, 100])
+    resizeTableRow(table, 0, 70)
+    expect(table.rowHeights).toEqual([70, 40, 40])
+    expect(tableWidth(table)).toBe(360)
+    expect(tableHeight(table)).toBe(150)
+  })
+
+  it('clamps a column below the minimum cell size', () => {
+    const table = { ...base }
+    resizeTableColumn(table, 0, 4)
+    expect(table.colWidths[0]).toBe(MIN_TABLE_CELL)
+  })
+
+  it('cellBox honours per-column widths', () => {
+    const table = { ...base, colWidths: [100, 160, 100] }
+    // Cell (0,2) starts after col 0 (100) + col 1 (160) = 260, offset by table.x.
+    expect(cellBox(table, 0, 2)).toEqual({ x: 10 + 260, y: 20, w: 100, h: 40 })
+  })
+
+  it('hit-tests the right cell after a column is widened', () => {
+    const table = { ...base, colWidths: [100, 160, 100] }
+    // A point past the widened col 1 (100..260) lands in col 2, not col 1.
+    expect(tableCellAt(table, { x: 10 + 270, y: 20 + 10 }).col).toBe(2)
+    expect(tableCellAt(table, { x: 10 + 150, y: 20 + 10 }).col).toBe(1)
   })
 })
 
