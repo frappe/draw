@@ -70,6 +70,8 @@ export function makeTable(x, y, partial = {}) {
     cellW: partial.cellW || TABLE_CELL_W,
     cellH: partial.cellH || TABLE_CELL_H,
     color: partial.color || '#171717',
+    // First row rendered as a header (tinted band + bold text) when set (#338).
+    hasHeader: partial.hasHeader ?? false,
     cells: partial.cells || {},
     zIndex: partial.zIndex || 0,
   }
@@ -230,12 +232,27 @@ export function lineAt(model, point, tolerance) {
   return hit
 }
 
+// A table's rows/cols come from the document, which for a shared/public diagram
+// is untrusted — and they drive nested render loops, so a crafted `rows: 1e9`
+// would hang every viewer. Clamp to a generous ceiling (far above the picker's
+// max of 10) everywhere the counts are iterated or measured; a real table is
+// untouched, an absurd one is bounded (#338).
+export const MAX_TABLE_DIM = 50
+
+export function tableRows(table) {
+  return Math.max(0, Math.min(MAX_TABLE_DIM, Math.floor(table.rows) || 0))
+}
+
+export function tableCols(table) {
+  return Math.max(0, Math.min(MAX_TABLE_DIM, Math.floor(table.cols) || 0))
+}
+
 export function tableWidth(table) {
-  return table.cols * table.cellW
+  return tableCols(table) * table.cellW
 }
 
 export function tableHeight(table) {
-  return table.rows * table.cellH
+  return tableRows(table) * table.cellH
 }
 
 // The topmost table whose bounding box contains the point, or null.
@@ -310,7 +327,7 @@ export function translateWhiteboardObject(model, kind, id, dx, dy) {
 export function tableCellAt(table, point) {
   if (tableAt({ tables: [table] }, point) !== table) return null
   return {
-    row: Math.min(table.rows - 1, Math.floor((point.y - table.y) / table.cellH)),
-    col: Math.min(table.cols - 1, Math.floor((point.x - table.x) / table.cellW)),
+    row: Math.min(tableRows(table) - 1, Math.floor((point.y - table.y) / table.cellH)),
+    col: Math.min(tableCols(table) - 1, Math.floor((point.x - table.x) / table.cellW)),
   }
 }

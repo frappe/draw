@@ -10,7 +10,7 @@ import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { startTableMove } from '@/composables/useWhiteboardInteraction.js'
 import { isAdditiveEvent, clientToLogical } from '@/composables/pointer.js'
-import { tableWidth, tableHeight } from '@/diagram/whiteboardModel.js'
+import { tableWidth, tableHeight, tableRows, tableCols } from '@/diagram/whiteboardModel.js'
 
 const props = defineProps({
   table: { type: Object, required: true },
@@ -23,20 +23,32 @@ const ui = useWhiteboardUi()
 
 const width = computed(() => tableWidth(props.table))
 const height = computed(() => tableHeight(props.table))
-const rowLines = computed(() => Array.from({ length: props.table.rows - 1 }, (_, i) => i + 1))
-const colLines = computed(() => Array.from({ length: props.table.cols - 1 }, (_, i) => i + 1))
+// Counts are clamped in whiteboardModel so an untrusted document can't drive an
+// unbounded render loop — every loop below reads these, not the raw table fields.
+const rows = computed(() => tableRows(props.table))
+const cols = computed(() => tableCols(props.table))
+const rowLines = computed(() => Array.from({ length: Math.max(0, rows.value - 1) }, (_, i) => i + 1))
+const colLines = computed(() => Array.from({ length: Math.max(0, cols.value - 1) }, (_, i) => i + 1))
+
+// A subtle tinted band behind the first row when it is a header (#338).
+const headerBand = computed(() =>
+  props.table.hasHeader && rows.value > 0
+    ? { x: props.table.x, y: props.table.y, w: width.value, h: props.table.cellH }
+    : null,
+)
 
 // Flatten the grid into cells carrying their committed text + pixel box.
 const cells = computed(() => {
   const out = []
-  for (let row = 0; row < props.table.rows; row += 1) {
-    for (let col = 0; col < props.table.cols; col += 1) {
+  for (let row = 0; row < rows.value; row += 1) {
+    for (let col = 0; col < cols.value; col += 1) {
       out.push({
         row,
         col,
         x: props.table.x + col * props.table.cellW,
         y: props.table.y + row * props.table.cellH,
         text: props.table.cells[`${row},${col}`] || '',
+        header: props.table.hasHeader && row === 0,
       })
     }
   }
@@ -110,7 +122,7 @@ function cancelEdit() {
 
 <template>
   <g @pointerdown="onPointerDown">
-    <!-- Cell backgrounds + outer frame. -->
+    <!-- Paper + outer frame (the frame carries the chosen colour). -->
     <rect
       :x="table.x"
       :y="table.y"
@@ -121,6 +133,19 @@ function cancelEdit() {
       stroke-width="1.5"
       :style="selected ? 'filter: drop-shadow(0 0 2px #006EDB)' : null"
     />
+
+    <!-- Header band: a subtle tint behind the first row so it reads apart (#338). -->
+    <rect
+      v-if="headerBand"
+      :x="headerBand.x"
+      :y="headerBand.y"
+      :width="headerBand.w"
+      :height="headerBand.h"
+      fill="#F4F4F6"
+      style="pointer-events: none"
+    />
+
+    <!-- Internal grid: light neutral, so the content leads rather than the lines. -->
     <line
       v-for="c in colLines"
       :key="`c${c}`"
@@ -128,7 +153,7 @@ function cancelEdit() {
       :y1="table.y"
       :x2="table.x + c * table.cellW"
       :y2="table.y + height"
-      :stroke="table.color"
+      stroke="#E6E6EA"
       stroke-width="1"
     />
     <line
@@ -138,7 +163,7 @@ function cancelEdit() {
       :y1="table.y + r * table.cellH"
       :x2="table.x + width"
       :y2="table.y + r * table.cellH"
-      :stroke="table.color"
+      stroke="#E6E6EA"
       stroke-width="1"
     />
 
@@ -156,22 +181,23 @@ function cancelEdit() {
       style="pointer-events: none"
     />
 
-    <!-- Committed cell text (centered). -->
+    <!-- Committed cell text: left-aligned with padding; the header row is bold. -->
     <text
       v-for="cell in cells"
       :key="`${cell.row},${cell.col}`"
-      :x="cell.x + table.cellW / 2"
+      :x="cell.x + 12"
       :y="cell.y + table.cellH / 2"
-      text-anchor="middle"
+      text-anchor="start"
       dominant-baseline="central"
       font-size="14"
+      :font-weight="cell.header ? 600 : 400"
       :fill="table.color"
       style="font-family: Inter, sans-serif; pointer-events: none"
     >
       {{ cell.text }}
     </text>
 
-    <!-- Inline cell editor. -->
+    <!-- Inline cell editor (left-aligned + padded to match the committed text). -->
     <foreignObject
       v-if="editingCell"
       :x="table.x + editingCell.col * table.cellW"
@@ -182,7 +208,8 @@ function cancelEdit() {
       <input
         ref="inputEl"
         v-model="draft"
-        class="h-full w-full border-0 bg-transparent text-center text-sm text-ink-gray-9 outline-none"
+        class="h-full w-full border-0 bg-transparent px-3 text-left text-sm text-ink-gray-9 outline-none"
+        :class="table.hasHeader && editingCell.row === 0 ? 'font-semibold' : ''"
         @pointerdown.stop
         @keydown.enter.prevent="commitEdit"
         @keydown.esc.prevent="cancelEdit"

@@ -4,13 +4,14 @@
 // (T2); in 'edit' mode (a selected table) that picker is hidden and the size is
 // adjusted with add/remove row & column steppers instead. Pure: emits a patch.
 import { ref, computed } from 'vue'
-import { Button } from 'frappe-ui'
+import { Button, Checkbox } from 'frappe-ui'
 import { CHALK_COLORS } from '@/diagram/whiteboardColors.js'
 
 const props = defineProps({
   rows: { type: Number, default: 3 },
   cols: { type: Number, default: 3 },
   color: { type: String, default: '#171717' },
+  hasHeader: { type: Boolean, default: false },
   // 'create' → grid picker to size a new table; 'edit' → steppers on the table.
   mode: { type: String, default: 'create', validator: (v) => ['create', 'edit'].includes(v) },
 })
@@ -42,8 +43,8 @@ function step(field, delta) {
     <!-- CREATE only: grid picker — sweep to size, click to commit (T2/Q8). -->
     <template v-if="mode === 'create'">
       <div class="mb-1 flex items-center justify-between">
-        <span class="text-[10px] font-semibold text-ink-gray-5">Size</span>
-        <span class="text-[11px] font-medium text-ink-gray-7">{{ labelC }} × {{ labelR }}</span>
+        <span class="text-xs font-semibold text-ink-gray-5">Size</span>
+        <span class="text-xs font-medium text-ink-gray-7">{{ labelC }} × {{ labelR }}</span>
       </div>
       <div class="mb-2.5 inline-grid gap-0.5" style="grid-template-columns: repeat(8, 1fr)" @pointerleave="hoverR = 0; hoverC = 0">
         <template v-for="r in GRID_ROWS" :key="r">
@@ -60,25 +61,35 @@ function step(field, delta) {
     </template>
 
     <!-- EDIT only: an "add/remove row · column" hint above the steppers. -->
-    <div v-else class="mb-1 text-[10px] font-semibold text-ink-gray-5">Add / remove</div>
+    <div v-else class="mb-1 text-xs font-semibold text-ink-gray-5">Add / remove</div>
 
     <div class="mb-2 flex items-center justify-between">
-      <span class="text-[12px] text-ink-gray-7">Rows</span>
+      <span class="text-xs text-ink-gray-7">Rows</span>
       <div class="flex items-center gap-1.5">
         <Button variant="ghost" theme="gray" size="sm" icon="lucide-minus" label="Remove row" @click="step('rows', -1)" />
-        <span class="w-5 text-center text-[13px] font-medium text-ink-gray-9">{{ rows }}</span>
+        <span class="w-5 text-center text-sm font-medium text-ink-gray-9">{{ rows }}</span>
         <Button variant="ghost" theme="gray" size="sm" icon="lucide-plus" label="Add row" @click="step('rows', 1)" />
       </div>
     </div>
     <div class="mb-2 flex items-center justify-between">
-      <span class="text-[12px] text-ink-gray-7">Columns</span>
+      <span class="text-xs text-ink-gray-7">Columns</span>
       <div class="flex items-center gap-1.5">
         <Button variant="ghost" theme="gray" size="sm" icon="lucide-minus" label="Remove column" @click="step('cols', -1)" />
-        <span class="w-5 text-center text-[13px] font-medium text-ink-gray-9">{{ cols }}</span>
+        <span class="w-5 text-center text-sm font-medium text-ink-gray-9">{{ cols }}</span>
         <Button variant="ghost" theme="gray" size="sm" icon="lucide-plus" label="Add column" @click="step('cols', 1)" />
       </div>
     </div>
-    <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">Color</div>
+    <!-- A tinted, bold first row — a property of an existing table, so edit only (#338). -->
+    <Checkbox
+      v-if="mode === 'edit'"
+      class="mb-2.5"
+      size="sm"
+      label="Header row"
+      :model-value="hasHeader"
+      @update:model-value="emit('change', { hasHeader: $event })"
+    />
+
+    <div class="mb-1 text-xs font-semibold text-ink-gray-5">Color</div>
     <div class="grid grid-cols-8 gap-1.5">
       <button
         v-for="swatch in CHALK_COLORS"

@@ -91,6 +91,7 @@ function remove() {
             :rows="table.rows"
             :cols="table.cols"
             :color="table.color"
+            :has-header="table.hasHeader"
             @change="store.updateTable(table.id, $event)"
           />
         </template>

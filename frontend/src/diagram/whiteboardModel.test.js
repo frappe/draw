@@ -6,6 +6,12 @@ import {
   addStickyNote,
   distanceToStroke,
   strokeAt,
+  makeTable,
+  tableRows,
+  tableCols,
+  tableWidth,
+  tableHeight,
+  MAX_TABLE_DIM,
 } from './whiteboardModel.js'
 import { contrastInk } from './whiteboardColors.js'
 
@@ -51,6 +57,30 @@ describe('whiteboard model', () => {
     expect(note.x).toBe(40)
     expect(note.y).toBe(60)
     expect(note.w).toBeGreaterThan(0)
+  })
+})
+
+describe('whiteboard table (#338)', () => {
+  it('defaults hasHeader to false and accepts it as a partial', () => {
+    expect(makeTable(0, 0, { rows: 3, cols: 3 }).hasHeader).toBe(false)
+    expect(makeTable(0, 0, { rows: 3, cols: 3, hasHeader: true }).hasHeader).toBe(true)
+  })
+
+  it('clamps row/col counts so an untrusted document cannot drive an unbounded render', () => {
+    // A real table is untouched; an absurd one is bounded to the ceiling.
+    expect(tableRows({ rows: 4 })).toBe(4)
+    expect(tableCols({ cols: 6 })).toBe(6)
+    expect(tableRows({ rows: 1e9 })).toBe(MAX_TABLE_DIM)
+    expect(tableCols({ cols: 1e9 })).toBe(MAX_TABLE_DIM)
+    // Missing / non-numeric counts collapse to zero rather than NaN.
+    expect(tableRows({})).toBe(0)
+    expect(tableCols({ cols: 'x' })).toBe(0)
+  })
+
+  it('measures width/height from the clamped counts, not the raw fields', () => {
+    const huge = { rows: 1e9, cols: 1e9, cellW: 120, cellH: 40 }
+    expect(tableWidth(huge)).toBe(MAX_TABLE_DIM * 120)
+    expect(tableHeight(huge)).toBe(MAX_TABLE_DIM * 40)
   })
 })
 
