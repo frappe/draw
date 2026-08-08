@@ -11,6 +11,7 @@ import { safeHref, safeImageSrc } from '@/utils/safeUrl.js'
 import { nodeShape } from '@/diagram/flowchartShapes.js'
 import { polygonPointsString } from '@/diagram/polygon.js'
 import { shapeCornerRadius } from '@/diagram/shapeGeometry.js'
+import { curveRadius } from '@/diagram/mindmapNodeStyle.js'
 import { NODE_BORDER_ZONE } from '@/diagram/mindmapNodeShape.js'
 
 const props = defineProps({
@@ -87,7 +88,14 @@ const transform = computed(() => {
 
 // Corner radius for the rect branch, from the shared helper so the draw preview
 // (which ghosts through this same component) renders identical corners (#130).
-const cornerRadius = computed(() => shapeCornerRadius(props.shape.type))
+const cornerRadius = computed(() => {
+  // A mind-map node's corner roundness follows its own curve setting (#260); every
+  // other shape uses the shared box radius. isMindmapNode is declared below — safe
+  // here because the getter only runs at render time (same TDZ pattern as autofit).
+  const curve = props.shape.mindmap?.curve
+  if (isMindmapNode.value && curve) return curveRadius(curve)
+  return shapeCornerRadius(props.shape.type)
+})
 
 const border = computed(() => props.shape.border || {})
 const dashArray = computed(() => {

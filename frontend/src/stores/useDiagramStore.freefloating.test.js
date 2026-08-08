@@ -48,8 +48,8 @@ describe('store.addFlowchartChildShape (free-floating #122)', () => {
   })
 })
 
-// A store whose mind map has been flattened to free-floating tagged shapes: the
-// root is a boxed shape, its child renders as text (mindmap.shaped false).
+// A store whose mind map has been flattened to free-floating tagged shapes. Since
+// #260 every node — root and child — defaults to a boxed monochrome node.
 function migratedMindmapStore() {
   const mm = createMindMap('Root')
   const childId = addChild(mm, mm.rootId, 'Child', 'right')
@@ -57,57 +57,56 @@ function migratedMindmapStore() {
   return { store: createDiagramStore(doc), rootId: mm.rootId, childId }
 }
 
-describe('store.setMindmapNodeShaped (Whimsical #125)', () => {
-  it('toggles a node between text and box, and undo restores it', () => {
+describe('store.setMindmapNodeShaped', () => {
+  it('toggles a node between box and text, and undo restores it', () => {
     const { store, childId } = migratedMindmapStore()
-    expect(store.shapeById(childId).mindmap.shaped).toBe(false) // children default to text
-    store.setMindmapNodeShaped(childId, true)
-    expect(store.shapeById(childId).mindmap.shaped).toBe(true)
-    store.undo()
+    expect(store.shapeById(childId).mindmap.shaped).toBe(true) // #260: children default to boxed
+    store.setMindmapNodeShaped(childId, false)
     expect(store.shapeById(childId).mindmap.shaped).toBe(false)
+    store.undo()
+    expect(store.shapeById(childId).mindmap.shaped).toBe(true)
   })
 
   it('flips only shaped, leaving the rest of the node tag intact', () => {
     const { store, childId } = migratedMindmapStore()
     const before = { ...store.shapeById(childId).mindmap }
-    store.setMindmapNodeShaped(childId, true)
+    store.setMindmapNodeShaped(childId, false)
     const after = store.shapeById(childId).mindmap
-    expect(after.shaped).toBe(true)
+    expect(after.shaped).toBe(false)
     expect(after.parentId).toBe(before.parentId)
     expect(after.side).toBe(before.side)
     expect(after.depth).toBe(before.depth)
   })
 })
 
-// #126: addChildNode / addSiblingNode read the saved "Mind map child nodes" default
-// and stamp it onto the new node's mindmap.shaped, without the pure builder knowing
-// the setting (a sibling is another child node, so it honours the same default).
-describe('store.addChildNode / addSiblingNode default child style (#126)', () => {
+// #260: addChildNode / addSiblingNode read the saved Child-node style default and
+// stamp it onto the new node, without the pure builder knowing the setting (a
+// sibling is another child node, so it honours the same default).
+describe('store.addChildNode / addSiblingNode default child style (#260)', () => {
   afterEach(() => resetSettings())
+  const textStyle = { border: false, fill: false, curve: 'none', align: 'left' }
 
-  it('adds a boxed child when the default is Shape', () => {
-    useAppSettings().settings.mindmapChildStyle = 'shape'
+  it('adds a boxed monochrome child by default', () => {
     const { store, rootId } = migratedMindmapStore()
     const newId = store.addChildNode(rootId)
     expect(store.shapeById(newId).mindmap.shaped).toBe(true)
   })
 
-  it('adds a text child when the default is Text (unchanged behaviour)', () => {
-    useAppSettings().settings.mindmapChildStyle = 'text'
+  it('adds a transparent-text child when the Child style has border+fill off', () => {
+    useAppSettings().settings.mindmapNodeStyle.child = { ...textStyle }
     const { store, rootId } = migratedMindmapStore()
     const newId = store.addChildNode(rootId)
     expect(store.shapeById(newId).mindmap.shaped).toBe(false)
   })
 
-  it('adds a boxed sibling when the default is Shape', () => {
-    useAppSettings().settings.mindmapChildStyle = 'shape'
+  it('adds a boxed monochrome sibling by default', () => {
     const { store, childId } = migratedMindmapStore()
     const newId = store.addSiblingNode(childId)
     expect(store.shapeById(newId).mindmap.shaped).toBe(true)
   })
 
-  it('adds a text sibling when the default is Text (unchanged behaviour)', () => {
-    useAppSettings().settings.mindmapChildStyle = 'text'
+  it('adds a transparent-text sibling when the Child style has border+fill off', () => {
+    useAppSettings().settings.mindmapNodeStyle.child = { ...textStyle }
     const { store, childId } = migratedMindmapStore()
     const newId = store.addSiblingNode(childId)
     expect(store.shapeById(newId).mindmap.shaped).toBe(false)

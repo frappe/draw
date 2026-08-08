@@ -9,7 +9,7 @@ import { createShape, createConnector, nextId } from './factories.js'
 import { mindmapModelFromShapes, flowchartModelFromShapes, flowchartComponentIds, mindmapComponentIds } from './freeFloatingGraph.js'
 import { subtreeIds } from './mindmapModel.js'
 import { layoutMindMap } from './mindmapLayout.js'
-import { resolveNodeColor, nodeFill, readableInk } from './mindmapColors.js'
+import { DEFAULT_NODE_STYLE, nodeColors, borderProp, connectorColor } from './mindmapNodeStyle.js'
 import { makeFlowchartNode, defaultNodeText, nodeSize, pickFreeBranch } from './flowchartModel.js'
 import { placeChild } from './flowchartLayout.js'
 import { ROLE, flowchartNodeShape, flowchartEdgeConnector, edgeAnchors } from './freeFloating.js'
@@ -65,10 +65,10 @@ function childBox(parentShape, side, indexOnSide) {
 
 // Build the tagged shape + branch connector for a new child of `parentShapeId`.
 // Returns null when the parent is not a mind-map shape. The caller assigns zIndex
-// and commits both objects as one undoable unit. `defaultShaped` sets the new
-// node's mindmap.shaped — false (Whimsical text, #125) by default; the store
-// passes true when the user's "Mind map child nodes" default is Shape (#126).
-export function buildMindmapChild(shapes, parentShapeId, themePreset, explicitSide = null, defaultShaped = false) {
+// and commits both objects as one undoable unit. `style` is the user's Child-node
+// default look (#260) — monochrome gray box by default; the branch line follows
+// the child's border colour (#272).
+export function buildMindmapChild(shapes, parentShapeId, themePreset, explicitSide = null, style = DEFAULT_NODE_STYLE) {
   const parentShape = mindmapShape(shapes, parentShapeId)
   if (!parentShape) return null
   const model = mindmapModelFromShapes(shapes)
@@ -89,17 +89,16 @@ export function buildMindmapChild(shapes, parentShapeId, themePreset, explicitSi
     marker: { icon: null, colorDot: null },
   }
   model.nodes.push(newNode)
-  const color = resolveNodeColor(model, newNode, themePreset)
-  const fill = nodeFill(color)
+  const colors = nodeColors(style)
   const box = childBox(parentShape, side, indexOnSide)
 
   const shape = createShape(
     {
       id, type: 'rounded', ...box, rotation: 0, opacity: 1,
-      fill, border: { color, width: 1.5, dash: 'solid' },
-      text: { content: '', align: 'center', valign: 'middle', style: { size: 16, bold: false, italic: false, underline: false, color: readableInk(fill) } },
+      fill: colors.fill, border: borderProp(colors.border, 1.5),
+      text: { content: '', align: style.align, valign: 'middle', style: { size: 16, bold: false, italic: false, underline: false, color: colors.ink } },
       role: ROLE.mindmapNode,
-      mindmap: { parentId: parentShapeId, order, depth, collapsed: false, side: newNode.side, color: null, marker: { icon: null, colorDot: null }, isRoot: false, shaped: defaultShaped },
+      mindmap: { parentId: parentShapeId, order, depth, collapsed: false, side: newNode.side, color: null, curve: style.curve, marker: { icon: null, colorDot: null }, isRoot: false, shaped: colors.shaped },
     },
     themePreset,
   )
@@ -108,7 +107,7 @@ export function buildMindmapChild(shapes, parentShapeId, themePreset, explicitSi
     from: { shapeId: parentShapeId, anchor: side === 'left' ? 'left' : 'right' },
     to: { shapeId: id, anchor: side === 'left' ? 'right' : 'left' },
     arrowheads: { start: 'none', end: 'none' },
-    style: { color, width: 2, dash: 'solid' }, label: '',
+    style: { color: connectorColor(), width: 2, dash: 'solid' }, label: '',
     role: ROLE.mindmapBranch, mindmap: { parentId: parentShapeId, childId: id },
   })
   return { shape, connector }
@@ -116,14 +115,14 @@ export function buildMindmapChild(shapes, parentShapeId, themePreset, explicitSi
 
 // A sibling of `nodeShapeId` is a child of its parent (same side). For a root
 // (no parent) there are no siblings, so grow it with a child instead — matching
-// the framed model's Enter-on-root behaviour. `defaultShaped` carries the user's
-// child-node style default through to the new node (#126), same as buildMindmapChild.
-export function buildMindmapSibling(shapes, nodeShapeId, themePreset, defaultShaped = false) {
+// the framed model's Enter-on-root behaviour. `style` carries the user's Child-node
+// default look through to the new node (#260), same as buildMindmapChild.
+export function buildMindmapSibling(shapes, nodeShapeId, themePreset, style = DEFAULT_NODE_STYLE) {
   const model = mindmapModelFromShapes(shapes)
   const node = model.nodes.find((n) => n.id === nodeShapeId)
   if (!node) return null
-  if (!node.parentId) return buildMindmapChild(shapes, nodeShapeId, themePreset, null, defaultShaped)
-  return buildMindmapChild(shapes, node.parentId, themePreset, node.side, defaultShaped)
+  if (!node.parentId) return buildMindmapChild(shapes, nodeShapeId, themePreset, null, style)
+  return buildMindmapChild(shapes, node.parentId, themePreset, node.side, style)
 }
 
 // --- mind-map whole-tree layout (#122 P3) -----------------------------------

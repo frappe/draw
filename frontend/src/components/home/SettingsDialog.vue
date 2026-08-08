@@ -1,9 +1,9 @@
 <script setup>
 // App settings, opened from the Home top bar. Holds the document DEFAULTS for new
 // diagrams — the theme preset that colours their shapes, the canvas background,
-// and the mind-map child style — written straight to the persisted settings
-// singleton (useAppSettings), so a choice survives reloads and applies to the next
-// diagram created. No dark mode (removed in #91).
+// and the mind-map node default look (#260) — written straight to the persisted
+// settings singleton (useAppSettings), so a choice survives reloads and applies to
+// the next diagram created. No dark mode (removed in #91).
 //
 // Built on frappe-ui's SettingsDialog family (#301): a sidebar of grouped tabs, a
 // pinned panel header, and one SettingsRow per setting. There is one tab today;
@@ -20,10 +20,10 @@ import {
   SettingsPanel,
   SettingsRow,
   SettingsSidebar,
-  TabButtons,
 } from 'frappe-ui'
 import { useAppSettings } from '@/composables/useAppSettings.js'
 import { THEME_PRESETS, DEFAULT_THEME_PRESET } from '@/diagram/theme.js'
+import MindmapNodeStyleControls from '@/components/home/MindmapNodeStyleControls.vue'
 
 const open = defineModel('open', { type: Boolean, default: false })
 const { settings } = useAppSettings()
@@ -48,13 +48,6 @@ const backgroundOptions = [
   { value: '#F5F5F5', label: 'Light grey' },
 ]
 const CHECKER = 'repeating-conic-gradient(#d4d4d4 0% 25%, #ffffff 0% 50%) 50% / 8px 8px'
-
-// Default look of a new mind-map child node (#126). 'text' keeps the current
-// Whimsical-style transparent text (#125); 'shape' boxes children like the root.
-const childStyleOptions = [
-  { value: 'text', label: 'Text' },
-  { value: 'shape', label: 'Shape' },
-]
 </script>
 
 <template>
@@ -126,10 +119,17 @@ const childStyleOptions = [
           </SettingsRow>
 
           <SettingsRow
-            title="Mind map child nodes"
-            description="How a new child node looks by default. Text is Whimsical-style; Shape draws a box like the root."
+            title="Parent node default"
+            description="How the centre node of a new mind map looks. Every node can still be changed individually."
           >
-            <TabButtons v-model="settings.mindmapChildStyle" size="sm" :options="childStyleOptions" />
+            <MindmapNodeStyleControls v-model="settings.mindmapNodeStyle.parent" />
+          </SettingsRow>
+
+          <SettingsRow
+            title="Child node default"
+            description="How every other node looks by default. Turn off border and fill for plain Whimsical-style text."
+          >
+            <MindmapNodeStyleControls v-model="settings.mindmapNodeStyle.child" />
           </SettingsRow>
         </SettingsBody>
       </SettingsPanel>

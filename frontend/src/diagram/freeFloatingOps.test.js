@@ -70,16 +70,20 @@ describe('buildMindmapChild', () => {
     expect(connector.to.shapeId).toBe(shape.id)
   })
 
-  it('builds children as transparent text, not boxed (Whimsical #125)', () => {
+  it('builds children as a boxed monochrome node by default (#260 reverses #125)', () => {
     const { shapes, rootId } = rootShapes()
     const { shape } = buildMindmapChild(shapes, rootId, 'ocean')
-    expect(shape.mindmap.shaped).toBe(false)
+    expect(shape.mindmap.shaped).toBe(true)
+    expect(shape.fill).toBe('#F3F3F3') // NODE_GRAY fill
+    expect(shape.border.color).toBe('#C7C7C7') // NODE_GRAY border
+    expect(shape.mindmap.curve).toBe('moderate')
   })
 
-  it('boxes the child when defaultShaped is true, text when false (#126)', () => {
+  it('honours the Child style: border+fill off renders transparent text (#260)', () => {
     const { shapes, rootId } = rootShapes()
-    expect(buildMindmapChild(shapes, rootId, 'ocean', null, true).shape.mindmap.shaped).toBe(true)
-    expect(buildMindmapChild(shapes, rootId, 'ocean', null, false).shape.mindmap.shaped).toBe(false)
+    const textStyle = { border: false, fill: false, curve: 'none', align: 'left' }
+    expect(buildMindmapChild(shapes, rootId, 'ocean', null, textStyle).shape.mindmap.shaped).toBe(false)
+    expect(buildMindmapChild(shapes, rootId, 'ocean').shape.mindmap.shaped).toBe(true)
   })
 
   it('places the first child to the right of the root, the second to the left', () => {
@@ -128,10 +132,11 @@ describe('buildMindmapSibling', () => {
     expect(shape.mindmap.parentId).toBe(rootId)
   })
 
-  it('boxes the sibling when defaultShaped is true, text when false (#126)', () => {
+  it('honours the Child style for a sibling too (#260)', () => {
     const { shapes, rootId } = rootShapes()
-    expect(buildMindmapSibling(shapes, rootId, 'ocean', true).shape.mindmap.shaped).toBe(true)
-    expect(buildMindmapSibling(shapes, rootId, 'ocean', false).shape.mindmap.shaped).toBe(false)
+    const textStyle = { border: false, fill: false, curve: 'none', align: 'left' }
+    expect(buildMindmapSibling(shapes, rootId, 'ocean', textStyle).shape.mindmap.shaped).toBe(false)
+    expect(buildMindmapSibling(shapes, rootId, 'ocean').shape.mindmap.shaped).toBe(true)
   })
 })
 

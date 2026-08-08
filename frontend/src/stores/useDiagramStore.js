@@ -13,6 +13,7 @@ import { addChild, addSibling, addRootNode, createMindMap, subtreeIds } from '@/
 import { ROLE, isMindmapShape, isFlowchartShape, flattenSubmodels } from '@/diagram/freeFloating.js'
 import { mindmapModelFromShapes } from '@/diagram/freeFloatingGraph.js'
 import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild, flowchartLayoutPatches, mindmapLayoutPatches } from '@/diagram/freeFloatingOps.js'
+import { DEFAULT_NODE_STYLE } from '@/diagram/mindmapNodeStyle.js'
 import { useAppSettings } from '@/composables/useAppSettings.js'
 import {
   createFlowchart,
@@ -172,8 +173,19 @@ function starterDocument(submodels) {
 // it in view, stack it on top of existing content, and select its first shape so the
 // user can name it straight away. state.mindmap / state.flowchart are untouched —
 // the free-floating shapes ARE the map/chart now.
+// The user's saved Parent/Child default node look (#260), so a freshly-dropped
+// mind map's root and children are created in the chosen style. Falls back to the
+// module default for an older stored settings object.
+function mindmapStyles() {
+  const nodeStyle = useAppSettings().settings.mindmapNodeStyle
+  return {
+    parent: nodeStyle?.parent || DEFAULT_NODE_STYLE,
+    child: nodeStyle?.child || DEFAULT_NODE_STYLE,
+  }
+}
+
 function commitStarter(store, state, history, label, submodels, view, origin = null) {
-  const flat = flattenSubmodels(starterDocument(submodels), state.themePreset)
+  const flat = flattenSubmodels(starterDocument(submodels), state.themePreset, mindmapStyles())
   // An explicit origin (click-to-place, #75) drops the first node on the click point;
   // otherwise centre the starter in the visible rect (#30), nudging off any overlap.
   if (origin) placeShapesAtOrigin(flat.shapes, origin)
@@ -223,13 +235,14 @@ function attachMindMap(store, state, history) {
       .sort((a, b) => (a.mindmap?.order ?? 0) - (b.mindmap?.order ?? 0))
       .forEach((shape, i) => (shape.mindmap.order = i))
 
+  // The user's saved Child-node default look (#260). Falls back to the module
+  // default when an older stored settings object predates the setting.
+  const childStyle = () => useAppSettings().settings.mindmapNodeStyle?.child || DEFAULT_NODE_STYLE
+
   // Add a child as a free-floating tagged shape + branch connector (free-floating
   // #122), one undoable unit. Used when the parent is a migrated mind-map SHAPE.
   const addChildShape = (parentShapeId, side) => {
-    // A new child defaults to the user's saved "Mind map child nodes" style (#126):
-    // 'shape' boxes it like the root, 'text' (default) keeps it Whimsical text (#125).
-    const defaultShaped = useAppSettings().settings.mindmapChildStyle === 'shape'
-    const built = buildMindmapChild(state.shapes, parentShapeId, state.themePreset, side, defaultShaped)
+    const built = buildMindmapChild(state.shapes, parentShapeId, state.themePreset, side, childStyle())
     if (!built) return null
     built.shape.zIndex = nextZIndex(state)
     history.commit('Add child', () => {
@@ -248,8 +261,7 @@ function attachMindMap(store, state, history) {
   // branch side), so inserting on one side never disturbs the other's ordering.
   const addChildAt = (parentShapeId, side, index) => {
     const parentShape = state.shapes.find((s) => s.id === parentShapeId)
-    const defaultShaped = useAppSettings().settings.mindmapChildStyle === 'shape'
-    const built = buildMindmapChild(state.shapes, parentShapeId, state.themePreset, side, defaultShaped)
+    const built = buildMindmapChild(state.shapes, parentShapeId, state.themePreset, side, childStyle())
     if (!built) return null
     built.shape.zIndex = nextZIndex(state)
     const parentIsRoot = !parentShape.mindmap?.parentId
@@ -309,9 +321,8 @@ function attachMindMap(store, state, history) {
   }
   store.addSiblingNode = (nodeId) => {
     if (isMindmapShape(state.shapes.find((s) => s.id === nodeId))) {
-      // A sibling is another child node, so honour the same style default (#126).
-      const defaultShaped = useAppSettings().settings.mindmapChildStyle === 'shape'
-      const built = buildMindmapSibling(state.shapes, nodeId, state.themePreset, defaultShaped)
+      // A sibling is another child node, so honour the same Child default look (#260).
+      const built = buildMindmapSibling(state.shapes, nodeId, state.themePreset, childStyle())
       if (!built) return null
       built.shape.zIndex = nextZIndex(state)
       history.commit('Add sibling', () => {

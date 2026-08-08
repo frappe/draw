@@ -23,7 +23,7 @@
 
 import { rootNodes, childrenOf, subtreeIds, nodeById } from './mindmapModel.js'
 import { layoutMindMap, offsetPositions } from './mindmapLayout.js'
-import { resolveNodeColor, nodeFill, readableInk } from './mindmapColors.js'
+import { DEFAULT_NODE_STYLE, nodeColors, borderProp, connectorColor } from './mindmapNodeStyle.js'
 import { nodeSize } from './flowchartModel.js'
 import { nodeClickZone } from './mindmapNodeShape.js'
 
@@ -91,14 +91,18 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value))
 }
 
-function textBlock(content, color) {
+function textBlock(content, color, align = 'center') {
   return {
     content: content || '',
-    align: 'center',
+    align,
     valign: 'middle',
     style: { size: 16, bold: false, italic: false, underline: false, color },
   }
 }
+
+// The parent/child default node look applied when flattening (#260). Monochrome
+// gray for both unless a caller (the store, reading the user's settings) overrides.
+const DEFAULT_STYLES = { parent: DEFAULT_NODE_STYLE, child: DEFAULT_NODE_STYLE }
 
 // --- mind map ---------------------------------------------------------------
 
@@ -129,7 +133,7 @@ function branchAnchors(parentBox, childBox) {
 // Convert a mind-map sub-model into tagged shapes + connectors. Node ids are
 // reused verbatim as shape ids (they are globally unique, prefix 'n…') so
 // connectors and any future references keep pointing at the same objects.
-function flattenMindmap(model, themePreset, startZ) {
+function flattenMindmap(model, themePreset, startZ, styles = DEFAULT_STYLES) {
   const shapes = []
   const connectors = []
   if (!model || !model.nodes?.length) return { shapes, connectors, nextZ: startZ }
@@ -142,9 +146,12 @@ function flattenMindmap(model, themePreset, startZ) {
   // its parent's spot so nothing is silently lost.
   for (const node of model.nodes) {
     const box = boxes[node.id]
-    const color = resolveNodeColor(model, node, themePreset)
     const isRoot = !node.parentId
-    const fill = nodeFill(color)
+    // #260 reverses #125: every node defaults to the same monochrome gray box (the
+    // parent and child looks come from settings). An explicit per-node colour
+    // (node.color) still wins for the border; colour is otherwise opt-in (#274).
+    const style = isRoot ? styles.parent : styles.child
+    const colors = nodeColors(style, node.color || null)
     z += 1
     shapes.push({
       id: node.id,
@@ -156,9 +163,9 @@ function flattenMindmap(model, themePreset, startZ) {
       rotation: 0,
       opacity: 1,
       zIndex: z,
-      fill,
-      border: { color, width: isRoot ? 2 : 1.5, dash: 'solid' },
-      text: textBlock(node.text, readableInk(fill)),
+      fill: colors.fill,
+      border: borderProp(colors.border, isRoot ? 2 : 1.5),
+      text: textBlock(node.text, colors.ink, style.align),
       role: ROLE.mindmapNode,
       mindmap: {
         parentId: node.parentId || null,
@@ -167,12 +174,10 @@ function flattenMindmap(model, themePreset, startZ) {
         collapsed: !!node.collapsed,
         side: node.side || null,
         color: node.color || null,
+        curve: style.curve,
         marker: node.marker || { icon: null, colorDot: null },
         isRoot,
-        // Whimsical style (#125): the root is a boxed shape, children render as
-        // transparent text. This is the migration seam — every flattened doc now
-        // gets root→boxed, children→text.
-        shaped: isRoot,
+        shaped: colors.shaped,
       },
     })
   }
@@ -190,7 +195,7 @@ function flattenMindmap(model, themePreset, startZ) {
       from: { shapeId: node.parentId, anchor: anchors.from },
       to: { shapeId: node.id, anchor: anchors.to },
       arrowheads: { start: 'none', end: 'none' },
-      style: { color: resolveNodeColor(model, node, themePreset), width: 2, dash: 'solid' },
+      style: { color: connectorColor(node.color || null), width: 2, dash: 'solid' },
       label: '',
       role: ROLE.mindmapBranch,
       mindmap: { parentId: node.parentId, childId: node.id },
@@ -331,7 +336,7 @@ function topZ(shapes) {
 // document (the input is never mutated); idempotent on an already-flattened doc
 // (no sub-models → nothing to do). `themePreset` drives mind-map branch colour so
 // the baked fills match what the map renders today.
-export function flattenSubmodels(document, themePreset) {
+export function flattenSubmodels(document, themePreset, styles = DEFAULT_STYLES) {
   if (!document) return document
   const hasMindmap = document.mindmap && document.mindmap.nodes?.length
   const hasFlowchart = document.flowchart && document.flowchart.nodes?.length
@@ -341,7 +346,7 @@ export function flattenSubmodels(document, themePreset) {
 
   let z = topZ(next.shapes)
   if (hasMindmap) {
-    const mm = flattenMindmap(document.mindmap, themePreset, z)
+    const mm = flattenMindmap(document.mindmap, themePreset, z, styles)
     next.shapes.push(...mm.shapes)
     next.connectors.push(...mm.connectors)
     z = mm.nextZ
