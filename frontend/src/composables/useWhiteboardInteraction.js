@@ -16,10 +16,16 @@ import { registerModeInteraction, unregisterModeInteraction, useModeInteraction 
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { simplifyStroke } from '@/diagram/strokeSimplify.js'
 import {
-  strokeAt, lineAt, tableAt, tableCellAt, tableById,
+  strokeAt, lineAt, tableAt, tableCellAt, tableById, mergeCovering,
   colWidthsOf, rowHeightsOf, resizeTableColumn, resizeTableRow, MIN_TABLE_CELL,
   whiteboardObjectBoxes, whiteboardObjectsInZOrder, translateWhiteboardObject,
 } from '@/diagram/whiteboardModel.js'
+
+// A click on a merged cell edits its anchor (top-left), not the covered sub-cell.
+function mergeAnchor(table, cell) {
+  const merge = mergeCovering(table, cell.row, cell.col)
+  return merge ? { row: merge.row, col: merge.col } : cell
+}
 import { eraseInkAt, eraseObjectsAt, sweepPoints } from '@/diagram/eraser.js'
 import { rectsIntersect } from '@/diagram/geometry.js'
 import { HIGHLIGHTER_WIDTH } from '@/diagram/whiteboardColors.js'
@@ -472,7 +478,8 @@ export function startTableMove(event, store, editorUi, ui, table, point) {
     // the press for inline editing (T2). editingCell is set directly — no reselect —
     // so it survives (setSelection would clear it).
     if (cell && finishEvent?.type !== 'pointercancel') {
-      ui.state.editingCell = { tableId: table.id, row: cell.row, col: cell.col }
+      const anchor = mergeAnchor(table, cell)
+      ui.state.editingCell = { tableId: table.id, row: anchor.row, col: anchor.col }
     }
   }
   window.addEventListener('pointermove', move)
@@ -528,8 +535,8 @@ function onDoubleClick(context, store) {
   const ui = useWhiteboardUi()
   const table = tableAt(store.state.whiteboard, point)
   if (table) {
-    const cell = tableCellAt(table, point)
-    ui.state.editingCell = { tableId: table.id, row: cell.row, col: cell.col }
+    const anchor = mergeAnchor(table, tableCellAt(table, point))
+    ui.state.editingCell = { tableId: table.id, row: anchor.row, col: anchor.col }
     ui.selectTable(table.id)
     return true
   }

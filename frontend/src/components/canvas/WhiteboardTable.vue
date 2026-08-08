@@ -1,14 +1,16 @@
 <script setup>
 // One whiteboard table — a grid with per-cell text (spec diagram-types Part C9).
-// The grid + committed cell text render as SVG; double-clicking a cell (handled by
-// the surface onDoubleClick) sets ui.state.editingCell, which mounts an inline
-// <input> in a foreignObject over that cell. Columns/rows can be resized by
-// dragging their edges when the table is selected (#338). Selection is
-// surface-driven like lines/strokes. One store mutation per committed edit (G6).
+// Cells render as SVG; double-clicking one (surface onDoubleClick) sets
+// ui.state.editingCell, mounting an inline <input> over it. Columns/rows resize by
+// dragging their edges when selected, and a shift-click cell range can be merged /
+// split (#338). Selection is surface-driven like lines/strokes. One store mutation
+// per committed edit (Part G6).
 import { computed, ref, watch, nextTick } from 'vue'
+import { Button } from 'frappe-ui'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
+import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
 import { startTableMove, startTableResize } from '@/composables/useWhiteboardInteraction.js'
 import { isAdditiveEvent, clientToLogical } from '@/composables/pointer.js'
 import {
@@ -20,6 +22,10 @@ import {
   rowOffsets,
   rowHeightsOf,
   cellBox,
+  cellSpanBox,
+  isCoveredCell,
+  mergeCovering,
+  tableCellAt,
 } from '@/diagram/whiteboardModel.js'
 
 const props = defineProps({
@@ -37,14 +43,6 @@ const height = computed(() => tableHeight(props.table))
 // unbounded render loop — every loop below reads these, not the raw table fields.
 const rows = computed(() => tableRows(props.table))
 const cols = computed(() => tableCols(props.table))
-
-// Internal gridline positions — the shared edges between columns / rows.
-const colGridlines = computed(() =>
-  colOffsets(props.table).slice(1, -1).map((offset) => props.table.x + offset),
-)
-const rowGridlines = computed(() =>
-  rowOffsets(props.table).slice(1, -1).map((offset) => props.table.y + offset),
-)
 
 // Resize handles: each column's right edge / each row's bottom edge (incl. the
 // outer ones), mapped to the 0-based column / row that edge resizes.
@@ -70,16 +68,20 @@ function textLayout(box) {
   return { x: box.x + 12, anchor: 'start' }
 }
 
-// Flatten the grid into cells carrying their committed text + placement.
+// The visible cells: covered (non-anchor) cells are skipped, and a merge anchor
+// carries the box spanning its whole rectangle. Each draws its own border rect,
+// so merges break the grid without any gridline bookkeeping.
 const cellNodes = computed(() => {
   const out = []
   for (let row = 0; row < rows.value; row += 1) {
     for (let col = 0; col < cols.value; col += 1) {
-      const box = cellBox(props.table, row, col)
+      if (isCoveredCell(props.table, row, col)) continue
+      const box = cellSpanBox(props.table, row, col)
       const layout = textLayout(box)
       out.push({
         row,
         col,
+        box,
         text: props.table.cells[`${row},${col}`] || '',
         header: props.table.hasHeader && row === 0,
         tx: layout.x,
@@ -98,19 +100,91 @@ function onRowResize(event, row) {
   startTableResize(event, store, editorUi, props.table, 'row', row)
 }
 
+// The cell under a pointer event, in table coordinates.
+function cellAtEvent(event) {
+  const surface = event.target.closest('[data-fdpreset]')
+  const rect = surface ? surface.getBoundingClientRect() : { left: 0, top: 0 }
+  return tableCellAt(props.table, clientToLogical(event, rect, editorUi.viewport))
+}
+
 // A press on the table (select tool only). The first press and additive toggles
-// fall through to the surface selectAt, which single-selects/toggles the table;
-// once it's selected WE own the press — a drag past a small threshold moves it, a
-// plain click drops the caret into the cell under it (T2) — so the surface never
-// double-handles it (#133). Mirrors the sticky-note pointerdown.
+// fall through to the surface selectAt; once it's selected WE own the press — a
+// shift-click extends a cell range for merge, a drag past a threshold moves it,
+// and a plain click drops the caret into the cell (T2). Mirrors the sticky note.
 function onPointerDown(event) {
   if (event.button !== 0 || editorUi.state.tool !== 'select') return
+  const lone = ui.isSelected('table', props.table.id) && (ui.state.selection || []).length === 1
+  // Shift-click on the lone-selected table grows a cell range for merge (#338).
+  if (event.shiftKey && lone) {
+    const cell = cellAtEvent(event)
+    if (cell) {
+      event.stopPropagation()
+      const anchor = range.value ? { row: range.value.r0, col: range.value.c0 } : cell
+      ui.state.cellRange = {
+        tableId: props.table.id,
+        r0: anchor.row,
+        c0: anchor.col,
+        r1: cell.row,
+        c1: cell.col,
+      }
+      ui.state.editingCell = null
+      return
+    }
+  }
   if (isAdditiveEvent(event) || !ui.isSelected('table', props.table.id)) return
   event.stopPropagation()
+  // Plain press: remember the single cell (so Split can offer itself for a merged
+  // cell), then run the move / click-to-edit gesture.
+  const cell = cellAtEvent(event)
+  if (cell) {
+    ui.state.cellRange = { tableId: props.table.id, r0: cell.row, c0: cell.col, r1: cell.row, c1: cell.col }
+  }
   const surface = event.target.closest('[data-fdpreset]')
   const rect = surface ? surface.getBoundingClientRect() : { left: 0, top: 0 }
   startTableMove(event, store, editorUi, ui, props.table, clientToLogical(event, rect, editorUi.viewport))
 }
+
+// ----- merge / split -----
+const range = computed(() =>
+  ui.state.cellRange?.tableId === props.table.id ? ui.state.cellRange : null,
+)
+const rangeBox = computed(() => {
+  if (!range.value) return null
+  const r = range.value
+  const a = cellBox(props.table, Math.min(r.r0, r.r1), Math.min(r.c0, r.c1))
+  const b = cellBox(props.table, Math.max(r.r0, r.r1), Math.max(r.c0, r.c1))
+  return { x: a.x, y: a.y, w: b.x + b.w - a.x, h: b.y + b.h - a.y }
+})
+const canMerge = computed(
+  () => !!range.value && (range.value.r0 !== range.value.r1 || range.value.c0 !== range.value.c1),
+)
+const canSplit = computed(
+  () =>
+    !!range.value &&
+    range.value.r0 === range.value.r1 &&
+    range.value.c0 === range.value.c1 &&
+    !!mergeCovering(props.table, range.value.r0, range.value.c0),
+)
+const showRange = computed(() => props.selected && !!range.value && (canMerge.value || canSplit.value))
+const toolbarStyle = useCanvasToolbarStyle(rangeBox)
+
+function doMerge() {
+  const r = range.value
+  store.mergeTableCells(props.table.id, r.r0, r.c0, r.r1, r.c1)
+  ui.state.cellRange = null
+}
+function doSplit() {
+  store.unmergeTableCell(props.table.id, range.value.r0, range.value.c0)
+  ui.state.cellRange = null
+}
+
+// Deselecting the table drops any pending cell range.
+watch(
+  () => props.selected,
+  (isSelected) => {
+    if (!isSelected && range.value) ui.state.cellRange = null
+  },
+)
 
 // Inline editor: mounts when editingCell targets this table. The draft is held
 // locally and committed on Enter/blur; Escape cancels.
@@ -118,7 +192,7 @@ const editingCell = computed(() =>
   ui.state.editingCell?.tableId === props.table.id ? ui.state.editingCell : null,
 )
 const editBox = computed(() =>
-  editingCell.value ? cellBox(props.table, editingCell.value.row, editingCell.value.col) : null,
+  editingCell.value ? cellSpanBox(props.table, editingCell.value.row, editingCell.value.col) : null,
 )
 const inputAlignClass = computed(
   () => ({ left: 'text-left', center: 'text-center', right: 'text-right' })[props.table.align] || 'text-left',
@@ -194,26 +268,33 @@ function cancelEdit() {
       style="pointer-events: none"
     />
 
-    <!-- Internal grid: light neutral, so the content leads rather than the lines. -->
-    <line
-      v-for="(x, i) in colGridlines"
-      :key="`c${i}`"
-      :x1="x"
-      :y1="table.y"
-      :x2="x"
-      :y2="table.y + height"
+    <!-- One border rect per visible cell (a merge anchor spans its rectangle), so
+         the light-neutral grid naturally breaks around merged cells. -->
+    <rect
+      v-for="cell in cellNodes"
+      :key="`b${cell.row},${cell.col}`"
+      :x="cell.box.x"
+      :y="cell.box.y"
+      :width="cell.box.w"
+      :height="cell.box.h"
+      fill="none"
       stroke="#E6E6EA"
       stroke-width="1"
+      style="pointer-events: none"
     />
-    <line
-      v-for="(y, i) in rowGridlines"
-      :key="`r${i}`"
-      :x1="table.x"
-      :y1="y"
-      :x2="table.x + width"
-      :y2="y"
-      stroke="#E6E6EA"
-      stroke-width="1"
+
+    <!-- Shift-click cell range highlight (merge / split target). -->
+    <rect
+      v-if="showRange && rangeBox"
+      :x="rangeBox.x"
+      :y="rangeBox.y"
+      :width="rangeBox.w"
+      :height="rangeBox.h"
+      fill="#006EDB"
+      fill-opacity="0.08"
+      stroke="#006EDB"
+      stroke-width="1.5"
+      style="pointer-events: none"
     />
 
     <!-- Active cell highlight so the selected/editing cell reads clearly (T2). -->
@@ -233,7 +314,7 @@ function cancelEdit() {
     <!-- Committed cell text: aligned per table.align; the header row is bold. -->
     <text
       v-for="cell in cellNodes"
-      :key="`${cell.row},${cell.col}`"
+      :key="`t${cell.row},${cell.col}`"
       :x="cell.tx"
       :y="cell.ty"
       :text-anchor="cell.anchor"
@@ -292,4 +373,36 @@ function cancelEdit() {
       />
     </template>
   </g>
+
+  <!-- Merge / Split control, floated above the cell range (screen space). -->
+  <Teleport to="body">
+    <div
+      v-if="showRange"
+      class="fixed z-30 flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-lg border border-outline-gray-2 bg-surface-base p-1 shadow-lg"
+      :style="toolbarStyle"
+    >
+      <Button
+        v-if="canMerge"
+        variant="ghost"
+        theme="gray"
+        size="sm"
+        icon-left="lucide-table-cells-merge"
+        @mousedown.prevent
+        @click="doMerge"
+      >
+        Merge
+      </Button>
+      <Button
+        v-if="canSplit"
+        variant="ghost"
+        theme="gray"
+        size="sm"
+        icon-left="lucide-table-cells-split"
+        @mousedown.prevent
+        @click="doSplit"
+      >
+        Split
+      </Button>
+    </div>
+  </Teleport>
 </template>

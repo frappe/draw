@@ -51,6 +51,8 @@ function createWhiteboardUi() {
     marquee: null,
     // The table cell being edited inline: { tableId, row, col } or null.
     editingCell: null,
+    // A shift-click cell range for merge/split: { tableId, r0, c0, r1, c1 } or null.
+    cellRange: null,
     // A sticky id that should open its inline editor (e.g. right after it's
     // created); the sticky component consumes and clears it.
     stickyEditRequest: null,

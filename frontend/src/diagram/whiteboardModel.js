@@ -78,6 +78,8 @@ export function makeTable(x, y, partial = {}) {
     // dragged; absent means every column/row keeps the uniform cellW/cellH.
     colWidths: partial.colWidths,
     rowHeights: partial.rowHeights,
+    // Merged cell rectangles ({row,col,rowspan,colspan}); absent means none.
+    merges: partial.merges,
     cells: partial.cells || {},
     zIndex: partial.zIndex || 0,
   }
@@ -326,6 +328,69 @@ export function resizeTableRow(table, row, height) {
   const heights = rowHeightsOf(table)
   heights[row] = Math.max(MIN_TABLE_CELL, Math.round(height))
   table.rowHeights = heights
+}
+
+// ----- cell merges (#338) ----------------------------------------------------
+// A merge shows a rectangle of cells as one, anchored at its top-left cell:
+// { row, col, rowspan, colspan }. The anchor renders spanning the rectangle; the
+// cells it covers are skipped. Stored on `table.merges` (absent = none).
+export function tableMerges(table) {
+  // Bounded like the row/col counts: the render checks cell coverage against every
+  // merge, per cell, so a shared/public diagram can't ship a giant `merges` array
+  // to blow that up — a real table has at most one merge per cell (#338).
+  return (table.merges || []).slice(0, MAX_TABLE_DIM * MAX_TABLE_DIM)
+}
+
+function rectsOverlap(ra, ca, rsa, csa, rb, cb, rsb, csb) {
+  return ra < rb + rsb && rb < ra + rsa && ca < cb + csb && cb < ca + csa
+}
+
+// The merge whose rectangle covers (row, col), or null. Anchors count too.
+export function mergeCovering(table, row, col) {
+  return (
+    tableMerges(table).find(
+      (m) =>
+        row >= m.row && row < m.row + m.rowspan && col >= m.col && col < m.col + m.colspan,
+    ) || null
+  )
+}
+
+// A covered cell that is NOT its merge's anchor — the render skips these.
+export function isCoveredCell(table, row, col) {
+  const m = mergeCovering(table, row, col)
+  return !!m && !(m.row === row && m.col === col)
+}
+
+// The pixel box of a cell, spanning its merge when it is the anchor; otherwise
+// the plain cell. Covered non-anchor cells return their own box (never drawn).
+export function cellSpanBox(table, row, col) {
+  const start = cellBox(table, row, col)
+  const m = mergeCovering(table, row, col)
+  if (!m || m.row !== row || m.col !== col) return start
+  const endRow = Math.min(tableRows(table) - 1, m.row + m.rowspan - 1)
+  const endCol = Math.min(tableCols(table) - 1, m.col + m.colspan - 1)
+  const end = cellBox(table, endRow, endCol)
+  return { x: start.x, y: start.y, w: end.x + end.w - start.x, h: end.y + end.h - start.y }
+}
+
+// Merge the cell rectangle (r0,c0)-(r1,c1) into one, dropping any merges it
+// overlaps. A single cell is ignored. Text stays in the anchor (top-left) cell.
+export function mergeTableCells(table, r0, c0, r1, c1) {
+  const row = Math.max(0, Math.min(r0, r1))
+  const col = Math.max(0, Math.min(c0, c1))
+  const rowspan = Math.min(tableRows(table), Math.max(r0, r1) + 1) - row
+  const colspan = Math.min(tableCols(table), Math.max(c0, c1) + 1) - col
+  if (rowspan * colspan <= 1) return
+  const kept = tableMerges(table).filter(
+    (m) => !rectsOverlap(m.row, m.col, m.rowspan, m.colspan, row, col, rowspan, colspan),
+  )
+  table.merges = [...kept, { row, col, rowspan, colspan }]
+}
+
+// Un-merge the cell at (row, col) — remove the merge covering it.
+export function unmergeTableCell(table, row, col) {
+  const m = mergeCovering(table, row, col)
+  if (m) table.merges = tableMerges(table).filter((x) => x !== m)
 }
 
 // The topmost table whose bounding box contains the point, or null.

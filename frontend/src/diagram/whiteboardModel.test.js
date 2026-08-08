@@ -18,6 +18,12 @@ import {
   resizeTableColumn,
   resizeTableRow,
   tableCellAt,
+  mergeTableCells,
+  unmergeTableCell,
+  mergeCovering,
+  isCoveredCell,
+  cellSpanBox,
+  tableMerges,
 } from './whiteboardModel.js'
 import { contrastInk } from './whiteboardColors.js'
 
@@ -125,6 +131,56 @@ describe('whiteboard table resize + alignment (#338)', () => {
     // A point past the widened col 1 (100..260) lands in col 2, not col 1.
     expect(tableCellAt(table, { x: 10 + 270, y: 20 + 10 }).col).toBe(2)
     expect(tableCellAt(table, { x: 10 + 150, y: 20 + 10 }).col).toBe(1)
+  })
+})
+
+describe('whiteboard table cell merge/split (#338)', () => {
+  const base = () => ({ x: 0, y: 0, rows: 3, cols: 3, cellW: 100, cellH: 40 })
+
+  it('merges a cell rectangle into one anchored at its top-left, ignoring single cells', () => {
+    const table = base()
+    mergeTableCells(table, 0, 1, 1, 2) // rows 0-1, cols 1-2
+    expect(table.merges).toEqual([{ row: 0, col: 1, rowspan: 2, colspan: 2 }])
+    // A 1x1 "merge" is a no-op.
+    const single = base()
+    mergeTableCells(single, 2, 2, 2, 2)
+    expect(single.merges).toBeUndefined()
+  })
+
+  it('normalises the rectangle regardless of drag direction and clamps to bounds', () => {
+    const table = base()
+    mergeTableCells(table, 2, 2, 0, 0) // bottom-right to top-left
+    expect(table.merges[0]).toEqual({ row: 0, col: 0, rowspan: 3, colspan: 3 })
+  })
+
+  it('marks covered non-anchor cells and spans the anchor box', () => {
+    const table = base()
+    mergeTableCells(table, 0, 0, 0, 1) // merge (0,0)-(0,1)
+    expect(isCoveredCell(table, 0, 0)).toBe(false) // the anchor
+    expect(isCoveredCell(table, 0, 1)).toBe(true) // covered
+    expect(mergeCovering(table, 0, 1).colspan).toBe(2)
+    // The anchor's box spans both columns.
+    expect(cellSpanBox(table, 0, 0)).toEqual({ x: 0, y: 0, w: 200, h: 40 })
+  })
+
+  it('drops a merge that a new overlapping merge replaces', () => {
+    const table = base()
+    mergeTableCells(table, 0, 0, 0, 1)
+    mergeTableCells(table, 0, 1, 1, 1) // overlaps the first at (0,1)
+    expect(table.merges).toHaveLength(1)
+    expect(table.merges[0]).toEqual({ row: 0, col: 1, rowspan: 2, colspan: 1 })
+  })
+
+  it('splits a merged cell from any cell it covers', () => {
+    const table = base()
+    mergeTableCells(table, 1, 1, 2, 2)
+    unmergeTableCell(table, 2, 2) // a covered cell, not the anchor
+    expect(table.merges).toHaveLength(0)
+  })
+
+  it('bounds the merges list so an untrusted document cannot blow up coverage checks', () => {
+    const flood = Array.from({ length: 100000 }, () => ({ row: 0, col: 0, rowspan: 1, colspan: 1 }))
+    expect(tableMerges({ ...base(), merges: flood }).length).toBeLessThanOrEqual(MAX_TABLE_DIM * MAX_TABLE_DIM)
   })
 })
 

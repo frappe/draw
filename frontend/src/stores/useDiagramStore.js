@@ -37,6 +37,8 @@ import {
   removeTable,
   tableById,
   setTableCell,
+  mergeTableCells,
+  unmergeTableCell,
   whiteboardObjectsInZOrder,
   maxWhiteboardZIndex,
 } from '@/diagram/whiteboardModel.js'
@@ -633,6 +635,16 @@ function attachWhiteboardTables(store, state, history) {
     history.commit('Edit cell', () => {
       const table = tableById(state.whiteboard || {}, id)
       if (table) setTableCell(table, row, col, text)
+    })
+  store.mergeTableCells = (id, r0, c0, r1, c1) =>
+    history.commit('Merge cells', () => {
+      const table = tableById(state.whiteboard || {}, id)
+      if (table) mergeTableCells(table, r0, c0, r1, c1)
+    })
+  store.unmergeTableCell = (id, row, col) =>
+    history.commit('Split cell', () => {
+      const table = tableById(state.whiteboard || {}, id)
+      if (table) unmergeTableCell(table, row, col)
     })
   store.removeTable = (id) => {
     if (!state.whiteboard) return

@@ -13,7 +13,13 @@ import { nodeShape } from '@/diagram/flowchartShapes.js'
 import { routeEdge, routeOffsets, flowchartContentBounds } from '@/diagram/flowchartLayout.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
 import { unionBounds } from '@/diagram/geometry.js'
-import { whiteboardObjectsInZOrder } from '@/diagram/whiteboardModel.js'
+import {
+  whiteboardObjectsInZOrder,
+  tableRows,
+  tableCols,
+  cellSpanBox,
+  isCoveredCell,
+} from '@/diagram/whiteboardModel.js'
 import { pointsToPath } from '@/diagram/svgPath.js'
 import { polygonPointsString } from '@/diagram/polygon.js'
 import { contrastInk, HIGHLIGHTER_OPACITY } from '@/diagram/whiteboardColors.js'
@@ -462,32 +468,36 @@ function whiteboardLine(line) {
   return out
 }
 
-// Tables: the grid plus whatever text the cells hold. Size comes from cols*cellW /
-// rows*cellH (there are no w/h fields on the model).
-// A table's rows/cols come from the untrusted document and drive a nested loop, so
-// a shared/public diagram with rows:1e9 would hang every viewer on the tile/export
-// render. Clamp to a generous ceiling — far above any real table.
-const MAX_TABLE_DIM = 200
-
-function tableDim(value) {
-  return Math.max(0, Math.min(MAX_TABLE_DIM, Math.floor(num(value))))
-}
 
 function whiteboardTable(table) {
-  const cols = tableDim(table.cols)
-  const rows = tableDim(table.rows)
-  const cellW = num(table.cellW, 120)
-  const cellH = num(table.cellH, 40)
+  // Same geometry as the live canvas (WhiteboardTable): per-column/row sizes,
+  // merged-cell spans and text alignment, so an export/thumbnail matches what's
+  // on screen. Counts stay clamped (tableRows/tableCols), and cellW/cellH default
+  // to sane numbers, so a malformed document can't blow the loop up.
+  const rows = tableRows(table)
+  const cols = tableCols(table)
+  const safe = { ...table, cellW: num(table.cellW, 120), cellH: num(table.cellH, 40) }
   const color = safeColor(table.color, '#171717')
+  const align = table.align || 'left'
   let out = ''
   for (let r = 0; r < rows; r += 1) {
     for (let c = 0; c < cols; c += 1) {
-      const x = num(table.x) + c * cellW
-      const y = num(table.y) + r * cellH
-      out += `<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" fill="none" stroke="${color}" stroke-width="1" stroke-opacity="0.45"/>`
+      if (isCoveredCell(safe, r, c)) continue
+      const box = cellSpanBox(safe, r, c)
+      out += `<rect x="${num(box.x)}" y="${num(box.y)}" width="${num(box.w)}" height="${num(box.h)}" fill="none" stroke="${color}" stroke-width="1" stroke-opacity="0.45"/>`
       const text = (table.cells || {})[`${r},${c}`] // key format matches setTableCell
       if (text) {
-        out += `<text x="${x + 8}" y="${y + cellH / 2 + 5}" fill="${color}" font-size="13" font-family="Inter, sans-serif">${escapeText(text)}</text>`
+        const ty = box.y + box.h / 2 + 5
+        let tx = box.x + 8
+        let anchor = ''
+        if (align === 'center') {
+          tx = box.x + box.w / 2
+          anchor = ' text-anchor="middle"'
+        } else if (align === 'right') {
+          tx = box.x + box.w - 8
+          anchor = ' text-anchor="end"'
+        }
+        out += `<text x="${num(tx)}" y="${num(ty)}"${anchor} fill="${color}" font-size="13" font-family="Inter, sans-serif">${escapeText(text)}</text>`
       }
     }
   }
