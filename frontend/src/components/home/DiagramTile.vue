@@ -1,8 +1,9 @@
 <script setup>
 // One diagram, rendered as a grid tile or a compact list row (spec §2). Tiles
-// show a live thumbnail; list rows show the diagram-type icon instead. Both
-// carry the title, created + edited times, a selection checkbox, and a ⋯ menu
-// (Pin/Unpin · Rename · Duplicate · Delete).
+// show a live thumbnail. List rows carry no glyph at all (#218): every diagram
+// drew the same one, so it distinguished nothing and only pushed the titles
+// right. Both carry the title, created + edited times, a selection checkbox,
+// and a ⋯ menu (Pin/Unpin · Rename · Duplicate · Delete).
 import { computed, ref, watch } from 'vue'
 import { Checkbox, Dropdown, toast } from 'frappe-ui'
 import { documentToSvg, isDocumentEmpty } from '@/composables/useThumbnail.js'
@@ -47,10 +48,6 @@ const previewSvg = computed(() => {
   return documentToSvg(props.diagram.document)
 })
 
-// One neutral glyph for every diagram — types aren't a user-facing concept
-// anymore, so rows no longer show a per-type icon (#114).
-// A complete lucide class: Tailwind's JIT reads it literally.
-const icon = 'lucide-shapes'
 const isPinned = computed(() => Boolean(props.diagram.is_pinned))
 const createdLabel = computed(() => relativeTime(props.diagram.creation))
 const editedLabel = computed(() => relativeTime(props.diagram.modified))
@@ -146,9 +143,6 @@ const TIME_UNITS = [
       <span class="lucide-pin h-4 w-4" aria-hidden="true" :class="isPinned ? 'fill-current text-ink-amber-2' : 'text-ink-gray-4 hover:text-ink-gray-6'" />
     </button>
 
-    <span class="flex h-8 w-8 flex-none items-center justify-center rounded-md bg-surface-gray-2 text-ink-gray-7">
-      <span class="h-4 w-4" aria-hidden="true" :class="icon" />
-    </span>
     <button class="min-w-0 flex-1 truncate text-left text-sm font-medium text-ink-gray-9" @click.stop="emit('open', diagram.name)">
       {{ diagram.title }}
     </button>

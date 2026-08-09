@@ -259,3 +259,26 @@ describe('empty states, one per tab (#220)', () => {
     expect(tileGrid).toContain('emptyStateFor(props.mode, hasActiveFilter.value)')
   })
 })
+
+// #218: every list row drew the same 'lucide-shapes' glyph. Types stopped being a
+// user-facing concept in #114, which left one identical icon on every row — it
+// distinguished nothing and only pushed the titles right.
+describe('list rows carry no type glyph (#218)', () => {
+  it('drops the glyph and the constant behind it', () => {
+    expect(diagramTile).not.toContain("const icon = 'lucide-shapes'")
+    expect(diagramTile).not.toContain('lucide-shapes')
+  })
+
+  it('drops the header spacer that reserved the glyph lane', () => {
+    // The header aligns column-for-column with the rows, so a leftover spacer
+    // would shift every heading one lane right of its column.
+    expect(tileGrid).not.toContain('<span class="w-8 flex-none" />')
+    // The pin lane stays — the rows still have a pin button.
+    expect(tileGrid).toContain('<span class="w-6 flex-none" />')
+  })
+
+  it('keeps the tile view showing previews, not a glyph', () => {
+    expect(diagramTile).toContain('v-if="thumbnailUrl"')
+    expect(diagramTile).toContain('v-else-if="previewSvg"')
+  })
+})
