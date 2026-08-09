@@ -38,6 +38,7 @@ import {
   removeTable,
   tableById,
   setTableCell,
+  setTableCellRuns,
   mergeTableCells,
   unmergeTableCell,
   whiteboardObjectsInZOrder,
@@ -641,6 +642,19 @@ function attachWhiteboardTables(store, state, history) {
     history.commit('Edit cell', () => {
       const table = tableById(state.whiteboard || {}, id)
       if (table) setTableCell(table, row, col, text)
+    })
+  store.setTableCellRuns = (id, row, col, runs) =>
+    history.commit('Edit cell', () => {
+      const table = tableById(state.whiteboard || {}, id)
+      if (table) setTableCellRuns(table, row, col, runs)
+    })
+  // One undo step for a format applied across a cell range (#344) — undoing
+  // "Bold" must put every cell back, not just the last one touched.
+  store.formatTableCells = (id, cells, format) =>
+    history.commit('Format cells', () => {
+      const table = tableById(state.whiteboard || {}, id)
+      if (!table) return
+      for (const cell of cells) setTableCellRuns(table, cell.row, cell.col, format(cell))
     })
   store.mergeTableCells = (id, r0, c0, r1, c1) =>
     history.commit('Merge cells', () => {

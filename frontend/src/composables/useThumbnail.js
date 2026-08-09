@@ -19,7 +19,9 @@ import {
   tableCols,
   cellSpanBox,
   isCoveredCell,
+  tableCellRuns,
 } from '@/diagram/whiteboardModel.js'
+import { resolveMark } from '@/diagram/richText.js'
 import { pointsToPath } from '@/diagram/svgPath.js'
 import { polygonPointsString } from '@/diagram/polygon.js'
 import { contrastInk, HIGHLIGHTER_OPACITY } from '@/diagram/whiteboardColors.js'
@@ -485,8 +487,8 @@ function whiteboardTable(table) {
       if (isCoveredCell(safe, r, c)) continue
       const box = cellSpanBox(safe, r, c)
       out += `<rect x="${num(box.x)}" y="${num(box.y)}" width="${num(box.w)}" height="${num(box.h)}" fill="none" stroke="${color}" stroke-width="1" stroke-opacity="0.45"/>`
-      const text = (table.cells || {})[`${r},${c}`] // key format matches setTableCell
-      if (text) {
+      const runs = tableCellRuns(safe, r, c)
+      if (runs.length) {
         const ty = box.y + box.h / 2 + 5
         let tx = box.x + 8
         let anchor = ''
@@ -497,10 +499,24 @@ function whiteboardTable(table) {
           tx = box.x + box.w - 8
           anchor = ' text-anchor="end"'
         }
-        out += `<text x="${num(tx)}" y="${num(ty)}"${anchor} fill="${color}" font-size="13" font-family="Inter, sans-serif">${escapeText(text)}</text>`
+        // A tspan per run, so an export carries the same per-cell bold/italic/
+        // underline the canvas shows (#344) — including the header row's bold,
+        // which this path used to drop.
+        const header = table.hasHeader === true && r === 0
+        const spans = runs.map((run) => `<tspan${runAttributes(run, header)}>${escapeText(run.text)}</tspan>`).join('')
+        out += `<text x="${num(tx)}" y="${num(ty)}"${anchor} fill="${color}" font-size="13" font-family="Inter, sans-serif">${spans}</text>`
       }
     }
   }
+  return out
+}
+
+// The SVG attributes for one formatted run. A header cell bolds by default; an
+// explicit mark on the run wins either way (matches WhiteboardTable).
+function runAttributes(run, header) {
+  let out = ` font-weight="${resolveMark(run, 'bold', header) ? 600 : 400}"`
+  if (resolveMark(run, 'italic')) out += ' font-style="italic"'
+  if (resolveMark(run, 'underline')) out += ' text-decoration="underline"'
   return out
 }
 

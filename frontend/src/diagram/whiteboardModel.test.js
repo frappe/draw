@@ -24,6 +24,9 @@ import {
   isCoveredCell,
   cellSpanBox,
   tableMerges,
+  setTableCell,
+  setTableCellRuns,
+  tableCellRuns,
 } from './whiteboardModel.js'
 import { contrastInk } from './whiteboardColors.js'
 
@@ -188,5 +191,59 @@ describe('contrastInk', () => {
   it('uses dark ink on light fills and light ink on dark fills', () => {
     expect(contrastInk('#FFF7D3')).toBe('#171717')
     expect(contrastInk('#171717')).toBe('#FFFFFF')
+  })
+})
+
+describe('table cell formatting (#344)', () => {
+  const table = () => makeTable(0, 0, { rows: 2, cols: 2 })
+
+  it('reads a legacy plain-text cell as one unformatted run', () => {
+    const t = table()
+    setTableCell(t, 0, 0, 'Revenue')
+    expect(tableCellRuns(t, 0, 0)).toEqual([{ text: 'Revenue' }])
+  })
+
+  it('keeps cells as the plain-text source of truth when runs are written', () => {
+    const t = table()
+    setTableCellRuns(t, 0, 1, [{ text: 'Q1 ' }, { text: 'total', bold: true }])
+    expect(t.cells['0,1']).toBe('Q1 total')
+    expect(tableCellRuns(t, 0, 1)).toHaveLength(2)
+  })
+
+  // A plain cell must add nothing to the document, so old clients see no change.
+  it('stores no runs entry for a cell with no formatting', () => {
+    const t = table()
+    setTableCellRuns(t, 0, 0, [{ text: 'plain' }])
+    expect(t.cells['0,0']).toBe('plain')
+    expect((t.cellRuns || {})['0,0']).toBeUndefined()
+  })
+
+  it('drops both entries when a cell is emptied', () => {
+    const t = table()
+    setTableCellRuns(t, 1, 1, [{ text: 'gone', italic: true }])
+    setTableCellRuns(t, 1, 1, [])
+    expect(t.cells['1,1']).toBeUndefined()
+    expect((t.cellRuns || {})['1,1']).toBeUndefined()
+  })
+
+  it('setTableCell clears formatting the cell used to carry', () => {
+    const t = table()
+    setTableCellRuns(t, 0, 0, [{ text: 'bold', bold: true }])
+    setTableCell(t, 0, 0, 'plain again')
+    expect((t.cellRuns || {})['0,0']).toBeUndefined()
+    expect(tableCellRuns(t, 0, 0)).toEqual([{ text: 'plain again' }])
+  })
+
+  // Runs that disagree with the plain string mean a partly-migrated or hand-
+  // edited document; the text must win so no character is ever lost on screen.
+  it('ignores runs that no longer match the cell text', () => {
+    const t = table()
+    setTableCellRuns(t, 0, 0, [{ text: 'stale', bold: true }])
+    t.cells = { ...t.cells, '0,0': 'edited elsewhere' }
+    expect(tableCellRuns(t, 0, 0)).toEqual([{ text: 'edited elsewhere' }])
+  })
+
+  it('treats a missing cell as no runs', () => {
+    expect(tableCellRuns(table(), 1, 0)).toEqual([])
   })
 })

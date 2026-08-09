@@ -423,3 +423,63 @@ describe('isDocumentEmpty', () => {
     expect(isDocumentEmpty(doc)).toBe(true)
   })
 })
+
+// Per-cell rich text (#344). documentToSvg is the export/thumbnail path, so a
+// formatted cell must come out looking like it does on the canvas — the same
+// parity kept for alignment and merges.
+describe('documentToSvg — table cell formatting (#344)', () => {
+  const withTable = (table) => {
+    const doc = { ...unifiedDocument(), diagramType: 'whiteboard', mindmap: null, flowchart: null }
+    doc.whiteboard.tables = [{ id: 'wt1', x: 0, y: 0, rows: 2, cols: 2, cellW: 120, cellH: 40, color: '#171717', ...table }]
+    return documentToSvg(doc)
+  }
+
+  it('renders a legacy plain-string cell exactly as before', () => {
+    const svg = withTable({ cells: { '0,0': 'PLAIN-CELL' } })
+    expect(svg).toContain('PLAIN-CELL')
+    expect(svg).toContain('font-weight="400"')
+  })
+
+  it('carries bold, italic and underline through to the export', () => {
+    const svg = withTable({
+      cells: { '0,0': 'Q1 total' },
+      cellRuns: { '0,0': [{ text: 'Q1 ' }, { text: 'total', bold: true, italic: true, underline: true }] },
+    })
+    expect(svg).toContain('font-weight="600"')
+    expect(svg).toContain('font-style="italic"')
+    expect(svg).toContain('text-decoration="underline"')
+    // Both runs survive, so no text is dropped.
+    expect(svg).toContain('Q1 ')
+    expect(svg).toContain('total')
+  })
+
+  it('bolds a header row, which this path used to drop', () => {
+    expect(withTable({ hasHeader: true, cells: { '0,0': 'Name' } })).toContain('font-weight="600"')
+  })
+
+  it('lets a run un-bold a header cell', () => {
+    const svg = withTable({
+      hasHeader: true,
+      cells: { '0,0': 'Name' },
+      cellRuns: { '0,0': [{ text: 'Name', bold: false }] },
+    })
+    expect(svg).not.toContain('font-weight="600"')
+  })
+
+  it('escapes run text like any other persisted value', () => {
+    const svg = withTable({
+      cells: { '0,0': '</text><script>x' },
+      cellRuns: { '0,0': [{ text: '</text><script>x', bold: true }] },
+    })
+    expect(svg).not.toContain('<script>')
+  })
+
+  it('ignores runs that disagree with the cell text', () => {
+    const svg = withTable({
+      cells: { '0,0': 'REAL-TEXT' },
+      cellRuns: { '0,0': [{ text: 'STALE-RUNS', bold: true }] },
+    })
+    expect(svg).toContain('REAL-TEXT')
+    expect(svg).not.toContain('STALE-RUNS')
+  })
+})

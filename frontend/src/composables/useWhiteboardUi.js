@@ -6,7 +6,7 @@
 // in the document store: it is chrome, not document data (the laser trail in
 // particular is never persisted or exported, spec C5/C10/G8).
 
-import { reactive, ref, readonly } from 'vue'
+import { reactive, ref, readonly, shallowRef } from 'vue'
 import { PEN_COLORS, PEN_WIDTHS, STICKY_COLORS, HIGHLIGHTER_OPACITY } from '@/diagram/whiteboardColors.js'
 import { pruneTrail } from '@/diagram/laser.js'
 import { ERASER_SIZES } from '@/diagram/eraser.js'
@@ -67,12 +67,27 @@ function createWhiteboardUi() {
   const liveStroke = ref(null)
   // The line being dragged right now (preview), or null.
   const liveLine = ref(null)
+  // The open table cell's contenteditable element (#344). It is published here
+  // because the cell's B/I/U control cannot live inside WhiteboardTable: that
+  // component's root is an SVG <g>, and Vue creates a <Teleport>'s content in the
+  // parent's namespace — so an HTML toolbar built there comes out SVG-namespaced
+  // and has no layout box at all. The control renders from the HTML tree
+  // (floating/TableCellToolbar) and reads the live editor through this ref.
+  // shallowRef: a DOM node must not be made deeply reactive.
+  const cellEditor = shallowRef(null)
+  // Which marks the open cell's current selection carries, per mark: true, false
+  // or 'mixed'. Shared for the same reason: the editor (Cmd+B) and the toolbar
+  // buttons are in different components, and a per-component copy would leave
+  // the buttons showing stale state after a keyboard shortcut.
+  const cellMarks = ref({})
   const api = {
     state,
     laserTrail: readonly(laserTrail),
     laserClock: readonly(laserClock),
     liveStroke,
     liveLine,
+    cellEditor,
+    cellMarks,
   }
   // Ask a sticky to open its inline editor (consumed + cleared by the component).
   api.requestStickyEdit = (id) => {

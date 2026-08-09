@@ -31,6 +31,7 @@ import FlowchartSelectionEditor from '@/components/floating/FlowchartSelectionEd
 import FlowchartLayoutToolbar from '@/components/floating/FlowchartLayoutToolbar.vue'
 import MindmapLayoutToolbar from '@/components/floating/MindmapLayoutToolbar.vue'
 import WhiteboardSelectionEditor from '@/components/floating/WhiteboardSelectionEditor.vue'
+import TableCellToolbar from '@/components/floating/TableCellToolbar.vue'
 import CollaboratorCursors from '@/components/canvas/CollaboratorCursors.vue'
 import CommentPinsLayer from '@/components/comments/CommentPinsLayer.vue'
 import CommentsPanel from '@/components/comments/CommentsPanel.vue'
@@ -212,6 +213,11 @@ onMounted(() => {
              on a selected 'mindmap-node' shape. -->
         <MindmapLayoutToolbar />
         <WhiteboardSelectionEditor v-if="chromeType === 'whiteboard'" />
+        <!-- Table cell controls (B/I/U, Merge/Split). Rendered here rather than
+             from WhiteboardTable: that component's root is inside the SVG, and a
+             Teleport built there produces an SVG-namespaced div with no layout
+             box. Self-gates on an open cell / cell range. -->
+        <TableCellToolbar v-if="chromeType === 'whiteboard'" />
         <CollaboratorCursors :collaborators="collab.collaborators.value" :set-cursor="collab.setCursor" />
         <ViewportControls />
         <BottomPalette />

@@ -1,16 +1,20 @@
 <script setup>
 // One whiteboard table — a grid with per-cell text (spec diagram-types Part C9).
-// Cells render as SVG; double-clicking one (surface onDoubleClick) sets
-// ui.state.editingCell, mounting an inline <input> over it. Columns/rows resize by
-// dragging their edges when selected, and a shift-click cell range can be merged /
-// split (#338). Selection is surface-driven like lines/strokes. One store mutation
-// per committed edit (Part G6).
-import { computed, ref, watch, nextTick } from 'vue'
-import { Button } from 'frappe-ui'
+// Cells render as SVG; clicking one on an already-selected table sets
+// ui.state.editingCell, mounting an inline contenteditable over it — rich rather
+// than a plain <input>, so part of a cell can be bold (#344). Columns/rows resize
+// by dragging their edges when selected, and a shift-click cell range can be
+// merged / split (#338). Selection is surface-driven like lines/strokes. One
+// store mutation per committed edit (Part G6).
+//
+// The B / I / U and Merge / Split control is NOT here: this component's root is
+// an SVG <g>, and Vue builds a <Teleport>'s content in the surrounding namespace,
+// so a toolbar created here is an SVG-namespaced <div> with no layout box. It
+// lives in floating/TableCellToolbar, driven by shared useWhiteboardUi state.
+import { computed, watch } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
-import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
 import { startTableMove, startTableResize } from '@/composables/useWhiteboardInteraction.js'
 import { isAdditiveEvent, clientToLogical } from '@/composables/pointer.js'
 import {
@@ -26,7 +30,11 @@ import {
   isCoveredCell,
   mergeCovering,
   tableCellAt,
+  tableCellRuns,
 } from '@/diagram/whiteboardModel.js'
+import { resolveMark } from '@/diagram/richText.js'
+import { useTableCellFormat } from '@/composables/useTableCellFormat.js'
+import { useTableCellEditor } from '@/composables/useTableCellEditor.js'
 
 const props = defineProps({
   table: { type: Object, required: true },
@@ -78,12 +86,20 @@ const cellNodes = computed(() => {
       if (isCoveredCell(props.table, row, col)) continue
       const box = cellSpanBox(props.table, row, col)
       const layout = textLayout(box)
+      const header = props.table.hasHeader && row === 0
       out.push({
         row,
         col,
         box,
-        text: props.table.cells[`${row},${col}`] || '',
-        header: props.table.hasHeader && row === 0,
+        // One tspan per run so per-cell formatting renders (#344). A header cell
+        // bolds by default; a run may override that either way.
+        spans: tableCellRuns(props.table, row, col).map((run) => ({
+          text: run.text,
+          weight: resolveMark(run, 'bold', header) ? 600 : 400,
+          style: resolveMark(run, 'italic') ? 'italic' : null,
+          decoration: resolveMark(run, 'underline') ? 'underline' : null,
+        })),
+        header,
         tx: layout.x,
         ty: box.y + box.h / 2,
         anchor: layout.anchor,
@@ -92,6 +108,12 @@ const cellNodes = computed(() => {
   }
   return out
 })
+
+// The open cell's committed text is not drawn: the editor sits over it with a
+// transparent background, so both would render and read as doubled text.
+function isCellEditing(cell) {
+  return editingCell.value?.row === cell.row && editingCell.value?.col === cell.col
+}
 
 function onColumnResize(event, col) {
   startTableResize(event, store, editorUi, props.table, 'col', col)
@@ -165,18 +187,15 @@ const canSplit = computed(
     range.value.c0 === range.value.c1 &&
     !!mergeCovering(props.table, range.value.r0, range.value.c0),
 )
-const showRange = computed(() => props.selected && !!range.value && (canMerge.value || canSplit.value))
-const toolbarStyle = useCanvasToolbarStyle(rangeBox)
+// The cell open for editing, and its box.
+const editingCell = computed(() =>
+  ui.state.editingCell?.tableId === props.table.id ? ui.state.editingCell : null,
+)
+const editBox = computed(() =>
+  editingCell.value ? cellSpanBox(props.table, editingCell.value.row, editingCell.value.col) : null,
+)
 
-function doMerge() {
-  const r = range.value
-  store.mergeTableCells(props.table.id, r.r0, r.c0, r.r1, r.c1)
-  ui.state.cellRange = null
-}
-function doSplit() {
-  store.unmergeTableCell(props.table.id, range.value.r0, range.value.c0)
-  ui.state.cellRange = null
-}
+const showRange = computed(() => props.selected && !!range.value && (canMerge.value || canSplit.value))
 
 // Deselecting the table drops any pending cell range.
 watch(
@@ -186,61 +205,37 @@ watch(
   },
 )
 
-// Inline editor: mounts when editingCell targets this table. The draft is held
-// locally and committed on Enter/blur; Escape cancels.
-const editingCell = computed(() =>
-  ui.state.editingCell?.tableId === props.table.id ? ui.state.editingCell : null,
-)
-const editBox = computed(() =>
-  editingCell.value ? cellSpanBox(props.table, editingCell.value.row, editingCell.value.col) : null,
-)
+// Inline editor: mounts when editingCell targets this table. Edits are held in
+// the editor element and committed on Enter or click-away; Escape cancels.
 const inputAlignClass = computed(
   () => ({ left: 'text-left', center: 'text-center', right: 'text-right' })[props.table.align] || 'text-left',
 )
-const draft = ref('')
-// The cell `draft` currently belongs to. We commit against THIS, not
-// editingCell.value, because switching cells (the T2 single-click path) reuses
-// the same <input> and advances editingCell synchronously — so a commit keyed on
-// editingCell.value would write to the wrong cell (or lose the text entirely).
-const draftCell = ref(null)
-const cancelling = ref(false)
-const inputEl = ref(null)
+// Published on the shared UI store so the cell's B / I / U control — which has to
+// render from the HTML tree, see TableCellToolbar — can act on this editor's
+// current text selection.
+const editorEl = ui.cellEditor
 
-// The editingCell watch is the single commit point. On every transition — cell
-// A → cell B, or → null (Enter/click-away) — flush the outgoing cell's draft
-// (unless Escape cancelled it), then load the incoming cell. No @blur handler:
-// it raced with the reused <input> and double-committed to the wrong cell.
-watch(
+const { toggleMark, refreshActiveMarks } = useTableCellFormat({
+  table: () => props.table,
+  store,
   editingCell,
-  (cell) => {
-    if (draftCell.value && !cancelling.value) {
-      const prev = draftCell.value
-      const committed = props.table.cells[`${prev.row},${prev.col}`] || ''
-      // Only write when the text actually changed — moving the caret between
-      // cells without typing must not push an empty "Edit cell" undo step.
-      if (draft.value.trim() !== committed) {
-        store.setTableCell(props.table.id, prev.row, prev.col, draft.value.trim())
-      }
-    }
-    cancelling.value = false
-    if (!cell) {
-      draftCell.value = null
-      return
-    }
-    draft.value = props.table.cells[`${cell.row},${cell.col}`] || ''
-    draftCell.value = { row: cell.row, col: cell.col }
-    nextTick(() => inputEl.value?.focus())
+  editorEl,
+  range,
+})
+const { onEditorKeydown, onPasteText } = useTableCellEditor({
+  table: () => props.table,
+  store,
+  editingCell,
+  editorEl,
+  refreshActiveMarks,
+  toggleMark,
+  closeEditor: () => {
+    ui.state.editingCell = null
   },
-  { immediate: true },
-)
+})
 
-function commitEdit() {
-  ui.state.editingCell = null // the watch flushes draftCell for us
-}
-function cancelEdit() {
-  cancelling.value = true // tell the watch to discard, not commit
-  ui.state.editingCell = null
-}
+// A new cell range needs the B / I / U buttons to re-read what it carries.
+watch(range, refreshActiveMarks)
 </script>
 
 <template>
@@ -311,21 +306,26 @@ function cancelEdit() {
       style="pointer-events: none"
     />
 
-    <!-- Committed cell text: aligned per table.align; the header row is bold. -->
+    <!-- Committed cell text: aligned per table.align, one tspan per formatted
+         run. The header row is bold unless a run says otherwise (#344). -->
     <text
       v-for="cell in cellNodes"
+      v-show="!isCellEditing(cell)"
       :key="`t${cell.row},${cell.col}`"
       :x="cell.tx"
       :y="cell.ty"
       :text-anchor="cell.anchor"
       dominant-baseline="central"
       font-size="14"
-      :font-weight="cell.header ? 600 : 400"
       :fill="table.color"
       style="font-family: Inter, sans-serif; pointer-events: none"
-    >
-      {{ cell.text }}
-    </text>
+    ><tspan
+        v-for="(span, index) in cell.spans"
+        :key="index"
+        :font-weight="span.weight"
+        :font-style="span.style"
+        :text-decoration="span.decoration"
+      >{{ span.text }}</tspan></text>
 
     <!-- Inline cell editor (aligned + padded to match the committed text). -->
     <foreignObject
@@ -335,14 +335,19 @@ function cancelEdit() {
       :width="editBox.w"
       :height="editBox.h"
     >
-      <input
-        ref="inputEl"
-        v-model="draft"
-        class="h-full w-full border-0 bg-transparent px-3 text-sm text-ink-gray-9 outline-none"
+      <div
+        ref="editorEl"
+        contenteditable="true"
+        role="textbox"
+        aria-label="Cell text"
+        class="flex h-full w-full items-center overflow-x-auto whitespace-nowrap border-0 bg-transparent px-3 text-sm text-ink-gray-9 outline-none"
         :class="[inputAlignClass, table.hasHeader && editingCell.row === 0 ? 'font-semibold' : '']"
         @pointerdown.stop
-        @keydown.enter.prevent="commitEdit"
-        @keydown.esc.prevent="cancelEdit"
+        @keydown="onEditorKeydown"
+        @keyup="refreshActiveMarks"
+        @mouseup="refreshActiveMarks"
+        @paste.prevent="onPasteText($event.clipboardData?.getData('text/plain'))"
+        @drop.prevent="onPasteText($event.dataTransfer?.getData('text/plain'))"
       />
     </foreignObject>
 
@@ -373,36 +378,4 @@ function cancelEdit() {
       />
     </template>
   </g>
-
-  <!-- Merge / Split control, floated above the cell range (screen space). -->
-  <Teleport to="body">
-    <div
-      v-if="showRange"
-      class="fixed z-30 flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-lg border border-outline-gray-2 bg-surface-base p-1 shadow-lg"
-      :style="toolbarStyle"
-    >
-      <Button
-        v-if="canMerge"
-        variant="ghost"
-        theme="gray"
-        size="sm"
-        icon-left="lucide-table-cells-merge"
-        @mousedown.prevent
-        @click="doMerge"
-      >
-        Merge
-      </Button>
-      <Button
-        v-if="canSplit"
-        variant="ghost"
-        theme="gray"
-        size="sm"
-        icon-left="lucide-table-cells-split"
-        @mousedown.prevent
-        @click="doSplit"
-      >
-        Split
-      </Button>
-    </div>
-  </Teleport>
 </template>

@@ -105,6 +105,28 @@ export function whiteboardWithObjects() {
   }
 }
 
+// A board whose only object is a table carrying text, seeded well inside the
+// initial view so its cells can actually be clicked (see boxInWindow). Used by
+// the cell-editing specs, which need a cell on screen to put a caret in.
+export function whiteboardWithTable() {
+  return {
+    ...emptyWhiteboard(),
+    tables: [
+      {
+        id: 'wt1',
+        x: 240,
+        y: 180,
+        rows: 2,
+        cols: 2,
+        cellW: 160,
+        cellH: 48,
+        color: '#171717',
+        cells: { '0,0': 'CELL-TEXT' },
+      },
+    ],
+  }
+}
+
 export function seededWhiteboard() {
   return {
     strokes: [
@@ -160,7 +182,9 @@ export const documents = {
       ? emptyWhiteboard()
       : opts.objects
         ? whiteboardWithObjects()
-        : seededWhiteboard(),
+        : opts.table
+          ? whiteboardWithTable()
+          : seededWhiteboard(),
   }),
 
   // The unified canvas holds every sub-model at once. Frame origins are kept

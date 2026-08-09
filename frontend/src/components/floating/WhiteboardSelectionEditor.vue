@@ -31,7 +31,14 @@ const icon = computed(() => ({ line: 'lucide-minus', table: 'lucide-table' })[ki
 
 // Show for a multi-selection, or a lone non-sticky object (a lone sticky uses its
 // own floating toolbar).
-const show = computed(() => multi.value || Boolean(selected.value && kind.value !== 'sticky'))
+//
+// An open table cell stands this one down (#344): the cell's own control carries
+// B / I / U and Merge, both anchor to the same point above the selection, and
+// stacked toolbars would leave whichever renders second covering the other.
+// While you are typing in a cell, the cell's control is the one in play.
+const show = computed(
+  () => !ui.state.editingCell && (multi.value || Boolean(selected.value && kind.value !== 'sticky')),
+)
 
 // Combined bounding box (canvas units) of the selection, for positioning.
 const box = computed(() => {

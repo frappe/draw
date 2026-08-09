@@ -74,6 +74,7 @@ declare module 'vue' {
     ShortcutsDialog: typeof import('./src/components/ShortcutsDialog.vue')['default']
     SmartGuidesLayer: typeof import('./src/components/canvas/SmartGuidesLayer.vue')['default']
     SwatchGrid: typeof import('./src/components/floating/SwatchGrid.vue')['default']
+    TableCellToolbar: typeof import('./src/components/floating/TableCellToolbar.vue')['default']
     TableOptions: typeof import('./src/components/floating/TableOptions.vue')['default']
     TableSizePicker: typeof import('./src/components/floating/TableSizePicker.vue')['default']
     TextEditor: typeof import('./src/components/canvas/TextEditor.vue')['default']

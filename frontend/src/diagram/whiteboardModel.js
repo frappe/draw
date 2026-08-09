@@ -8,6 +8,7 @@
 
 import { nextId } from './factories.js'
 import { distanceToSegment } from './geometry.js'
+import { hasFormatting, normalizeRuns, runsToText, toRuns } from './richText.js'
 
 // Pen and highlighter are the two stroke kinds (spec C3); eraser removes whole
 // strokes rather than producing one.
@@ -81,6 +82,10 @@ export function makeTable(x, y, partial = {}) {
     // Merged cell rectangles ({row,col,rowspan,colspan}); absent means none.
     merges: partial.merges,
     cells: partial.cells || {},
+    // Inline formatting per cell, same "row,col" keys as `cells` but holding
+    // the text split into marked runs. Only cells that carry formatting appear
+    // here; `cells` stays the plain-text source of truth (#344, see richText).
+    cellRuns: partial.cellRuns,
     zIndex: partial.zIndex || 0,
   }
 }
@@ -167,15 +172,44 @@ export function removeTable(model, id) {
   model.tables = (model.tables || []).filter((table) => table.id !== id)
 }
 
-// Set (or clear) the text of one table cell, keyed "row,col" (Part C9).
+// Set (or clear) the text of one table cell, keyed "row,col" (Part C9). Plain
+// text, so any inline formatting the cell carried is dropped with it.
 export function setTableCell(table, row, col, text) {
+  setTableCellRuns(table, row, col, text ? [{ text }] : [])
+}
+
+// The single writer for cell content (#344). `cells` keeps the plain string so
+// every existing reader is unaffected; `cellRuns` mirrors it only when the cell
+// actually carries formatting, so a plain cell adds nothing to the document.
+export function setTableCellRuns(table, row, col, runs) {
   const key = `${row},${col}`
-  if (text) table.cells = { ...table.cells, [key]: text }
-  else {
-    const next = { ...table.cells }
-    delete next[key]
-    table.cells = next
+  const clean = normalizeRuns(runs)
+  const text = runsToText(clean)
+  table.cells = withKey(table.cells, key, text || null)
+  table.cellRuns = withKey(table.cellRuns, key, hasFormatting(clean) ? clean : null)
+}
+
+// A cell's content as runs, whether it was stored plain or formatted. The one
+// read path for both the canvas and the export, so they cannot drift.
+export function tableCellRuns(table, row, col) {
+  const key = `${row},${col}`
+  const runs = (table.cellRuns || {})[key]
+  if (runs) {
+    // The plain string stays authoritative: if the two ever disagree (a hand-
+    // edited or partly-migrated document), render the text rather than stale runs.
+    const text = (table.cells || {})[key] || ''
+    if (runsToText(runs) === text) return toRuns(runs)
   }
+  return toRuns((table.cells || {})[key])
+}
+
+// Copy of `map` with `key` set, or removed when the value is null. Absent beats
+// an empty entry so documents stay lean.
+function withKey(map, key, value) {
+  const next = { ...(map || {}) }
+  if (value === null) delete next[key]
+  else next[key] = value
+  return next
 }
 
 export function strokeById(model, id) {
