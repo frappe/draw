@@ -5,7 +5,7 @@
 // each reusing the existing modification sections so all logic (incl. multi-
 // select intersection) is shared. Mounted once per editor (EditorShell).
 import { computed } from 'vue'
-import { Button, Popover, Select, TabButtons } from 'frappe-ui'
+import { Button, Divider, Popover, Select, TabButtons } from 'frappe-ui'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { anchorPoint, unionBounds } from '@/diagram/geometry.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
@@ -249,7 +249,7 @@ function setNodeCurve(value) {
           </template>
         </Popover>
 
-        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+        <Divider orientation="vertical" class="mx-0.5 !h-5" />
         </template>
 
         <!-- Text formatting: font, size, B/I/U/S, align, colour. Always shown for a
@@ -284,7 +284,7 @@ function setNodeCurve(value) {
         <Button :variant="autoFit ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-scaling" tooltip="Auto-fit text to shape" label="Auto-fit text to shape" @mousedown.prevent @click="toggleAutoFit" />
 
         <template v-if="!editing">
-        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+        <Divider orientation="vertical" class="mx-0.5 !h-5" />
 
         <!-- Arrange / Align / Distribute / Transform are separate menu items, not
              one crammed leaf; each opens just its own section. -->
@@ -329,7 +329,7 @@ function setNodeCurve(value) {
           </template>
         </Popover>
 
-        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+        <Divider orientation="vertical" class="mx-0.5 !h-5" />
 
         <Button variant="ghost" theme="gray" size="md" icon="lucide-copy" tooltip="Duplicate" label="Duplicate" @mousedown.prevent @click="duplicate" />
         </template>

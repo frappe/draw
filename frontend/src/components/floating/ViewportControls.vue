@@ -4,7 +4,7 @@
 // in its own group, consistently for EVERY diagram type (block/flowchart/
 // mindmap/whiteboard). Wired to the shared viewport + editorUi.
 import { computed, ref, nextTick } from 'vue'
-import { Button, TextInput } from 'frappe-ui'
+import { Button, Divider, TextInput } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import GuidesMenu from './GuidesMenu.vue'
@@ -70,10 +70,10 @@ const zoomPercent = computed(() => editorUi.zoomPercent)
       <span class="text-sm font-medium tabular-nums">{{ zoomPercent }}%</span>
     </Button>
     <Button variant="ghost" theme="gray" size="md" icon="lucide-plus" tooltip="Zoom in" label="Zoom in" @click="viewport.zoomStep(1)" />
-    <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+    <Divider orientation="vertical" class="mx-0.5 !h-5" />
     <Button variant="ghost" theme="gray" size="md" icon="lucide-maximize" tooltip="Fit to view" label="Fit to view" @click="editorUi.fit()" />
     <template v-if="!isWhiteboard">
-      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+      <Divider orientation="vertical" class="mx-0.5 !h-5" />
       <GuidesMenu />
     </template>
   </div>

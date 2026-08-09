@@ -132,7 +132,7 @@ const TIME_UNITS = [
       <LucideIcon
         name="pin"
         class="h-4 w-4"
-        :class="isPinned ? 'fill-amber-400 text-amber-400' : 'text-ink-gray-4 hover:text-ink-gray-6'"
+        :class="isPinned ? 'fill-current text-ink-amber-2' : 'text-ink-gray-4 hover:text-ink-gray-6'"
       />
     </button>
 
@@ -180,7 +180,7 @@ const TIME_UNITS = [
       <LucideIcon
         name="pin"
         class="h-4 w-4"
-        :class="isPinned ? 'fill-amber-400 text-amber-400' : 'text-ink-gray-5'"
+        :class="isPinned ? 'fill-current text-ink-amber-2' : 'text-ink-gray-5'"
       />
     </button>
 

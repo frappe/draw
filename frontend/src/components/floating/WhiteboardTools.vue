@@ -6,7 +6,7 @@
 // disclosure; board-wide settings and the selected-object editor follow. All
 // chrome is Frappe UI.
 import { computed, nextTick, ref } from 'vue'
-import { Button, Popover, Slider, TabButtons } from 'frappe-ui'
+import { Button, Divider, Popover, Slider, TabButtons } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
@@ -138,7 +138,7 @@ function insertTable({ rows, cols }, close) {
 </script>
 
 <template>
-  <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+  <Divider orientation="vertical" class="mx-0.5 !h-5" />
 
   <!-- Tools: a single click arms; the next canvas action draws. The table tool is
        the exception — clicking it opens the size picker, which inserts on pick. -->

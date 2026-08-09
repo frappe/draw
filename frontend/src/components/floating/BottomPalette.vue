@@ -7,7 +7,7 @@
 // the guides control stay on the bar so switching them never needs a menu. Legacy
 // single-type docs keep their own map/tool actions. Wired to editorUi + viewport.
 import { computed, ref } from 'vue'
-import { Button, Popover, TextInput } from 'frappe-ui'
+import { Button, Divider, Popover, TextInput } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
@@ -407,14 +407,14 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
 
       <!-- Mind map: map-wide actions (per-node editing is in the floating toolbar). -->
       <template v-if="isMindmap">
-        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+        <Divider orientation="vertical" class="mx-0.5 !h-5" />
         <Button variant="ghost" theme="gray" size="md" icon="lucide-chevrons-down-up" tooltip="Collapse all" label="Collapse all" @click="collapseAll(store, true)" />
         <Button variant="ghost" theme="gray" size="md" icon="lucide-chevrons-up-down" tooltip="Expand all" label="Expand all" @click="collapseAll(store, false)" />
       </template>
 
       <!-- Flowchart: map-wide layout actions. -->
       <template v-if="isFlowchart">
-        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+        <Divider orientation="vertical" class="mx-0.5 !h-5" />
         <Button variant="ghost" theme="gray" size="md" icon="lucide-grid-2x2" tooltip="Tidy up" label="Tidy up" @click="flowTidy" />
         <Button
           variant="ghost"
@@ -441,7 +441,7 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
 
       <!-- Any other type declaring extra surface tools (seam; none today). -->
       <template v-else-if="surfaceTools.length">
-        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+        <Divider orientation="vertical" class="mx-0.5 !h-5" />
         <Button
           v-for="modeTool in surfaceTools"
           :key="modeTool.tool"

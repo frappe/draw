@@ -9,6 +9,7 @@
 //   click while the select tool is active (spec W6).
 // All edits go through the store (one undoable unit each, Part G6).
 import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { Divider } from 'frappe-ui'
 import { useRouter } from 'vue-router'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
@@ -290,7 +291,7 @@ function openLink(event) {
           @pointerdown.stop
           @click="setColor(c)"
         />
-        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+        <Divider orientation="vertical" class="mx-0.5 !h-5" />
         <button
           class="flex h-7 w-7 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2"
           :class="note.strike ? 'bg-surface-gray-3 text-ink-gray-9' : ''"
@@ -299,7 +300,7 @@ function openLink(event) {
         >
           <LucideIcon name="strikethrough" class="h-4 w-4" />
         </button>
-        <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+        <Divider orientation="vertical" class="mx-0.5 !h-5" />
         <button class="flex h-7 w-7 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2" title="Duplicate" aria-label="Duplicate" @pointerdown.stop @click="duplicate">
           <LucideIcon name="copy" class="h-4 w-4" />
         </button>

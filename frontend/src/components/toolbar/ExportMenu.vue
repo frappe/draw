@@ -7,7 +7,7 @@
 // PNG transparency is not a per-export choice (#226): it follows the canvas
 // background, so "No color" exports transparent and a coloured canvas keeps
 // its colour.
-import { Button, Popover } from 'frappe-ui'
+import { Button, Divider, Popover } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import { useExport } from '@/composables/useExport.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
@@ -75,7 +75,7 @@ const rowClass =
           {{ f.label }}
         </button>
 
-        <div class="my-1 h-px bg-surface-gray-2" />
+        <Divider class="my-1" />
 
         <button :class="rowClass" @click="print(toggle)">
           <LucideIcon name="printer" class="h-4 w-4 text-ink-gray-6" />

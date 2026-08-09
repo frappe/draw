@@ -4,7 +4,7 @@
 // wide layout actions live in the bottom palette. Positioned above the node,
 // tracking pan/zoom. Mounted once per editor (EditorShell).
 import { computed } from 'vue'
-import { Button, Popover, TextInput } from 'frappe-ui'
+import { Button, Divider, Popover, TextInput } from 'frappe-ui'
 import SwatchGrid from '@/components/floating/SwatchGrid.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
@@ -195,7 +195,7 @@ function remove() {
         </template>
       </Popover>
 
-      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+      <Divider orientation="vertical" class="mx-0.5 !h-5" />
 
       <!-- Text formatting inline (consistent with block diagrams): size, bold,
            italic, alignment. -->
@@ -236,7 +236,7 @@ function remove() {
         </template>
       </Popover>
 
-      <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+      <Divider orientation="vertical" class="mx-0.5 !h-5" />
       <Button variant="ghost" theme="red" size="md" icon="lucide-trash-2" tooltip="Delete node" label="Delete node" @mousedown.prevent @click="remove" />
     </div>
   </Teleport>

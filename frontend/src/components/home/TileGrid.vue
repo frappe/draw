@@ -7,7 +7,7 @@
 // Toolbar offers search + sort + a tile/list toggle, becoming a bulk-action bar
 // on selection. Creation is the top-right CTA only. At most MAX_PINNED pinned.
 import { computed, onMounted, reactive, ref, watch, watchEffect } from 'vue'
-import { createListResource, createResource, dialog, toast, Dialog, Button, Dropdown, TabButtons, TextInput, Tooltip } from 'frappe-ui'
+import { createListResource, createResource, dialog, toast, Dialog, Button, Divider, Dropdown, TabButtons, TextInput, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import DiagramCollection from './DiagramCollection.vue'
 import { pinnedOnly, unpinned } from '@/components/home/homeViews.js'
@@ -372,7 +372,7 @@ const collectionHandlers = {
       <template v-if="hasPinnedSection">
         <div class="mb-2 text-2xs font-semibold text-ink-gray-5">Pinned</div>
         <DiagramCollection :diagrams="pinned" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
-        <div class="my-3 h-px bg-surface-gray-2" />
+        <Divider class="my-3" />
         <div class="mb-2 text-2xs font-semibold text-ink-gray-5">Diagrams</div>
       </template>
 
@@ -397,15 +397,15 @@ const collectionHandlers = {
         <LucideIcon :name="emptyState.icon" class="h-5 w-5 text-ink-gray-5" />
       </div>
       <div>
-        <p class="text-[14px] font-semibold text-ink-gray-8">{{ emptyState.title }}</p>
-        <p class="mt-0.5 text-[12px] text-ink-gray-5">{{ emptyState.hint }}</p>
+        <p class="text-base font-semibold text-ink-gray-8">{{ emptyState.title }}</p>
+        <p class="mt-0.5 text-xs text-ink-gray-5">{{ emptyState.hint }}</p>
       </div>
     </div>
 
     <!-- Quiet end-of-page marker (only when the view actually has content). -->
     <div v-if="!nothingHere" class="mt-16 flex flex-col items-center gap-2 py-10 text-center">
       <LucideIcon name="feather" class="h-6 w-6 text-ink-gray-3" />
-      <p class="text-[12px] text-ink-gray-4">You've reached the end · made with Frappe Draw</p>
+      <p class="text-xs text-ink-gray-4">You've reached the end · made with Frappe Draw</p>
     </div>
 
     <!-- Show info (I5): read-only metadata. -->
