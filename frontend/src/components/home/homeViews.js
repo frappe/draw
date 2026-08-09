@@ -29,6 +29,29 @@ export const VIEW_TITLES = {
   pinned: 'Pinned',
 }
 
+// What each tab says when it has nothing to show (#220). One entry per view,
+// because "empty" means something different in each. Home is the only one that
+// reads as an invitation rather than a report: the Create button is right there,
+// and a first-time user lands here with nothing.
+//
+// There is deliberately no end-of-list marker to pair with these. Home used to
+// close every populated view with "You've reached the end", which said nothing a
+// user could act on and read as an empty state to anyone who met it first.
+export const EMPTY_STATES = {
+  home: { icon: 'lucide-feather', title: 'Start a drawing', hint: 'Use Create to make your first one.' },
+  recent: { icon: 'lucide-clock', title: 'Nothing recent', hint: 'Diagrams you open show up here.' },
+  shared: { icon: 'lucide-share-2', title: 'Nothing shared with you', hint: 'Diagrams others share with you show up here.' },
+  pinned: { icon: 'lucide-pin', title: 'No pinned diagrams', hint: 'Pin a diagram to keep it handy here.' },
+}
+
+// A search that matches nothing is about the search, not the tab, so it wins.
+export function emptyStateFor(mode, hasActiveFilter = false) {
+  if (hasActiveFilter) {
+    return { icon: 'lucide-search', title: 'No diagrams match', hint: 'Try a different search.' }
+  }
+  return EMPTY_STATES[mode] || EMPTY_STATES.home
+}
+
 // Pin state is a single doc flag (is_pinned). The predicate is used in three places
 // — the Home "Pinned" group, the "everything else" group, and the sidebar "Pinned"
 // view — so it lives here once rather than inline thrice.

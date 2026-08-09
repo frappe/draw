@@ -9,7 +9,13 @@
 import { computed, reactive, ref, watch, watchEffect } from 'vue'
 import { useCall, useList, dialog, toast, Dialog, Button, Divider, Dropdown, TabButtons, TextInput, Tooltip } from 'frappe-ui'
 import DiagramCollection from './DiagramCollection.vue'
-import { pinnedOnly, unpinned, readLayout, writeLayout } from '@/components/home/homeViews.js'
+import {
+  pinnedOnly,
+  unpinned,
+  readLayout,
+  writeLayout,
+  emptyStateFor,
+} from '@/components/home/homeViews.js'
 import { submitOrThrow } from '@/data/submit.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
 
@@ -164,14 +170,7 @@ const hasActiveFilter = computed(() => Boolean(query.value.trim()))
 
 // The empty state speaks to the view you're in: a filtered search vs. an empty
 // Shared / Pinned tab want different words (and glyph) than a fresh, unused Home.
-const EMPTY_STATES = {
-  shared: { icon: 'lucide-share-2', title: 'Nothing shared with you', hint: 'Diagrams others share with you show up here.' },
-  pinned: { icon: 'lucide-pin', title: 'No pinned diagrams', hint: 'Pin a diagram to keep it handy here.' },
-}
-const emptyState = computed(() => {
-  if (hasActiveFilter.value) return { icon: 'lucide-search', title: 'No diagrams match', hint: 'Try a different search.' }
-  return EMPTY_STATES[props.mode] || { icon: 'lucide-feather', title: 'Nothing here yet', hint: 'Create a diagram to get started.' }
-})
+const emptyState = computed(() => emptyStateFor(props.mode, hasActiveFilter.value))
 const allSelected = computed(() => {
   const diagrams = currentDiagrams.value
   return diagrams.length > 0 && diagrams.every((d) => selected.has(d.name))
@@ -407,12 +406,6 @@ const collectionHandlers = {
         <p class="text-base font-semibold text-ink-gray-8">{{ emptyState.title }}</p>
         <p class="mt-0.5 text-xs text-ink-gray-5">{{ emptyState.hint }}</p>
       </div>
-    </div>
-
-    <!-- Quiet end-of-page marker (only when the view actually has content). -->
-    <div v-if="!nothingHere" class="mt-16 flex flex-col items-center gap-2 py-10 text-center">
-      <span class="lucide-feather h-6 w-6 text-ink-gray-3" aria-hidden="true" />
-      <p class="text-xs text-ink-gray-4">You've reached the end · made with Frappe Draw</p>
     </div>
 
     <!-- Show info (I5): read-only metadata. -->
