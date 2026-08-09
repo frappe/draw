@@ -17,10 +17,7 @@ import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { startPaletteDrag } from '@/composables/useShapeCreation.js'
 import { tableInsertOrigin } from './tableSizePicker.js'
 import TableSizePicker from './TableSizePicker.vue'
-import { collapseAll } from '@/diagram/mindmapOperations.js'
-import { autoNumberFlow, isFlowNumbered } from '@/diagram/flowchartModel.js'
 import { NODE_TYPES, NODE_TYPE_META } from '@/diagram/flowchartModel.js'
-import { tidyLayout, toggleDirection } from '@/diagram/flowchartLayout.js'
 import WhiteboardTools from './WhiteboardTools.vue'
 import ShapeGlyph from './ShapeGlyph.vue'
 
@@ -33,29 +30,12 @@ const imageInsert = useImageInsert(store)
 
 const isBlock = computed(() => modeStrategy?.value?.type === 'block')
 const isWhiteboard = computed(() => modeStrategy?.value?.type === 'whiteboard')
-const isMindmap = computed(() => modeStrategy?.value?.type === 'mindmap')
-const isFlowchart = computed(() => modeStrategy?.value?.type === 'flowchart')
 
 // The unified canvas exposes the full creation catalog (block + whiteboard). It's
 // detected from the doc, not the strategy (which falls back to block).
 const isUnified = computed(() => isUnifiedDocument(store.state))
 // The "create canvas" = block or unified: the layout with the centred "+" catalog.
 const isCreateCanvas = computed(() => isBlock.value || isUnified.value)
-
-// Map-wide flowchart actions (per-node editing lives in the floating toolbar).
-const flowDirection = computed(() => store.state.flowchart?.direction || 'TB')
-const flowNumbered = computed(() => (store.state.flowchart ? isFlowNumbered(store.state.flowchart) : false))
-function flowTidy() {
-  editorUi.pulseLayoutAnimation()
-  store.updateFlowchartModel('Tidy up', (m) => tidyLayout(m))
-}
-function flowFlip() {
-  editorUi.pulseLayoutAnimation()
-  store.updateFlowchartModel('Flow direction', (m) => toggleDirection(m))
-}
-function flowNumber() {
-  store.updateFlowchartModel('Number steps', (m) => autoNumberFlow(m))
-}
 
 // Curated set (#131): rectangle, square, rounded rectangle, ellipse, triangle,
 // diamond, hexagon, block arrow. Dropped cylinder / callout / star / pentagon.
@@ -205,7 +185,7 @@ function endTileDrag(close) {
 
 // Select and Hand are merged into one toggle (#238): the icon reflects whichever
 // mode is currently active, and the tooltip names the mode a click switches to
-// (mirroring flowFlip's "Switch to …" wording below). The underlying tool value
+// (mirroring the "Flow left → right" wording on the toolbar). The tool value
 // stays literally 'select' or 'hand' — DiagramCanvas/useKeyboard read those directly.
 //
 // `icon` holds the COMPLETE lucide utility class throughout this file. Tailwind's
@@ -404,37 +384,6 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
         :label="pointerMode.label"
         @click="togglePointerTool"
       />
-
-      <!-- Mind map: map-wide actions (per-node editing is in the floating toolbar). -->
-      <template v-if="isMindmap">
-        <Divider orientation="vertical" class="mx-0.5 !h-5" />
-        <Button variant="ghost" theme="gray" size="md" icon="lucide-chevrons-down-up" tooltip="Collapse all" label="Collapse all" @click="collapseAll(store, true)" />
-        <Button variant="ghost" theme="gray" size="md" icon="lucide-chevrons-up-down" tooltip="Expand all" label="Expand all" @click="collapseAll(store, false)" />
-      </template>
-
-      <!-- Flowchart: map-wide layout actions. -->
-      <template v-if="isFlowchart">
-        <Divider orientation="vertical" class="mx-0.5 !h-5" />
-        <Button variant="ghost" theme="gray" size="md" icon="lucide-grid-2x2" tooltip="Tidy up" label="Tidy up" @click="flowTidy" />
-        <Button
-          variant="ghost"
-          theme="gray"
-          size="md"
-          :icon="flowDirection === 'TB' ? 'lucide-arrow-right' : 'lucide-arrow-down'"
-          :tooltip="flowDirection === 'TB' ? 'Switch to left → right' : 'Switch to top → bottom'"
-          label="Flow direction"
-          @click="flowFlip"
-        />
-        <Button
-          :variant="flowNumbered ? 'subtle' : 'ghost'"
-          theme="gray"
-          size="md"
-          icon="lucide-list"
-          :tooltip="flowNumbered ? 'Clear numbers' : 'Number steps'"
-          label="Number steps"
-          @click="flowNumber"
-        />
-      </template>
 
       <!-- Whiteboard tools: full set for a whiteboard doc. -->
       <WhiteboardTools v-if="isWhiteboard" :exclude="[]" />

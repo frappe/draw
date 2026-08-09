@@ -7,7 +7,11 @@ import { LUCIDE_ALIAS } from '../../frontend/src/icons/lucideAlias.js'
 
 export const SURFACE = '[data-fdpreset]'
 export const MINIMAP = '[aria-label="Minimap"], [aria-label="Navigator"]'
-export const MM_TOOLBAR = '[data-mm-toolbar]'
+// The static canvas toolbar (#359). Every selection's controls live here now,
+// so this replaced the per-type floating bars. It is ALWAYS present, so asserting
+// it is visible proves nothing — assert on a control only that selection puts in
+// it, the way the mind-map specs do with the cross-link and focus buttons.
+export const TOOLBAR = '[data-canvas-toolbar]'
 export const PALETTE = '[data-palette]'
 // frappe-ui portals a Popover's body out of its trigger's subtree, so popover
 // content is NOT inside [data-palette]. Scope lookups to the portalled panel.

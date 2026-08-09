@@ -20,16 +20,24 @@ import { computed } from 'vue'
 import { TooltipProvider } from 'frappe-ui'
 import { useSelectionContext } from '@/composables/useSelectionContext.js'
 import { useBlockSelection } from '@/composables/useBlockSelection.js'
+import { useMindmapSelection } from '@/composables/useMindmapSelection.js'
+import { useFlowchartSelection } from '@/composables/useFlowchartSelection.js'
 import CanvasGroup from './groups/CanvasGroup.vue'
 import StyleGroup from './groups/StyleGroup.vue'
 import TextGroup from './groups/TextGroup.vue'
 import ArrangeGroup from './groups/ArrangeGroup.vue'
 import BlockActionsGroup from './groups/BlockActionsGroup.vue'
 import LineGroup from './groups/LineGroup.vue'
+import MindmapStyleGroup from './groups/MindmapStyleGroup.vue'
+import MindmapNodeGroup from './groups/MindmapNodeGroup.vue'
+import FlowchartNodeGroup from './groups/FlowchartNodeGroup.vue'
+import MapLayoutGroup from './groups/MapLayoutGroup.vue'
 import ToolbarSeparator from './ToolbarSeparator.vue'
 
 const { chromeType } = useSelectionContext()
 const { connector, hasShapes, count, editing } = useBlockSelection()
+const mindmap = useMindmapSelection()
+const flowchart = useFlowchartSelection()
 
 // Text and image are block shapes even on the whiteboard, so their format menu
 // is the block group there too (S13/S14/U1). The whiteboard's own objects get
@@ -42,6 +50,15 @@ const connectorSelected = computed(() => showsBlockGroups.value && Boolean(conne
 // Delete acts on the shape, so it hides while a label is being edited.
 const showsActions = computed(
   () => showsBlockGroups.value && count.value > 0 && !editing.value,
+)
+
+// A legacy single-type document keeps its nodes in a sub-model, so its groups
+// key off chromeType rather than off the shape list.
+const mindmapSelected = computed(
+  () => chromeType.value === 'mindmap' && mindmap.nodes.value.length > 0,
+)
+const flowchartSelected = computed(
+  () => chromeType.value === 'flowchart' && flowchart.nodes.value.length > 0,
 )
 </script>
 
@@ -74,6 +91,18 @@ const showsActions = computed(
           <ToolbarSeparator />
           <BlockActionsGroup />
         </template>
+
+        <template v-if="mindmapSelected">
+          <MindmapStyleGroup />
+          <ToolbarSeparator />
+          <MindmapNodeGroup />
+        </template>
+
+        <FlowchartNodeGroup v-if="flowchartSelected" />
+
+        <!-- Whole-map actions, self-gating: a no-op unless the document is a map
+             or a free-floating map node is selected. -->
+        <MapLayoutGroup />
       </div>
 
       <CanvasGroup />

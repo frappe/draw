@@ -13,7 +13,7 @@ import {
   minimap,
   clickMinimap,
   canvasTransform,
-  MM_TOOLBAR,
+  TOOLBAR,
 } from '../helpers/editor.js'
 
 // The four single-type diagrams must keep working after the unified-canvas merge.
@@ -81,19 +81,23 @@ test.describe('mindmap', () => {
   test('arrow keys move the selection between nodes', async ({ page, diagram }) => {
     await diagram.open('mindmap')
     await clickNode(page, 'Branch A')
-    await expect(page.locator(MM_TOOLBAR)).toBeVisible()
+    // The toolbar itself is always on screen, so assert on a control that only a
+    // selected node puts in it. Cross-link is single-selection only, which makes
+    // it a precise witness that exactly one node is selected.
+    const crosslinkButton = buttonByIcon(page, 'link-2', page.locator(TOOLBAR))
+    await expect(crosslinkButton).toBeVisible()
 
-    // Navigating to another node keeps a single-node toolbar visible; the point is
-    // that arrow nav does not clear the selection or throw.
+    // Navigating to another node keeps a single node selected; the point is that
+    // arrow nav does not clear the selection or throw.
     await page.keyboard.press('ArrowDown')
-    await expect(page.locator(MM_TOOLBAR)).toBeVisible()
+    await expect(crosslinkButton).toBeVisible()
   })
 
   test('a cross-link can be created, selected and deleted', async ({ page, diagram }) => {
     const name = await diagram.open('mindmap')
     await clickNode(page, 'Branch A')
 
-    await buttonByIcon(page, 'link-2', page.locator(MM_TOOLBAR)).click()
+    await buttonByIcon(page, 'link-2', page.locator(TOOLBAR)).click()
     await clickNode(page, 'Branch B')
     await expect(crosslinks(page)).toHaveCount(1)
     await expect
@@ -118,7 +122,7 @@ test.describe('mindmap', () => {
     await diagram.open('mindmap')
     await clickNode(page, 'Branch A')
 
-    await buttonByIcon(page, 'crosshair', page.locator(MM_TOOLBAR)).click()
+    await buttonByIcon(page, 'crosshair', page.locator(TOOLBAR)).click()
     await expect(page.getByText('Focusing one branch')).toBeVisible()
     expect(await page.locator('[opacity="0.12"]').count()).toBeGreaterThan(0)
 

@@ -27,9 +27,6 @@ import Minimap from '@/components/canvas/Minimap.vue'
 import WhiteboardMinimap from '@/components/canvas/WhiteboardMinimap.vue'
 import MindMapOverlay from '@/components/canvas/MindMapOverlay.vue'
 import FlowchartOverlay from '@/components/canvas/FlowchartOverlay.vue'
-import FlowchartSelectionEditor from '@/components/floating/FlowchartSelectionEditor.vue'
-import FlowchartLayoutToolbar from '@/components/floating/FlowchartLayoutToolbar.vue'
-import MindmapLayoutToolbar from '@/components/floating/MindmapLayoutToolbar.vue'
 import WhiteboardSelectionEditor from '@/components/floating/WhiteboardSelectionEditor.vue'
 import TableCellToolbar from '@/components/floating/TableCellToolbar.vue'
 import StickyNoteToolbar from '@/components/floating/StickyNoteToolbar.vue'
@@ -189,13 +186,6 @@ onMounted(() => {
              duplicate, delete) are on the static toolbar now (#361), including on
              the whiteboard, where text and image are block shapes (S13/S14/U1).
              WhiteboardSelectionEditor still handles board objects until #363. -->
-        <FlowchartSelectionEditor v-if="chromeType === 'flowchart'" />
-        <!-- Whole-chart layout actions for a free-floating flowchart (#98). Self-
-             gates on a selected 'flowchart-node' shape, so it is a no-op elsewhere. -->
-        <FlowchartLayoutToolbar />
-        <!-- Whole-tree layout action for a free-floating mind map (#122). Self-gates
-             on a selected 'mindmap-node' shape. -->
-        <MindmapLayoutToolbar />
         <WhiteboardSelectionEditor v-if="chromeType === 'whiteboard'" />
         <!-- Table cell controls (B/I/U, Merge/Split). Rendered here rather than
              from WhiteboardTable: that component's root is inside the SVG, and a
