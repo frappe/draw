@@ -12,7 +12,6 @@ export const MINIMAP = '[aria-label="Minimap"], [aria-label="Navigator"]'
 // it is visible proves nothing — assert on a control only that selection puts in
 // it, the way the mind-map specs do with the cross-link and focus buttons.
 export const TOOLBAR = '[data-canvas-toolbar]'
-export const PALETTE = '[data-palette]'
 // frappe-ui portals a Popover's body out of its trigger's subtree, so popover
 // content is NOT inside [data-palette]. Scope lookups to the portalled panel.
 export const POPOVER = '[data-slot="content"]'
@@ -65,13 +64,13 @@ export function buttonByIcon(page, name, scope) {
   return (scope || page).locator(iconSelector(name)).first()
 }
 
-// A tool button in the bottom palette. ALWAYS scope tool lookups: several glyphs
+// A tool button on the canvas toolbar. ALWAYS scope tool lookups: several glyphs
 // appear more than once in the editor (the pencil is both the whiteboard Pen and
 // the title's rename button in the header), and an unscoped .first() silently
 // clicks the wrong one — the drag that follows then does nothing and the failure
 // looks like a broken tool.
 export function toolByIcon(page, name) {
-  return page.locator(PALETTE).locator(iconSelector(name)).first()
+  return page.locator(TOOLBAR).locator(iconSelector(name)).first()
 }
 
 // --- mind map ---------------------------------------------------------------
@@ -93,103 +92,89 @@ export function selectedCrosslinks(page) {
   return page.locator('line[stroke="#006EDB"][stroke-dasharray="2 5"]')
 }
 
-// --- the "+" Add catalog (free-floating #122 / catalog #90) -------------------
+// --- the insert menus (#364) --------------------------------------------------
 //
-// The mind-map and flowchart tiles moved out of the old Shapes popover into the one
-// circular "+" catalog (#90) that the create canvas centres on the bottom bar. It is
-// the button labelled "Add"; its tiles sit under plain-text section headers ("Shapes",
-// "Lines & connectors", "Draw & insert", "Mind map", "Flowchart"). Opening it returns
-// the portalled panel (a Popover, so NOT under [data-palette] — scope to POPOVER).
-export async function openAddCatalog(page) {
-  await page.locator(PALETTE).locator('[aria-label="Add"]').click()
-  return page.locator(POPOVER)
+// The single circular "+" catalog is gone. Its five sections are five toolbar
+// entries — Shapes, Lines, Insert, Mind map, Flowchart — and the tiles inside
+// each carry real accessible names now (ToolbarButton requires a label), so
+// these no longer have to reach a tile through its section header.
+export async function openInsertMenu(page, label) {
+  await page.locator(TOOLBAR).getByRole('button', { name: label, exact: true }).click()
+  const menu = page.locator(POPOVER)
+  await menu.waitFor({ state: 'visible' })
+  return menu
 }
 
-// The tile(s) under one catalog section, reached from the section header rather than
-// the tile: a catalog tile is icon-only (a drawn ShapeGlyph, no accessible name) and
-// frappe-ui Tooltip text is not a hook under Playwright (see iconSelector). The tile
-// grid is the header's immediate next sibling, so this never catches a block/line tile.
-function catalogSectionTiles(catalog, sectionLabel) {
-  return catalog
-    .getByText(sectionLabel, { exact: true })
-    .locator('xpath=following-sibling::div[1]')
-    .locator('button')
-}
-
-// Insert a free-floating mind-map node from the catalog: a SINGLE role-tagged root
-// SHAPE lands on shapes[] (#122), not a framed sub-model. The tile now ARMS a
-// placement pointer and closes the catalog (#75 click-to-place), so after the popover
-// hides we click the canvas to drop the root where the pointer lands (auto-selected).
+// Insert a free-floating mind-map node: a SINGLE role-tagged root SHAPE lands on
+// shapes[] (#122), not a framed sub-model. Mind map is one toolbar button rather
+// than a menu, since its section only ever held the one tile. It ARMS a placement
+// pointer (#75 click-to-place), so click the canvas to drop the root.
 export async function insertMindmapNode(page) {
-  const catalog = await openAddCatalog(page)
-  const tile = catalogSectionTiles(catalog, 'Mind map').first()
-  await tile.waitFor({ state: 'visible' })
-  await tile.click()
-  await expect(catalog).toBeHidden()
+  const entry = page.locator(TOOLBAR).getByRole('button', { name: 'Mind map', exact: true })
+  await entry.click()
+  // Wait for the armed state before clicking the canvas. The old helper got this
+  // synchronisation for free by awaiting the catalog popover's disappearance;
+  // a plain toolbar button has no such step, and clicking the canvas before the
+  // starter is armed drops nothing at all.
+  await expect(entry).toHaveAttribute('aria-pressed', 'true')
   const box = await surfaceBox(page)
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
 }
 
-// Insert a free-floating flowchart node from the catalog: a SINGLE role-tagged SHAPE
-// of the first node type (the Terminator, the default starter) lands on shapes[].
-// The tile arms a placement pointer (#75 click-to-place); click the canvas to drop it.
+// Insert a free-floating flowchart node: a SINGLE role-tagged SHAPE of the first
+// node type (the Terminator, the default starter). Arms click-to-place too.
 export async function insertFlowchartNode(page) {
-  const catalog = await openAddCatalog(page)
-  const tile = catalogSectionTiles(catalog, 'Flowchart').first()
-  await tile.waitFor({ state: 'visible' })
-  await tile.click()
-  await expect(catalog).toBeHidden()
+  const menu = await openInsertMenu(page, 'Flowchart')
+  await menu.locator('button').first().click()
+  await expect(menu).toBeHidden()
   const box = await surfaceBox(page)
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
 }
 
-// Arm a block shape's draw tool from the catalog: click a Shapes tile (the first,
-// the rectangle, by default) to enter press-drag-to-draw. A click arms the tool and
-// closes the catalog, so awaiting its hidden state also proves the click landed.
+// Arm a block shape's draw tool: click a Shapes tile (the first, the rectangle,
+// by default) to enter press-drag-to-draw. A click arms the tool and closes the
+// menu, so awaiting its hidden state also proves the click landed.
 export async function armShapeFromCatalog(page, index = 0) {
-  const catalog = await openAddCatalog(page)
-  const tile = catalogSectionTiles(catalog, 'Shapes').nth(index)
-  await tile.waitFor({ state: 'visible' })
-  await tile.click()
-  await expect(catalog).toBeHidden()
+  const menu = await openInsertMenu(page, 'Shapes')
+  await menu.locator('button').nth(index).click()
+  await expect(menu).toBeHidden()
 }
 
-// Arm the Polygon tool (#139) from the catalog. Polygon is the one shape tile that
-// can't be dragged, so it is exactly the catalog's only non-draggable tile — a
-// stabler hook than a grid index. Clicking arms the multi-click draw tool and closes
-// the catalog; place vertices with clickCanvas and finish with Enter.
+// Arm the Polygon tool (#139). Polygon is the one shape that cannot be dragged,
+// which makes it the menu's only non-draggable tile — a stabler hook than a grid
+// index. Clicking arms the multi-click draw tool; place vertices with clickCanvas
+// and finish with Enter.
 export async function armPolygonFromCatalog(page) {
-  const catalog = await openAddCatalog(page)
-  const tile = catalog.locator('button[draggable="false"]').first()
-  await tile.waitFor({ state: 'visible' })
-  await tile.click()
-  await expect(catalog).toBeHidden()
+  const menu = await openInsertMenu(page, 'Shapes')
+  await menu.locator('button[draggable="false"]').first().click()
+  await expect(menu).toBeHidden()
 }
 
-// Arm a "Draw & insert" surface tool (Pen / Sticky note) from the catalog, located by
-// its lucide glyph — these tiles ARE icon buttons (unlike the drawn shape tiles), so
-// iconSelector finds them inside the portalled panel. Clicking arms the mode and
-// closes the catalog. The surface tools only appear on the unified canvas.
+// Arm a create tool by its lucide glyph. The live annotation tools (Draw, Eraser,
+// Laser) are buttons ON the bar, while Text / Sticky note / Image / Table sit in
+// the Insert menu — so try the bar first and fall back to opening the menu.
 export async function armCreateToolFromCatalog(page, icon) {
-  const catalog = await openAddCatalog(page)
-  const tile = buttonByIcon(page, icon, catalog)
-  await tile.waitFor({ state: 'visible' })
-  await tile.click()
-  await expect(catalog).toBeHidden()
+  const onBar = buttonByIcon(page, icon, page.locator(TOOLBAR))
+  if (await onBar.count()) {
+    await onBar.click()
+    return
+  }
+  const menu = await openInsertMenu(page, 'Insert')
+  await buttonByIcon(page, icon, menu).click()
+  await expect(menu).toBeHidden()
 }
 
-// Place a table from the catalog's Table size-picker (#134): the Table tile opens a
-// hover grid, and clicking the "rows × cols" cell commits that exact size, dropping
-// the table centred in view and closing both the picker and the catalog. The picker's
-// grid is the only role="grid" on the page, and each cell's accessible name is its
-// size, so the target cell is addressed directly rather than by a hover sweep.
+// Place a table from the Insert menu's size picker (#134): the Table tile opens a
+// hover grid, and clicking the "rows × cols" cell commits that exact size. The
+// picker's grid is the only role="grid" on the page and each cell's accessible
+// name is its size, so the target is addressed directly rather than by a sweep.
 export async function insertTableFromCatalog(page, rows, cols) {
-  const catalog = await openAddCatalog(page)
-  await buttonByIcon(page, 'table', catalog).click()
+  const menu = await openInsertMenu(page, 'Insert')
+  await buttonByIcon(page, 'table', menu).click()
   const grid = page.getByRole('grid')
   await grid.waitFor({ state: 'visible' })
   await grid.getByRole('button', { name: `${rows} × ${cols}`, exact: true }).click()
-  await expect(catalog).toBeHidden()
+  await expect(menu).toBeHidden()
 }
 
 // Drag a palette tile onto the canvas.
@@ -231,15 +216,15 @@ export async function dragTileToCanvas(page, { tileIndex = 0, x, y } = {}) {
   )
 }
 
-// Open the catalog and DRAG its first shape tile (the rectangle) onto the canvas at
-// (x, y). openAddCatalog only clicks "Add", so wait for the tiles to render before
-// dispatching the drag; dragTileToCanvas fires dragend, which closes the catalog, so
-// the drop leaves a bare canvas for whatever the test does next. Returns the payload.
+// Open the Shapes menu and DRAG its first tile (the rectangle) onto the canvas at
+// (x, y). Wait for the tiles to render before dispatching the drag;
+// dragTileToCanvas fires dragend, which closes the menu, so the drop leaves a bare
+// canvas for whatever the test does next. Returns the payload.
 export async function dragShapeFromCatalog(page, { x, y } = {}) {
-  const catalog = await openAddCatalog(page)
-  await catalog.locator('[draggable="true"]').first().waitFor({ state: 'visible' })
+  const menu = await openInsertMenu(page, 'Shapes')
+  await menu.locator('[draggable="true"]').first().waitFor({ state: 'visible' })
   const result = await dragTileToCanvas(page, { x, y })
-  await expect(catalog).toBeHidden()
+  await expect(menu).toBeHidden()
   return result
 }
 

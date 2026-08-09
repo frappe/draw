@@ -22,6 +22,9 @@ import { useSelectionContext } from '@/composables/useSelectionContext.js'
 import { useBlockSelection } from '@/composables/useBlockSelection.js'
 import { useMindmapSelection } from '@/composables/useMindmapSelection.js'
 import { useFlowchartSelection } from '@/composables/useFlowchartSelection.js'
+import { useModeStrategy } from '@/stores/useModeStrategy.js'
+import { isUnifiedDocument } from '@/diagram/schema.js'
+import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import CanvasGroup from './groups/CanvasGroup.vue'
 import StyleGroup from './groups/StyleGroup.vue'
 import TextGroup from './groups/TextGroup.vue'
@@ -35,11 +38,16 @@ import MapLayoutGroup from './groups/MapLayoutGroup.vue'
 import WhiteboardObjectGroup from './groups/WhiteboardObjectGroup.vue'
 import StickyGroup from './groups/StickyGroup.vue'
 import TableCellGroup from './groups/TableCellGroup.vue'
+import PointerGroup from './groups/PointerGroup.vue'
+import InsertGroups from './groups/InsertGroups.vue'
+import WhiteboardTools from '@/components/floating/WhiteboardTools.vue'
 import ToolbarSeparator from './ToolbarSeparator.vue'
 
 const { chromeType } = useSelectionContext()
 const { connector, hasShapes, count, editing } = useBlockSelection()
 const mindmap = useMindmapSelection()
+const store = useDiagramStore()
+const modeStrategy = useModeStrategy()
 const flowchart = useFlowchartSelection()
 
 // Text and image are block shapes even on the whiteboard, so their format menu
@@ -53,6 +61,21 @@ const connectorSelected = computed(() => showsBlockGroups.value && Boolean(conne
 // Delete acts on the shape, so it hides while a label is being edited.
 const showsActions = computed(
   () => showsBlockGroups.value && count.value > 0 && !editing.value,
+)
+
+// The insert cluster is the block / unified layout's, the one with a shape
+// catalog. A legacy mind map, flowchart or whiteboard keeps its own tools.
+const isUnified = computed(() => isUnifiedDocument(store.state))
+const isCreateCanvas = computed(
+  () => modeStrategy?.value?.type === 'block' || isUnified.value,
+)
+// On the unified bar the annotation group shows only the live modes: Draw,
+// Eraser and Laser. Text, line, image, sticky and table are in the Insert menu,
+// so excluding them here keeps one control per action.
+const UNIFIED_ANNOTATION_EXCLUDE = ['text', 'line', 'image', 'sticky', 'table']
+const annotationExclude = computed(() => (isUnified.value ? UNIFIED_ANNOTATION_EXCLUDE : []))
+const showsAnnotationTools = computed(
+  () => isUnified.value || modeStrategy?.value?.type === 'whiteboard',
 )
 
 // A legacy single-type document keeps its nodes in a sub-model, so its groups
@@ -73,6 +96,12 @@ const flowchartSelected = computed(
   >
     <TooltipProvider>
       <div class="flex min-w-0 flex-1 items-center gap-1">
+        <PointerGroup />
+        <ToolbarSeparator />
+        <InsertGroups v-if="isCreateCanvas" />
+        <WhiteboardTools v-if="showsAnnotationTools" :exclude="annotationExclude" />
+        <ToolbarSeparator />
+
         <LineGroup v-if="connectorSelected" :connector="connector" />
 
         <template v-else-if="shapeSelected">

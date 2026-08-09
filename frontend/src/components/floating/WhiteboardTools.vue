@@ -1,18 +1,20 @@
 <script setup>
-// Whiteboard tool group for the bottom floating palette. The whiteboard has NO
-// right panel, so every control lives here. Tools ARM on a single click (so the
+// The live annotation tools — Draw, Eraser, Laser — as a group on the static
+// canvas toolbar (#364). It rendered bare buttons for the bottom palette to
+// place, so moving it up was mostly deleting that bar's leading divider. Tools ARM on a single click (so the
 // next canvas action draws straight away — clicking a tool never steals the
 // first stroke). Options for the active tool sit behind ONE separate "options"
 // disclosure; board-wide settings and the selected-object editor follow. All
 // chrome is Frappe UI.
 import { computed, nextTick, ref } from 'vue'
-import { Button, Divider, Popover, Slider, TabButtons } from 'frappe-ui'
+import { Popover, Slider, TabButtons } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { CHALK_COLORS, STICKY_COLORS, PEN_WIDTHS } from '@/diagram/whiteboardColors.js'
 import { ERASER_SIZES } from '@/diagram/eraser.js'
 import { visibleWhiteboardTools } from './whiteboardTools.js'
+import ToolbarButton from '@/components/toolbar/ToolbarButton.vue'
 import LineOptions from './LineOptions.vue'
 import TableSizePicker from './TableSizePicker.vue'
 import { tableInsertOrigin } from './tableSizePicker.js'
@@ -138,20 +140,16 @@ function insertTable({ rows, cols }, close) {
 </script>
 
 <template>
-  <Divider orientation="vertical" class="mx-0.5 !h-5" />
-
   <!-- Tools: a single click arms; the next canvas action draws. The table tool is
        the exception — clicking it opens the size picker, which inserts on pick. -->
   <template v-for="t in visibleTools" :key="t.tool">
     <Popover v-if="t.tool === 'table'">
       <template #trigger>
-        <Button
+        <ToolbarButton
+          allows-blur
           :data-testid="'wtool-' + t.tool"
-          :variant="activeTool === t.tool ? 'subtle' : 'ghost'"
-          theme="gray"
-          size="md"
+          :active="activeTool === t.tool"
           :icon="t.icon"
-          :tooltip="t.label"
           :label="t.label"
         />
       </template>
@@ -159,27 +157,22 @@ function insertTable({ rows, cols }, close) {
         <TableSizePicker @pick="insertTable($event, toggle)" />
       </template>
     </Popover>
-    <Button
+    <ToolbarButton
       v-else
+      allows-blur
       :data-testid="'wtool-' + t.tool"
-      :variant="activeTool === t.tool ? 'subtle' : 'ghost'"
-      theme="gray"
-      size="md"
+      :active="activeTool === t.tool"
       :icon="t.icon"
-      :tooltip="t.label"
       :label="t.label"
       @click="armTool(t)"
     />
   </template>
 
   <!-- Insert image (action, not a tool). Hidden when the surrounding palette owns it. -->
-  <Button
+  <ToolbarButton
     v-if="showImageInsert"
-    variant="ghost"
-    theme="gray"
-    size="md"
+    allows-blur
     icon="lucide-image"
-    tooltip="Insert image"
     label="Insert image"
     @click="imageInsert.pick(() => editorUi.viewport.centerPoint())"
   />
@@ -188,14 +181,7 @@ function insertTable({ rows, cols }, close) {
        Also opened directly by the eraser tool button above (#241). -->
   <Popover v-if="activeHasOptions" ref="optionsPopoverRef">
     <template #trigger>
-      <Button
-        variant="ghost"
-        theme="gray"
-        size="md"
-        icon="lucide-sliders-horizontal"
-        :tooltip="optionsLabel"
-        :label="optionsLabel"
-      />
+      <ToolbarButton icon="lucide-sliders-horizontal" :label="optionsLabel" />
     </template>
     <template #default>
       <!-- Draw (#242): pen/highlighter sub-mode picker, shared color, pen-only

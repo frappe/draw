@@ -287,10 +287,10 @@ test.describe('whiteboard', () => {
     await toolByIcon(page, 'eraser').click()
     await expect(objectMode).toBeHidden()
     // Guard the precondition: if the tool were disarmed, the assertion below would
-    // blame the eraser for a gesture that never reached it. The active tool button
-    // carries the class on its own, so anchor the match — `hover:bg-surface-gray-2`
-    // sits in the base class of every palette button.
-    await expect(toolByIcon(page, 'eraser')).toHaveClass(/(^|\s)bg-surface-gray-2(\s|$)/)
+    // blame the eraser for a gesture that never reached it. Toolbar controls carry
+    // their active state on aria-pressed rather than a variant class (#360), which
+    // is both the rendered state and the one a screen reader reads.
+    await expect(toolByIcon(page, 'eraser')).toHaveAttribute('aria-pressed', 'true')
 
     await page.mouse.move(box.x + 2, box.y + box.height / 2)
     await page.mouse.down()

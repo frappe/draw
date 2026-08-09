@@ -36,6 +36,13 @@ defineProps({
   // makes a screen reader announce a pressed state that means nothing.
   active: { type: Boolean, default: undefined },
   disabled: { type: Boolean, default: false },
+  // Opt OUT of the focus guard below. Formatting controls act on the live text
+  // editor and must not blur it, which is the default. Controls that INSERT or
+  // arm a tool are the opposite: they have to let an in-progress edit commit
+  // first. Holding focus there left a freshly placed mind-map node still in edit
+  // mode, so the next canvas click landed in its editor instead of placing a
+  // second node.
+  allowsBlur: { type: Boolean, default: false },
 })
 </script>
 
@@ -51,7 +58,7 @@ defineProps({
     :disabled="disabled"
     :aria-pressed="active"
     class="aria-pressed:bg-surface-gray-3"
-    @mousedown.prevent
+    @mousedown="allowsBlur ? undefined : $event.preventDefault()"
   >
     <!-- Both slots are forwarded only when the caller actually passed one.
          Button resolves its text as `slots.default?.() ?? props.label`, so an

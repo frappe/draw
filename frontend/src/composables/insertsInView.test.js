@@ -160,7 +160,7 @@ describe('no insert path re-frames the camera (wiring guards)', () => {
   })
 
   it('the image tools pick into the viewport centre so a picked image lands in view', () => {
-    expect(readSrc('../components/floating/BottomPalette.vue')).toContain(
+    expect(readSrc('./useInsertCatalog.js')).toContain(
       'imageInsert.pick(() => viewport.centerPoint())',
     )
     expect(readSrc('../components/floating/WhiteboardTools.vue')).toContain(

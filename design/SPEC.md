@@ -117,7 +117,12 @@ Vertical toolbar; elements added by **drag-and-drop** or **click-to-draw**. Top-
 3. **Icons** — from the **Espresso icon library**.
 4. **Emojis and other elements** — at the bottom.
 
-A **search/filter input** sits at the top of the palette to filter shapes, icons, and emojis by name (critical once icons/emojis are present).
+**No search input** (amended August 2026, #364). The insert palette became five
+separate menus on the canvas toolbar — Shapes, Lines, Insert, Mind map,
+Flowchart — and none holds more than eleven items, so everything is visible at a
+glance and a filter earns nothing. Reinstate a search only if a category grows
+past roughly twenty items, which is what icons and emojis would do; at that point
+it belongs inside that category's menu, not across all of them.
 
 ### 4.3 Right — Modification Palette
 Inspired by the Efficient Elements PowerPoint add-in: sections of **one-click action tiles**.

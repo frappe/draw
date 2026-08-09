@@ -47,6 +47,17 @@ describe('ToolbarButton', () => {
     expect(template).toContain(':tooltip="tooltip || label"')
   })
 
+  // The guard is right for controls that act on the live text editor and wrong
+  // for controls that insert. Holding focus on an insert control left a freshly
+  // placed mind-map node still in edit mode, so the next canvas click landed in
+  // its editor instead of placing a second node (#364).
+  it('lets insert and tool controls opt out of the focus guard', () => {
+    expect(source).toContain('allowsBlur: { type: Boolean, default: false }')
+    expect(templateOf(source)).toContain(
+      '@mousedown="allowsBlur ? undefined : $event.preventDefault()"',
+    )
+  })
+
   // Pressed state belongs in the accessibility tree, not only in the paint. This
   // is also what frappe-ui's own EditorFixedMenu does.
   it('shows pressed state through aria-pressed rather than a variant swap', () => {
@@ -92,6 +103,23 @@ describe('CanvasToolbar placement', () => {
   it('keeps a fixed height and does not shrink with the canvas', () => {
     expect(toolbar).toContain('h-10')
     expect(toolbar).toContain('flex-none')
+  })
+})
+
+describe('who opts out of the focus guard', () => {
+  // Formatting acts on the live editor and must hold the caret; inserting has to
+  // let the edit commit first. Getting these two backwards is silent either way —
+  // a lost caret, or a node that never lands.
+  it('insert and tool controls allow the blur', () => {
+    for (const file of ['groups/InsertGroups.vue', 'groups/PointerGroup.vue', '../floating/WhiteboardTools.vue']) {
+      expect(read(file), `${file} must let an in-progress edit commit`).toContain('allows-blur')
+    }
+  })
+
+  it('formatting controls do not', () => {
+    for (const file of ['groups/TextGroup.vue', 'groups/StyleGroup.vue', 'groups/ArrangeGroup.vue']) {
+      expect(read(file), `${file} must not blur the text editor`).not.toContain('allows-blur')
+    }
   })
 })
 
