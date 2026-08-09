@@ -7,7 +7,7 @@
 // Toolbar offers search + sort + a tile/list toggle, becoming a bulk-action bar
 // on selection. Creation is the top-right CTA only. At most MAX_PINNED pinned.
 import { computed, reactive, ref, watch, watchEffect } from 'vue'
-import { useCall, useList, dialog, toast, Dialog, Button, Divider, Dropdown, TabButtons, TextInput, Tooltip } from 'frappe-ui'
+import { call, useCall, useList, dialog, toast, Dialog, Button, Divider, Dropdown, TabButtons, TextInput, Tooltip } from 'frappe-ui'
 import DiagramCollection from './DiagramCollection.vue'
 import {
   pinnedOnly,
@@ -32,14 +32,32 @@ const RECENT_LIMIT = 24
 // re-fetch twice per change (and once per diagram during a bulk delete).
 const enriched = useList({
   doctype: 'Draw Diagram',
-  // `thumbnail` is the saved raster preview shown on tiles; `document` stays for the
-  // live-SVG fallback when a (non-empty) diagram has no thumbnail yet, and for duplicate.
-  fields: ['name', 'title', 'creation', 'modified', 'diagram_type', 'is_pinned', 'owner', 'document', 'thumbnail'],
+  // `thumbnail` is the saved raster preview shown on tiles. `document` is NOT here:
+  // carrying every diagram's full JSON made this response about nine times larger,
+  // to serve a live preview that only the diagrams without a raster ever need (#223).
+  fields: ['name', 'title', 'creation', 'modified', 'diagram_type', 'is_pinned', 'owner', 'thumbnail'],
   filters: { is_trashed: 0 },
   orderBy: 'modified desc',
   limit: 500,
   refetch: false,
 })
+
+// The live-SVG fallback, fetched for exactly the diagrams that need it: those with
+// no saved thumbnail. In a library where diagrams have been opened and saved that
+// is almost none, so this second request usually comes back empty. An emptied
+// diagram has its thumbnail cleared on save, so "no raster" is the whole answer —
+// a tile never needs a document to know it is blank.
+const previewDocuments = useList({
+  doctype: 'Draw Diagram',
+  fields: ['name', 'document'],
+  filters: { is_trashed: 0, thumbnail: ['is', 'not set'] },
+  limit: 500,
+  refetch: false,
+})
+const documentsByName = computed(() =>
+  Object.fromEntries((previewDocuments.data || []).map((d) => [d.name, d.document])),
+)
+const documentsPending = computed(() => !previewDocuments.data)
 
 // "Shared with you" can't be a plain list filter — it joins DocShare and excludes
 // the owner — so it comes from a dedicated endpoint (draw.api.diagram.shared_with_me),
@@ -53,7 +71,16 @@ watch(
   { immediate: true },
 )
 
-const rows = computed(() => enriched.data || [])
+// Merge each thumbnail-less diagram's document back onto its row, so the tiles
+// keep reading `diagram.document` and only the fetching changed. A row whose
+// document has not arrived yet leaves the key undefined, which the tile reads as
+// "not known yet" rather than "blank".
+const rows = computed(() => {
+  const documents = documentsByName.value
+  return (enriched.data || []).map((row) =>
+    row.thumbnail ? row : { ...row, document: documents[row.name] },
+  )
+})
 const pinnedTotal = computed(() => rows.value.filter((d) => d.is_pinned).length)
 const pinLimitReached = computed(() => pinnedTotal.value >= MAX_PINNED)
 
@@ -240,8 +267,15 @@ function startRename(diagram) {
   })
 }
 
+// The list no longer carries documents (#223), so read the source's on demand.
+// A diagram with a saved thumbnail never has one on its row.
 async function duplicate(diagram) {
-  const document = diagram.document || createDiagramDocument()
+  const source = await call('frappe.client.get_value', {
+    doctype: 'Draw Diagram',
+    filters: { name: diagram.name },
+    fieldname: 'document',
+  })
+  const document = source?.document || diagram.document || createDiagramDocument()
   await submitOrThrow(enriched.insert, { title: `${diagram.title} copy`, document })
   refresh()
 }
@@ -264,6 +298,9 @@ const infoRows = computed(() => {
 
 function refresh() {
   enriched.reload()
+  // A save may have added or cleared a thumbnail, which changes which diagrams
+  // still need their document fetched.
+  previewDocuments.reload()
   // Keep the Shared view live after an action taken from it (e.g. duplicate).
   if (props.mode === 'shared') shared.fetch()
   emit('changed')

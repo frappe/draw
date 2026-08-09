@@ -282,3 +282,44 @@ describe('list rows carry no type glyph (#218)', () => {
     expect(diagramTile).toContain('v-else-if="previewSvg"')
   })
 })
+
+// #223: Home used to pull every diagram's full document just so the few tiles with
+// no saved raster could draw a live preview. That made the list response about nine
+// times larger, and it grew with the library.
+describe('Home fetches documents only where a preview needs one (#223)', () => {
+  it('keeps the document out of the list query', () => {
+    const listFields = tileGrid.match(/fields: \[([^\]]*)\],\n\s*filters: \{ is_trashed: 0 \}/)?.[1]
+    expect(listFields, 'could not find the main list query').toBeTruthy()
+    expect(listFields).not.toContain("'document'")
+    expect(listFields).toContain("'thumbnail'")
+  })
+
+  it('fetches documents in one call, filtered to diagrams with no thumbnail', () => {
+    expect(tileGrid).toContain("filters: { is_trashed: 0, thumbnail: ['is', 'not set'] }")
+    expect(tileGrid).toContain("fields: ['name', 'document']")
+  })
+
+  it('reloads that second call after a change, since a save can clear a thumbnail', () => {
+    expect(tileGrid).toContain('previewDocuments.reload()')
+  })
+
+  it('reads the source document on demand when duplicating', () => {
+    // A diagram with a thumbnail has no document on its row any more.
+    expect(tileGrid).toContain("call('frappe.client.get_value'")
+    expect(tileGrid).toContain("fieldname: 'document'")
+  })
+
+  it('tells "not fetched yet" apart from "blank" on a tile', () => {
+    // Both are falsy. Treating them the same flashes "Diagram is blank" on every
+    // tile that is about to draw a preview.
+    expect(diagramTile).toContain('props.diagram.document !== undefined')
+    expect(diagramTile).toContain('showsBlankLabel')
+    expect(diagramTile).toContain('v-else-if="showsBlankLabel"')
+  })
+
+  it('shows a stored raster without needing the document at all', () => {
+    // save_thumbnail clears the thumbnail when the diagram is emptied, so a raster
+    // now means real content and the old emptiness gate is unnecessary.
+    expect(diagramTile).toMatch(/thumbnailUrl = computed\(\s*\(\)\s*=>\s*\n?\s*thumbnailFailed\.value \? null/)
+  })
+})

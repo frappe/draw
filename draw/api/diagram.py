@@ -282,14 +282,23 @@ def _get_writable_diagram(name: str) -> "frappe.model.document.Document":
 
 
 @frappe.whitelist(methods=["POST"])
-def save_thumbnail(name: str, thumbnail: str) -> dict:
+def save_thumbnail(name: str, thumbnail: str | None = None) -> dict:
 	"""Attach a freshly rendered thumbnail (a data URL) to the diagram.
 
 	Throttling is the client's responsibility (SPEC §11.4, ≤ once / 30s); this
 	just decodes the data URL, writes a private file, and links it.
+
+	An empty `thumbnail` CLEARS the stored one. A diagram emptied after it was
+	saved used to keep the raster of its old content, so Home had to read every
+	diagram's document to tell an empty one apart (#223). Clearing it at the
+	source means "no thumbnail" is the whole answer, and Home never needs the
+	document to render a tile.
 	"""
 	diagram = _get_writable_diagram(name)
 	previous = diagram.thumbnail
+	if not thumbnail:
+		return _clear_thumbnail(diagram, previous)
+
 	file_doc = _save_thumbnail_file(diagram, thumbnail)
 	diagram.db_set("thumbnail", file_doc.file_url, update_modified=False)
 	# The client re-saves the thumbnail up to once every 30s, each time a NEW File;
@@ -299,6 +308,17 @@ def save_thumbnail(name: str, thumbnail: str) -> dict:
 	# POST-only endpoint: the framework commits on a successful request. See the note
 	# in save_diagram — the removed manual commit was a CSRF-via-GET write vector.
 	return {"thumbnail": file_doc.file_url}
+
+
+def _clear_thumbnail(diagram: "frappe.model.document.Document", previous: str | None) -> dict:
+	"""Unlink the diagram's thumbnail and delete the File behind it."""
+	if not previous:
+		return {"thumbnail": None}
+	# Unlink first: _delete_thumbnail_file skips a URL the diagram still points at,
+	# and an orphaned field is worse than an orphaned blob if the delete fails.
+	diagram.db_set("thumbnail", None, update_modified=False)
+	_delete_thumbnail_file(diagram, previous)
+	return {"thumbnail": None}
 
 
 def _delete_thumbnail_file(diagram: "frappe.model.document.Document", file_url: str | None) -> None:

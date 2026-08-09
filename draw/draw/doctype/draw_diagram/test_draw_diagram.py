@@ -1055,6 +1055,42 @@ class TestDrawDiagram(IntegrationTestCase):
 		self.assertEqual(attached, [second], "the replaced thumbnail File must be deleted, not orphaned")
 		self.assertEqual(frappe.db.get_value("Draw Diagram", doc.name, "thumbnail"), second)
 
+	def test_save_thumbnail_clears_the_stored_one_when_given_nothing(self):
+		# An emptied diagram used to keep the raster of its old content, so Home had to
+		# read EVERY diagram's document just to tell an empty one apart (#223). Clearing
+		# at the source makes "no thumbnail" the whole answer. The File goes too, or the
+		# blob outlives every reference to it.
+		import base64
+
+		from draw.api.diagram import save_thumbnail
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		url = save_thumbnail(
+			doc.name, "data:image/png;base64," + base64.b64encode(b"thumb").decode()
+		)["thumbnail"]
+		self.assertEqual(frappe.db.get_value("Draw Diagram", doc.name, "thumbnail"), url)
+
+		self.assertIsNone(save_thumbnail(doc.name, "")["thumbnail"])
+		self.assertIsNone(frappe.db.get_value("Draw Diagram", doc.name, "thumbnail"))
+		self.assertEqual(
+			frappe.get_all(
+				"File",
+				filters={"attached_to_doctype": "Draw Diagram", "attached_to_name": doc.name},
+				pluck="file_url",
+			),
+			[],
+			"clearing the thumbnail must delete its File, not orphan it",
+		)
+
+	def test_save_thumbnail_clearing_is_idempotent(self):
+		# The client clears on every save of an already-empty diagram, so a diagram with
+		# no thumbnail must not raise.
+		from draw.api.diagram import save_thumbnail
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		self.assertIsNone(save_thumbnail(doc.name, "")["thumbnail"])
+		self.assertIsNone(save_thumbnail(doc.name)["thumbnail"])
+
 	def test_save_thumbnail_rejects_an_undecodable_payload(self):
 		# base64 decode uses validate=True; a malformed data URL is a 400, not a 500.
 		from draw.api.diagram import save_thumbnail

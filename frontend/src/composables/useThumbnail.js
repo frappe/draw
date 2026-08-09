@@ -571,7 +571,16 @@ export function useThumbnail(store, diagramResource) {
     const name = diagramResource?.doc?.name
     if (!name) return null
     lastRunAt = now
-    const dataUrl = await rasterize(documentToSvg(store.getDocument()))
+    const document = store.getDocument()
+    // An emptied diagram used to be rasterized to a blank white PNG, so Home had
+    // to read every diagram's document to tell "blank" from "has a preview"
+    // (#93, #223). Clear the stored thumbnail instead: with no raster, Home knows
+    // the tile is blank without fetching anything.
+    if (isDocumentEmpty(document)) {
+      saver.submit({ name, thumbnail: '' })
+      return null
+    }
+    const dataUrl = await rasterize(documentToSvg(document))
     if (dataUrl) saver.submit({ name, thumbnail: dataUrl })
     return dataUrl
   }

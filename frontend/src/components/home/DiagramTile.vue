@@ -21,9 +21,16 @@ const emit = defineEmits(['open', 'toggle-select', 'toggle-pin', 'rename', 'dupl
 // have one (cheap), otherwise a live SVG rendered from the document. Only a truly
 // blank canvas shows neither — it gets the "empty" text placeholder instead of a
 // misleading preview or icon.
+//
+// Home no longer sends every diagram's document (#223) — it fetches them only for
+// the diagrams with no raster, since a diagram emptied after a save has its
+// thumbnail cleared. So `document` is undefined until that second request lands,
+// which is NOT the same as blank: showing "Diagram is blank" in the meantime would
+// flash the wrong answer on every tile that is about to draw a preview.
+const documentKnown = computed(() => props.diagram.document !== undefined)
 const isEmpty = computed(() => {
   const document = props.diagram.document
-  return !document || isDocumentEmpty(document)
+  return documentKnown.value && (!document || isDocumentEmpty(document))
 })
 // A stored thumbnail can outlive the File it points at: the diagram keeps the
 // path after the attachment is gone, and the <img> then 404s. Because the raster
@@ -37,16 +44,19 @@ watch(
   () => (thumbnailFailed.value = false),
 )
 
-// A saved-once-but-emptied diagram still carries a (blank white) raster thumbnail,
-// so gate the thumbnail on the doc actually having content — otherwise the blank
-// raster wins and the "Diagram is blank" placeholder never shows (#93).
+// A diagram emptied after a save has its thumbnail CLEARED by save_thumbnail now
+// (#93, #223), so a stored raster means real content and is shown as-is. Home
+// therefore never fetches a document for a tile that has one.
 const thumbnailUrl = computed(() =>
-  isEmpty.value || thumbnailFailed.value ? null : props.diagram.thumbnail || null,
+  thumbnailFailed.value ? null : props.diagram.thumbnail || null,
 )
 const previewSvg = computed(() => {
-  if (thumbnailUrl.value || isEmpty.value) return null
+  if (thumbnailUrl.value || isEmpty.value || !documentKnown.value) return null
   return documentToSvg(props.diagram.document)
 })
+// While the document is still on its way, draw an empty frame rather than claiming
+// the diagram is blank.
+const showsBlankLabel = computed(() => !thumbnailUrl.value && !previewSvg.value && documentKnown.value)
 
 const isPinned = computed(() => Boolean(props.diagram.is_pinned))
 const createdLabel = computed(() => relativeTime(props.diagram.creation))
@@ -201,7 +211,7 @@ const TIME_UNITS = [
           @error="thumbnailFailed = true"
         />
         <div v-else-if="previewSvg" class="h-full w-full [&>svg]:h-full [&>svg]:w-full" v-html="previewSvg" />
-        <span v-else class="text-2xs italic text-ink-gray-4">Diagram is blank</span>
+        <span v-else-if="showsBlankLabel" class="text-2xs italic text-ink-gray-4">Diagram is blank</span>
       </div>
     </button>
 
