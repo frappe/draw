@@ -42,10 +42,8 @@ const rowClass =
 <template>
   <Popover>
     <template #trigger>
-      <Button variant="outline">
-        <template #prefix><span class="lucide-download h-4 w-4" aria-hidden="true" /></template>
-        Export
-      </Button>
+      <!-- Icon only (#229). `label` is the accessible name, not visible text. -->
+      <Button variant="ghost" icon="lucide-download" label="Export" tooltip="Export" />
     </template>
     <template #default="{ toggle }">
       <div class="w-56 p-1.5">

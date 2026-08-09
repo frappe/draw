@@ -85,10 +85,8 @@ async function doCopy() {
 </script>
 
 <template>
-  <Button variant="outline" @click="open = true">
-    <template #prefix><span class="lucide-share-2 h-4 w-4" aria-hidden="true" /></template>
-    Share
-  </Button>
+  <!-- Icon only (#229). `label` is the accessible name, not visible text. -->
+  <Button variant="ghost" icon="lucide-share-2" label="Share" tooltip="Share" @click="open = true" />
 
   <Dialog v-model:open="open" :title="dialogTitle" size="lg">
     <template #default>
