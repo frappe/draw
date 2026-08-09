@@ -1,16 +1,22 @@
 import { test, expect } from '../helpers/fixtures.js'
 
-// The sticky note's floating control (#356). It was written as a <Teleport>
-// inside WhiteboardStickyNote, whose root is an SVG <g> — so Vue built it in the
-// SVG namespace and it landed in <body> with no layout box: in the DOM, styled,
-// and 0x0. None of it could be seen or clicked. It now renders from EditorShell.
+// The sticky note's controls (#356), now a group on the static canvas toolbar
+// (#363) rather than a floating bar.
 //
-// The assertions are on the rendered BOX, not on presence: the whole failure
-// mode was an element that exists and measures zero.
+// The original fault: written as a <Teleport> inside WhiteboardStickyNote, whose
+// root is an SVG <g>, Vue built it in the SVG namespace and it landed in <body>
+// with no layout box — in the DOM, styled, and 0x0. None of it could be seen or
+// clicked.
+//
+// The assertions stay on the rendered BOX rather than on presence, because that
+// is the failure mode: an element that exists and measures zero. The toolbar
+// makes it structurally unreachable (nothing there is built inside SVG), which
+// is worth holding a test against rather than assuming.
 test.describe('sticky note toolbar (#356)', () => {
-  // Scoped: the block text editor carries its own Strikethrough, so an unscoped
-  // role lookup matches two buttons once both are on screen.
-  const bar = (page) => page.locator('[data-sticky-toolbar]')
+  // Scoped to the toolbar. Strikethrough also appears in the block text group,
+  // so an unscoped role lookup would be ambiguous the moment a shape and a
+  // sticky are both reachable.
+  const bar = (page) => page.locator('[data-canvas-toolbar]')
 
   async function selectSticky(page) {
     const sticky = page.getByText('note', { exact: true }).first()

@@ -32,6 +32,9 @@ import MindmapStyleGroup from './groups/MindmapStyleGroup.vue'
 import MindmapNodeGroup from './groups/MindmapNodeGroup.vue'
 import FlowchartNodeGroup from './groups/FlowchartNodeGroup.vue'
 import MapLayoutGroup from './groups/MapLayoutGroup.vue'
+import WhiteboardObjectGroup from './groups/WhiteboardObjectGroup.vue'
+import StickyGroup from './groups/StickyGroup.vue'
+import TableCellGroup from './groups/TableCellGroup.vue'
 import ToolbarSeparator from './ToolbarSeparator.vue'
 
 const { chromeType } = useSelectionContext()
@@ -99,6 +102,15 @@ const flowchartSelected = computed(
         </template>
 
         <FlowchartNodeGroup v-if="flowchartSelected" />
+
+        <!-- Whiteboard objects. All three self-gate: the sticky group on a lone
+             sticky, the cell group on an open cell or a dragged range, and the
+             object group on everything else the board holds. -->
+        <template v-if="chromeType === 'whiteboard'">
+          <StickyGroup />
+          <WhiteboardObjectGroup />
+          <TableCellGroup />
+        </template>
 
         <!-- Whole-map actions, self-gating: a no-op unless the document is a map
              or a free-floating map node is selected. -->

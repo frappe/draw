@@ -27,9 +27,6 @@ import Minimap from '@/components/canvas/Minimap.vue'
 import WhiteboardMinimap from '@/components/canvas/WhiteboardMinimap.vue'
 import MindMapOverlay from '@/components/canvas/MindMapOverlay.vue'
 import FlowchartOverlay from '@/components/canvas/FlowchartOverlay.vue'
-import WhiteboardSelectionEditor from '@/components/floating/WhiteboardSelectionEditor.vue'
-import TableCellToolbar from '@/components/floating/TableCellToolbar.vue'
-import StickyNoteToolbar from '@/components/floating/StickyNoteToolbar.vue'
 import CollaboratorCursors from '@/components/canvas/CollaboratorCursors.vue'
 import CommentPinsLayer from '@/components/comments/CommentPinsLayer.vue'
 import CommentsPanel from '@/components/comments/CommentsPanel.vue'
@@ -182,18 +179,9 @@ onMounted(() => {
         <WhiteboardMinimap v-if="modeStrategy.type === 'whiteboard'" />
         <MindMapOverlay v-if="chromeType === 'mindmap'" />
         <FlowchartOverlay v-if="chromeType === 'flowchart'" />
-        <!-- The block selection's controls (fill, border, text, arrange, link,
-             duplicate, delete) are on the static toolbar now (#361), including on
-             the whiteboard, where text and image are block shapes (S13/S14/U1).
-             WhiteboardSelectionEditor still handles board objects until #363. -->
-        <WhiteboardSelectionEditor v-if="chromeType === 'whiteboard'" />
-        <!-- Table cell controls (B/I/U, Merge/Split). Rendered here rather than
-             from WhiteboardTable: that component's root is inside the SVG, and a
-             Teleport built there produces an SVG-namespaced div with no layout
-             box. Self-gates on an open cell / cell range. -->
-        <TableCellToolbar v-if="chromeType === 'whiteboard'" />
-        <!-- Sticky note controls, here for the same namespace reason (#356). -->
-        <StickyNoteToolbar v-if="chromeType === 'whiteboard'" />
+        <!-- Every selection's controls are on the static canvas toolbar now
+             (#359). What is left in here is canvas chrome: the pins, the
+             navigators, the per-type empty-state prompts and the cursors. -->
         <CollaboratorCursors :collaborators="collab.collaborators.value" :set-cursor="collab.setCursor" />
         <ViewportControls />
         <BottomPalette />
