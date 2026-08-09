@@ -11,6 +11,8 @@ import {
   DEFAULT_LAYOUT,
   readLayout,
   writeLayout,
+  EMPTY_STATES,
+  emptyStateFor,
 } from './homeViews.js'
 
 // Browser-free (node env, no @vue/test-utils): assert the view MODEL the home
@@ -203,5 +205,57 @@ describe('tile preview survives a dead thumbnail (#221)', () => {
     expect(diagramTile).toContain('v-if="thumbnailUrl"')
     expect(diagramTile).toContain('v-else-if="previewSvg"')
     expect(diagramTile).toContain('Diagram is blank')
+  })
+})
+
+// #220: Home closed every populated view with "You've reached the end · made with
+// Frappe Draw". It told the user nothing they could act on, and anyone who met it
+// before scrolling read it as an empty state. It is gone; the empty views carry
+// the message instead, worded for the tab they belong to.
+describe('empty states, one per tab (#220)', () => {
+  it('invites a first-time user to start, rather than reporting emptiness', () => {
+    const home = emptyStateFor('home')
+    expect(home.title).toBe('Start a drawing')
+    expect(home.hint).toMatch(/create/i)
+  })
+
+  it('words each other tab for itself', () => {
+    expect(emptyStateFor('recent').title).toBe('Nothing recent')
+    expect(emptyStateFor('shared').title).toBe('Nothing shared with you')
+    expect(emptyStateFor('pinned').title).toBe('No pinned diagrams')
+  })
+
+  it('covers every view the switcher offers, so none falls through', () => {
+    for (const nav of SIDEBAR_NAV) {
+      if (nav.key === 'trash') continue // Trash renders its own view, with its own empty state
+      expect(EMPTY_STATES[nav.key], `no empty state for "${nav.key}"`).toBeTruthy()
+    }
+  })
+
+  it('lets a search that matches nothing win over the tab wording', () => {
+    // "No pinned diagrams" would be wrong when the tab does have pins and the
+    // query is what excluded them.
+    expect(emptyStateFor('pinned', true).title).toBe('No diagrams match')
+    expect(emptyStateFor('home', true).title).toBe('No diagrams match')
+  })
+
+  it('falls back to Home rather than rendering an undefined icon', () => {
+    expect(emptyStateFor('nonexistent-mode')).toEqual(EMPTY_STATES.home)
+  })
+
+  it('gives every state a complete lucide class', () => {
+    // Tailwind's JIT only emits classes it reads literally (#292).
+    for (const state of Object.values(EMPTY_STATES)) {
+      expect(state.icon).toMatch(/^lucide-[a-z0-9-]+$/)
+    }
+  })
+
+  it('drops the end-of-list marker from Home', () => {
+    expect(tileGrid).not.toContain("You've reached the end")
+    expect(tileGrid).not.toContain('made with Frappe Draw')
+  })
+
+  it('drives the empty view from the shared model', () => {
+    expect(tileGrid).toContain('emptyStateFor(props.mode, hasActiveFilter.value)')
   })
 })
