@@ -5,7 +5,8 @@
 // tables could be selected but never drag-moved — nothing on the table started a
 // move gesture, so startGroupMove was only ever reached from the sticky/frame.
 import { describe, it, expect, vi } from 'vitest'
-import { startTableMove } from './useWhiteboardInteraction.js'
+import { startTableMove, editTableCellAt } from './useWhiteboardInteraction.js'
+import { useWhiteboardUi } from './useWhiteboardUi.js'
 import { createWhiteboard, addTable } from '@/diagram/whiteboardModel.js'
 
 // A MouseEvent carries clientX/clientY and dispatches to 'pointer*' listeners in
@@ -96,5 +97,36 @@ describe('startTableMove', () => {
 
     expect(table.x).toBe(110)
     expect(model.stickyNotes[0].x, 'the co-selected sticky moves with the table').toBe(410)
+  })
+})
+
+// #353: double-clicking a cell selected the table but never left the caret in it.
+// These go through the REAL useWhiteboardUi singleton, not the fake `ui` above,
+// because the bug lived in the interaction between the two: selectTable routes
+// through setSelection, which clears editingCell by design.
+describe('editTableCellAt', () => {
+  it('leaves the cell open after selecting the table', () => {
+    const { store, id } = setup()
+    const ui = useWhiteboardUi()
+    ui.reset()
+
+    expect(editTableCellAt(store, { x: 150, y: 150 })).toBe(true)
+
+    expect(ui.isSelected('table', id), 'the table is selected').toBe(true)
+    // Setting the cell BEFORE selecting threw it away again on every double-click.
+    expect(ui.state.editingCell, 'selecting the table cleared the cell it just opened').toEqual({
+      tableId: id,
+      row: 1,
+      col: 0,
+    })
+  })
+
+  it('does nothing when no table is under the point', () => {
+    const { store } = setup()
+    const ui = useWhiteboardUi()
+    ui.reset()
+
+    expect(editTableCellAt(store, { x: 5, y: 5 })).toBe(false)
+    expect(ui.state.editingCell).toBeNull()
   })
 })

@@ -1,7 +1,8 @@
 <script setup>
 // One whiteboard table — a grid with per-cell text (spec diagram-types Part C9).
-// Cells render as SVG; clicking one on an already-selected table sets
-// ui.state.editingCell, mounting an inline contenteditable over it — rich rather
+// Cells render as SVG; double-clicking one, or clicking one on an already-
+// selected table, sets ui.state.editingCell (see editTableCellAt and
+// startTableMove), mounting an inline contenteditable over it — rich rather
 // than a plain <input>, so part of a cell can be bold (#344). Columns/rows resize
 // by dragging their edges when selected, and a shift-click cell range can be
 // merged / split (#338). Selection is surface-driven like lines/strokes. One

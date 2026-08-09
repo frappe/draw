@@ -22,6 +22,7 @@ import { isAdditiveEvent } from '@/composables/pointer.js'
 import { flowchartContentBounds } from '@/diagram/flowchartLayout.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
+import { editTableCellAt } from '@/composables/useWhiteboardInteraction.js'
 import { useSelection } from '@/composables/useSelection.js'
 import { useShapeCreation, draftPreviewShape } from '@/composables/useShapeCreation.js'
 import { usePolygonCreation } from '@/composables/usePolygonCreation.js'
@@ -603,6 +604,13 @@ function onSurfaceDoubleClick(event) {
   const point = selection.toLogicalFor(event, surface.value, viewport)
   const shape = topShapeAt(point)
   if (shape) return editing.beginTextEdit(shape.id)
+  // A table cell on the unified canvas (#354). Only whiteboard TOOLS delegate
+  // there, so the select tool never reaches the whiteboard's own double-click
+  // handler and a cell could not be opened this way at all. Routed here, after
+  // the block-shape check and only for a table actually under the cursor, so
+  // double-clicking empty unified canvas still does nothing rather than
+  // dropping a whiteboard text box on it.
+  if (isUnified.value && editTableCellAt(store, point)) return
   const connector = connectorAt(point)
   if (connector) return editing.beginConnectorLabelEdit(connector.id)
 }

@@ -198,7 +198,9 @@ export const documents = {
   // yields a test that passes while doing nothing at all — see boxInWindow().
   unified: (opts = {}) => ({
     ...baseDocument('unified'),
-    shapes: opts.empty ? [] : [rect('s1', 120, 140), rect('s2', 700, 460)],
+    // `table` drops the default rectangles too: s1 sits at (120,140) and covers
+    // the seeded table, so a click meant for a cell selects the rect instead.
+    shapes: opts.empty || opts.table ? [] : [rect('s1', 120, 140), rect('s2', 700, 460)],
     mindmap: opts.framesInView
       ? seededMindmap({ x: 60, y: 600 })
       : opts.withFrames
@@ -209,7 +211,11 @@ export const documents = {
       : opts.withFrames
         ? seededFlowchart({ x: 1500, y: 0 })
         : emptyFlowchart({ x: 1500, y: 0 }),
-    whiteboard: opts.empty ? emptyWhiteboard() : seededWhiteboard(),
+    whiteboard: opts.empty
+      ? emptyWhiteboard()
+      : opts.table
+        ? whiteboardWithTable()
+        : seededWhiteboard(),
   }),
 
   // A document as a HOSTILE author would post it. save_diagram takes whatever JSON a

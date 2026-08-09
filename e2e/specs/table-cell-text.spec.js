@@ -120,3 +120,49 @@ test.describe('whiteboard table cell text (#344)', () => {
       .toEqual([{ text: 'CELL-TEXT', italic: true }])
   })
 })
+
+// Double-click into a cell (#353, #354). Two separate faults kept this from
+// working, so both document types are covered: onDoubleClick set editingCell and
+// then selected the table, whose setSelection cleared it again (#353); and on the
+// unified canvas the select tool never delegates to the whiteboard layer, so the
+// handler was unreachable there regardless (#354).
+test.describe('opening a table cell by double-click (#353, #354)', () => {
+  const editor = (page) => page.locator('[role="textbox"][contenteditable]')
+
+  for (const type of ['whiteboard', 'unified']) {
+    test(`double-clicking a cell opens it for editing on a ${type} document`, async ({ page, diagram }) => {
+      const name = await diagram.open(type, { table: true })
+      const cell = page.getByText('CELL-TEXT').first()
+      const box = await boxInWindow(page, cell, 'the seeded table cell')
+
+      await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2)
+
+      await expect(editor(page), 'double-click left no caret in the cell').toBeVisible()
+
+      // And it is a working editor, not just a mounted one.
+      await page.keyboard.press('Shift+Home')
+      await page.keyboard.type('FROM-DBLCLICK')
+      await page.keyboard.press('Enter')
+      await expect
+        .poll(async () => (await diagram.saved(name)).whiteboard.tables[0].cells['0,0'], {
+          message: 'text typed after a double-click never reached the saved document',
+          timeout: 20_000,
+        })
+        .toBe('FROM-DBLCLICK')
+    })
+  }
+
+  // The unified route is deliberately narrow: only a table under the cursor is
+  // routed to the whiteboard layer, so empty canvas keeps its old behaviour
+  // rather than gaining the whiteboard's double-click-makes-a-text-box.
+  test('double-clicking empty unified canvas still creates nothing', async ({ page, diagram }) => {
+    const name = await diagram.open('unified', { table: true })
+    const before = (await diagram.saved(name)).shapes.length
+
+    await page.mouse.dblclick(120, 700)
+
+    await page.waitForTimeout(2000)
+    expect((await diagram.saved(name)).shapes.length, 'a stray shape was created').toBe(before)
+    await expect(editor(page)).toHaveCount(0)
+  })
+})

@@ -527,19 +527,33 @@ export function startTableResize(event, store, editorUi, table, axis, index) {
   window.addEventListener('pointercancel', finish)
 }
 
+// Open the table cell under `point` for editing, if there is one. Exported
+// because the unified canvas reaches it directly: there the select tool does not
+// delegate surface events to the whiteboard layer, so this is the only route
+// into a cell by double-click (#354).
+export function editTableCellAt(store, point) {
+  const ui = useWhiteboardUi()
+  // parseDiagramDocument backfills a whiteboard onto every unified document, but
+  // this now runs on every unified double-click — and tableAt would throw on a
+  // missing model rather than simply not matching.
+  if (!store.state.whiteboard) return false
+  const table = tableAt(store.state.whiteboard, point)
+  if (!table) return false
+  const anchor = mergeAnchor(table, tableCellAt(table, point))
+  // Select FIRST: selectTable routes through setSelection, which clears
+  // editingCell by design. Setting the cell before selecting threw the editor
+  // away again on every double-click, so the caret never appeared (#353).
+  ui.selectTable(table.id)
+  ui.state.editingCell = { tableId: table.id, row: anchor.row, col: anchor.col }
+  return true
+}
+
 // Double-click inside a table edits the cell under the cursor; anywhere else it
 // creates a text box with the caret ready (spec W1). Text reuses the shared
 // text-editing path so it lives in the common shapes[] array (C9).
 function onDoubleClick(context, store) {
   const point = context.point
-  const ui = useWhiteboardUi()
-  const table = tableAt(store.state.whiteboard, point)
-  if (table) {
-    const anchor = mergeAnchor(table, tableCellAt(table, point))
-    ui.state.editingCell = { tableId: table.id, row: anchor.row, col: anchor.col }
-    ui.selectTable(table.id)
-    return true
-  }
+  if (editTableCellAt(store, point)) return true
   const w = 180
   const h = 44
   const id = store.addShape({
