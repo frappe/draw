@@ -32,6 +32,7 @@ import FlowchartLayoutToolbar from '@/components/floating/FlowchartLayoutToolbar
 import MindmapLayoutToolbar from '@/components/floating/MindmapLayoutToolbar.vue'
 import WhiteboardSelectionEditor from '@/components/floating/WhiteboardSelectionEditor.vue'
 import TableCellToolbar from '@/components/floating/TableCellToolbar.vue'
+import StickyNoteToolbar from '@/components/floating/StickyNoteToolbar.vue'
 import CollaboratorCursors from '@/components/canvas/CollaboratorCursors.vue'
 import CommentPinsLayer from '@/components/comments/CommentPinsLayer.vue'
 import CommentsPanel from '@/components/comments/CommentsPanel.vue'
@@ -218,6 +219,8 @@ onMounted(() => {
              Teleport built there produces an SVG-namespaced div with no layout
              box. Self-gates on an open cell / cell range. -->
         <TableCellToolbar v-if="chromeType === 'whiteboard'" />
+        <!-- Sticky note controls, here for the same namespace reason (#356). -->
+        <StickyNoteToolbar v-if="chromeType === 'whiteboard'" />
         <CollaboratorCursors :collaborators="collab.collaborators.value" :set-cursor="collab.setCursor" />
         <ViewportControls />
         <BottomPalette />

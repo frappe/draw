@@ -73,6 +73,7 @@ declare module 'vue' {
     ShareMenu: typeof import('./src/components/toolbar/ShareMenu.vue')['default']
     ShortcutsDialog: typeof import('./src/components/ShortcutsDialog.vue')['default']
     SmartGuidesLayer: typeof import('./src/components/canvas/SmartGuidesLayer.vue')['default']
+    StickyNoteToolbar: typeof import('./src/components/floating/StickyNoteToolbar.vue')['default']
     SwatchGrid: typeof import('./src/components/floating/SwatchGrid.vue')['default']
     TableCellToolbar: typeof import('./src/components/floating/TableCellToolbar.vue')['default']
     TableOptions: typeof import('./src/components/floating/TableOptions.vue')['default']

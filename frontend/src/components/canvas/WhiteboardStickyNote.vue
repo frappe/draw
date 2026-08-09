@@ -9,9 +9,7 @@
 //   click while the select tool is active (spec W6).
 // All edits go through the store (one undoable unit each, Part G6).
 import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { Divider } from 'frappe-ui'
 import { useRouter } from 'vue-router'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
@@ -21,7 +19,7 @@ import { startGroupMove } from '@/composables/useWhiteboardInteraction.js'
 import { isDragging } from '@/composables/useShapeTransform.js'
 import { isAdditiveEvent } from '@/composables/pointer.js'
 import { safeHref } from '@/utils/safeUrl.js'
-import { contrastInk, STICKY_COLORS } from '@/diagram/whiteboardColors.js'
+import { contrastInk } from '@/diagram/whiteboardColors.js'
 import { roughenRect } from '@/diagram/sketch.js'
 import { pointsToPath } from '@/diagram/svgPath.js'
 
@@ -48,32 +46,9 @@ const solo = computed(
 )
 const MIN = 80
 
-// Author chip (Whimsical-style) + a floating contextual toolbar when selected.
+// Author chip (Whimsical-style). The floating contextual toolbar lives in
+// floating/StickyNoteToolbar.vue — see the note there on why it cannot be here.
 const authorInitial = computed(() => (props.note.author || '?').trim().charAt(0).toUpperCase() || '?')
-const stickyColors = STICKY_COLORS.slice(0, 6)
-const toolbarStyle = computed(() => {
-  const surface = document.querySelector('[data-fdpreset]')
-  const rect = surface ? surface.getBoundingClientRect() : { left: 0, top: 0 }
-  const { panX, panY, zoom } = editorUi.viewport.state
-  const cx = rect.left + panX + (props.note.x + props.note.w / 2) * zoom
-  const top = rect.top + panY + props.note.y * zoom
-  return { left: `${cx}px`, top: `${top - 10}px` }
-})
-function setColor(color) {
-  store.updateStickyNote(props.note.id, { color })
-}
-function duplicate() {
-  const id = store.addStickyNote(props.note.x + 16, props.note.y + 16, {
-    color: props.note.color,
-    text: props.note.text,
-    author: props.note.author,
-  })
-  ui.selectSticky(id)
-}
-function removeSticky() {
-  store.removeStickyNote(props.note.id)
-  ui.clearSelection()
-}
 // Keep the (non-editing) DOM text in sync with the model without interpolating
 // inside the contentEditable, mirroring the shared TextEditor so user keystrokes
 // are never clobbered by a re-render.
@@ -273,42 +248,6 @@ function openLink(event) {
       <text x="8" y="8" text-anchor="middle" dominant-baseline="central" font-size="8" font-weight="700" :fill="ink" font-family="Inter, sans-serif">{{ authorInitial }}</text>
       <text x="24" y="8" dominant-baseline="central" font-size="10" :fill="ink" fill-opacity="0.85" font-family="Inter, sans-serif">{{ note.author }}</text>
     </g>
-
-    <!-- Floating contextual toolbar above the selected sticky (colour/duplicate/delete).
-         Single-selection only, so it never clutters a multi-selection. -->
-    <Teleport to="body">
-      <div
-        v-if="solo && !isDragging"
-        class="fixed z-30 flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-lg border border-outline-gray-2 bg-surface-base p-1 shadow-lg"
-        :style="toolbarStyle"
-      >
-        <button
-          v-for="c in stickyColors"
-          :key="c"
-          class="h-5 w-5 rounded-full border border-outline-gray-2"
-          :style="{ background: c }"
-          :aria-label="`Colour ${c}`"
-          @pointerdown.stop
-          @click="setColor(c)"
-        />
-        <Divider orientation="vertical" class="mx-0.5 !h-5" />
-        <button
-          class="flex h-7 w-7 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2"
-          :class="note.strike ? 'bg-surface-gray-3 text-ink-gray-9' : ''"
-          title="Strikethrough" aria-label="Strikethrough"
-          @pointerdown.stop @click="store.updateStickyNote(note.id, { strike: !note.strike })"
-        >
-          <LucideIcon name="strikethrough" class="h-4 w-4" />
-        </button>
-        <Divider orientation="vertical" class="mx-0.5 !h-5" />
-        <button class="flex h-7 w-7 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2" title="Duplicate" aria-label="Duplicate" @pointerdown.stop @click="duplicate">
-          <LucideIcon name="copy" class="h-4 w-4" />
-        </button>
-        <button class="flex h-7 w-7 items-center justify-center rounded-md text-ink-red-4 hover:bg-red-50" title="Delete" aria-label="Delete" @pointerdown.stop @click="removeSticky">
-          <LucideIcon name="trash-2" class="h-4 w-4" />
-        </button>
-      </div>
-    </Teleport>
 
     <!-- Resize handle (bottom-right), shown only for a lone selection. -->
     <rect
