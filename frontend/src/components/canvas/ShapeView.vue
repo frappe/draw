@@ -73,7 +73,11 @@ const center = computed(() => ({
 // rotation angle (Transform section, D10). SVG applies the rightmost transform
 // first, so the mirror (translate/scale/translate) sits to the right of rotate.
 const transform = computed(() => {
-  const { rotation, flipX, flipY } = props.shape
+  const { flipX, flipY } = props.shape
+  // Mind-map / flowchart nodes never rotate (#7): they auto-size to text and offer
+  // add-node CTAs instead of a rotation knob, so ignore any stored angle on render.
+  const roleIsNode = props.shape.role === 'mindmap-node' || props.shape.role === 'flowchart-node'
+  const rotation = roleIsNode ? 0 : props.shape.rotation
   const parts = []
   if (rotation) parts.push(`rotate(${rotation} ${center.value.x} ${center.value.y})`)
   if (flipX || flipY) {

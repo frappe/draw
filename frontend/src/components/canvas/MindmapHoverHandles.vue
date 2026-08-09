@@ -94,13 +94,20 @@ onBeforeUnmount(() => {
   svg.removeEventListener('pointerleave', onPointerLeave)
 })
 
-// The nodes that should show handles right now: only the hovered one (#265), via
-// the pure predicate — the gap column is a hover affordance, not a selection one.
-const targetIds = computed(() =>
-  Object.keys(ctx.value.boxes).filter((id) =>
-    shouldShowHandles({ hovered: hoveredId.value === id, selectTool: selectTool.value }),
-  ),
-)
+// The nodes that should show handles right now: the hovered one AND the sole
+// selection (#261 — a selected node surfaces its add CTAs), deduped via the pure
+// predicate.
+const targetIds = computed(() => {
+  const selection = store.state.selection || []
+  const sole = selection.length === 1 ? selection[0] : null
+  return Object.keys(ctx.value.boxes).filter((id) =>
+    shouldShowHandles({
+      hovered: hoveredId.value === id,
+      soleSelected: sole === id,
+      selectTool: selectTool.value,
+    }),
+  )
+})
 
 const handles = computed(() => targetIds.value.flatMap((id) => handlesForNode(id, ctx.value)))
 

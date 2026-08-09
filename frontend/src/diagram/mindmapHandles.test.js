@@ -205,13 +205,15 @@ describe('childCount', () => {
 })
 
 describe('shouldShowHandles', () => {
-  it('shows only while hovered under the select tool (#265)', () => {
+  it('shows while hovered OR while the sole selection, under the select tool (#261)', () => {
     expect(shouldShowHandles({ selectTool: true, hovered: true })).toBe(true)
-    // Not on selection any more — the gap column is a hover-only affordance.
-    expect(shouldShowHandles({ selectTool: true, soleSelected: true })).toBe(false)
+    // #261: a selected node now surfaces its add CTAs, not only a hovered one.
+    expect(shouldShowHandles({ selectTool: true, soleSelected: true })).toBe(true)
+    // Neither hovered nor selected: nothing shows.
     expect(shouldShowHandles({ selectTool: true })).toBe(false)
     // Never while another tool is armed.
     expect(shouldShowHandles({ selectTool: false, hovered: true })).toBe(false)
+    expect(shouldShowHandles({ selectTool: false, soleSelected: true })).toBe(false)
     expect(shouldShowHandles()).toBe(false)
   })
 })

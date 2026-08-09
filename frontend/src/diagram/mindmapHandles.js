@@ -182,8 +182,10 @@ export function handlesForNode(nodeId, ctx) {
 // only while it is HOVERED (#265) — not on selection, so the gap column appears just
 // as the pointer reaches the node. Kept pure and per-node so the component's target
 // set is a plain filter over this predicate.
-export function shouldShowHandles({ hovered = false, selectTool = false } = {}) {
-  return Boolean(selectTool && hovered)
+export function shouldShowHandles({ hovered = false, soleSelected = false, selectTool = false } = {}) {
+  // #261: a node shows its add-node CTAs while hovered OR while it is the sole
+  // selection — so selecting a node (not only hovering it) surfaces the affordance.
+  return Boolean(selectTool && (hovered || soleSelected))
 }
 
 // The topmost migrated mind-map node (by zIndex) whose box is under `point`, or
