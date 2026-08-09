@@ -36,14 +36,14 @@ function onUpdate(color) {
   <div v-else class="flex items-center gap-2">
     <span v-if="label" class="w-12 shrink-0 text-2xs text-ink-gray-6">{{ label }}</span>
     <Popover>
-      <template #target="{ togglePopover }">
+      <template #trigger>
         <Button
           class="!flex-1 !justify-start"
           variant="outline"
           theme="gray"
           size="md"
           :label="`Colour ${swatch}`"
-          @click="togglePopover()"
+         
         >
           <template #prefix>
             <span class="h-4 w-4 rounded-[3px] border border-outline-gray-2" :style="{ background: swatch }" />
@@ -51,7 +51,7 @@ function onUpdate(color) {
           <span class="text-sm font-medium uppercase text-ink-gray-7">{{ swatch }}</span>
         </Button>
       </template>
-      <template #body-main>
+      <template #default>
         <div class="w-[208px] p-2.5">
           <ColorPickerBody :model-value="modelValue" @update:model-value="onUpdate" />
         </div>

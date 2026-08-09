@@ -42,13 +42,13 @@ const rowClass =
 
 <template>
   <Popover>
-    <template #target="{ togglePopover }">
-      <Button variant="outline" @click="togglePopover()">
+    <template #trigger>
+      <Button variant="outline">
         <template #prefix><LucideIcon name="download" class="h-4 w-4" /></template>
         Export
       </Button>
     </template>
-    <template #body-main="{ togglePopover }">
+    <template #default="{ toggle }">
       <div class="w-56 p-1.5">
         <!-- PNG: scale selector -->
         <div class="rounded-md px-2 py-1.5">
@@ -62,7 +62,7 @@ const rowClass =
                 v-for="s in PNG_SCALES"
                 :key="s"
                 class="rounded px-1.5 py-0.5 text-xs text-ink-gray-7 hover:bg-surface-gray-3"
-                @click="exportPng(s, togglePopover)"
+                @click="exportPng(s, toggle)"
               >
                 {{ s }}×
               </button>
@@ -70,14 +70,14 @@ const rowClass =
           </div>
         </div>
 
-        <button v-for="f in FORMATS" :key="f.label" :class="rowClass" @click="runFormat(f, togglePopover)">
+        <button v-for="f in FORMATS" :key="f.label" :class="rowClass" @click="runFormat(f, toggle)">
           <LucideIcon :name="f.icon" class="h-4 w-4 text-ink-gray-6" />
           {{ f.label }}
         </button>
 
         <div class="my-1 h-px bg-surface-gray-2" />
 
-        <button :class="rowClass" @click="print(togglePopover)">
+        <button :class="rowClass" @click="print(toggle)">
           <LucideIcon name="printer" class="h-4 w-4 text-ink-gray-6" />
           Print
         </button>

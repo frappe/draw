@@ -257,7 +257,7 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
 
       <!-- The primary "add" action: a larger, solid, circular "+" (#83). -->
       <Popover>
-        <template #target="{ togglePopover }">
+        <template #trigger>
           <Button
             class="mx-1 !size-[38px] !rounded-full shadow-sm"
             variant="solid"
@@ -266,10 +266,9 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
             icon="lucide-plus"
             tooltip="Add"
             label="Add"
-            @click="togglePopover()"
           />
         </template>
-        <template #body-main="{ togglePopover }">
+        <template #default="{ toggle }">
           <!-- Six-across catalog: wider than tall, everything visible at a glance. -->
           <div class="w-[256px] p-2">
             <TextInput
@@ -292,9 +291,9 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
                 :tooltip="s.label"
                 :label="s.label"
                 :draggable="!NON_DRAGGABLE_SHAPES.includes(s.type)"
-                @click="arm(s.type, togglePopover)"
+                @click="arm(s.type, toggle)"
                 @dragstart="startTileDrag($event, s.type)"
-                @dragend="endTileDrag(togglePopover)"
+                @dragend="endTileDrag(toggle)"
               >
                 <template #icon>
                   <ShapeGlyph family="block" :type="s.type" class="h-[18px] w-[18px]" />
@@ -314,9 +313,9 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
                 :tooltip="con.label"
                 :label="con.label"
                 draggable="true"
-                @click="arm(con.type, togglePopover)"
+                @click="arm(con.type, toggle)"
                 @dragstart="startTileDrag($event, con.type)"
-                @dragend="endTileDrag(togglePopover)"
+                @dragend="endTileDrag(toggle)"
               />
             </div>
 
@@ -326,11 +325,11 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
                 <!-- Table: opens the size picker; picking inserts the table, then
                      closes the picker and the catalog (#134). -->
                 <Popover v-if="t.key === 'table'">
-                  <template #target="{ togglePopover: togglePicker }">
-                    <Button variant="ghost" theme="gray" size="md" :icon="t.icon" :tooltip="t.label" :label="t.label" @click="togglePicker()" />
+                  <template #trigger>
+                    <Button variant="ghost" theme="gray" size="md" :icon="t.icon" :tooltip="t.label" :label="t.label" />
                   </template>
-                  <template #body-main="{ togglePopover: closePicker }">
-                    <TableSizePicker @pick="insertTable($event); closePicker(); togglePopover()" />
+                  <template #default="{ toggle: closePicker }">
+                    <TableSizePicker @pick="insertTable($event); closePicker(); toggle()" />
                   </template>
                 </Popover>
                 <Button
@@ -341,7 +340,7 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
                   :icon="t.icon"
                   :tooltip="t.label"
                   :label="t.label"
-                  @click="runCreateTool(t, togglePopover)"
+                  @click="runCreateTool(t, toggle)"
                 />
               </template>
             </div>
@@ -354,7 +353,7 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
                 size="md"
                 tooltip="Parent Node"
                 label="Parent Node"
-                @click="insertMindmap(togglePopover)"
+                @click="insertMindmap(toggle)"
               >
                 <template #icon>
                   <ShapeGlyph family="mindmap" class="h-[18px] w-[18px]" />
@@ -372,7 +371,7 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
                 size="md"
                 :tooltip="n.label"
                 :label="n.label"
-                @click="insertFlowchartNode(n.type, togglePopover)"
+                @click="insertFlowchartNode(n.type, toggle)"
               >
                 <template #icon>
                   <ShapeGlyph family="flowchart" :type="n.type" class="h-[18px] w-[18px]" />

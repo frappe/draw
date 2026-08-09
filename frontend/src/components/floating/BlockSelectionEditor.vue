@@ -192,10 +192,10 @@ function setNodeCurve(value) {
       <!-- Connector selected: just its line controls. -->
       <template v-if="connector">
         <Popover side="top">
-          <template #target="{ togglePopover }">
-            <Button variant="ghost" theme="gray" size="md" icon="lucide-minus" tooltip="Line" label="Line" @mousedown.prevent @click="togglePopover()" />
+          <template #trigger>
+            <Button variant="ghost" theme="gray" size="md" icon="lucide-minus" tooltip="Line" label="Line" @mousedown.prevent />
           </template>
-          <template #body-main><div :class="panel"><ConnectorSection :connector="connector" /></div></template>
+          <template #default><div :class="panel"><ConnectorSection :connector="connector" /></div></template>
         </Popover>
       </template>
 
@@ -206,14 +206,14 @@ function setNodeCurve(value) {
         <!-- Fill and Border are separate menu items (each opens its own colour
              picker); opacity lives with Fill. -->
         <Popover side="top">
-          <template #target="{ togglePopover }">
-            <Button variant="ghost" theme="gray" size="md" tooltip="Fill" label="Fill" @mousedown.prevent @click="togglePopover()">
+          <template #trigger>
+            <Button variant="ghost" theme="gray" size="md" tooltip="Fill" label="Fill" @mousedown.prevent>
               <template #icon>
                 <span class="h-4 w-4 rounded-full border border-outline-gray-4" :style="{ background: primaryFill }" />
               </template>
             </Button>
           </template>
-          <template #body-main>
+          <template #default>
             <div :class="panel">
               <EspressoSwatchGrid v-if="isNodeSelection" mode="fill" :model-value="primaryFill" @select="setNodeFill" />
               <template v-else><FillBorderSection mode="fill" /><TransparencySection /></template>
@@ -222,14 +222,14 @@ function setNodeCurve(value) {
         </Popover>
 
         <Popover side="top">
-          <template #target="{ togglePopover }">
-            <Button variant="ghost" theme="gray" size="md" tooltip="Border" label="Border" @mousedown.prevent @click="togglePopover()">
+          <template #trigger>
+            <Button variant="ghost" theme="gray" size="md" tooltip="Border" label="Border" @mousedown.prevent>
               <template #icon>
                 <span class="h-4 w-4 rounded-full border-[3px] bg-surface-base" :style="{ borderColor: primaryBorder }" />
               </template>
             </Button>
           </template>
-          <template #body-main>
+          <template #default>
             <div :class="panel">
               <EspressoSwatchGrid v-if="isNodeSelection" mode="border" :model-value="primaryBorder" @select="setNodeBorder" />
               <FillBorderSection v-else mode="border" />
@@ -239,10 +239,10 @@ function setNodeCurve(value) {
 
         <!-- Per-node corner curve (#260), only for mind-map nodes. -->
         <Popover v-if="isNodeSelection" side="top">
-          <template #target="{ togglePopover }">
-            <Button variant="ghost" theme="gray" size="md" icon="lucide-spline" tooltip="Corners" label="Corners" @mousedown.prevent @click="togglePopover()" />
+          <template #trigger>
+            <Button variant="ghost" theme="gray" size="md" icon="lucide-spline" tooltip="Corners" label="Corners" @mousedown.prevent />
           </template>
-          <template #body-main>
+          <template #default>
             <div class="p-2">
               <TabButtons size="sm" :model-value="nodeCurve" :options="curveOptions" @update:model-value="setNodeCurve" />
             </div>
@@ -270,14 +270,14 @@ function setNodeCurve(value) {
         <Button :variant="alignActive('right') ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-text-align-end" tooltip="Align right" label="Align right" @mousedown.prevent @click="setTextAlign('right')" />
         <!-- Text colour (#259): a coloured "A" opens the Espresso grid. -->
         <Popover side="top">
-          <template #target="{ togglePopover }">
-            <Button variant="ghost" theme="gray" size="md" tooltip="Text colour" label="Text colour" @mousedown.prevent @click="togglePopover()">
+          <template #trigger>
+            <Button variant="ghost" theme="gray" size="md" tooltip="Text colour" label="Text colour" @mousedown.prevent>
               <template #icon>
                 <span class="grid size-4 place-items-center rounded text-xs font-semibold" :style="{ color: currentTextColor }">A</span>
               </template>
             </Button>
           </template>
-          <template #body-main>
+          <template #default>
             <div class="p-1"><EspressoSwatchGrid mode="fill" :allow-none="false" :model-value="currentTextColor" @select="setTextColor" /></div>
           </template>
         </Popover>
@@ -289,40 +289,40 @@ function setNodeCurve(value) {
         <!-- Arrange / Align / Distribute / Transform are separate menu items, not
              one crammed leaf; each opens just its own section. -->
         <Popover side="top">
-          <template #target="{ togglePopover }">
-            <Button variant="ghost" theme="gray" size="md" icon="lucide-layers" tooltip="Arrange" label="Arrange" @mousedown.prevent @click="togglePopover()" />
+          <template #trigger>
+            <Button variant="ghost" theme="gray" size="md" icon="lucide-layers" tooltip="Arrange" label="Arrange" @mousedown.prevent />
           </template>
-          <template #body-main><div :class="panel"><ArrangeSection /></div></template>
+          <template #default><div :class="panel"><ArrangeSection /></div></template>
         </Popover>
 
         <!-- Align & distribute act between shapes — only for a multi-selection,
              so a lone shape doesn't open an empty menu. -->
         <Popover v-if="multi" side="top">
-          <template #target="{ togglePopover }">
-            <Button variant="ghost" theme="gray" size="md" icon="lucide-align-center-horizontal" tooltip="Align" label="Align" @mousedown.prevent @click="togglePopover()" />
+          <template #trigger>
+            <Button variant="ghost" theme="gray" size="md" icon="lucide-align-center-horizontal" tooltip="Align" label="Align" @mousedown.prevent />
           </template>
-          <template #body-main><div :class="panel"><AlignSection /></div></template>
+          <template #default><div :class="panel"><AlignSection /></div></template>
         </Popover>
 
         <Popover v-if="multi" side="top">
-          <template #target="{ togglePopover }">
-            <Button variant="ghost" theme="gray" size="md" icon="lucide-columns-2" tooltip="Distribute & size" label="Distribute & size" @mousedown.prevent @click="togglePopover()" />
+          <template #trigger>
+            <Button variant="ghost" theme="gray" size="md" icon="lucide-columns-2" tooltip="Distribute & size" label="Distribute & size" @mousedown.prevent />
           </template>
-          <template #body-main><div :class="panel"><DistributeSizeSection /></div></template>
+          <template #default><div :class="panel"><DistributeSizeSection /></div></template>
         </Popover>
 
         <Popover side="top">
-          <template #target="{ togglePopover }">
-            <Button variant="ghost" theme="gray" size="md" icon="lucide-flip-horizontal-2" tooltip="Transform" label="Transform" @mousedown.prevent @click="togglePopover()" />
+          <template #trigger>
+            <Button variant="ghost" theme="gray" size="md" icon="lucide-flip-horizontal-2" tooltip="Transform" label="Transform" @mousedown.prevent />
           </template>
-          <template #body-main><div :class="panel"><TransformSection /></div></template>
+          <template #default><div :class="panel"><TransformSection /></div></template>
         </Popover>
 
         <Popover side="top">
-          <template #target="{ togglePopover }">
-            <Button variant="ghost" theme="gray" size="md" icon="lucide-link" tooltip="Link" label="Link" @mousedown.prevent @click="togglePopover()" />
+          <template #trigger>
+            <Button variant="ghost" theme="gray" size="md" icon="lucide-link" tooltip="Link" label="Link" @mousedown.prevent />
           </template>
-          <template #body-main>
+          <template #default>
             <div :class="panel">
               <LinkSection />
             </div>

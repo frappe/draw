@@ -135,10 +135,10 @@ function remove() {
     >
       <!-- Node type — single selection only. -->
       <Popover v-if="node" side="top">
-        <template #target="{ togglePopover }">
-          <Button variant="ghost" theme="gray" size="md" icon="lucide-shapes" tooltip="Node type" label="Node type" @mousedown.prevent @click="togglePopover()" />
+        <template #trigger>
+          <Button variant="ghost" theme="gray" size="md" icon="lucide-shapes" tooltip="Node type" label="Node type" @mousedown.prevent />
         </template>
-        <template #body-main>
+        <template #default>
           <div class="w-[196px] p-2">
             <div class="mb-1 text-2xs font-semibold text-ink-gray-4">Node type</div>
             <div class="grid grid-cols-5 gap-1.5">
@@ -161,14 +161,14 @@ function remove() {
 
       <!-- Fill -->
       <Popover side="top">
-        <template #target="{ togglePopover }">
-          <Button variant="ghost" theme="gray" size="md" tooltip="Fill" label="Fill" @mousedown.prevent @click="togglePopover()">
+        <template #trigger>
+          <Button variant="ghost" theme="gray" size="md" tooltip="Fill" label="Fill" @mousedown.prevent>
             <template #icon>
               <span class="h-4 w-4 rounded-full border border-outline-gray-2" :style="{ background: fillPreview }" />
             </template>
           </Button>
         </template>
-        <template #body-main>
+        <template #default>
           <div class="w-[204px] p-2">
             <div class="mb-1.5 text-2xs font-semibold text-ink-gray-4">Fill</div>
             <SwatchGrid :colors="SWATCH_PALETTE" shape="square" class="mb-2" @select="setFill" />
@@ -179,14 +179,14 @@ function remove() {
 
       <!-- Border — its own menu, rendered as rings so it reads as a border. -->
       <Popover side="top">
-        <template #target="{ togglePopover }">
-          <Button variant="ghost" theme="gray" size="md" tooltip="Border" label="Border" @mousedown.prevent @click="togglePopover()">
+        <template #trigger>
+          <Button variant="ghost" theme="gray" size="md" tooltip="Border" label="Border" @mousedown.prevent>
             <template #icon>
               <span class="h-4 w-4 rounded-full border-[3px]" :style="{ borderColor: borderPreview }" />
             </template>
           </Button>
         </template>
-        <template #body-main>
+        <template #default>
           <div class="w-[204px] p-2">
             <div class="mb-1.5 text-2xs font-semibold text-ink-gray-4">Border</div>
             <SwatchGrid :colors="SWATCH_PALETTE" shape="ring" class="mb-2" @select="setBorder" />
@@ -213,10 +213,10 @@ function remove() {
 
       <!-- Decision branches — single selection only. -->
       <Popover v-if="node && node.nodeType === 'decision'" side="top">
-        <template #target="{ togglePopover }">
-          <Button variant="ghost" theme="gray" size="md" icon="lucide-git-branch" tooltip="Branches" label="Branches" @mousedown.prevent @click="togglePopover()" />
+        <template #trigger>
+          <Button variant="ghost" theme="gray" size="md" icon="lucide-git-branch" tooltip="Branches" label="Branches" @mousedown.prevent />
         </template>
-        <template #body-main>
+        <template #default>
           <div class="w-[236px] p-2">
             <div class="mb-1 text-2xs font-semibold text-ink-gray-4">Branches</div>
             <div class="flex flex-col gap-1.5">

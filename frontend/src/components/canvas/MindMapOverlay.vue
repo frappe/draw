@@ -250,14 +250,14 @@ function activeBtn(on) {
 
       <!-- Fill — its own menu; applies to every selected node. -->
       <Popover side="top">
-        <template #target="{ togglePopover }">
+        <template #trigger>
           <Tooltip text="Fill">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()">
+            <button :class="btn" @mousedown.prevent>
               <span class="h-4 w-4 rounded-full border border-outline-gray-2" :style="{ background: fillPreview }" />
             </button>
           </Tooltip>
         </template>
-        <template #body-main>
+        <template #default>
           <div class="w-[204px] p-2">
             <div class="mb-1.5 text-2xs font-semibold text-ink-gray-4">Fill</div>
             <SwatchGrid :colors="SWATCH_PALETTE" shape="square" class="mb-2" @select="setFill" />
@@ -270,14 +270,14 @@ function activeBtn(on) {
 
       <!-- Branch — the node's accent colour (curve + default border/tint). -->
       <Popover side="top">
-        <template #target="{ togglePopover }">
+        <template #trigger>
           <Tooltip text="Branch colour">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()">
+            <button :class="btn" @mousedown.prevent>
               <span class="h-4 w-4 rounded-full border border-outline-gray-2" :style="{ background: branchPreview }" />
             </button>
           </Tooltip>
         </template>
-        <template #body-main>
+        <template #default>
           <div class="w-[204px] p-2">
             <div class="mb-1.5 text-2xs font-semibold text-ink-gray-4">Branch</div>
             <SwatchGrid :colors="SWATCH_PALETTE" @select="setColor" />
@@ -287,14 +287,14 @@ function activeBtn(on) {
 
       <!-- Border — its own control, rendered as rings so it reads as a border. -->
       <Popover side="top">
-        <template #target="{ togglePopover }">
+        <template #trigger>
           <Tooltip text="Border">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()">
+            <button :class="btn" @mousedown.prevent>
               <span class="h-4 w-4 rounded-full border-[3px]" :style="{ borderColor: borderPreview }" />
             </button>
           </Tooltip>
         </template>
-        <template #body-main>
+        <template #default>
           <div class="w-[204px] p-2">
             <div class="mb-1.5 text-2xs font-semibold text-ink-gray-4">Border</div>
             <SwatchGrid :colors="SWATCH_PALETTE" shape="ring" class="mb-2" @select="setBorder" />
@@ -308,14 +308,14 @@ function activeBtn(on) {
       <!-- Connector line style (solid/dashed/dotted) for the branch into the
            selected node(s) — hidden when only the root is selected. -->
       <Popover v-if="hasNonRootSelected" side="top">
-        <template #target="{ togglePopover }">
+        <template #trigger>
           <Tooltip text="Connector style">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()">
+            <button :class="btn" @mousedown.prevent>
               <svg width="18" height="12" viewBox="0 0 18 12"><line x1="1" y1="6" x2="17" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round" :stroke-dasharray="{ solid: '0', dashed: '5 3', dotted: '1.5 3' }[linkDashValue]" /></svg>
             </button>
           </Tooltip>
         </template>
-        <template #body-main>
+        <template #default>
           <div class="w-[168px] p-2">
             <div class="mb-1.5 text-2xs font-semibold text-ink-gray-4">Connector</div>
             <div class="flex gap-1">
@@ -341,14 +341,14 @@ function activeBtn(on) {
 
       <!-- Shape — surfaced directly (O8). -->
       <Popover side="top">
-        <template #target="{ togglePopover }">
+        <template #trigger>
           <Tooltip text="Shape">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()">
+            <button :class="btn" @mousedown.prevent>
               <LucideIcon name="shapes" class="h-4 w-4" />
             </button>
           </Tooltip>
         </template>
-        <template #body-main>
+        <template #default>
           <div class="w-[196px] p-2">
             <div class="mb-1 text-2xs font-semibold text-ink-gray-4">Shape</div>
             <div class="flex flex-wrap gap-1.5">
@@ -375,14 +375,14 @@ function activeBtn(on) {
 
       <!-- Text size — surfaced directly as a stepper (O5/O6). -->
       <Popover side="top">
-        <template #target="{ togglePopover }">
+        <template #trigger>
           <Tooltip text="Text size">
-            <button :class="btn" @mousedown.prevent @click="togglePopover()">
+            <button :class="btn" @mousedown.prevent>
               <LucideIcon name="type" class="h-4 w-4" />
             </button>
           </Tooltip>
         </template>
-        <template #body-main>
+        <template #default>
           <div class="w-[160px] p-2">
             <div class="mb-1 text-2xs font-semibold text-ink-gray-4">Text size</div>
             <div class="flex items-center gap-1.5">
@@ -400,14 +400,14 @@ function activeBtn(on) {
 
       <!-- Marker — surfaced directly. -->
       <Popover side="top">
-        <template #target="{ togglePopover }">
+        <template #trigger>
           <Tooltip text="Marker">
-            <button :class="[btn, activeBtn(!!node.marker?.icon)]" @mousedown.prevent @click="togglePopover()">
+            <button :class="[btn, activeBtn(!!node.marker?.icon)]" @mousedown.prevent>
               <LucideIcon name="star" class="h-4 w-4" />
             </button>
           </Tooltip>
         </template>
-        <template #body-main>
+        <template #default>
           <div class="w-[172px] p-2">
             <div class="mb-1 text-2xs font-semibold text-ink-gray-4">Marker</div>
             <div class="flex flex-wrap gap-1.5">

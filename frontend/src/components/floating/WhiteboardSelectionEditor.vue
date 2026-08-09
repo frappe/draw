@@ -64,7 +64,7 @@ function remove() {
 
       <!-- Lone line/table: its option controls in a popover. -->
       <Popover v-else-if="line || table" side="top">
-        <template #target="{ togglePopover }">
+        <template #trigger>
           <Button
             variant="ghost"
             theme="gray"
@@ -73,10 +73,10 @@ function remove() {
             :tooltip="`Edit ${label.toLowerCase()}`"
             :label="`Edit ${label.toLowerCase()}`"
             @mousedown.prevent
-            @click="togglePopover()"
+           
           />
         </template>
-        <template #body-main>
+        <template #default>
           <LineOptions
             v-if="line"
             :start="line.start"

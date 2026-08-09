@@ -144,7 +144,7 @@ function insertTable({ rows, cols }, close) {
        the exception — clicking it opens the size picker, which inserts on pick. -->
   <template v-for="t in visibleTools" :key="t.tool">
     <Popover v-if="t.tool === 'table'">
-      <template #target="{ togglePopover: togglePicker }">
+      <template #trigger>
         <Button
           :data-testid="'wtool-' + t.tool"
           :variant="activeTool === t.tool ? 'subtle' : 'ghost'"
@@ -153,11 +153,10 @@ function insertTable({ rows, cols }, close) {
           :icon="t.icon"
           :tooltip="t.label"
           :label="t.label"
-          @click="togglePicker()"
         />
       </template>
-      <template #body-main="{ togglePopover }">
-        <TableSizePicker @pick="insertTable($event, togglePopover)" />
+      <template #default="{ toggle }">
+        <TableSizePicker @pick="insertTable($event, toggle)" />
       </template>
     </Popover>
     <Button
@@ -188,7 +187,7 @@ function insertTable({ rows, cols }, close) {
   <!-- Options for the active tool (separate disclosure, shown only when it has any).
        Also opened directly by the eraser tool button above (#241). -->
   <Popover v-if="activeHasOptions" ref="optionsPopoverRef">
-    <template #target="{ togglePopover }">
+    <template #trigger>
       <Button
         variant="ghost"
         theme="gray"
@@ -196,10 +195,9 @@ function insertTable({ rows, cols }, close) {
         icon="lucide-sliders-horizontal"
         :tooltip="optionsLabel"
         :label="optionsLabel"
-        @click="togglePopover()"
       />
     </template>
-    <template #body-main>
+    <template #default>
       <!-- Draw (#242): pen/highlighter sub-mode picker, shared color, pen-only
            size (highlighter's width is the fixed HIGHLIGHTER_WIDTH constant, not
            a user control today), highlighter-only opacity. -->
