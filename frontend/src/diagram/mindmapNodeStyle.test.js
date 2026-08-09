@@ -7,6 +7,8 @@ import {
   borderProp,
   connectorColor,
   CONNECTOR_GRAY,
+  hasFill,
+  hasBorder,
 } from './mindmapNodeStyle.js'
 
 describe('mindmapNodeStyle', () => {
@@ -56,5 +58,15 @@ describe('mindmapNodeStyle', () => {
   it('follows the child colour for the branch connector, gray by default (#272)', () => {
     expect(connectorColor()).toBe(CONNECTOR_GRAY)
     expect(connectorColor('#0289F7')).toBe('#0289F7')
+  })
+
+  it('detects a visible fill / border so the picker can keep shaped correct (#274)', () => {
+    expect(hasFill({ fill: '#F3F3F3' })).toBe(true)
+    expect(hasFill({ fill: 'none' })).toBe(false)
+    expect(hasFill({})).toBe(false)
+    expect(hasBorder({ border: { color: '#C7C7C7', width: 1.5 } })).toBe(true)
+    expect(hasBorder({ border: { color: 'transparent', width: 0 } })).toBe(false)
+    expect(hasBorder({ border: { color: '#C7C7C7', width: 0 } })).toBe(false)
+    expect(hasBorder({})).toBe(false)
   })
 })

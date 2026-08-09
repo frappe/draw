@@ -5,12 +5,16 @@
 // each reusing the existing modification sections so all logic (incl. multi-
 // select intersection) is shared. Mounted once per editor (EditorShell).
 import { computed } from 'vue'
-import { Button, Popover, Select } from 'frappe-ui'
+import { Button, Popover, Select, TabButtons } from 'frappe-ui'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { anchorPoint, unionBounds } from '@/diagram/geometry.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
 import { isDragging } from '@/composables/useShapeTransform.js'
 import { activeEditor, richCommands, isMarkActive } from '@/composables/useRichText.js'
+import { isMindmapShape } from '@/diagram/freeFloating.js'
+import { hasFill, hasBorder } from '@/diagram/mindmapNodeStyle.js'
+import { inkFor } from '@/diagram/espressoPalette.js'
+import EspressoSwatchGrid from '@/components/palette-right/EspressoSwatchGrid.vue'
 import FillBorderSection from '@/components/palette-right/FillBorderSection.vue'
 import ArrangeSection from '@/components/palette-right/ArrangeSection.vue'
 import AlignSection from '@/components/palette-right/AlignSection.vue'
@@ -130,6 +134,42 @@ function toggleAutoFit() {
 }
 
 const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
+
+// ---- mind-map node overrides (#274 / #260). A node selection swaps the full
+// colour picker for the curated Espresso grid and exposes a per-node corner curve.
+const isNodeSelection = computed(() => hasShapes.value && shapes.value.every((s) => isMindmapShape(s)))
+const nodeCurve = computed(() => shapes.value[0]?.mindmap?.curve || 'moderate')
+const curveOptions = [
+  { label: 'None', value: 'none' },
+  { label: 'Moderate', value: 'moderate' },
+  { label: 'High', value: 'high' },
+]
+
+// Set a node's fill from the grid: a colour boxes it (keeping text readable), "None"
+// (null) clears it — the node stays shaped only while it still has a border.
+function setNodeFill(hex) {
+  const ids = shapeIds.value
+  if (!ids.length) return
+  if (hex === null) store.updateShapes(ids, { fill: 'none', mindmap: { shaped: hasBorder(shapes.value[0]) } })
+  else store.updateShapes(ids, { fill: hex, text: { style: { color: inkFor(hex) } }, mindmap: { shaped: true } })
+}
+
+// Set a node's border colour from the grid; "None" (null) removes the stroke, and
+// the node stays shaped only while it still has a fill.
+function setNodeBorder(hex) {
+  const ids = shapeIds.value
+  if (!ids.length) return
+  if (hex === null) {
+    store.updateShapes(ids, { border: { color: 'transparent', width: 0 }, mindmap: { shaped: hasFill(shapes.value[0]) } })
+  } else {
+    const width = shapes.value[0]?.border?.width > 0 ? shapes.value[0].border.width : 1.5
+    store.updateShapes(ids, { border: { color: hex, width }, mindmap: { shaped: true } })
+  }
+}
+
+function setNodeCurve(value) {
+  if (shapeIds.value.length) store.updateShapes(shapeIds.value, { mindmap: { curve: value } })
+}
 </script>
 
 <template>
@@ -162,7 +202,12 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
               </template>
             </Button>
           </template>
-          <template #body-main><div :class="panel"><FillBorderSection mode="fill" /><TransparencySection /></div></template>
+          <template #body-main>
+            <div :class="panel">
+              <EspressoSwatchGrid v-if="isNodeSelection" mode="fill" :model-value="primaryFill" @select="setNodeFill" />
+              <template v-else><FillBorderSection mode="fill" /><TransparencySection /></template>
+            </div>
+          </template>
         </Popover>
 
         <Popover side="top">
@@ -173,7 +218,24 @@ const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
               </template>
             </Button>
           </template>
-          <template #body-main><div :class="panel"><FillBorderSection mode="border" /></div></template>
+          <template #body-main>
+            <div :class="panel">
+              <EspressoSwatchGrid v-if="isNodeSelection" mode="border" :model-value="primaryBorder" @select="setNodeBorder" />
+              <FillBorderSection v-else mode="border" />
+            </div>
+          </template>
+        </Popover>
+
+        <!-- Per-node corner curve (#260), only for mind-map nodes. -->
+        <Popover v-if="isNodeSelection" side="top">
+          <template #target="{ togglePopover }">
+            <Button variant="ghost" theme="gray" size="md" icon="lucide-spline" tooltip="Corners" label="Corners" @mousedown.prevent @click="togglePopover()" />
+          </template>
+          <template #body-main>
+            <div class="p-2">
+              <TabButtons size="sm" :model-value="nodeCurve" :options="curveOptions" @update:model-value="setNodeCurve" />
+            </div>
+          </template>
         </Popover>
 
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />

@@ -43,6 +43,18 @@ export function borderProp(borderColor, width) {
   return { color: borderColor, width, dash: 'solid' }
 }
 
+// Whether a built shape currently carries a visible fill / border. Used to keep the
+// `shaped` flag correct as the per-node picker (#274) toggles a colour to "None": a
+// node stays boxed while it still has either, and becomes transparent text with
+// neither.
+export function hasFill(shape) {
+  return !!(shape?.fill && shape.fill !== 'none')
+}
+export function hasBorder(shape) {
+  const b = shape?.border
+  return !!(b && b.color !== 'transparent' && (b.width ?? 0) > 0)
+}
+
 // A branch line follows its child node's border colour (#272): gray by default,
 // the child's override when set.
 export const CONNECTOR_GRAY = NODE_GRAY.border

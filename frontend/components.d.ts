@@ -35,6 +35,7 @@ declare module 'vue' {
     DistributeSizeSection: typeof import('./src/components/palette-right/DistributeSizeSection.vue')['default']
     DriveMenu: typeof import('./src/components/toolbar/DriveMenu.vue')['default']
     EmptyState: typeof import('./src/components/home/EmptyState.vue')['default']
+    EspressoSwatchGrid: typeof import('./src/components/palette-right/EspressoSwatchGrid.vue')['default']
     ExportMenu: typeof import('./src/components/toolbar/ExportMenu.vue')['default']
     FillBorderSection: typeof import('./src/components/palette-right/FillBorderSection.vue')['default']
     FlowchartHoverHandles: typeof import('./src/components/canvas/FlowchartHoverHandles.vue')['default']
