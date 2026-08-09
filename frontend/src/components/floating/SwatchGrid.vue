@@ -19,8 +19,8 @@ defineEmits(['select'])
       :key="c"
       class="h-6 w-6"
       :class="[
-        shape === 'square' ? 'rounded-md border border-black/10' : 'rounded-full',
-        shape === 'ring' ? 'border-[3px] bg-surface-base' : shape === 'round' ? 'border border-black/10' : '',
+        shape === 'square' ? 'rounded-md border border-outline-gray-2' : 'rounded-full',
+        shape === 'ring' ? 'border-[3px] bg-surface-base' : shape === 'round' ? 'border border-outline-gray-2' : '',
       ]"
       :style="shape === 'ring' ? { borderColor: c } : { background: c }"
       @click="$emit('select', c)"

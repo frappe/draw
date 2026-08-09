@@ -177,7 +177,7 @@ onBeforeUnmount(() => {
       <span
         v-for="tick in horizontalTicks.filter((t) => t.major)"
         :key="'hl' + tick.value"
-        class="absolute top-[2px] text-[10px] font-medium leading-none text-ink-gray-7"
+        class="absolute top-[2px] text-2xs font-medium leading-none text-ink-gray-7"
         :style="{ left: tick.screen - THICKNESS + 'px', transform: 'translateX(-50%)' }"
       >{{ Math.round(tick.value) }}</span>
 
@@ -219,7 +219,7 @@ onBeforeUnmount(() => {
       <span
         v-for="tick in verticalTicks.filter((t) => t.major)"
         :key="'vl' + tick.value"
-        class="absolute left-[2px] text-[10px] font-medium leading-none text-ink-gray-7"
+        class="absolute left-[2px] text-2xs font-medium leading-none text-ink-gray-7"
         :style="{ top: tick.screen - THICKNESS + 'px', transform: 'translateY(-50%)' }"
       >{{ Math.round(tick.value) }}</span>
     </div>

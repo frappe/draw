@@ -136,12 +136,12 @@ const TIME_UNITS = [
       <div class="flex h-8 w-8 flex-none items-center justify-center rounded-md bg-surface-gray-2 text-ink-gray-7">
         <LucideIcon :name="icon" class="h-4 w-4" />
       </div>
-      <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-ink-gray-9">
+      <span class="min-w-0 flex-1 truncate text-sm font-medium text-ink-gray-9">
         {{ diagram.title }}
       </span>
-      <span class="hidden w-28 flex-none truncate text-[11px] text-ink-gray-5 lg:inline">{{ ownerLabel }}</span>
-      <span class="hidden w-28 flex-none text-[11px] text-ink-gray-5 md:inline">Created {{ createdLabel }}</span>
-      <span class="hidden w-28 flex-none text-[11px] text-ink-gray-5 sm:inline">Edited {{ editedLabel }}</span>
+      <span class="hidden w-28 flex-none truncate text-2xs text-ink-gray-5 lg:inline">{{ ownerLabel }}</span>
+      <span class="hidden w-28 flex-none text-2xs text-ink-gray-5 md:inline">Created {{ createdLabel }}</span>
+      <span class="hidden w-28 flex-none text-2xs text-ink-gray-5 sm:inline">Edited {{ editedLabel }}</span>
     </button>
 
     <Dropdown :options="menuItems" placement="bottom-end">
@@ -198,14 +198,14 @@ const TIME_UNITS = [
           class="h-full w-full object-contain"
         />
         <div v-else-if="previewSvg" class="h-full w-full [&>svg]:h-full [&>svg]:w-full" v-html="previewSvg" />
-        <span v-else class="text-[11px] italic text-ink-gray-4">Diagram is blank</span>
+        <span v-else class="text-2xs italic text-ink-gray-4">Diagram is blank</span>
       </div>
     </button>
 
     <div class="flex items-center gap-1 bg-surface-base px-3 py-2.5">
       <button class="min-w-0 flex-1 text-left" @click="emit('open', diagram.name)">
-        <div class="truncate text-[13px] font-semibold text-ink-gray-9">{{ diagram.title }}</div>
-        <div class="text-[11px] text-ink-gray-5">Created {{ createdLabel }} · Edited {{ editedLabel }}</div>
+        <div class="truncate text-sm font-semibold text-ink-gray-9">{{ diagram.title }}</div>
+        <div class="text-2xs text-ink-gray-5">Created {{ createdLabel }} · Edited {{ editedLabel }}</div>
       </button>
 
       <Dropdown :options="menuItems" placement="bottom-end">

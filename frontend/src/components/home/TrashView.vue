@@ -54,7 +54,7 @@ function refresh() {
 
 <template>
   <div>
-    <h1 class="mb-4 text-[22px] font-bold text-ink-gray-9">Trash</h1>
+    <h1 class="mb-4 text-3xl font-bold text-ink-gray-9">Trash</h1>
 
     <Alert
       class="mb-6"
@@ -63,7 +63,7 @@ function refresh() {
       :dismissible="false"
     />
 
-    <p v-if="!rows.length" class="text-[13px] text-ink-gray-5">Trash is empty.</p>
+    <p v-if="!rows.length" class="text-sm text-ink-gray-5">Trash is empty.</p>
 
     <div v-else class="grid gap-[18px]" style="grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))">
       <div
@@ -80,7 +80,7 @@ function refresh() {
           <LucideIcon v-else name="image" class="h-7 w-7 text-ink-gray-3" />
         </div>
         <div class="px-3 py-2.5">
-          <div class="truncate text-[13px] font-semibold text-ink-gray-9">{{ diagram.title }}</div>
+          <div class="truncate text-sm font-semibold text-ink-gray-9">{{ diagram.title }}</div>
           <div class="mt-2 flex gap-2">
             <Button variant="outline" @click="restore(diagram)">Restore</Button>
             <Button variant="outline" theme="red" @click="askPurge(diagram)">Delete</Button>

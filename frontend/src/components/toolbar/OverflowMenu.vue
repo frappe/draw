@@ -110,7 +110,7 @@ function frappeNow() {
 
   <Dialog v-model:open="showInfo" title="Diagram info">
     <template #default>
-      <dl class="grid grid-cols-[92px_1fr] gap-x-3 gap-y-2 text-[13px]">
+      <dl class="grid grid-cols-[92px_1fr] gap-x-3 gap-y-2 text-sm">
         <template v-for="[label, value] in infoRows" :key="label">
           <dt class="text-ink-gray-5">{{ label }}</dt>
           <dd class="truncate text-ink-gray-8">{{ value }}</dd>

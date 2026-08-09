@@ -37,7 +37,7 @@ function print(close) {
 }
 
 const rowClass =
-  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] text-ink-gray-8 hover:bg-surface-gray-2'
+  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-ink-gray-8 hover:bg-surface-gray-2'
 </script>
 
 <template>
@@ -53,7 +53,7 @@ const rowClass =
         <!-- PNG: scale selector -->
         <div class="rounded-md px-2 py-1.5">
           <div class="flex items-center justify-between">
-            <span class="flex items-center gap-2 text-[13px] text-ink-gray-8">
+            <span class="flex items-center gap-2 text-sm text-ink-gray-8">
               <LucideIcon name="image" class="h-4 w-4 text-ink-gray-6" />
               PNG
             </span>

@@ -284,7 +284,7 @@ function openLink(event) {
         <button
           v-for="c in stickyColors"
           :key="c"
-          class="h-5 w-5 rounded-full border border-black/10"
+          class="h-5 w-5 rounded-full border border-outline-gray-2"
           :style="{ background: c }"
           :aria-label="`Colour ${c}`"
           @pointerdown.stop
@@ -303,7 +303,7 @@ function openLink(event) {
         <button class="flex h-7 w-7 items-center justify-center rounded-md text-ink-gray-7 hover:bg-surface-gray-2" title="Duplicate" aria-label="Duplicate" @pointerdown.stop @click="duplicate">
           <LucideIcon name="copy" class="h-4 w-4" />
         </button>
-        <button class="flex h-7 w-7 items-center justify-center rounded-md text-red-600 hover:bg-red-50" title="Delete" aria-label="Delete" @pointerdown.stop @click="removeSticky">
+        <button class="flex h-7 w-7 items-center justify-center rounded-md text-ink-red-4 hover:bg-red-50" title="Delete" aria-label="Delete" @pointerdown.stop @click="removeSticky">
           <LucideIcon name="trash-2" class="h-4 w-4" />
         </button>
       </div>

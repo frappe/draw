@@ -108,7 +108,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
 
   <PaletteSection label="Line">
     <ColorPicker :model-value="style.color || '#7C7C7C'" label="Color" @update:model-value="setStyle({ color: $event })" />
-    <div class="mb-2 mt-2 text-[10px] font-semibold text-ink-gray-5">Width</div>
+    <div class="mb-2 mt-2 text-2xs font-semibold text-ink-gray-5">Width</div>
     <div class="mb-2 flex gap-1">
       <button
         v-for="w in WIDTHS"
@@ -130,7 +130,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
 
     <!-- Elbow routes can bend with rounded or sharp corners (spec 3.6). -->
     <template v-if="connector.type === 'elbow'">
-      <div class="mb-2 mt-2 text-[10px] font-semibold text-ink-gray-5">Corners</div>
+      <div class="mb-2 mt-2 text-2xs font-semibold text-ink-gray-5">Corners</div>
       <TabButtons
         :model-value="style.corner || 'rounded'"
         size="sm"

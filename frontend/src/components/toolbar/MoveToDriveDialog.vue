@@ -84,7 +84,7 @@ async function moveHere() {
     <template #default>
       <div class="flex flex-col gap-3">
         <!-- Breadcrumb: Home down to the folder being viewed; crumbs jump up the tree. -->
-        <nav v-if="driveInstalled" class="flex flex-wrap items-center gap-0.5 text-[13px]" aria-label="Folder path">
+        <nav v-if="driveInstalled" class="flex flex-wrap items-center gap-0.5 text-sm" aria-label="Folder path">
           <template v-for="(crumb, i) in path" :key="crumb.name">
             <LucideIcon v-if="i > 0" name="chevron-right" class="h-3.5 w-3.5 flex-none text-ink-gray-4" />
             <button
@@ -101,12 +101,12 @@ async function moveHere() {
 
         <!-- Folder list -->
         <div class="min-h-[8rem] rounded-md border border-outline-gray-2">
-          <p v-if="!driveInstalled" class="px-3 py-8 text-center text-[13px] text-ink-gray-5">
+          <p v-if="!driveInstalled" class="px-3 py-8 text-center text-sm text-ink-gray-5">
             Frappe Drive isn't available, so there are no folders to move into.
           </p>
-          <p v-else-if="loading" class="px-3 py-8 text-center text-[13px] text-ink-gray-5">Loading…</p>
-          <p v-else-if="error" class="px-3 py-8 text-center text-[13px] text-ink-red-6">{{ error }}</p>
-          <p v-else-if="!folders.length" class="px-3 py-8 text-center text-[13px] text-ink-gray-5">
+          <p v-else-if="loading" class="px-3 py-8 text-center text-sm text-ink-gray-5">Loading…</p>
+          <p v-else-if="error" class="px-3 py-8 text-center text-sm text-ink-red-6">{{ error }}</p>
+          <p v-else-if="!folders.length" class="px-3 py-8 text-center text-sm text-ink-gray-5">
             No subfolders here.
           </p>
           <ul v-else class="max-h-64 overflow-auto py-1">
@@ -117,7 +117,7 @@ async function moveHere() {
                 @click="openFolder(folder.name)"
               >
                 <LucideIcon name="folder" class="h-4 w-4 flex-none text-ink-gray-5" />
-                <span class="min-w-0 flex-1 truncate text-[13px] text-ink-gray-8">{{ folder.title }}</span>
+                <span class="min-w-0 flex-1 truncate text-sm text-ink-gray-8">{{ folder.title }}</span>
                 <LucideIcon name="chevron-right" class="h-4 w-4 flex-none text-ink-gray-4" />
               </button>
             </li>

@@ -79,7 +79,7 @@ onBeforeUnmount(() => {
         <path d="M2 2 L2 14 L6 10 L9 16 L11 15 L8 9 L14 9 Z" stroke="#FFFFFF" stroke-width="0.8" />
       </svg>
       <span
-        class="ml-2 mt-0.5 inline-block rounded px-1.5 py-0.5 text-[11px] font-medium text-white"
+        class="ml-2 mt-0.5 inline-block rounded px-1.5 py-0.5 text-2xs font-medium text-white"
         :style="{ background: c.color }"
       >
         {{ c.name }}

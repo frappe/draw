@@ -20,7 +20,7 @@ defineEmits(['create'])
     </div>
 
     <h2 class="text-lg font-semibold text-ink-gray-9">Create your first diagram</h2>
-    <p class="mt-1 text-[13px] text-ink-gray-5">
+    <p class="mt-1 text-sm text-ink-gray-5">
       One canvas for diagrams, mind maps, flowcharts & sketches — just start drawing.
     </p>
 

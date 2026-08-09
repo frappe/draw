@@ -109,7 +109,7 @@ function isMethodMissing(error) {
     </main>
 
     <footer
-      class="flex flex-none items-center justify-center gap-1.5 border-t border-outline-gray-1 bg-surface-base py-2 text-[11px] text-ink-gray-5"
+      class="flex flex-none items-center justify-center gap-1.5 border-t border-outline-gray-1 bg-surface-base py-2 text-2xs text-ink-gray-5"
     >
       <Logomark :size="14" />
       Made with Frappe Draw

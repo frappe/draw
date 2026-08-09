@@ -239,9 +239,9 @@ function insertTable({ rows, cols }, close) {
 
       <!-- Eraser: mode + tip size (#39). The canvas cursor shows the real tip. -->
       <div v-else-if="activeTool === 'eraser'" class="w-48 p-2">
-        <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">Mode</div>
+        <div class="mb-1 text-2xs font-semibold text-ink-gray-5">Mode</div>
         <TabButtons v-model="ui.state.eraserMode" class="mb-2" size="sm" vertical :options="ERASER_MODE_TABS" />
-        <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">Size</div>
+        <div class="mb-1 text-2xs font-semibold text-ink-gray-5">Size</div>
         <div class="flex gap-2">
           <button
             v-for="size in ERASER_SIZES"
@@ -258,7 +258,7 @@ function insertTable({ rows, cols }, close) {
 
       <!-- Sticky: color. -->
       <div v-else-if="activeTool === 'sticky'" class="w-48 p-2">
-        <div class="mb-1 text-[10px] font-semibold text-ink-gray-5">Color</div>
+        <div class="mb-1 text-2xs font-semibold text-ink-gray-5">Color</div>
         <div class="grid grid-cols-9 gap-1.5">
           <button
             v-for="c in STICKY_COLORS"

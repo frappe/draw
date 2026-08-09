@@ -140,7 +140,7 @@ function remove() {
         </template>
         <template #body-main>
           <div class="w-[196px] p-2">
-            <div class="mb-1 text-[10px] font-semibold text-ink-gray-4">Node type</div>
+            <div class="mb-1 text-2xs font-semibold text-ink-gray-4">Node type</div>
             <div class="grid grid-cols-5 gap-1.5">
               <Button
                 v-for="type in NODE_TYPES"
@@ -164,13 +164,13 @@ function remove() {
         <template #target="{ togglePopover }">
           <Button variant="ghost" theme="gray" size="md" tooltip="Fill" label="Fill" @mousedown.prevent @click="togglePopover()">
             <template #icon>
-              <span class="h-4 w-4 rounded-full border border-black/10" :style="{ background: fillPreview }" />
+              <span class="h-4 w-4 rounded-full border border-outline-gray-2" :style="{ background: fillPreview }" />
             </template>
           </Button>
         </template>
         <template #body-main>
           <div class="w-[204px] p-2">
-            <div class="mb-1.5 text-[10px] font-semibold text-ink-gray-4">Fill</div>
+            <div class="mb-1.5 text-2xs font-semibold text-ink-gray-4">Fill</div>
             <SwatchGrid :colors="SWATCH_PALETTE" shape="square" class="mb-2" @select="setFill" />
             <Button class="w-full" variant="outline" theme="gray" size="sm" label="No fill" @click="setFill('none')" />
           </div>
@@ -188,7 +188,7 @@ function remove() {
         </template>
         <template #body-main>
           <div class="w-[204px] p-2">
-            <div class="mb-1.5 text-[10px] font-semibold text-ink-gray-4">Border</div>
+            <div class="mb-1.5 text-2xs font-semibold text-ink-gray-4">Border</div>
             <SwatchGrid :colors="SWATCH_PALETTE" shape="ring" class="mb-2" @select="setBorder" />
             <Button class="w-full" variant="outline" theme="gray" size="sm" label="Default border" @click="setBorder(null)" />
           </div>
@@ -218,7 +218,7 @@ function remove() {
         </template>
         <template #body-main>
           <div class="w-[236px] p-2">
-            <div class="mb-1 text-[10px] font-semibold text-ink-gray-4">Branches</div>
+            <div class="mb-1 text-2xs font-semibold text-ink-gray-4">Branches</div>
             <div class="flex flex-col gap-1.5">
               <div v-for="branch in node.branches" :key="branch.port" class="flex items-center gap-1.5">
                 <TextInput

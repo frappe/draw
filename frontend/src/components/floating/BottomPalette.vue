@@ -281,7 +281,7 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
               label="Search the insert catalog"
             />
 
-            <div v-if="filteredShapes.length" class="mb-1 text-[10px] font-semibold text-ink-gray-4">Shapes</div>
+            <div v-if="filteredShapes.length" class="mb-1 text-2xs font-semibold text-ink-gray-4">Shapes</div>
             <div v-if="filteredShapes.length" class="grid grid-cols-6 gap-1">
               <Button
                 v-for="s in filteredShapes"
@@ -302,7 +302,7 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
               </Button>
             </div>
 
-            <div v-if="filteredLines.length" class="mb-1 mt-2.5 text-[10px] font-semibold text-ink-gray-4">Lines &amp; connectors</div>
+            <div v-if="filteredLines.length" class="mb-1 mt-2.5 text-2xs font-semibold text-ink-gray-4">Lines &amp; connectors</div>
             <div v-if="filteredLines.length" class="grid grid-cols-6 gap-1">
               <Button
                 v-for="con in filteredLines"
@@ -320,7 +320,7 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
               />
             </div>
 
-            <div v-if="filteredTools.length" class="mb-1 mt-2.5 text-[10px] font-semibold text-ink-gray-4">Draw &amp; insert</div>
+            <div v-if="filteredTools.length" class="mb-1 mt-2.5 text-2xs font-semibold text-ink-gray-4">Draw &amp; insert</div>
             <div v-if="filteredTools.length" class="grid grid-cols-6 gap-1">
               <template v-for="t in filteredTools" :key="t.key">
                 <!-- Table: opens the size picker; picking inserts the table, then
@@ -346,7 +346,7 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
               </template>
             </div>
 
-            <div v-if="showMindmap" class="mb-1 mt-2.5 text-[10px] font-semibold text-ink-gray-4">Mind map</div>
+            <div v-if="showMindmap" class="mb-1 mt-2.5 text-2xs font-semibold text-ink-gray-4">Mind map</div>
             <div v-if="showMindmap" class="grid grid-cols-6 gap-1">
               <Button
                 :variant="isMindmapStarterArmed() ? 'subtle' : 'ghost'"
@@ -362,7 +362,7 @@ const unifiedWhiteboardExclude = ['text', 'line', 'image', 'pen', 'sticky', 'tab
               </Button>
             </div>
 
-            <div v-if="filteredFlowchartNodes.length" class="mb-1 mt-2.5 text-[10px] font-semibold text-ink-gray-4">Flowchart</div>
+            <div v-if="filteredFlowchartNodes.length" class="mb-1 mt-2.5 text-2xs font-semibold text-ink-gray-4">Flowchart</div>
             <div v-if="filteredFlowchartNodes.length" class="grid grid-cols-6 gap-1">
               <Button
                 v-for="n in filteredFlowchartNodes"

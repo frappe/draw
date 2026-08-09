@@ -28,13 +28,13 @@ function onUpdate(color) {
 <template>
   <!-- Inline: the full picker, no popover wrapper. -->
   <div v-if="inline">
-    <div v-if="label" class="mb-1.5 text-[11px] text-ink-gray-6">{{ label }}</div>
+    <div v-if="label" class="mb-1.5 text-2xs text-ink-gray-6">{{ label }}</div>
     <ColorPickerBody :model-value="modelValue" @update:model-value="onUpdate" />
   </div>
 
   <!-- Default: labelled swatch trigger opening the picker in a popover. -->
   <div v-else class="flex items-center gap-2">
-    <span v-if="label" class="w-12 shrink-0 text-[11px] text-ink-gray-6">{{ label }}</span>
+    <span v-if="label" class="w-12 shrink-0 text-2xs text-ink-gray-6">{{ label }}</span>
     <Popover>
       <template #target="{ togglePopover }">
         <Button

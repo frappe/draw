@@ -21,7 +21,7 @@ const options = NODE_TYPES.map((type) => ({
     @pointerdown.stop
     @pointerup.stop
   >
-    <div class="px-2.5 pb-1 pt-0.5 text-[10px] font-semibold text-ink-gray-5">
+    <div class="px-2.5 pb-1 pt-0.5 text-2xs font-semibold text-ink-gray-5">
       Add node
     </div>
     <!-- Two columns, no scroll — every type is visible at once. -->
@@ -29,7 +29,7 @@ const options = NODE_TYPES.map((type) => ({
       <button
         v-for="option in options"
         :key="option.type"
-        class="flex items-center gap-2 truncate rounded-md px-2 py-1.5 text-left text-[13px] text-ink-gray-8 hover:bg-surface-gray-2"
+        class="flex items-center gap-2 truncate rounded-md px-2 py-1.5 text-left text-sm text-ink-gray-8 hover:bg-surface-gray-2"
         @click="$emit('choose', option.type)"
       >
         <ShapeGlyph family="flowchart" :type="option.type" class="h-4 w-4 flex-none text-ink-gray-6" />

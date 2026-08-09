@@ -228,12 +228,12 @@ defineExpose({ currentColor })
     </div>
 
     <div v-if="recentColors.length" class="mt-2.5">
-      <div class="mb-1 text-[10px] font-semibold text-ink-gray-4">Recent</div>
+      <div class="mb-1 text-2xs font-semibold text-ink-gray-4">Recent</div>
       <div class="grid grid-cols-6 gap-1.5">
         <button
           v-for="color in recentColors"
           :key="color"
-          class="h-[18px] w-[18px] rounded-[4px] border border-black/10"
+          class="h-[18px] w-[18px] rounded-[4px] border border-outline-gray-2"
           :style="{ background: color }"
           @click="onHex(color)"
         />
@@ -244,7 +244,7 @@ defineExpose({ currentColor })
       <button
         v-for="color in quickColors"
         :key="color"
-        class="h-[18px] w-[18px] rounded-[4px] border border-black/10"
+        class="h-[18px] w-[18px] rounded-[4px] border border-outline-gray-2"
         :style="{ background: color }"
         @click="onHex(color)"
       />

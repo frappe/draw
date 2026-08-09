@@ -8,7 +8,7 @@ defineProps({
 
 <template>
   <section class="border-b border-outline-gray-1 px-3.5 py-3">
-    <div class="mb-2 text-[10px] font-semibold text-ink-gray-5">
+    <div class="mb-2 text-2xs font-semibold text-ink-gray-5">
       {{ label }}
     </div>
     <slot />

@@ -181,7 +181,7 @@ async function doCopy() {
             <div class="flex items-center gap-2.5">
               <Avatar size="md" :label="ownerEmail" />
               <div class="min-w-0 flex-1">
-                <div class="truncate text-[13px] text-ink-gray-8">{{ ownerEmail }}</div>
+                <div class="truncate text-sm text-ink-gray-8">{{ ownerEmail }}</div>
               </div>
               <span class="text-[12px] text-ink-gray-5">Owner</span>
             </div>
@@ -189,8 +189,8 @@ async function doCopy() {
             <div v-for="m in share.members.value" :key="m.user" class="flex items-center gap-2.5">
               <Avatar size="md" :image="m.user_image" :label="m.full_name || m.user" />
               <div class="min-w-0 flex-1">
-                <div class="truncate text-[13px] text-ink-gray-8">{{ m.full_name || m.user }}</div>
-                <div class="truncate text-[11px] text-ink-gray-5">{{ m.user }}</div>
+                <div class="truncate text-sm text-ink-gray-8">{{ m.full_name || m.user }}</div>
+                <div class="truncate text-2xs text-ink-gray-5">{{ m.user }}</div>
               </div>
               <Select
                 :model-value="m.level || (m.can_edit ? 'edit' : 'view')"
@@ -217,9 +217,9 @@ async function doCopy() {
         <div class="flex items-center justify-end gap-2 border-t border-outline-gray-1 pt-4">
           <span
             v-if="copied"
-            class="flex items-center gap-1 text-[13px] font-medium text-ink-gray-6"
+            class="flex items-center gap-1 text-sm font-medium text-ink-gray-6"
           >
-            <LucideIcon name="check" class="h-4 w-4 text-green-600" /> Link copied
+            <LucideIcon name="check" class="h-4 w-4 text-ink-green-2" /> Link copied
           </span>
           <Button variant="subtle" @click="doCopy">
             <template #prefix><LucideIcon name="link" class="h-4 w-4" /></template>

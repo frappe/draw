@@ -59,7 +59,7 @@ function remove() {
       :style="style"
     >
       <template v-if="multi">
-        <span class="px-1.5 text-[13px] text-ink-gray-6">{{ selection.length }} selected</span>
+        <span class="px-1.5 text-sm text-ink-gray-6">{{ selection.length }} selected</span>
       </template>
 
       <!-- Lone line/table: its option controls in a popover. -->

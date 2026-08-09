@@ -49,7 +49,7 @@ function onKeydown(event) {
 
 <template>
   <div class="w-max p-2">
-    <div class="mb-1.5 text-center text-[11px] font-medium text-ink-gray-7">{{ sizeReadout(rows, cols) }}</div>
+    <div class="mb-1.5 text-center text-2xs font-medium text-ink-gray-7">{{ sizeReadout(rows, cols) }}</div>
     <div
       ref="grid"
       tabindex="0"

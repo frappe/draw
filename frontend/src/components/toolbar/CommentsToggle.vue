@@ -27,7 +27,7 @@ const active = computed(() => editorUi.state.commentsPanelOpen)
           <LucideIcon name="message-square" class="h-4 w-4" />
           <span
             v-if="openCount"
-            class="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-surface-gray-7 px-1 text-[10px] font-semibold text-white"
+            class="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-surface-gray-7 px-1 text-2xs font-semibold text-white"
             >{{ openCount }}</span
           >
         </span>

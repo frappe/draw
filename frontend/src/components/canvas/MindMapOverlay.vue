@@ -253,13 +253,13 @@ function activeBtn(on) {
         <template #target="{ togglePopover }">
           <Tooltip text="Fill">
             <button :class="btn" @mousedown.prevent @click="togglePopover()">
-              <span class="h-4 w-4 rounded-full border border-black/10" :style="{ background: fillPreview }" />
+              <span class="h-4 w-4 rounded-full border border-outline-gray-2" :style="{ background: fillPreview }" />
             </button>
           </Tooltip>
         </template>
         <template #body-main>
           <div class="w-[204px] p-2">
-            <div class="mb-1.5 text-[10px] font-semibold text-ink-gray-4">Fill</div>
+            <div class="mb-1.5 text-2xs font-semibold text-ink-gray-4">Fill</div>
             <SwatchGrid :colors="SWATCH_PALETTE" shape="square" class="mb-2" @select="setFill" />
             <button class="flex w-full items-center justify-center gap-1 rounded-md border border-outline-gray-2 py-1 text-[12px] text-ink-gray-6 hover:bg-surface-gray-2" @click="setFill(null)">
               Match branch
@@ -273,13 +273,13 @@ function activeBtn(on) {
         <template #target="{ togglePopover }">
           <Tooltip text="Branch colour">
             <button :class="btn" @mousedown.prevent @click="togglePopover()">
-              <span class="h-4 w-4 rounded-full border border-black/10" :style="{ background: branchPreview }" />
+              <span class="h-4 w-4 rounded-full border border-outline-gray-2" :style="{ background: branchPreview }" />
             </button>
           </Tooltip>
         </template>
         <template #body-main>
           <div class="w-[204px] p-2">
-            <div class="mb-1.5 text-[10px] font-semibold text-ink-gray-4">Branch</div>
+            <div class="mb-1.5 text-2xs font-semibold text-ink-gray-4">Branch</div>
             <SwatchGrid :colors="SWATCH_PALETTE" @select="setColor" />
           </div>
         </template>
@@ -296,7 +296,7 @@ function activeBtn(on) {
         </template>
         <template #body-main>
           <div class="w-[204px] p-2">
-            <div class="mb-1.5 text-[10px] font-semibold text-ink-gray-4">Border</div>
+            <div class="mb-1.5 text-2xs font-semibold text-ink-gray-4">Border</div>
             <SwatchGrid :colors="SWATCH_PALETTE" shape="ring" class="mb-2" @select="setBorder" />
             <button class="flex w-full items-center justify-center gap-1 rounded-md border border-outline-gray-2 py-1 text-[12px] text-ink-gray-6 hover:bg-surface-gray-2" @click="setBorder(null)">
               Match branch
@@ -317,7 +317,7 @@ function activeBtn(on) {
         </template>
         <template #body-main>
           <div class="w-[168px] p-2">
-            <div class="mb-1.5 text-[10px] font-semibold text-ink-gray-4">Connector</div>
+            <div class="mb-1.5 text-2xs font-semibold text-ink-gray-4">Connector</div>
             <div class="flex gap-1">
               <button
                 v-for="d in ['solid', 'dashed', 'dotted']"
@@ -350,7 +350,7 @@ function activeBtn(on) {
         </template>
         <template #body-main>
           <div class="w-[196px] p-2">
-            <div class="mb-1 text-[10px] font-semibold text-ink-gray-4">Shape</div>
+            <div class="mb-1 text-2xs font-semibold text-ink-gray-4">Shape</div>
             <div class="flex flex-wrap gap-1.5">
               <button
                 v-for="s in SHAPES"
@@ -384,12 +384,12 @@ function activeBtn(on) {
         </template>
         <template #body-main>
           <div class="w-[160px] p-2">
-            <div class="mb-1 text-[10px] font-semibold text-ink-gray-4">Text size</div>
+            <div class="mb-1 text-2xs font-semibold text-ink-gray-4">Text size</div>
             <div class="flex items-center gap-1.5">
               <button class="flex h-7 w-7 items-center justify-center rounded-md border border-outline-gray-2 text-ink-gray-7 hover:bg-surface-gray-2" @click="stepFontSize(-1)">
                 <LucideIcon name="minus" class="h-3.5 w-3.5" />
               </button>
-              <span class="flex-1 text-center text-[13px] font-medium text-ink-gray-9">{{ currentFontSize }}px</span>
+              <span class="flex-1 text-center text-sm font-medium text-ink-gray-9">{{ currentFontSize }}px</span>
               <button class="flex h-7 w-7 items-center justify-center rounded-md border border-outline-gray-2 text-ink-gray-7 hover:bg-surface-gray-2" @click="stepFontSize(1)">
                 <LucideIcon name="plus" class="h-3.5 w-3.5" />
               </button>
@@ -409,7 +409,7 @@ function activeBtn(on) {
         </template>
         <template #body-main>
           <div class="w-[172px] p-2">
-            <div class="mb-1 text-[10px] font-semibold text-ink-gray-4">Marker</div>
+            <div class="mb-1 text-2xs font-semibold text-ink-gray-4">Marker</div>
             <div class="flex flex-wrap gap-1.5">
               <button
                 v-for="icon in MARKER_ICONS"
@@ -447,7 +447,7 @@ function activeBtn(on) {
       <template v-if="canDelete">
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
         <Tooltip :text="multi ? 'Delete nodes' : 'Delete node'">
-          <button class="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50" @click="removeNode">
+          <button class="flex h-8 w-8 items-center justify-center rounded-md text-ink-red-4 hover:bg-red-50" @click="removeNode">
             <LucideIcon name="trash-2" class="h-4 w-4" />
           </button>
         </Tooltip>

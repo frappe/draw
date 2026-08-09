@@ -268,7 +268,7 @@ const collectionHandlers = {
       </Tooltip>
 
       <template v-if="selectedCount">
-        <span class="text-[13px] font-semibold text-ink-gray-9">{{ selectedCount }} selected</span>
+        <span class="text-sm font-semibold text-ink-gray-9">{{ selectedCount }} selected</span>
         <Button variant="subtle" theme="red" @click="deleteSelected">
           <template #prefix><LucideIcon name="trash-2" class="h-4 w-4" /></template>
           Delete
@@ -305,7 +305,7 @@ const collectionHandlers = {
          checkbox sits here, left of Name, aligned above each row's checkbox. -->
     <div
       v-if="view === 'list'"
-      class="mb-2 flex items-center gap-3 px-3 text-[11px] font-medium text-ink-gray-5"
+      class="mb-2 flex items-center gap-3 px-3 text-2xs font-medium text-ink-gray-5"
     >
       <span class="flex w-[18px] flex-none items-center justify-center">
         <Tooltip :text="allSelected || someSelected ? 'Clear selection' : 'Select all'">
@@ -331,10 +331,10 @@ const collectionHandlers = {
     <!-- HOME: a titled Pinned group (when anything is pinned), then the rest. -->
     <template v-if="mode === 'home'">
       <template v-if="hasPinnedSection">
-        <div class="mb-2 text-[11px] font-semibold text-ink-gray-5">Pinned</div>
+        <div class="mb-2 text-2xs font-semibold text-ink-gray-5">Pinned</div>
         <DiagramCollection :diagrams="pinned" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
         <div class="my-3 h-px bg-surface-gray-2" />
-        <div class="mb-2 text-[11px] font-semibold text-ink-gray-5">Diagrams</div>
+        <div class="mb-2 text-2xs font-semibold text-ink-gray-5">Diagrams</div>
       </template>
 
       <DiagramCollection v-if="files.length" :diagrams="files" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
@@ -372,7 +372,7 @@ const collectionHandlers = {
     <!-- Show info (I5): read-only metadata. -->
     <Dialog v-model:open="info.open" title="Diagram info">
       <template #default>
-        <dl class="grid grid-cols-[92px_1fr] gap-x-3 gap-y-2 text-[13px]">
+        <dl class="grid grid-cols-[92px_1fr] gap-x-3 gap-y-2 text-sm">
           <template v-for="[label, value] in infoRows" :key="label">
             <dt class="text-ink-gray-5">{{ label }}</dt>
             <dd class="truncate text-ink-gray-8">{{ value }}</dd>

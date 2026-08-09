@@ -887,7 +887,7 @@ const surfaceCursor = computed(() => {
       class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none text-center"
     >
       <div class="text-[15px] font-medium text-ink-gray-4">Nothing here yet</div>
-      <div class="mt-1 text-[13px] text-ink-gray-3">Click the + button below to add your first shape</div>
+      <div class="mt-1 text-sm text-ink-gray-3">Click the + button below to add your first shape</div>
     </div>
 
     <!-- Rulers in screen space (outside the viewport <g>), shown while editing
