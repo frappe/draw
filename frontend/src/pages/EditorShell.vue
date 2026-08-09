@@ -6,21 +6,22 @@
 // (CONVENTIONS integration).
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { parseDiagramDocument, isUnifiedDocument } from '@/diagram/schema.js'
-import { isMindmapShape, isFlowchartShape } from '@/diagram/freeFloating.js'
+import { parseDiagramDocument } from '@/diagram/schema.js'
 import { createDiagramStore, provideDiagramStore } from '@/stores/useDiagramStore.js'
 import { createEditorUi, provideEditorUi } from '@/stores/useEditorUi.js'
 import { provideModeStrategy, getModeStrategy } from '@/stores/useModeStrategy.js'
 import { resetMindmapUi } from '@/stores/mindmapUi.js'
 import { resetFlowchartUi } from '@/stores/flowchartUi.js'
 import { provideModeInteraction } from '@/composables/useModeInteraction.js'
-import { useKeyboard, keyboardOwner } from '@/composables/useKeyboard.js'
+import { useKeyboard } from '@/composables/useKeyboard.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
+import { createSelectionContext, provideSelectionContext } from '@/composables/useSelectionContext.js'
 import { useClipboard } from '@/composables/useClipboard.js'
 import { useAutosave } from '@/composables/useAutosave.js'
 import { useThumbnail } from '@/composables/useThumbnail.js'
 import { useCollaboration } from '@/composables/useCollaboration.js'
 import TopToolbar from '@/components/toolbar/TopToolbar.vue'
+import CanvasToolbar from '@/components/toolbar/CanvasToolbar.vue'
 import DiagramCanvas from '@/components/canvas/DiagramCanvas.vue'
 import Minimap from '@/components/canvas/Minimap.vue'
 import WhiteboardMinimap from '@/components/canvas/WhiteboardMinimap.vue'
@@ -78,35 +79,14 @@ const comments = provideComments(createComments(props.name))
 const modeStrategy = computed(() => getModeStrategy(store.state.diagramType))
 provideModeStrategy(modeStrategy)
 
-// Which type's editing CHROME to mount — the node toolbars and selection editors.
-//
-// This is not always the strategy's type. A unified document resolves to the BLOCK
-// strategy, so gating the chrome on `modeStrategy.type` alone left a mind map or
-// flowchart edited in place on the unified canvas with no toolbar at all: focus mode
-// used to override the whole strategy, and removing it (#45) took the chrome with it.
-//
-// On the unified canvas the chrome therefore follows whichever model holds the
-// SELECTION — the same rule the keyboard uses, so the toolbar you see and the keys
-// that work can never disagree. Mounting the overlays unconditionally instead would
-// drop their single-type empty-state prompts onto the unified canvas.
-//
-// The whiteboard needs the same treatment, and for a sharper reason: its selection
-// editor carries the only Delete button a line, table or stroke has. Gated on the
-// strategy it never mounted on a unified document, so those objects could be placed
-// there and never removed by mouse either.
-const chromeType = computed(() => {
-  if (!isUnifiedDocument(store.state)) return modeStrategy.value.type
-  if (whiteboardUi.state.selection.length) return 'whiteboard'
-  // A migrated free-floating mind-map / flowchart node (#122) is a block shape: it
-  // OWNS the mind-map/flowchart keyboard (Tab grows it), but its selection chrome is
-  // the BLOCK editor, which actually edits the shape. The framed MindMapOverlay /
-  // FlowchartOverlay read the now-empty sub-model (and would show its blank prompt),
-  // so they must not mount for a migrated node.
-  const selected = store.state.selection?.[0]
-  const shape = selected && store.state.shapes?.find((s) => s.id === selected)
-  if (isMindmapShape(shape) || isFlowchartShape(shape)) return 'block'
-  return keyboardOwner(store) || 'block'
-})
+// Which type's editing CHROME the selection belongs to — the node toolbars, the
+// selection editors and, from #359 on, the static canvas toolbar. The rule and
+// the reasons behind each of its branches live in useSelectionContext, where they
+// can be unit tested; this file cannot mount in the node env. Provided so the
+// toolbar and the editors read one answer instead of two.
+const { chromeType } = provideSelectionContext(
+  createSelectionContext(store, whiteboardUi, modeStrategy),
+)
 
 // Surface-interaction delegation seam (spec diagram-types Part G1/G4). The active
 // type's interaction composable registers its handler object into this ref via
@@ -192,6 +172,10 @@ onMounted(() => {
       :save-message="autosave.frozen.value || ''"
       @update:title="rename"
     />
+
+    <!-- Static canvas toolbar (#359): below the title bar, above the ruler, and
+         spanning the full width so it also clears the comments panel. -->
+    <CanvasToolbar />
 
     <div class="flex min-h-0 flex-1">
       <main class="relative min-h-0 min-w-0 flex-1">

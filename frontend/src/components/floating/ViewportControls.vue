@@ -3,19 +3,16 @@
 // in · fit-to-view. Split out of the bottom-center palette so navigation lives
 // in its own group, consistently for EVERY diagram type (block/flowchart/
 // mindmap/whiteboard). Wired to the shared viewport + editorUi.
+//
+// Navigation only. Guides used to sit here beside fit-to-view for want of a
+// better home; they are a canvas-level setting, so they moved to the canvas
+// toolbar's Canvas group with the theme presets (#360).
 import { computed, ref, nextTick } from 'vue'
 import { Button, Divider, TextInput } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
-import { useModeStrategy } from '@/stores/useModeStrategy.js'
-import GuidesMenu from './GuidesMenu.vue'
 
 const editorUi = useEditorUi()
 const viewport = editorUi.viewport
-const modeStrategy = useModeStrategy()
-
-// Guides live here now (next to fit-to-view) rather than in the create palette
-// (#95). Still hidden on the whiteboard, where a dotted grid isn't wanted (Q4).
-const isWhiteboard = computed(() => modeStrategy?.value?.type === 'whiteboard')
 
 // Click the zoom % to type an exact value (spec 1.6).
 const zoomEditing = ref(false)
@@ -72,9 +69,5 @@ const zoomPercent = computed(() => editorUi.zoomPercent)
     <Button variant="ghost" theme="gray" size="md" icon="lucide-plus" tooltip="Zoom in" label="Zoom in" @click="viewport.zoomStep(1)" />
     <Divider orientation="vertical" class="mx-0.5 !h-5" />
     <Button variant="ghost" theme="gray" size="md" icon="lucide-maximize" tooltip="Fit to view" label="Fit to view" @click="editorUi.fit()" />
-    <template v-if="!isWhiteboard">
-      <Divider orientation="vertical" class="mx-0.5 !h-5" />
-      <GuidesMenu />
-    </template>
   </div>
 </template>
