@@ -133,6 +133,15 @@ function toggleAutoFit() {
   if (shapeIds.value.length) store.updateShapes(shapeIds.value, { text: { autoFit: !autoFit.value } })
 }
 
+// Text colour (#259): while editing it recolours the caret/selection live, else it
+// sets the shape's base text colour across the selection.
+const currentTextColor = computed(() => textStyle.value.color || '#171717')
+function setTextColor(hex) {
+  if (!hex) return
+  if (editing.value) richCommands.setColor(hex)
+  else updateTextStyle({ color: hex })
+}
+
 const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
 
 // ---- mind-map node overrides (#274 / #260). A node selection swaps the full
@@ -190,8 +199,10 @@ function setNodeCurve(value) {
         </Popover>
       </template>
 
-      <!-- Shapes selected: fill+border+opacity, text, arrange, link. -->
+      <!-- Shapes selected: fill+border+opacity, text, arrange, link. While editing
+           TEXT the shape controls hide and the bar becomes a text-only menu (#259). -->
       <template v-else-if="hasShapes">
+        <template v-if="!editing">
         <!-- Fill and Border are separate menu items (each opens its own colour
              picker); opacity lives with Fill. -->
         <Popover side="top">
@@ -239,9 +250,11 @@ function setNodeCurve(value) {
         </Popover>
 
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
+        </template>
 
-        <!-- Text formatting surfaced directly on the bar (one-click, real-time):
-             font, size, bold/italic/underline, align. -->
+        <!-- Text formatting: font, size, B/I/U/S, align, colour. Always shown for a
+             shape — this IS the text-only menu while editing text (#259), and part of
+             the shape menu otherwise. -->
         <Select :model-value="font" :options="FONTS" class="h-8 w-[92px]" @update:model-value="setFont" @mousedown.stop />
         <div class="flex items-center rounded-md border border-outline-gray-2">
           <Button variant="ghost" theme="gray" size="md" class="!w-6" icon="lucide-minus" label="Decrease font size" @mousedown.prevent @click="stepFontSize(-1)" />
@@ -255,8 +268,22 @@ function setNodeCurve(value) {
         <Button :variant="alignActive('left') ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-text-align-start" tooltip="Align left" label="Align left" @mousedown.prevent @click="setTextAlign('left')" />
         <Button :variant="alignActive('center') ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-text-align-center" tooltip="Align center" label="Align center" @mousedown.prevent @click="setTextAlign('center')" />
         <Button :variant="alignActive('right') ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-text-align-end" tooltip="Align right" label="Align right" @mousedown.prevent @click="setTextAlign('right')" />
+        <!-- Text colour (#259): a coloured "A" opens the Espresso grid. -->
+        <Popover side="top">
+          <template #target="{ togglePopover }">
+            <Button variant="ghost" theme="gray" size="md" tooltip="Text colour" label="Text colour" @mousedown.prevent @click="togglePopover()">
+              <template #icon>
+                <span class="grid size-4 place-items-center rounded text-xs font-semibold" :style="{ color: currentTextColor }">A</span>
+              </template>
+            </Button>
+          </template>
+          <template #body-main>
+            <div class="p-1"><EspressoSwatchGrid mode="fill" :allow-none="false" :model-value="currentTextColor" @select="setTextColor" /></div>
+          </template>
+        </Popover>
         <Button :variant="autoFit ? 'subtle' : 'ghost'" theme="gray" size="md" icon="lucide-scaling" tooltip="Auto-fit text to shape" label="Auto-fit text to shape" @mousedown.prevent @click="toggleAutoFit" />
 
+        <template v-if="!editing">
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
 
         <!-- Arrange / Align / Distribute / Transform are separate menu items, not
@@ -305,9 +332,11 @@ function setNodeCurve(value) {
         <div class="mx-0.5 h-5 w-px bg-surface-gray-3" />
 
         <Button variant="ghost" theme="gray" size="md" icon="lucide-copy" tooltip="Duplicate" label="Duplicate" @mousedown.prevent @click="duplicate" />
+        </template>
       </template>
 
-      <Button variant="ghost" theme="red" size="md" icon="lucide-trash-2" tooltip="Delete" label="Delete" @mousedown.prevent @click="remove" />
+      <!-- Delete hides while editing text — you're editing the label, not the shape. -->
+      <Button v-if="!editing" variant="ghost" theme="red" size="md" icon="lucide-trash-2" tooltip="Delete" label="Delete" @mousedown.prevent @click="remove" />
     </div>
   </Teleport>
 </template>

@@ -133,6 +133,13 @@ function onKeydown(event) {
   if (event.key === 'Escape') {
     event.stopPropagation()
     editor.value?.commands.blur()
+    return
+  }
+  // #263: Cmd/Ctrl+Enter adds a newline in the same box too — plain Enter already
+  // does, so both keep typing multi-line instead of committing.
+  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+    event.preventDefault()
+    editor.value?.chain().focus().splitBlock().run()
   }
 }
 </script>
