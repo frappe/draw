@@ -5,9 +5,9 @@ import path from 'node:path'
 import { overflowMenuItems } from './overflowMenu.js'
 
 // Browser-free: assert the editor "…" menu MODEL (labels / icons / the red Delete /
-// the Favourite↔Unpin toggle / callback wiring), then source-check that the toolbar
-// SFCs wire it up — the inline TitleEditor rename path and the deferred Move / Version
-// history slots. Mirrors ShareMenu.test.js (import the model, string-check the SFC).
+// the Pin↔Unpin toggle / callback wiring), then source-check that the toolbar SFCs
+// wire it up — that Rename is gone, and the deferred Move / Version history slots.
+// Mirrors ShareMenu.test.js (import the model, string-check the SFC).
 const here = path.dirname(fileURLToPath(import.meta.url))
 const read = (rel) => readFileSync(path.join(here, rel), 'utf8')
 const overflowSfc = read('OverflowMenu.vue')
@@ -19,7 +19,6 @@ function build(overrides = {}) {
   return overflowMenuItems({
     isPinned: false,
     driveAvailable: false,
-    onRename: () => {},
     onShowInfo: () => {},
     onMove: () => {},
     onTogglePin: () => {},
@@ -29,17 +28,22 @@ function build(overrides = {}) {
 }
 
 describe('overflow menu model (#111)', () => {
-  it('lists Rename · Show info · Favourite · Delete', () => {
-    expect(build().map((i) => i.label)).toEqual(['Rename', 'Show info', 'Favourite', 'Delete'])
+  it('lists Show info · Pin · Delete', () => {
+    expect(build().map((i) => i.label)).toEqual(['Show info', 'Pin', 'Delete'])
   })
 
   it('flips the pin item to Unpin once pinned', () => {
     expect(build({ isPinned: true }).map((i) => i.label)).toEqual([
-      'Rename',
       'Show info',
       'Unpin',
       'Delete',
     ])
+  })
+
+  it('names the pin action Pin / Unpin, matching Home (#233)', () => {
+    // Home's tile menu has always used this pair. "Favourite" was the odd one out.
+    expect(build().map((i) => i.label)).not.toContain('Favourite')
+    expect(build({ isPinned: true }).map((i) => i.label)).not.toContain('Favourite')
   })
 
   it('marks Delete as the one destructive (red) item', () => {
@@ -49,7 +53,16 @@ describe('overflow menu model (#111)', () => {
   })
 
   it('gives every item a Dropdown icon', () => {
-    expect(build().map((i) => i.icon)).toEqual(['edit-2', 'file-text', 'pin', 'trash-2'])
+    expect(build().map((i) => i.icon)).toEqual(['file-text', 'lucide-pin', 'trash-2'])
+  })
+
+  it('draws a real pin, not FeatherIcon\'s circle fallback (#233)', () => {
+    // Feather has no "pin" — only "map-pin" — and FeatherIcon silently falls back
+    // to its "circle" glyph for any name it does not know, which is what shipped.
+    // A complete lucide-* class takes the class path instead and cannot fall back.
+    const pin = build().find((i) => i.label === 'Pin')
+    expect(pin.icon).toBe('lucide-pin')
+    expect(build({ isPinned: true }).find((i) => i.label === 'Unpin').icon).toBe('lucide-pin')
   })
 
   it('offers Move only when Drive is available (Version history stays deferred)', () => {
@@ -59,7 +72,7 @@ describe('overflow menu model (#111)', () => {
 
     // Drive present → Move appears, sitting between Show info and the pin toggle.
     const withDrive = build({ driveAvailable: true }).map((i) => i.label)
-    expect(withDrive).toEqual(['Rename', 'Show info', 'Move', 'Favourite', 'Delete'])
+    expect(withDrive).toEqual(['Show info', 'Move', 'Pin', 'Delete'])
 
     // Version history has no backing yet, so it never shows either way.
     expect(withoutDrive.some((l) => /version/i.test(l))).toBe(false)
@@ -75,18 +88,15 @@ describe('overflow menu model (#111)', () => {
   })
 
   it('wires each row to its callback', () => {
-    const onRename = vi.fn()
     const onShowInfo = vi.fn()
     const onTogglePin = vi.fn()
     const onDelete = vi.fn()
     const byLabel = Object.fromEntries(
-      build({ onRename, onShowInfo, onTogglePin, onDelete }).map((i) => [i.label, i.onClick]),
+      build({ onShowInfo, onTogglePin, onDelete }).map((i) => [i.label, i.onClick]),
     )
-    byLabel['Rename']()
     byLabel['Show info']()
-    byLabel['Favourite']()
+    byLabel['Pin']()
     byLabel['Delete']()
-    expect(onRename).toHaveBeenCalledOnce()
     expect(onShowInfo).toHaveBeenCalledOnce()
     expect(onTogglePin).toHaveBeenCalledOnce()
     expect(onDelete).toHaveBeenCalledOnce()
@@ -99,12 +109,19 @@ describe('overflow menu wiring', () => {
     expect(overflowSfc).toContain(':options="menuItems"')
   })
 
-  it('Rename re-enters the inline TitleEditor (no duplicate rename dialog)', () => {
-    // OverflowMenu delegates rename upward; TitleEditor exposes the entry point;
-    // TopToolbar connects the two.
-    expect(overflowSfc).toContain("emit('rename')")
-    expect(titleEditor).toContain('defineExpose({ startEditing })')
-    expect(topToolbar).toContain('titleEditor?.startEditing()')
+  it('has no Rename row, and leaves no wiring behind it (#232)', () => {
+    // The whole path is gone: the menu no longer emits, the toolbar no longer
+    // holds a ref to trigger it, and TitleEditor no longer exposes an entry point.
+    expect(build().map((i) => i.label)).not.toContain('Rename')
+    expect(overflowSfc).not.toContain("emit('rename')")
+    expect(topToolbar).not.toContain('titleEditor')
+    expect(titleEditor).not.toContain('defineExpose')
+  })
+
+  it('leaves the title itself as the way to rename (#232)', () => {
+    // Removing the menu row is only safe while clicking the title still edits it.
+    expect(titleEditor).toContain('@click="startEditing"')
+    expect(titleEditor).toContain('function startEditing')
   })
 
   it('Delete moves the diagram to Trash and leaves the editor', () => {
