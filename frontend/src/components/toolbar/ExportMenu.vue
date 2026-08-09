@@ -21,8 +21,10 @@ function exportPng(scale, close) {
   close?.()
 }
 
+// One glyph per format. JPEG used to repeat PNG's plain image icon, so the two
+// raster rows were tellable apart only by their labels (#224).
 const FORMATS = [
-  { label: 'JPEG', icon: 'lucide-image', run: () => exporter.exportJpeg() },
+  { label: 'JPEG', icon: 'lucide-file-image', run: () => exporter.exportJpeg() },
   { label: 'SVG', icon: 'lucide-code', run: () => exporter.exportSvg() },
   { label: 'PDF', icon: 'lucide-file-text', run: () => exporter.exportPdf() },
 ]
