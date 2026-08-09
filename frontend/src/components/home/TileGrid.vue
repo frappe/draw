@@ -355,8 +355,8 @@ const collectionHandlers = {
           />
         </Tooltip>
       </span>
+      <!-- Pin lane. The type-icon lane that sat here is gone with the icon (#218). -->
       <span class="w-6 flex-none" />
-      <span class="w-8 flex-none" />
       <button class="flex min-w-0 flex-1 items-center gap-1 hover:text-ink-gray-7" @click="setSort('title')">
         Name
         <span v-if="sortArrow('title')" class="h-3 w-3 flex-none" aria-hidden="true" :class="sortArrow('title')" />
