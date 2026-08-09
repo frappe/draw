@@ -13,10 +13,36 @@
 // is ours because EditorFixedMenu binds to a Tiptap editor, and this one drives
 // four canvas models.
 //
-// This phase (#360) mounts the frame and the canvas-level group. The insert
-// cluster and the contextual groups arrive with #361 to #364.
+// The canvas group is pinned right and always present, so entries never shift
+// sideways as the contextual middle changes. The insert cluster arrives with
+// #364, and the mind-map, flowchart and whiteboard groups with #362 and #363.
+import { computed } from 'vue'
 import { TooltipProvider } from 'frappe-ui'
+import { useSelectionContext } from '@/composables/useSelectionContext.js'
+import { useBlockSelection } from '@/composables/useBlockSelection.js'
 import CanvasGroup from './groups/CanvasGroup.vue'
+import StyleGroup from './groups/StyleGroup.vue'
+import TextGroup from './groups/TextGroup.vue'
+import ArrangeGroup from './groups/ArrangeGroup.vue'
+import BlockActionsGroup from './groups/BlockActionsGroup.vue'
+import LineGroup from './groups/LineGroup.vue'
+import ToolbarSeparator from './ToolbarSeparator.vue'
+
+const { chromeType } = useSelectionContext()
+const block = useBlockSelection()
+
+// Text and image are block shapes even on the whiteboard, so their format menu
+// is the block group there too (S13/S14/U1). The whiteboard's own objects get
+// their groups in #363.
+const showsBlockGroups = computed(
+  () => chromeType.value === 'block' || chromeType.value === 'whiteboard',
+)
+const shapeSelected = computed(() => showsBlockGroups.value && block.hasShapes.value)
+const connectorSelected = computed(() => showsBlockGroups.value && Boolean(block.connector.value))
+// Delete acts on the shape, so it hides while a label is being edited.
+const showsActions = computed(
+  () => showsBlockGroups.value && block.count.value > 0 && !block.editing.value,
+)
 </script>
 
 <template>
@@ -26,10 +52,30 @@ import CanvasGroup from './groups/CanvasGroup.vue'
     class="flex h-10 flex-none items-center gap-1 overflow-x-auto border-b border-outline-gray-1 bg-surface-base px-3"
   >
     <TooltipProvider>
-      <!-- Left and contextual clusters land here in #361 to #364. The spacer
-           holds the canvas group at the right end from the start, so entries do
-           not shift sideways as later phases fill the bar in. -->
-      <div class="min-w-0 flex-1" />
+      <div class="flex min-w-0 flex-1 items-center gap-1">
+        <LineGroup v-if="connectorSelected" :connector="block.connector.value" />
+
+        <template v-else-if="shapeSelected">
+          <template v-if="!block.editing.value">
+            <StyleGroup />
+            <ToolbarSeparator />
+          </template>
+
+          <!-- Shown while editing too: this IS the text-only menu then (#259). -->
+          <TextGroup />
+
+          <template v-if="!block.editing.value">
+            <ToolbarSeparator />
+            <ArrangeGroup />
+          </template>
+        </template>
+
+        <template v-if="showsActions">
+          <ToolbarSeparator />
+          <BlockActionsGroup />
+        </template>
+      </div>
+
       <CanvasGroup />
     </TooltipProvider>
   </div>

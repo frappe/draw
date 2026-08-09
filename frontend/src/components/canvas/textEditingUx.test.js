@@ -23,16 +23,26 @@ describe('drop a parent node → straight into typing (#263)', () => {
 })
 
 describe('editing text shows a text-only menu, not the shape menu (#259)', () => {
-  const src = read('components/floating/BlockSelectionEditor.vue')
+  // These controls moved from the floating BlockSelectionEditor onto the static
+  // canvas toolbar (#361). The behaviour is unchanged, so the assertions follow
+  // them rather than being dropped: the bar the toolbar shows while a label is
+  // being edited must still be text-only.
+  const toolbar = read('components/toolbar/CanvasToolbar.vue')
+  const textGroup = read('components/toolbar/groups/TextGroup.vue')
 
-  it('gates the shape-only controls behind !editing', () => {
-    expect(src).toContain('<template v-if="!editing">')
-    // Delete acts on the shape, so it hides while editing the label.
-    expect(src).toContain('<Button v-if="!editing" variant="ghost" theme="red"')
+  it('gates the shape-only groups behind !editing', () => {
+    expect(toolbar).toContain('<template v-if="!block.editing.value">')
+    // Style and arrange act on the shape; text formatting stays available.
+    expect(toolbar).toContain('<StyleGroup />')
+    expect(toolbar).toContain('<ArrangeGroup />')
+  })
+
+  it('hides delete while a label is being edited — the target is the text, not the shape', () => {
+    expect(toolbar).toContain('block.count.value > 0 && !block.editing.value')
   })
 
   it('offers a text colour control that recolours the selection live while editing', () => {
-    expect(src).toContain('tooltip="Text colour"')
-    expect(src).toContain('if (editing.value) richCommands.setColor(hex)')
+    expect(textGroup).toContain('label="Text colour"')
+    expect(textGroup).toContain('if (editing.value) richCommands.setColor(hex)')
   })
 })

@@ -29,6 +29,8 @@ defineProps({
   tooltip: { type: String, default: '' },
   icon: { type: String, default: undefined },
   iconLeft: { type: String, default: undefined },
+  // Chrome stays neutral gray; 'red' is for destructive controls only.
+  theme: { type: String, default: 'gray' },
   active: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
 })
@@ -37,7 +39,7 @@ defineProps({
 <template>
   <Button
     variant="ghost"
-    theme="gray"
+    :theme="theme"
     size="sm"
     :icon="icon"
     :icon-left="iconLeft"

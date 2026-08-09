@@ -27,7 +27,6 @@ import Minimap from '@/components/canvas/Minimap.vue'
 import WhiteboardMinimap from '@/components/canvas/WhiteboardMinimap.vue'
 import MindMapOverlay from '@/components/canvas/MindMapOverlay.vue'
 import FlowchartOverlay from '@/components/canvas/FlowchartOverlay.vue'
-import BlockSelectionEditor from '@/components/floating/BlockSelectionEditor.vue'
 import FlowchartSelectionEditor from '@/components/floating/FlowchartSelectionEditor.vue'
 import FlowchartLayoutToolbar from '@/components/floating/FlowchartLayoutToolbar.vue'
 import MindmapLayoutToolbar from '@/components/floating/MindmapLayoutToolbar.vue'
@@ -186,10 +185,10 @@ onMounted(() => {
         <WhiteboardMinimap v-if="modeStrategy.type === 'whiteboard'" />
         <MindMapOverlay v-if="chromeType === 'mindmap'" />
         <FlowchartOverlay v-if="chromeType === 'flowchart'" />
-        <!-- Also on the whiteboard: text/image are block shapes, so their format
-             menu (font, size, colour…) is the block editor, shown when one is
-             selected (S13/S14/U1). WhiteboardSelectionEditor handles board objects. -->
-        <BlockSelectionEditor v-if="chromeType === 'block' || chromeType === 'whiteboard'" />
+        <!-- The block selection's controls (fill, border, text, arrange, link,
+             duplicate, delete) are on the static toolbar now (#361), including on
+             the whiteboard, where text and image are block shapes (S13/S14/U1).
+             WhiteboardSelectionEditor still handles board objects until #363. -->
         <FlowchartSelectionEditor v-if="chromeType === 'flowchart'" />
         <!-- Whole-chart layout actions for a free-floating flowchart (#98). Self-
              gates on a selected 'flowchart-node' shape, so it is a no-op elsewhere. -->
