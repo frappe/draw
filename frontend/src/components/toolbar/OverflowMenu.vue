@@ -102,9 +102,8 @@ function frappeNow() {
 
 <template>
   <Dropdown :options="menuItems" placement="bottom-end">
-    <Button variant="outline" aria-label="More actions">
-      <span class="lucide-ellipsis h-4 w-4" aria-hidden="true" />
-    </Button>
+    <!-- Same ghost icon button as its neighbours (#229), so the cluster reads as one set. -->
+    <Button variant="ghost" icon="lucide-ellipsis" label="More actions" tooltip="More actions" />
   </Dropdown>
 
   <Dialog v-model:open="showInfo" title="Diagram info">
