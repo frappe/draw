@@ -16,7 +16,6 @@ import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { startGroupMove } from '@/composables/useWhiteboardInteraction.js'
 // Shared drag flag (see useShapeTransform.js): hides this note's own floating
 // toolbar while it's actively being dragged, not just while selected (#248).
-import { isDragging } from '@/composables/useShapeTransform.js'
 import { isAdditiveEvent } from '@/composables/pointer.js'
 import { safeHref } from '@/utils/safeUrl.js'
 import { contrastInk } from '@/diagram/whiteboardColors.js'
@@ -38,7 +37,7 @@ const editing = ref(false)
 
 const ink = computed(() => contrastInk(props.note.color))
 // Highlighted whenever part of the selection (multi-select shows every member's
-// border); `solo` (single-object) gates the floating toolbar + resize handle so
+// border); `solo` (single-object) gates the resize handle so
 // they don't clutter a multi-selection.
 const selected = computed(() => ui.isSelected('sticky', props.note.id))
 const solo = computed(
@@ -90,8 +89,7 @@ function startGesture(event, apply, { track = false } = {}) {
   const origin = { x: props.note.x, y: props.note.y, w: props.note.w, h: props.note.h }
   const move = (moveEvent) => {
     // Any move while the pointer is down is a real drag (no separate threshold
-    // here, matching startGroupMove) — hide the floating toolbar for its duration.
-    if (track) isDragging.value = true
+    // here, matching startGroupMove).
     const zoom = editorUi.viewport.state.zoom
     apply(origin, (moveEvent.clientX - startX) / zoom, (moveEvent.clientY - startY) / zoom)
   }
@@ -99,7 +97,6 @@ function startGesture(event, apply, { track = false } = {}) {
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', up)
     window.removeEventListener('pointercancel', up)
-    if (track) isDragging.value = false
     releaseGesture = null
   }
   releaseGesture = up

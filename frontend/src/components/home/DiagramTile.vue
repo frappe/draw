@@ -151,7 +151,11 @@ const TIME_UNITS = [
     <span class="hidden w-28 flex-none text-2xs text-ink-gray-5 sm:block">{{ editedLabel }}</span>
 
     <Dropdown :options="menuItems" placement="bottom-end">
-      <button class="flex h-7 w-7 flex-none items-center justify-center rounded-md text-ink-gray-5 hover:bg-surface-gray-3" @click.stop>
+      <button
+        :aria-label="`More actions for ${diagram.title}`"
+        class="flex h-7 w-7 flex-none items-center justify-center rounded-md text-ink-gray-5 hover:bg-surface-gray-3"
+        @click.stop
+      >
         <span class="lucide-ellipsis h-4 w-4" aria-hidden="true" />
       </button>
     </Dropdown>
@@ -213,6 +217,7 @@ const TIME_UNITS = [
 
       <Dropdown :options="menuItems" placement="bottom-end">
         <button
+          :aria-label="`More actions for ${diagram.title}`"
           class="flex h-[26px] w-[26px] items-center justify-center rounded-md text-ink-gray-5 opacity-0 hover:bg-surface-gray-2 group-hover:opacity-100"
           @click.stop
         >

@@ -6,7 +6,8 @@
 // Theme presets are here because they had no UI at all. design/SPEC.md lists
 // them as a canvas control applied diagram-wide in one click, but
 // store.applyTheme lost its only caller when the right palette was replaced by
-// floating selection editors, and nothing has reached it since.
+// the selection editors that #359 has since retired, and nothing reached it in
+// between.
 //
 // Guides moved up from the bottom-left viewport controls, where they sat beside
 // zoom for want of a better home.

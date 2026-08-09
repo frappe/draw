@@ -17,6 +17,7 @@ defineEmits(['select'])
     <button
       v-for="c in colors"
       :key="c"
+      :aria-label="`Colour ${c}`"
       class="h-6 w-6"
       :class="[
         shape === 'square' ? 'rounded-md border border-outline-gray-2' : 'rounded-full',

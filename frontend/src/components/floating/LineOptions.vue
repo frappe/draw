@@ -35,6 +35,8 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
       <button
         v-for="s in startStyles"
         :key="s.value"
+        :aria-label="`Start: ${s.label}`"
+        :aria-pressed="start === s.value"
         class="flex h-7 flex-1 items-center justify-center rounded-md"
         :class="start === s.value ? cellActive : cellIdle"
         @click="emit('change', { start: s.value })"
@@ -47,6 +49,8 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
       <button
         v-for="s in endStyles"
         :key="s.value"
+        :aria-label="`End: ${s.label}`"
+        :aria-pressed="end === s.value"
         class="flex h-7 flex-1 items-center justify-center rounded-md"
         :class="end === s.value ? cellActive : cellIdle"
         @click="emit('change', { end: s.value })"
@@ -59,6 +63,8 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
       <button
         v-for="swatch in CHALK_COLORS"
         :key="swatch"
+        :aria-label="`Colour ${swatch}`"
+        :aria-pressed="color === swatch"
         class="h-5 w-5 rounded-full border"
         :class="color === swatch ? 'border-[1.5px] border-outline-gray-9' : 'border-outline-gray-2'"
         :style="{ background: swatch }"
@@ -70,6 +76,8 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
       <button
         v-for="w in PEN_WIDTHS"
         :key="w"
+        :aria-label="`Width ${w}`"
+        :aria-pressed="width === w"
         class="flex h-7 flex-1 items-center justify-center rounded-md"
         :class="width === w ? cellActive : cellIdle"
         @click="emit('change', { width: w })"

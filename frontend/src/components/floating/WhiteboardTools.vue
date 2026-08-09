@@ -207,6 +207,8 @@ function insertTable({ rows, cols }, close) {
             <button
               v-for="w in PEN_WIDTHS"
               :key="w"
+              :aria-label="`Pen width ${w}`"
+              :aria-pressed="ui.state.penWidth === w"
               class="flex h-7 flex-1 items-center justify-center rounded-md"
               :class="ui.state.penWidth === w ? 'bg-surface-gray-3' : 'bg-surface-gray-1 hover:bg-surface-gray-2'"
               @click="ui.state.penWidth = w"
@@ -230,6 +232,8 @@ function insertTable({ rows, cols }, close) {
           <button
             v-for="size in ERASER_SIZES"
             :key="size"
+            :aria-label="`Eraser size ${size}`"
+            :aria-pressed="ui.state.eraserSize === size"
             class="flex h-7 flex-1 items-center justify-center rounded-md"
             :class="ui.state.eraserSize === size ? 'bg-surface-gray-3' : 'bg-surface-gray-1 hover:bg-surface-gray-2'"
             @click="ui.state.eraserSize = size"
@@ -247,6 +251,8 @@ function insertTable({ rows, cols }, close) {
           <button
             v-for="c in STICKY_COLORS"
             :key="c"
+            :aria-label="`Sticky colour ${c}`"
+            :aria-pressed="ui.state.stickyColor === c"
             class="h-5 w-5 rounded-sm border"
             :class="ui.state.stickyColor === c ? 'border-[1.5px] border-outline-gray-9' : 'border-outline-gray-2'"
             :style="{ background: c }"

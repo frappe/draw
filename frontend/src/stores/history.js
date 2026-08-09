@@ -42,7 +42,7 @@ function restore(state, snap) {
   // Every id that can be selected via the shared store selection: block shapes +
   // connectors, sections, and the per-type node arrays (mind-map / flowchart).
   // Without the per-type ids, undo/redo of a mind-map or flowchart edit would
-  // silently clear the selection (and its floating toolbar) even though the node
+  // silently clear the selection (and the toolbar controls it drives) even though the node
   // still exists. Whiteboard objects use a separate UI selection store.
   const live = new Set([
     ...state.shapes.map((s) => s.id),

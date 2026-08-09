@@ -233,6 +233,7 @@ defineExpose({ currentColor })
         <button
           v-for="color in recentColors"
           :key="color"
+          :aria-label="`Recent colour ${color}`"
           class="h-[18px] w-[18px] rounded-[4px] border border-outline-gray-2"
           :style="{ background: color }"
           @click="onHex(color)"
@@ -244,6 +245,7 @@ defineExpose({ currentColor })
       <button
         v-for="color in quickColors"
         :key="color"
+        :aria-label="`Colour ${color}`"
         class="h-[18px] w-[18px] rounded-[4px] border border-outline-gray-2"
         :style="{ background: color }"
         @click="onHex(color)"

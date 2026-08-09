@@ -59,6 +59,7 @@ function step(field, delta) {
           <button
             v-for="c in GRID_COLS"
             :key="`${r}-${c}`"
+            :aria-label="`${c} × ${r}`"
             class="h-[14px] w-[14px] rounded-[2px] border"
             :class="r <= (hoverR || rows) && c <= (hoverC || cols) ? 'border-outline-gray-9 bg-surface-gray-3' : 'border-outline-gray-2'"
             @pointerenter="hoverR = r; hoverC = c"
@@ -120,6 +121,8 @@ function step(field, delta) {
       <button
         v-for="swatch in CHALK_COLORS"
         :key="swatch"
+        :aria-label="`Colour ${swatch}`"
+        :aria-pressed="color === swatch"
         class="h-5 w-5 rounded-full border"
         :class="color === swatch ? 'border-[1.5px] border-outline-gray-9' : 'border-outline-gray-2'"
         :style="{ background: swatch }"

@@ -63,11 +63,13 @@ frontend/src/
   components/
     canvas/                    # DiagramCanvas, ShapeView, ConnectorView, SelectionLayer,
                                # HoverArrows, SmartGuidesLayer, GridLayer, TextEditor, Rulers
-    toolbar/                   # TopToolbar, TitleEditor, SaveIndicator, ExportMenu, ShareMenu
-    palette-left/             # LeftPalette + shape/connector tool buttons + search
-    palette-right/            # RightPalette + one Section component per spec §4.3 group
-    floating/                 # BottomPalette (pointer modes, grid toggle, zoom controls)
-    home/                     # Sidebar, TileGrid, DiagramTile, NewDiagramDialog, TrashView, FolderSection
+    toolbar/                   # TopToolbar (title bar) + CanvasToolbar (the static bar)
+      groups/                  # one component per toolbar entry; see the contract below
+    palette-right/            # panel bodies the toolbar's menus reuse (fill, arrange, link...)
+    floating/                 # leftovers that are genuinely not the toolbar:
+                               # ViewportControls (zoom, bottom-left) + shared popover bodies
+    comments/                  # CommentPinsLayer, CommentsPanel, CommentThread
+    home/                      # TileGrid, DiagramTile, TrashView, SettingsDialog
   data/
     diagrams.js                # Draw Diagram resources (EXISTS — extend)
     folders.js                 # Draw Folder resources
@@ -75,6 +77,43 @@ frontend/src/
     HomeShell.vue              # composes home/*
     EditorShell.vue            # composes toolbar + palettes + canvas; owns the store instance
 ```
+
+## The canvas toolbar — one bar, no floating menus
+
+Every control that acts on the selection lives in ONE static bar
+(`toolbar/CanvasToolbar.vue`), between the title bar and the ruler. Before #359
+there were eight bars floating over the canvas, each anchored above whatever was
+selected. Do not add a ninth.
+
+What that rules out, and why:
+
+- **No `Teleport`, no `position: fixed`, no anchoring to a selection box.** A bar
+  positioned above the selection sits on top of the title bar whenever the object
+  is near the top of the canvas, and every control moves on each pan and zoom.
+- **Nothing built inside an SVG subtree.** Vue creates a `Teleport`'s content in
+  the surrounding namespace, so a control written inside `WhiteboardTable` or
+  `WhiteboardStickyNote` becomes an SVG-namespaced `<div>` with no layout box:
+  in the DOM, styled, zero-sized, invisible and unclickable (#356). Read the
+  shared state from a group under `toolbar/groups/` instead.
+
+The item contract mirrors frappe-ui's own `EditorFixedMenu`, which cannot be
+reused directly because it binds to a Tiptap editor:
+
+- Controls are `toolbar/ToolbarButton.vue`, which requires a `label`, so nothing
+  ships without an accessible name (#176 — guarded by `accessibleNames.test.js`).
+- Active state rides on `aria-pressed` plus `aria-pressed:bg-surface-gray-3`, not
+  a `variant` swap, so the state is in the accessibility tree and not only in the
+  paint. Set `active` on toggles ONLY — a stepper or a menu trigger is not one.
+- Separators are `toolbar/ToolbarSeparator.vue`.
+- **The focus guard is the subtle one.** By default a control suppresses mousedown
+  so clicking Bold cannot blur a shape's text editor. Controls that INSERT or arm
+  a tool need the opposite and set `allows-blur`, or an in-progress edit never
+  commits — a freshly placed node stayed in edit mode and swallowed the next
+  canvas click (#364). Both directions are pinned by `canvasToolbar.test.js`.
+
+Which type's chrome a selection belongs to is decided in ONE place,
+`composables/useSelectionContext.js`. Do not re-derive it: the toolbar and the
+keyboard reading different answers is exactly the bug #45 fixed.
 
 ## useDiagramStore.js — THE store API (implement EXACTLY; features depend on it)
 `createDiagramStore(initialDocument)` returns a reactive object. The store is created once

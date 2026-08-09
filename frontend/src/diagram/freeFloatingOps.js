@@ -230,7 +230,7 @@ export function flowchartDirectionOfShapes(shapes) {
 }
 
 // Run a whole-graph layout action (Tidy up / flip direction / number steps) over the
-// free-floating flowchart shapes, the way BottomPalette's standalone actions run it
+// free-floating flowchart shapes, the way the toolbar's MapLayoutGroup runs it
 // over state.flowchart. Reconstructs the pure model so the existing, tested layout
 // logic runs unchanged, seeds the persisted direction + step-number state, applies
 // `action(model)`, then returns the shape/connector PATCHES to write back — never

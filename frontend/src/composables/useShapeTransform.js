@@ -1,7 +1,6 @@
 // Move, resize, and rotate selected shapes from canvas drags (spec §5.4).
 // Live mutations give 60fps feedback; the whole gesture is wrapped in a single
 // history step on release. Arrow-key nudging is a discrete history step each.
-import { ref } from 'vue'
 import { rotatePoint, shapeCenter } from '@/diagram/geometry.js'
 import { useSmartGuides } from '@/composables/useSmartGuides.js'
 
@@ -12,15 +11,6 @@ const NUDGE_LARGE = 10
 // tiny pointer jitter during a click / double-click-to-edit never nudges a shape
 // (G1: "starting to type moves the shape").
 const MOVE_THRESHOLD = 3
-
-// Module-level (not per-instance) so every consumer — the selection gesture in
-// useSelection AND the floating selection toolbars mounted elsewhere in the tree
-// (BlockSelectionEditor etc, see EditorShell) — reads the same flag, the same
-// way useRichText's `activeEditor` is shared. True only once a body drag has
-// crossed MOVE_THRESHOLD (a real move, not a click); false otherwise/on release.
-// The floating toolbars gate their visibility on this so they don't appear and
-// track the shape mid-drag (#248) — selection itself still updates immediately.
-export const isDragging = ref(false)
 
 export function useShapeTransform(store) {
   const move = createMover(store)
@@ -101,14 +91,12 @@ function createMover(store) {
           dragging = true
           // Only now is this a real move, not a click — let the floating
           // selection toolbars hide themselves for the rest of the gesture (#248).
-          isDragging.value = true
         }
         applyLive(store, apply(point))
       },
       (event, point) => {
         if (dragging) finishGesture(store, 'Move', originals, apply(point))
         smartGuides.clear()
-        isDragging.value = false
       },
     )
   }

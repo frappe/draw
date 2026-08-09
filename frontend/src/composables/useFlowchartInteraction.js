@@ -26,7 +26,6 @@ import { requestFlowchartEdit } from '@/stores/flowchartUi.js'
 import { useSmartGuides } from '@/composables/useSmartGuides.js'
 // Shared drag flag (see useShapeTransform.js) so FlowchartSelectionEditor can hide
 // while a node is actively being dragged, not just while it's selected (#248).
-import { isDragging } from '@/composables/useShapeTransform.js'
 
 export function useFlowchartInteraction(store, editorUi, interactionRef) {
   const guides = useSmartGuides(store)
@@ -143,7 +142,6 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
   function moveDrag(point) {
     // Any move while the pointer is down on a node is a real drag (no separate
     // threshold here) — hide the floating selection toolbar for its duration.
-    isDragging.value = true
     const dx = point.x - drag.startX
     const dy = point.y - drag.startY
     if (drag.multi) {
@@ -172,7 +170,6 @@ export function useFlowchartInteraction(store, editorUi, interactionRef) {
 
   function endDrag() {
     guides.clear()
-    isDragging.value = false
     if (drag.multi) return endMultiDrag()
     const node = flowchartNodeById(store.state.flowchart, drag.nodeId)
     drag.active = false

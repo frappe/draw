@@ -12,7 +12,7 @@
 // - handlesSurfaceInteraction: the type owns surface pointer/dblclick/wheel,
 //   delegated through inject('modeInteraction') (see DiagramCanvas).
 // - keyboardMode: selects the per-mode keyboard handler in useKeyboard.
-// - surfaceTools: extra pointer-mode buttons the BottomPalette renders for this
+// - surfaceTools: extra pointer-mode buttons the canvas toolbar renders for this
 //   type (spec C6 whiteboard pen/highlighter/eraser/text/sticky/laser). Each is
 //   { tool, icon, label }; clicking it sets editorUi tool to `tool`. The type's
 //   mode-interaction composable reads editorUi.state.tool to act on it. Empty for
@@ -65,8 +65,8 @@ const WHITEBOARD = {
   handlesSurfaceInteraction: true, // pen/highlighter/eraser/sticky/text/laser
   keyboardMode: 'whiteboard',
   // NO surfaceTools here on purpose. The whiteboard's tool set lives in
-  // WhiteboardTools.vue, which BottomPalette renders for whiteboard and unified
-  // documents; the palette's `surfaceTools` branch is a `v-else-if` after it, so
+  // WhiteboardTools.vue, which the canvas toolbar renders for whiteboard and
+  // unified documents; the `surfaceTools` seam is the fallback after it, so
   // anything declared here would never render. A duplicate list did sit here, with
   // icons that had drifted from the ones actually shown (pen as 'edit-2' vs the real
   // 'pen-line'), which is misleading rather than harmless — it reads as the
