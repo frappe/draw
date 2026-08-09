@@ -6,6 +6,8 @@
 // Nav is a flat list (no folders, #115): Home · Recent · Shared with you · Pinned ·
 // Trash. "All diagrams" was dropped in favour of the more useful Shared + Pinned.
 
+import { readJson, writeJson } from '@/utils/localStore.js'
+
 // `icon` holds the COMPLETE lucide utility class, not a bare name. Tailwind's
 // JIT only emits classes it can read literally in the source, so a template like
 // `lucide-${name}` produces no CSS and the icon renders blank — it happens to
@@ -33,3 +35,22 @@ export const VIEW_TITLES = {
 export const isPinned = (diagram) => Boolean(diagram.is_pinned)
 export const pinnedOnly = (rows) => rows.filter(isPinned)
 export const unpinned = (rows) => rows.filter((diagram) => !isPinned(diagram))
+
+// Tile or list layout (#222). This is personal chrome state, not part of a
+// document, so it lives in localStorage rather than on the user's record — the
+// same call as recent colours. A new user still starts in the list.
+const LAYOUT_KEY = 'frappe-draw-home-layout'
+export const LAYOUTS = ['list', 'tile']
+export const DEFAULT_LAYOUT = 'list'
+
+// Anything unrecognised falls back to the default. Home renders one branch per
+// layout, so a stale or hand-edited value would otherwise show neither.
+export function readLayout() {
+  const stored = readJson(LAYOUT_KEY, DEFAULT_LAYOUT)
+  return LAYOUTS.includes(stored) ? stored : DEFAULT_LAYOUT
+}
+
+export function writeLayout(layout) {
+  if (!LAYOUTS.includes(layout)) return
+  writeJson(LAYOUT_KEY, layout)
+}

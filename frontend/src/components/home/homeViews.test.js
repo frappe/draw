@@ -1,8 +1,17 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { SIDEBAR_NAV, VIEW_TITLES, isPinned, pinnedOnly, unpinned } from './homeViews.js'
+import {
+  SIDEBAR_NAV,
+  VIEW_TITLES,
+  isPinned,
+  pinnedOnly,
+  unpinned,
+  DEFAULT_LAYOUT,
+  readLayout,
+  writeLayout,
+} from './homeViews.js'
 
 // Browser-free (node env, no @vue/test-utils): assert the view MODEL the home
 // view switcher renders and the pin FILTERS its views use, then source-check that the SFCs
@@ -106,5 +115,93 @@ describe('Home list is a flat Drive-style table (#302)', () => {
     }
     expect(tileGrid).toContain('sortArrow')
     expect(tileGrid).toContain('sortDir')
+  })
+})
+
+// #222: the tile/list choice survives a reload. #221 rides on the same fix — a
+// user who switches to tiles and is returned to the list sees no previews at all
+// and reads that as thumbnails having stopped working.
+describe('Home layout preference (#222)', () => {
+  const original = globalThis.localStorage
+
+  beforeEach(() => {
+    const map = new Map()
+    globalThis.localStorage = {
+      getItem: (key) => (map.has(key) ? map.get(key) : null),
+      setItem: (key, value) => map.set(key, value),
+    }
+  })
+  afterEach(() => {
+    globalThis.localStorage = original
+  })
+
+  it('starts a new user in the list', () => {
+    expect(DEFAULT_LAYOUT).toBe('list')
+    expect(readLayout()).toBe('list')
+  })
+
+  it('remembers a switch to tiles', () => {
+    writeLayout('tile')
+    expect(readLayout()).toBe('tile')
+  })
+
+  it('remembers a switch back to the list', () => {
+    writeLayout('tile')
+    writeLayout('list')
+    expect(readLayout()).toBe('list')
+  })
+
+  it('falls back to the list when the stored value is not a layout', () => {
+    // Home renders one branch per layout, so an unrecognised value would show
+    // neither. A stale key from an older release must not blank the page.
+    globalThis.localStorage.setItem('frappe-draw-home-layout', JSON.stringify('grid'))
+    expect(readLayout()).toBe('list')
+  })
+
+  it('refuses to store a value that is not a layout', () => {
+    writeLayout('tile')
+    writeLayout('nonsense')
+    expect(readLayout()).toBe('tile')
+  })
+
+  it('survives localStorage throwing, as in private mode', () => {
+    globalThis.localStorage = {
+      getItem: () => {
+        throw new Error('denied')
+      },
+      setItem: () => {
+        throw new Error('denied')
+      },
+    }
+    expect(readLayout()).toBe('list')
+    expect(() => writeLayout('tile')).not.toThrow()
+  })
+
+  it('TileGrid seeds its view from the stored layout and persists a change', () => {
+    expect(tileGrid).toContain('ref(readLayout())')
+    expect(tileGrid).toContain('watch(view, writeLayout)')
+    // The old hardcoded default must be gone, or the preference never applies.
+    expect(tileGrid).not.toContain("const view = ref('list')")
+  })
+})
+
+// #221: a stored thumbnail can outlive its File. The diagram keeps the path, the
+// <img> 404s, and because the raster wins over the live preview the tile showed an
+// empty box for a diagram that renders fine.
+describe('tile preview survives a dead thumbnail (#221)', () => {
+  it('treats a failed image load as "no raster"', () => {
+    expect(diagramTile).toContain('@error="thumbnailFailed = true"')
+    expect(diagramTile).toContain('thumbnailFailed.value ? null')
+  })
+
+  it('retries when the diagram gets a new thumbnail path', () => {
+    // Otherwise one dead path would suppress the raster for the rest of the session.
+    expect(diagramTile).toMatch(/watch\(\s*\(\)\s*=>\s*props\.diagram\.thumbnail/)
+  })
+
+  it('still prefers the raster, then the live SVG, then the blank placeholder', () => {
+    expect(diagramTile).toContain('v-if="thumbnailUrl"')
+    expect(diagramTile).toContain('v-else-if="previewSvg"')
+    expect(diagramTile).toContain('Diagram is blank')
   })
 })

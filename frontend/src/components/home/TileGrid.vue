@@ -9,7 +9,7 @@
 import { computed, reactive, ref, watch, watchEffect } from 'vue'
 import { useCall, useList, dialog, toast, Dialog, Button, Divider, Dropdown, TabButtons, TextInput, Tooltip } from 'frappe-ui'
 import DiagramCollection from './DiagramCollection.vue'
-import { pinnedOnly, unpinned } from '@/components/home/homeViews.js'
+import { pinnedOnly, unpinned, readLayout, writeLayout } from '@/components/home/homeViews.js'
 import { submitOrThrow } from '@/data/submit.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
 
@@ -52,7 +52,11 @@ const pinnedTotal = computed(() => rows.value.filter((d) => d.is_pinned).length)
 const pinLimitReached = computed(() => pinnedTotal.value >= MAX_PINNED)
 
 // --- view / search / sort --------------------------------------------------
-const view = ref('list')
+// The tile/list choice survives a reload (#222). Someone who switches to tiles and
+// comes back to a list has to switch again on every visit — and, seeing no previews,
+// reads it as thumbnails having stopped working (#221).
+const view = ref(readLayout())
+watch(view, writeLayout)
 const query = ref('')
 const sortKey = ref('modified')
 // Direction for the sortable list-view column headers (#302). 'smart' ignores it

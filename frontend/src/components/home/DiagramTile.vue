@@ -3,7 +3,7 @@
 // show a live thumbnail; list rows show the diagram-type icon instead. Both
 // carry the title, created + edited times, a selection checkbox, and a ⋯ menu
 // (Pin/Unpin · Rename · Duplicate · Delete).
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Checkbox, Dropdown, toast } from 'frappe-ui'
 import { documentToSvg, isDocumentEmpty } from '@/composables/useThumbnail.js'
 
@@ -24,10 +24,24 @@ const isEmpty = computed(() => {
   const document = props.diagram.document
   return !document || isDocumentEmpty(document)
 })
+// A stored thumbnail can outlive the File it points at: the diagram keeps the
+// path after the attachment is gone, and the <img> then 404s. Because the raster
+// wins over the live preview, that left an empty box on a diagram that renders
+// perfectly well — "the thumbnail stopped rendering" (#221). Treat a failed load
+// as "no raster" so the live SVG takes over. Reset when the path changes, since
+// the next one may well be fine.
+const thumbnailFailed = ref(false)
+watch(
+  () => props.diagram.thumbnail,
+  () => (thumbnailFailed.value = false),
+)
+
 // A saved-once-but-emptied diagram still carries a (blank white) raster thumbnail,
 // so gate the thumbnail on the doc actually having content — otherwise the blank
 // raster wins and the "Diagram is blank" placeholder never shows (#93).
-const thumbnailUrl = computed(() => (isEmpty.value ? null : props.diagram.thumbnail || null))
+const thumbnailUrl = computed(() =>
+  isEmpty.value || thumbnailFailed.value ? null : props.diagram.thumbnail || null,
+)
 const previewSvg = computed(() => {
   if (thumbnailUrl.value || isEmpty.value) return null
   return documentToSvg(props.diagram.document)
@@ -190,6 +204,7 @@ const TIME_UNITS = [
           loading="lazy"
           decoding="async"
           class="h-full w-full object-contain"
+          @error="thumbnailFailed = true"
         />
         <div v-else-if="previewSvg" class="h-full w-full [&>svg]:h-full [&>svg]:w-full" v-html="previewSvg" />
         <span v-else class="text-2xs italic text-ink-gray-4">Diagram is blank</span>
