@@ -6,7 +6,6 @@
 //
 // The Drive-path breadcrumb that used to sit on the left is gone; Drive is still
 // reachable from DriveMenu. Chrome only — frappe-ui and its tokens.
-import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Button } from 'frappe-ui'
 import Logomark from '@/components/Logomark.vue'
@@ -29,10 +28,6 @@ const emit = defineEmits(['update:title'])
 
 const router = useRouter()
 
-// The overflow menu's "Rename" re-enters the inline title editor (same path as
-// clicking the title), so hold a ref to trigger it.
-const titleEditor = ref(null)
-
 function goHome() {
   router.push({ name: 'Home' })
 }
@@ -51,7 +46,7 @@ function goHome() {
 
     <!-- CENTER: the diagram title, click to rename in place. -->
     <div class="flex min-w-0 items-center justify-center">
-      <TitleEditor ref="titleEditor" :title="title" @update:title="emit('update:title', $event)" />
+      <TitleEditor :title="title" @update:title="emit('update:title', $event)" />
     </div>
 
     <!-- RIGHT: actions. -->
@@ -61,8 +56,8 @@ function goHome() {
       <DriveMenu />
       <CommentsToggle />
       <ShareMenu />
-      <!-- "…" overflow: Rename / Show info / Favourite / Delete (#111). -->
-      <OverflowMenu @rename="titleEditor?.startEditing()" />
+      <!-- "…" overflow: Show info / Pin / Delete (#111). Rename is the title itself. -->
+      <OverflowMenu />
       <PresenceAvatars />
     </div>
   </header>
