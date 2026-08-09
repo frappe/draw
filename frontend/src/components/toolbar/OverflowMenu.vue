@@ -1,12 +1,13 @@
 <script setup>
 // Editor "…" overflow menu (#111). Sits after Export + Share in the top bar and
 // gathers the less-frequent document actions Drive / Writer tuck under a kebab:
-// Rename (re-enters the inline TitleEditor), Show info (name / created / modified /
-// owner), Favourite/Pin (toggles is_pinned), and Delete (move to Trash). Loads its
-// own copy of the diagram doc the same way ShareMenu does — from the route param —
-// so the toolbar itself stays prop-light. The item set lives in overflowMenu.js so
-// it can be unit-tested without mounting this component.
+// Show info (name / created / modified / owner), Pin/Unpin (toggles is_pinned),
+// and Delete (move to Trash). Loads its own copy of the diagram doc the same way
+// ShareMenu does — from the route param — so the toolbar itself stays prop-light.
+// The item set lives in overflowMenu.js so it can be unit-tested without mounting
+// this component.
 //
+// Rename is not here (#232): renaming happens by clicking the title.
 // Move … and Version history … are intentionally omitted — see overflowMenu.js.
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -15,10 +16,6 @@ import { loadDiagram } from '@/data/diagrams.js'
 import { getDriveAvailability } from '@/data/drive.js'
 import { overflowMenuItems } from './overflowMenu.js'
 import MoveToDriveDialog from './MoveToDriveDialog.vue'
-
-// Rename lives in the sibling TitleEditor (inline, in the breadcrumb), so we ask the
-// parent toolbar to trigger it rather than duplicating the edit UI here.
-const emit = defineEmits(['rename'])
 
 const route = useRoute()
 const router = useRouter()
@@ -40,7 +37,6 @@ const menuItems = computed(() =>
   overflowMenuItems({
     isPinned: isPinned.value,
     driveAvailable: driveAvailable.value,
-    onRename: () => emit('rename'),
     onShowInfo: openInfo,
     onMove: () => (showMove.value = true),
     onTogglePin: togglePin,
