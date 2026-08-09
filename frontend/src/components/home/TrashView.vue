@@ -2,22 +2,24 @@
 // Trash view (spec §2, README "Trash view"): an amber 30-day warning banner
 // over a grid of trashed diagrams, each with Restore and permanent Delete.
 // Loads only trashed diagrams; restore clears the flag, delete removes the doc.
-import { computed, onMounted } from 'vue'
-import { createListResource, dialog, toast, Alert, Button } from 'frappe-ui'
+import { computed } from 'vue'
+import { useList, dialog, toast, Alert, Button } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
+import { submitOrThrow } from '@/data/submit.js'
 import { documentToSvg, isDocumentEmpty } from '@/composables/useThumbnail.js'
 
 const emit = defineEmits(['changed'])
 
-const trashed = createListResource({
+// `refetch: false` — restore and purge both end in refresh(), so the default
+// would reload the list twice per action.
+const trashed = useList({
   doctype: 'Draw Diagram',
   fields: ['name', 'title', 'modified', 'document'],
   filters: { is_trashed: 1 },
   orderBy: 'trashed_on desc',
-  pageLength: 500,
+  limit: 500,
+  refetch: false,
 })
-
-onMounted(() => trashed.fetch())
 
 const rows = computed(() => trashed.data || [])
 
@@ -27,7 +29,7 @@ function preview(document) {
 }
 
 async function restore(diagram) {
-  await trashed.setValue.submit({ name: diagram.name, is_trashed: 0, trashed_on: null })
+  await submitOrThrow(trashed.setValue, { name: diagram.name, is_trashed: 0, trashed_on: null })
   refresh()
 }
 
@@ -39,7 +41,8 @@ function askPurge(diagram) {
     theme: 'red',
     confirmLabel: 'Delete forever',
     onConfirm: async () => {
-      await trashed.delete.submit(diagram.name)
+      // useList's delete takes a params object, not a bare name.
+      await submitOrThrow(trashed.delete, { name: diagram.name })
       toast.success('Deleted permanently')
       refresh()
     },

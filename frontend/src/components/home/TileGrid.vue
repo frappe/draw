@@ -6,11 +6,12 @@
 //   pinned — a flat list of just the pinned diagrams (#116)
 // Toolbar offers search + sort + a tile/list toggle, becoming a bulk-action bar
 // on selection. Creation is the top-right CTA only. At most MAX_PINNED pinned.
-import { computed, onMounted, reactive, ref, watch, watchEffect } from 'vue'
-import { createListResource, createResource, dialog, toast, Dialog, Button, Divider, Dropdown, TabButtons, TextInput, Tooltip } from 'frappe-ui'
+import { computed, reactive, ref, watch, watchEffect } from 'vue'
+import { useCall, useList, dialog, toast, Dialog, Button, Divider, Dropdown, TabButtons, TextInput, Tooltip } from 'frappe-ui'
 import LucideIcon from '@/icons/LucideIcon.vue'
 import DiagramCollection from './DiagramCollection.vue'
 import { pinnedOnly, unpinned } from '@/components/home/homeViews.js'
+import { submitOrThrow } from '@/data/submit.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
 
 const props = defineProps({
@@ -21,22 +22,24 @@ const emit = defineEmits(['create', 'open', 'changed'])
 const MAX_PINNED = 5
 const RECENT_LIMIT = 24
 
-const enriched = createListResource({
+// `refetch: false` keeps writes from triggering their own list reload — every
+// mutation here already ends in an explicit refresh(), so the default would
+// re-fetch twice per change (and once per diagram during a bulk delete).
+const enriched = useList({
   doctype: 'Draw Diagram',
   // `thumbnail` is the saved raster preview shown on tiles; `document` stays for the
   // live-SVG fallback when a (non-empty) diagram has no thumbnail yet, and for duplicate.
   fields: ['name', 'title', 'creation', 'modified', 'diagram_type', 'is_pinned', 'owner', 'document', 'thumbnail'],
   filters: { is_trashed: 0 },
   orderBy: 'modified desc',
-  pageLength: 500,
+  limit: 500,
+  refetch: false,
 })
-
-onMounted(() => enriched.fetch())
 
 // "Shared with you" can't be a plain list filter — it joins DocShare and excludes
 // the owner — so it comes from a dedicated endpoint (draw.api.diagram.shared_with_me),
 // fetched lazily the first time that view is opened.
-const shared = createResource({ url: 'draw.api.diagram.shared_with_me', auto: false })
+const shared = useCall({ url: '/api/v2/method/draw.api.diagram.shared_with_me', immediate: false })
 watch(
   () => props.mode,
   (mode) => {
@@ -196,7 +199,7 @@ function askDelete(names) {
     onConfirm: async () => {
       try {
         for (const name of names) {
-          await enriched.setValue.submit({ name, is_trashed: 1, trashed_on: frappeNow() })
+          await submitOrThrow(enriched.setValue, { name, is_trashed: 1, trashed_on: frappeNow() })
         }
         toast.success(`Moved ${n} diagram${n === 1 ? '' : 's'} to Trash`)
       } finally {
@@ -218,7 +221,7 @@ function trash(diagram) {
 // --- pin / rename / duplicate ---------------------------------------------
 async function togglePin(diagram) {
   if (!diagram.is_pinned && pinLimitReached.value) return
-  await enriched.setValue.submit({ name: diagram.name, is_pinned: diagram.is_pinned ? 0 : 1 })
+  await submitOrThrow(enriched.setValue, { name: diagram.name, is_pinned: diagram.is_pinned ? 0 : 1 })
   refresh()
 }
 
@@ -228,7 +231,7 @@ function startRename(diagram) {
     confirmLabel: 'Save',
     fields: [{ name: 'title', label: 'Title', required: true, defaultValue: diagram.title }],
     onConfirm: async ({ values }) => {
-      await enriched.setValue.submit({ name: diagram.name, title: values.title })
+      await submitOrThrow(enriched.setValue, { name: diagram.name, title: values.title })
       refresh()
     },
   })
@@ -236,7 +239,7 @@ function startRename(diagram) {
 
 async function duplicate(diagram) {
   const document = diagram.document || createDiagramDocument()
-  await enriched.insert.submit({ title: `${diagram.title} copy`, document })
+  await submitOrThrow(enriched.insert, { title: `${diagram.title} copy`, document })
   refresh()
 }
 
