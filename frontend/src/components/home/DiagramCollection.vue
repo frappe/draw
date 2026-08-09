@@ -35,7 +35,7 @@ const TILE_COLS = 'grid-template-columns: repeat(auto-fill, minmax(224px, 1fr))'
     <slot name="append" />
   </div>
 
-  <div v-else class="flex flex-col gap-1.5">
+  <div v-else class="flex flex-col">
     <DiagramTile
       v-for="diagram in diagrams"
       :key="diagram.name"

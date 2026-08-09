@@ -53,6 +53,9 @@ const pinLimitReached = computed(() => pinnedTotal.value >= MAX_PINNED)
 const view = ref('list')
 const query = ref('')
 const sortKey = ref('modified')
+// Direction for the sortable list-view column headers (#302). 'smart' ignores it
+// (it has its own pinned-first order); the toolbar dropdown resets it to a default.
+const sortDir = ref('desc')
 
 function matchesQuery(diagram) {
   const q = query.value.trim().toLowerCase()
@@ -66,20 +69,46 @@ const SORTS = [
   { key: 'title', label: 'Name (A–Z)' },
 ]
 const sortLabel = computed(() => SORTS.find((s) => s.key === sortKey.value)?.label || 'Sort')
-const sortOptions = computed(() => SORTS.map((s) => ({ label: s.label, onClick: () => (sortKey.value = s.key) })))
+const sortOptions = computed(() =>
+  SORTS.map((s) => ({ label: s.label, onClick: () => setSort(s.key, defaultDir(s.key)) })),
+)
+
+// Names read A→Z; every other key is newest-first by default.
+function defaultDir(key) {
+  return key === 'title' ? 'asc' : 'desc'
+}
+// A sortable column header: with an explicit `dir` (dropdown) set that; otherwise
+// clicking the active column flips direction, a new column sorts in its default.
+function setSort(key, dir = null) {
+  if (dir) {
+    sortKey.value = key
+    sortDir.value = dir
+  } else if (sortKey.value === key) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortKey.value = key
+    sortDir.value = defaultDir(key)
+  }
+}
+// The arrow lucide name for a column, or null when it isn't the active sort.
+function sortArrow(key) {
+  if (sortKey.value !== key) return null
+  return sortDir.value === 'asc' ? 'chevron-up' : 'chevron-down'
+}
 
 function ts(value) {
   return value ? new Date(value.replace(' ', 'T')).getTime() : 0
 }
 function bySort(a, b) {
-  if (sortKey.value === 'title') return (a.title || '').localeCompare(b.title || '')
   // Smart: surface what you'd likely want next — pinned first, then most recently
   // edited. (Without open-frequency data this is the best local heuristic; I6.)
   if (sortKey.value === 'smart') {
     const pin = (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0)
     return pin || ts(b.modified) - ts(a.modified)
   }
-  return ts(b[sortKey.value]) - ts(a[sortKey.value])
+  const dir = sortDir.value === 'asc' ? 1 : -1
+  if (sortKey.value === 'title') return dir * (a.title || '').localeCompare(b.title || '')
+  return dir * (ts(a[sortKey.value]) - ts(b[sortKey.value]))
 }
 function byNewest(a, b) {
   return ts(b.modified) - ts(a.modified)
@@ -301,13 +330,13 @@ const collectionHandlers = {
       />
     </div>
 
-    <!-- List-view column header (mirrors the row columns). The Select-all master
-         checkbox sits here, left of Name, aligned above each row's checkbox. -->
+    <!-- List-view column header — aligns column-for-column with the flat rows. The
+         master checkbox sits left; Name / Created / Last edited click to sort (#302). -->
     <div
       v-if="view === 'list'"
-      class="mb-2 flex items-center gap-3 px-3 text-2xs font-medium text-ink-gray-5"
+      class="mb-1 flex items-center gap-3 border-b border-outline-gray-1 px-3 pb-2 text-2xs font-medium text-ink-gray-5"
     >
-      <span class="flex w-[18px] flex-none items-center justify-center">
+      <span class="flex w-4 flex-none items-center justify-center">
         <Tooltip :text="allSelected || someSelected ? 'Clear selection' : 'Select all'">
           <input
             v-if="currentDiagrams.length"
@@ -320,11 +349,21 @@ const collectionHandlers = {
           />
         </Tooltip>
       </span>
-      <span class="h-8 w-8 flex-none" />
-      <span class="min-w-0 flex-1">Name</span>
-      <span class="hidden w-28 flex-none lg:inline">Owner</span>
-      <span class="hidden w-28 flex-none md:inline">Created</span>
-      <span class="hidden w-28 flex-none sm:inline">Last edited</span>
+      <span class="w-6 flex-none" />
+      <span class="w-8 flex-none" />
+      <button class="flex min-w-0 flex-1 items-center gap-1 hover:text-ink-gray-7" @click="setSort('title')">
+        Name
+        <LucideIcon v-if="sortArrow('title')" :name="sortArrow('title')" class="h-3 w-3 flex-none" />
+      </button>
+      <span class="hidden w-28 flex-none lg:block">Owner</span>
+      <button class="hidden w-28 flex-none items-center gap-1 hover:text-ink-gray-7 md:flex" @click="setSort('creation')">
+        Created
+        <LucideIcon v-if="sortArrow('creation')" :name="sortArrow('creation')" class="h-3 w-3 flex-none" />
+      </button>
+      <button class="hidden w-28 flex-none items-center gap-1 hover:text-ink-gray-7 sm:flex" @click="setSort('modified')">
+        Last edited
+        <LucideIcon v-if="sortArrow('modified')" :name="sortArrow('modified')" class="h-3 w-3 flex-none" />
+      </button>
       <span class="w-7 flex-none" />
     </div>
 

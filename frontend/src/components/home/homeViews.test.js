@@ -11,6 +11,7 @@ import { SIDEBAR_NAV, VIEW_TITLES, isPinned, pinnedOnly, unpinned } from './home
 const here = path.dirname(fileURLToPath(import.meta.url))
 const read = (rel) => readFileSync(path.join(here, rel), 'utf8')
 const tileGrid = read('TileGrid.vue')
+const diagramTile = read('DiagramTile.vue')
 const homeShell = read('../../pages/HomeShell.vue')
 
 describe('sidebar nav set (#116)', () => {
@@ -88,5 +89,22 @@ describe('the SFCs bind the shared model', () => {
     expect(tileGrid).toContain('draw.api.diagram.shared_with_me')
     // The old flat "all diagrams" list must be gone.
     expect(tileGrid).not.toContain('allFlat')
+  })
+})
+
+// #302: the Home list is a flat, Frappe-Drive-style table — no per-row card, just a
+// hairline separator + hover — with sortable, direction-aware column headers.
+describe('Home list is a flat Drive-style table (#302)', () => {
+  it('de-cards the list row (hairline separator, not a bordered card)', () => {
+    expect(diagramTile).not.toContain('rounded-lg border px-3')
+    expect(diagramTile).toContain('border-b border-outline-gray-1')
+  })
+
+  it('wires sortable, direction-aware column headers', () => {
+    for (const key of ['title', 'creation', 'modified']) {
+      expect(tileGrid).toContain(`setSort('${key}')`)
+    }
+    expect(tileGrid).toContain('sortArrow')
+    expect(tileGrid).toContain('sortDir')
   })
 })

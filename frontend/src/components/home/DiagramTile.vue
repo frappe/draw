@@ -102,14 +102,18 @@ const TIME_UNITS = [
 </script>
 
 <template>
-  <!-- LIST ROW -->
+  <!-- LIST ROW — flat, dense, Frappe-Drive style (#302): no card border, just a
+       hairline separator + hover. Whole row opens (mouse); the title is a real
+       button so the row is keyboard-reachable. Columns align with TileGrid's header. -->
   <div
     v-if="view === 'list'"
-    class="group relative flex items-center gap-3 rounded-lg border px-3 py-1.5"
-    :class="selected ? 'border-outline-blue-2 bg-surface-blue-1' : 'border-outline-gray-1 bg-surface-base hover:bg-surface-gray-1'"  >
-    <!-- List-view select checkbox is always visible (Drive-style, I2). -->
+    class="group flex cursor-pointer items-center gap-3 border-b border-outline-gray-1 px-3 py-1.5"
+    :class="selected ? 'bg-surface-gray-3' : 'hover:bg-surface-gray-2'"
+    @click="emit('open', diagram.name)"
+  >
+    <!-- Select checkbox is always visible (Drive-style, I2). -->
     <Checkbox
-      class="flex-none"
+      class="w-4 flex-none"
       size="sm"
       :model-value="selected"
       :aria-label="`Select ${diagram.title || 'Untitled'}`"
@@ -119,7 +123,7 @@ const TIME_UNITS = [
 
     <!-- One-click star (Gmail-style pin). -->
     <button
-      class="flex h-6 w-6 flex-none items-center justify-center rounded hover:bg-surface-gray-2 disabled:cursor-not-allowed disabled:opacity-40"
+      class="flex h-6 w-6 flex-none items-center justify-center rounded hover:bg-surface-gray-3 disabled:cursor-not-allowed disabled:opacity-40"
       :title="pinTitle"
       :aria-label="pinTitle"
       :disabled="pinBlocked"
@@ -132,20 +136,18 @@ const TIME_UNITS = [
       />
     </button>
 
-    <button class="flex min-w-0 flex-1 items-center gap-3 text-left" @click="emit('open', diagram.name)">
-      <div class="flex h-8 w-8 flex-none items-center justify-center rounded-md bg-surface-gray-2 text-ink-gray-7">
-        <LucideIcon :name="icon" class="h-4 w-4" />
-      </div>
-      <span class="min-w-0 flex-1 truncate text-sm font-medium text-ink-gray-9">
-        {{ diagram.title }}
-      </span>
-      <span class="hidden w-28 flex-none truncate text-2xs text-ink-gray-5 lg:inline">{{ ownerLabel }}</span>
-      <span class="hidden w-28 flex-none text-2xs text-ink-gray-5 md:inline">Created {{ createdLabel }}</span>
-      <span class="hidden w-28 flex-none text-2xs text-ink-gray-5 sm:inline">Edited {{ editedLabel }}</span>
+    <span class="flex h-8 w-8 flex-none items-center justify-center rounded-md bg-surface-gray-2 text-ink-gray-7">
+      <LucideIcon :name="icon" class="h-4 w-4" />
+    </span>
+    <button class="min-w-0 flex-1 truncate text-left text-sm font-medium text-ink-gray-9" @click.stop="emit('open', diagram.name)">
+      {{ diagram.title }}
     </button>
+    <span class="hidden w-28 flex-none truncate text-2xs text-ink-gray-5 lg:block">{{ ownerLabel }}</span>
+    <span class="hidden w-28 flex-none text-2xs text-ink-gray-5 md:block">{{ createdLabel }}</span>
+    <span class="hidden w-28 flex-none text-2xs text-ink-gray-5 sm:block">{{ editedLabel }}</span>
 
     <Dropdown :options="menuItems" placement="bottom-end">
-      <button class="flex h-7 w-7 flex-none items-center justify-center rounded-md text-ink-gray-5 hover:bg-surface-gray-2" @click.stop>
+      <button class="flex h-7 w-7 flex-none items-center justify-center rounded-md text-ink-gray-5 hover:bg-surface-gray-3" @click.stop>
         <LucideIcon name="more-horizontal" class="h-4 w-4" />
       </button>
     </Dropdown>
