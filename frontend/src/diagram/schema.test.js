@@ -169,3 +169,25 @@ describe('schema mindmap.shaped backfill', () => {
     expect(parsed.shapes.find((s) => s.id === 'm2').mindmap.shaped).toBe(true)
   })
 })
+
+describe('schema drops the removed lock/hide flags (#339)', () => {
+  function docWithFlags() {
+    return {
+      schemaVersion: 2,
+      diagramType: 'unified',
+      themePreset: 'ocean',
+      canvas: { sizePreset: 'Widescreen 16:9', width: 1280, height: 720, background: null },
+      shapes: [
+        { id: 's1', type: 'rectangle', x: 0, y: 0, w: 10, h: 10, locked: true },
+        { id: 's2', type: 'rectangle', x: 0, y: 0, w: 10, h: 10, hidden: true },
+      ],
+      connectors: [], sections: [], mindmap: null, flowchart: null, whiteboard: null,
+    }
+  }
+
+  it('clears locked/hidden so a shape saved with them is not stuck', () => {
+    const parsed = parseDiagramDocument(docWithFlags())
+    expect(parsed.shapes.find((s) => s.id === 's1').locked).toBeUndefined()
+    expect(parsed.shapes.find((s) => s.id === 's2').hidden).toBeUndefined()
+  })
+})

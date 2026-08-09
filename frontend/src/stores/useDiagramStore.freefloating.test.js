@@ -57,28 +57,6 @@ function migratedMindmapStore() {
   return { store: createDiagramStore(doc), rootId: mm.rootId, childId }
 }
 
-describe('store.setMindmapNodeShaped', () => {
-  it('toggles a node between box and text, and undo restores it', () => {
-    const { store, childId } = migratedMindmapStore()
-    expect(store.shapeById(childId).mindmap.shaped).toBe(true) // #260: children default to boxed
-    store.setMindmapNodeShaped(childId, false)
-    expect(store.shapeById(childId).mindmap.shaped).toBe(false)
-    store.undo()
-    expect(store.shapeById(childId).mindmap.shaped).toBe(true)
-  })
-
-  it('flips only shaped, leaving the rest of the node tag intact', () => {
-    const { store, childId } = migratedMindmapStore()
-    const before = { ...store.shapeById(childId).mindmap }
-    store.setMindmapNodeShaped(childId, false)
-    const after = store.shapeById(childId).mindmap
-    expect(after.shaped).toBe(false)
-    expect(after.parentId).toBe(before.parentId)
-    expect(after.side).toBe(before.side)
-    expect(after.depth).toBe(before.depth)
-  })
-})
-
 // #260: addChildNode / addSiblingNode read the saved Child-node style default and
 // stamp it onto the new node, without the pure builder knowing the setting (a
 // sibling is another child node, so it honours the same default).

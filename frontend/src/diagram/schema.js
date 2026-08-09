@@ -128,8 +128,21 @@ function migrateDocument(document) {
   }
   backfillWhiteboardZIndex(migrated)
   backfillMindmapShaped(migrated)
+  clearDroppedFlags(migrated)
   migrated.schemaVersion = SCHEMA_VERSION
   return migrated
+}
+
+// Lock / hide were dropped with the right-click menu (#269, #339): nothing sets
+// these flags any more, but a board saved earlier could still carry a locked or
+// hidden shape — which, with the menu gone, would be stuck (un-selectable or
+// invisible with no way to recover it). Clear the flags on load so every shape is
+// interactable and visible again. Idempotent — deleting an absent key is a no-op.
+function clearDroppedFlags(document) {
+  for (const shape of document.shapes || []) {
+    delete shape.locked
+    delete shape.hidden
+  }
 }
 
 // Whiteboard objects gained a zIndex when stacking became document-wide (#27).
