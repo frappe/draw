@@ -10,8 +10,18 @@ import { computed } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { activeEditor } from '@/composables/useRichText.js'
 
+// One instance per store, the same way useSmartGuides memoises. Five groups read
+// this, and `shapes` resolves every selected id against the shape list, so five
+// independent copies would redo that work five times on each selection change.
+const instances = new WeakMap()
+
 export function useBlockSelection() {
   const store = useDiagramStore()
+  if (!instances.has(store)) instances.set(store, createBlockSelection(store))
+  return instances.get(store)
+}
+
+function createBlockSelection(store) {
   const selection = computed(() => store.state.selection || [])
   const shapes = computed(() => selection.value.map((id) => store.shapeById(id)).filter(Boolean))
   const shapeIds = computed(() => shapes.value.map((shape) => shape.id))

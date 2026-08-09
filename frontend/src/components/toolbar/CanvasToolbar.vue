@@ -29,7 +29,7 @@ import LineGroup from './groups/LineGroup.vue'
 import ToolbarSeparator from './ToolbarSeparator.vue'
 
 const { chromeType } = useSelectionContext()
-const block = useBlockSelection()
+const { connector, hasShapes, count, editing } = useBlockSelection()
 
 // Text and image are block shapes even on the whiteboard, so their format menu
 // is the block group there too (S13/S14/U1). The whiteboard's own objects get
@@ -37,11 +37,11 @@ const block = useBlockSelection()
 const showsBlockGroups = computed(
   () => chromeType.value === 'block' || chromeType.value === 'whiteboard',
 )
-const shapeSelected = computed(() => showsBlockGroups.value && block.hasShapes.value)
-const connectorSelected = computed(() => showsBlockGroups.value && Boolean(block.connector.value))
+const shapeSelected = computed(() => showsBlockGroups.value && hasShapes.value)
+const connectorSelected = computed(() => showsBlockGroups.value && Boolean(connector.value))
 // Delete acts on the shape, so it hides while a label is being edited.
 const showsActions = computed(
-  () => showsBlockGroups.value && block.count.value > 0 && !block.editing.value,
+  () => showsBlockGroups.value && count.value > 0 && !editing.value,
 )
 </script>
 
@@ -53,10 +53,10 @@ const showsActions = computed(
   >
     <TooltipProvider>
       <div class="flex min-w-0 flex-1 items-center gap-1">
-        <LineGroup v-if="connectorSelected" :connector="block.connector.value" />
+        <LineGroup v-if="connectorSelected" :connector="connector" />
 
         <template v-else-if="shapeSelected">
-          <template v-if="!block.editing.value">
+          <template v-if="!editing">
             <StyleGroup />
             <ToolbarSeparator />
           </template>
@@ -64,7 +64,7 @@ const showsActions = computed(
           <!-- Shown while editing too: this IS the text-only menu then (#259). -->
           <TextGroup />
 
-          <template v-if="!block.editing.value">
+          <template v-if="!editing">
             <ToolbarSeparator />
             <ArrangeGroup />
           </template>

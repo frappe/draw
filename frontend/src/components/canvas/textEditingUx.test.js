@@ -31,14 +31,14 @@ describe('editing text shows a text-only menu, not the shape menu (#259)', () =>
   const textGroup = read('components/toolbar/groups/TextGroup.vue')
 
   it('gates the shape-only groups behind !editing', () => {
-    expect(toolbar).toContain('<template v-if="!block.editing.value">')
+    expect(toolbar).toContain('<template v-if="!editing">')
     // Style and arrange act on the shape; text formatting stays available.
     expect(toolbar).toContain('<StyleGroup />')
     expect(toolbar).toContain('<ArrangeGroup />')
   })
 
   it('hides delete while a label is being edited — the target is the text, not the shape', () => {
-    expect(toolbar).toContain('block.count.value > 0 && !block.editing.value')
+    expect(toolbar).toContain('count.value > 0 && !editing.value')
   })
 
   it('offers a text colour control that recolours the selection live while editing', () => {
