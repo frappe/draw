@@ -9,7 +9,6 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Avatar, Button, Dialog, ItemListRow, Select, TextInput } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { loadDiagram } from '@/data/diagrams.js'
 import { GENERAL_ACCESS_OPTIONS, MEMBER_ROLE_OPTIONS, useShare } from '@/composables/useShare.js'
 
@@ -87,7 +86,7 @@ async function doCopy() {
 
 <template>
   <Button variant="outline" @click="open = true">
-    <template #prefix><LucideIcon name="share-2" class="h-4 w-4" /></template>
+    <template #prefix><span class="lucide-share-2 h-4 w-4" aria-hidden="true" /></template>
     Share
   </Button>
 
@@ -219,10 +218,10 @@ async function doCopy() {
             v-if="copied"
             class="flex items-center gap-1 text-sm font-medium text-ink-gray-6"
           >
-            <LucideIcon name="check" class="h-4 w-4 text-ink-green-2" /> Link copied
+            <span class="lucide-check h-4 w-4 text-ink-green-2" aria-hidden="true" /> Link copied
           </span>
           <Button variant="subtle" @click="doCopy">
-            <template #prefix><LucideIcon name="link" class="h-4 w-4" /></template>
+            <template #prefix><span class="lucide-link h-4 w-4" aria-hidden="true" /></template>
             Copy link
           </Button>
         </div>

@@ -4,7 +4,6 @@
 // mind map's "Add your first idea". (Double-click no longer creates nodes; P4.)
 // Once there's a node, growing the chart uses the node's hover "+" handles.
 import { computed, nextTick } from 'vue'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { nodeSize } from '@/diagram/flowchartModel.js'
@@ -39,7 +38,7 @@ function addFirstStep() {
       class="fixed left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-dashed border-outline-gray-3 bg-surface-base px-5 py-3 text-base font-medium text-ink-gray-7 shadow-sm hover:border-outline-gray-8 hover:text-ink-gray-9"
       @click="addFirstStep"
     >
-      <LucideIcon name="plus" class="h-4 w-4" /> Add first step
+      <span class="lucide-plus h-4 w-4" aria-hidden="true" /> Add first step
     </button>
   </Teleport>
 </template>

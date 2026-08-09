@@ -11,7 +11,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Button, Dialog, Dropdown, toast } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { loadDiagram } from '@/data/diagrams.js'
 import { getDriveAvailability } from '@/data/drive.js'
 import { overflowMenuItems } from './overflowMenu.js'
@@ -104,7 +103,7 @@ function frappeNow() {
 <template>
   <Dropdown :options="menuItems" placement="bottom-end">
     <Button variant="outline" aria-label="More actions">
-      <LucideIcon name="more-horizontal" class="h-4 w-4" />
+      <span class="lucide-ellipsis h-4 w-4" aria-hidden="true" />
     </Button>
   </Dropdown>
 

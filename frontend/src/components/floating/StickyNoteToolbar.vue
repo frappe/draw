@@ -13,7 +13,6 @@
 // while the note is actively dragged (#248).
 import { computed } from 'vue'
 import { Divider } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
@@ -84,7 +83,7 @@ function removeSticky() {
         @pointerdown.stop
         @click="toggleStrike"
       >
-        <LucideIcon name="strikethrough" class="h-4 w-4" />
+        <span class="lucide-strikethrough h-4 w-4" aria-hidden="true" />
       </button>
       <Divider orientation="vertical" class="mx-0.5 !h-5" />
       <button
@@ -94,7 +93,7 @@ function removeSticky() {
         @pointerdown.stop
         @click="duplicate"
       >
-        <LucideIcon name="copy" class="h-4 w-4" />
+        <span class="lucide-copy h-4 w-4" aria-hidden="true" />
       </button>
       <button
         class="flex h-7 w-7 items-center justify-center rounded-md text-ink-red-4 hover:bg-red-50"
@@ -103,7 +102,7 @@ function removeSticky() {
         @pointerdown.stop
         @click="removeSticky"
       >
-        <LucideIcon name="trash-2" class="h-4 w-4" />
+        <span class="lucide-trash-2 h-4 w-4" aria-hidden="true" />
       </button>
     </div>
   </Teleport>

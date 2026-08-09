@@ -5,7 +5,6 @@
 // (Pin/Unpin · Rename · Duplicate · Delete).
 import { computed } from 'vue'
 import { Checkbox, Dropdown, toast } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { documentToSvg, isDocumentEmpty } from '@/composables/useThumbnail.js'
 
 const props = defineProps({
@@ -36,7 +35,8 @@ const previewSvg = computed(() => {
 
 // One neutral glyph for every diagram — types aren't a user-facing concept
 // anymore, so rows no longer show a per-type icon (#114).
-const icon = 'shapes'
+// A complete lucide class: Tailwind's JIT reads it literally.
+const icon = 'lucide-shapes'
 const isPinned = computed(() => Boolean(props.diagram.is_pinned))
 const createdLabel = computed(() => relativeTime(props.diagram.creation))
 const editedLabel = computed(() => relativeTime(props.diagram.modified))
@@ -129,15 +129,11 @@ const TIME_UNITS = [
       :disabled="pinBlocked"
       @click.stop="togglePin"
     >
-      <LucideIcon
-        name="pin"
-        class="h-4 w-4"
-        :class="isPinned ? 'fill-current text-ink-amber-2' : 'text-ink-gray-4 hover:text-ink-gray-6'"
-      />
+      <span class="lucide-pin h-4 w-4" aria-hidden="true" :class="isPinned ? 'fill-current text-ink-amber-2' : 'text-ink-gray-4 hover:text-ink-gray-6'" />
     </button>
 
     <span class="flex h-8 w-8 flex-none items-center justify-center rounded-md bg-surface-gray-2 text-ink-gray-7">
-      <LucideIcon :name="icon" class="h-4 w-4" />
+      <span class="h-4 w-4" aria-hidden="true" :class="icon" />
     </span>
     <button class="min-w-0 flex-1 truncate text-left text-sm font-medium text-ink-gray-9" @click.stop="emit('open', diagram.name)">
       {{ diagram.title }}
@@ -148,7 +144,7 @@ const TIME_UNITS = [
 
     <Dropdown :options="menuItems" placement="bottom-end">
       <button class="flex h-7 w-7 flex-none items-center justify-center rounded-md text-ink-gray-5 hover:bg-surface-gray-3" @click.stop>
-        <LucideIcon name="more-horizontal" class="h-4 w-4" />
+        <span class="lucide-ellipsis h-4 w-4" aria-hidden="true" />
       </button>
     </Dropdown>
   </div>
@@ -177,11 +173,7 @@ const TIME_UNITS = [
       :disabled="pinBlocked"
       @click.stop="togglePin"
     >
-      <LucideIcon
-        name="pin"
-        class="h-4 w-4"
-        :class="isPinned ? 'fill-current text-ink-amber-2' : 'text-ink-gray-5'"
-      />
+      <span class="lucide-pin h-4 w-4" aria-hidden="true" :class="isPinned ? 'fill-current text-ink-amber-2' : 'text-ink-gray-5'" />
     </button>
 
     <button class="block w-full" @click="emit('open', diagram.name)">
@@ -215,7 +207,7 @@ const TIME_UNITS = [
           class="flex h-[26px] w-[26px] items-center justify-center rounded-md text-ink-gray-5 opacity-0 hover:bg-surface-gray-2 group-hover:opacity-100"
           @click.stop
         >
-          <LucideIcon name="more-horizontal" class="h-4 w-4" />
+          <span class="lucide-ellipsis h-4 w-4" aria-hidden="true" />
         </button>
       </Dropdown>
     </div>

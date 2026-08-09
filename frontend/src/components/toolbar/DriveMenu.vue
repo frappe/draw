@@ -8,7 +8,6 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Button, Tooltip, call, toast } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 
 const route = useRoute()
 const available = ref(false)
@@ -42,7 +41,7 @@ async function openInDrive() {
 <template>
   <Tooltip v-if="available" text="This diagram is saved in your Drive — open it there">
     <Button variant="outline" :loading="busy" aria-label="Open in Drive" @click="openInDrive">
-      <template #prefix><LucideIcon name="hard-drive" class="h-4 w-4" /></template>
+      <template #prefix><span class="lucide-hard-drive h-4 w-4" aria-hidden="true" /></template>
       In Drive
     </Button>
   </Tooltip>

@@ -4,7 +4,6 @@
 // Loads only trashed diagrams; restore clears the flag, delete removes the doc.
 import { computed } from 'vue'
 import { useList, dialog, toast, Alert, Button } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { submitOrThrow } from '@/data/submit.js'
 import { documentToSvg, isDocumentEmpty } from '@/composables/useThumbnail.js'
 
@@ -80,7 +79,7 @@ function refresh() {
             class="h-full w-full [&>svg]:h-full [&>svg]:w-full"
             v-html="preview(diagram.document)"
           />
-          <LucideIcon v-else name="image" class="h-7 w-7 text-ink-gray-3" />
+          <span class="lucide-image h-7 w-7 text-ink-gray-3" aria-hidden="true" v-else />
         </div>
         <div class="px-3 py-2.5">
           <div class="truncate text-sm font-semibold text-ink-gray-9">{{ diagram.title }}</div>

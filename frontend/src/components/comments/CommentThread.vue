@@ -5,7 +5,6 @@
 // here just avoid offering what will be refused.
 import { ref, computed } from 'vue'
 import { Avatar, Button, Tooltip, dialog, toast } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { useComments } from '@/composables/useComments.js'
 import CommentBody from './CommentBody.vue'
 import CommentComposer from './CommentComposer.vue'
@@ -90,7 +89,7 @@ function timeAgo(iso) {
       v-if="resolved"
       class="flex items-center gap-1.5 rounded-t-lg bg-surface-gray-1 px-3 py-1 text-p-xs text-ink-gray-6"
     >
-      <LucideIcon name="circle-check" class="h-3.5 w-3.5 text-ink-green-3" />
+      <span class="lucide-circle-check h-3.5 w-3.5 text-ink-green-3" aria-hidden="true" />
       Resolved<span v-if="root.resolved_by"> by {{ root.resolved_by }}</span>
     </div>
 
@@ -149,7 +148,7 @@ function timeAgo(iso) {
       <!-- thread-level actions -->
       <div class="mt-3 flex items-center gap-2">
         <Button v-if="comments.canComment.value" variant="subtle" size="sm" @click="toggleResolve">
-          <template #prefix><LucideIcon name="check" class="h-3.5 w-3.5" /></template>
+          <template #prefix><span class="lucide-check h-3.5 w-3.5" aria-hidden="true" /></template>
           {{ resolved ? 'Reopen' : 'Resolve' }}
         </Button>
         <Button v-if="comments.canComment.value && !replying && !resolved" variant="ghost" size="sm" label="Reply" @click="replying = true" />

@@ -3,7 +3,6 @@
 // which, so nobody "simplifies" them back into flakiness.
 
 import { expect } from '@playwright/test'
-import ICON_NODES from '../../frontend/src/icons/lucideNodes.js'
 import { LUCIDE_ALIAS } from '../../frontend/src/icons/lucideAlias.js'
 
 export const SURFACE = '[data-fdpreset]'
@@ -45,39 +44,17 @@ export async function canvasTransform(page) {
 
 // --- finding icon-only buttons ----------------------------------------------
 //
-// Toolbar buttons render a lucide <svg> and nothing else: no label, no name, no
-// data attribute. frappe-ui's Tooltip does NOT render under Playwright's
-// synthetic hover, so tooltip text is not a usable hook either.
+// Toolbar buttons render an icon and nothing else: no label, no name, no data
+// attribute. frappe-ui's Tooltip does NOT render under Playwright's synthetic
+// hover, so tooltip text is not a usable hook either.
 //
-// Instead, build a selector from the glyph's own geometry, read out of the app's
-// icon table — so it stays correct if an icon's path data is ever updated.
-//
-// There are now TWO ways an icon reaches the DOM, and a lookup has to match either:
-//
-//   1. the local `<LucideIcon>` shim, which renders an inline `<svg>` — matched by
-//      geometry, as above;
-//   2. frappe-ui's `icon="lucide-*"` props (Button, Pill/TabButtons, …), which render
-//      a `<span>` carrying the preset's `lucide-*` CSS class and NO svg at all —
-//      matched by that class.
-//
-// So the selector is a comma-separated pair. Matching only the svg form is what
-// makes a button silently unfindable the moment it is migrated to frappe-ui, and
-// the resulting 90s click timeout looks like a broken control rather than a stale
-// locator.
+// Every icon in the app is now a lucide CSS class (#311) — either on a <span>
+// the button contains, or on the button itself when frappe-ui renders an
+// `icon="lucide-*"` prop. Legacy feather names in specs still resolve through
+// LUCIDE_ALIAS, so `toolByIcon(page, 'edit')` keeps finding a `lucide-square-pen`.
 export function iconSelector(name) {
   const resolved = LUCIDE_ALIAS[name] || name
-  const nodes = ICON_NODES[resolved]
-  if (!nodes) throw new Error(`unknown lucide icon "${name}" — check lucideNodes.js`)
-  // Chain :has() over a few child nodes: one <circle r="10"> is shared by several
-  // glyphs, but a circle AND that glyph's specific lines are not.
-  const parts = nodes.slice(0, 3).map(([tag, attrs]) => {
-    const attrSel = Object.entries(attrs)
-      .filter(([k]) => k !== 'key')
-      .map(([k, v]) => `[${k}="${String(v).replace(/"/g, '\\"')}"]`)
-      .join('')
-    return `:has(svg ${tag}${attrSel})`
-  })
-  return `button${parts.join('')}, button:has(.lucide-${resolved}), button.lucide-${resolved}`
+  return `button:has(.lucide-${resolved}), button.lucide-${resolved}`
 }
 
 export function buttonByIcon(page, name, scope) {

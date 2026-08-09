@@ -8,7 +8,6 @@
 // gates it), so the absent state is just belt-and-braces.
 import { ref, computed, watch } from 'vue'
 import { Button, Dialog, toast } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { listDriveFolders, moveToDriveFolder } from '@/data/drive.js'
 
 const props = defineProps({
@@ -86,7 +85,7 @@ async function moveHere() {
         <!-- Breadcrumb: Home down to the folder being viewed; crumbs jump up the tree. -->
         <nav v-if="driveInstalled" class="flex flex-wrap items-center gap-0.5 text-sm" aria-label="Folder path">
           <template v-for="(crumb, i) in path" :key="crumb.name">
-            <LucideIcon v-if="i > 0" name="chevron-right" class="h-3.5 w-3.5 flex-none text-ink-gray-4" />
+            <span v-if="i > 0" class="lucide-chevron-right h-3.5 w-3.5 flex-none text-ink-gray-4" aria-hidden="true" />
             <button
               type="button"
               class="max-w-[160px] truncate rounded px-1.5 py-0.5 hover:bg-surface-gray-2"
@@ -116,9 +115,9 @@ async function moveHere() {
                 class="flex w-full items-center gap-2.5 px-3 py-1.5 text-left hover:bg-surface-gray-2"
                 @click="openFolder(folder.name)"
               >
-                <LucideIcon name="folder" class="h-4 w-4 flex-none text-ink-gray-5" />
+                <span class="lucide-folder h-4 w-4 flex-none text-ink-gray-5" aria-hidden="true" />
                 <span class="min-w-0 flex-1 truncate text-sm text-ink-gray-8">{{ folder.title }}</span>
-                <LucideIcon name="chevron-right" class="h-4 w-4 flex-none text-ink-gray-4" />
+                <span class="lucide-chevron-right h-4 w-4 flex-none text-ink-gray-4" aria-hidden="true" />
               </button>
             </li>
           </ul>

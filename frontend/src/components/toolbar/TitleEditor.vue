@@ -4,7 +4,6 @@
 // Enter / blur commits, Escape cancels. Empty titles fall back to the default.
 // Emits update:title; EditorShell renames through the diagram resource.
 import { ref, nextTick, watch } from 'vue'
-import LucideIcon from '@/icons/LucideIcon.vue'
 
 const props = defineProps({
   title: { type: String, default: 'Untitled diagram' },
@@ -72,10 +71,7 @@ defineExpose({ startEditing })
       @click="startEditing"
     >
       <span class="truncate">{{ title }}</span>
-      <LucideIcon
-        name="edit-2"
-        class="h-3.5 w-3.5 flex-none text-ink-gray-4 opacity-0 group-hover:opacity-100"
-      />
+      <span class="lucide-pencil h-3.5 w-3.5 flex-none text-ink-gray-4 opacity-0 group-hover:opacity-100" aria-hidden="true" />
     </button>
   </div>
 </template>

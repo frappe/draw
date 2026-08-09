@@ -6,7 +6,6 @@
 // unless the mention menu is open, which then owns those keys.
 import { ref, nextTick } from 'vue'
 import { call, Button, Textarea } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { buildMentionToken } from './commentMarkup.js'
 
 const props = defineProps({
@@ -169,7 +168,7 @@ function onKeydown(event) {
     <div class="mt-1.5 flex items-center justify-end gap-2">
       <Button v-if="showCancel" variant="ghost" size="sm" label="Cancel" @click="cancel" />
       <Button variant="solid" size="sm" :loading="submitting" :disabled="!text.trim()" @click="submit">
-        <template #prefix><LucideIcon name="message-square" class="h-3.5 w-3.5" /></template>
+        <template #prefix><span class="lucide-message-square h-3.5 w-3.5" aria-hidden="true" /></template>
         {{ submitLabel }}
       </Button>
     </div>

@@ -3,7 +3,6 @@
 // a small badge so unread discussion is visible without opening the panel.
 import { computed } from 'vue'
 import { Button, Tooltip } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useComments } from '@/composables/useComments.js'
 
@@ -24,7 +23,7 @@ const active = computed(() => editorUi.state.commentsPanelOpen)
     >
       <template #icon>
         <span class="relative flex items-center">
-          <LucideIcon name="message-square" class="h-4 w-4" />
+          <span class="lucide-message-square h-4 w-4" aria-hidden="true" />
           <span
             v-if="openCount"
             class="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-surface-gray-7 px-1 text-2xs font-semibold text-white"

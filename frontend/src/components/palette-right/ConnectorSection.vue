@@ -4,7 +4,6 @@
 // through store.updateConnector, which shallow-merges nested style/arrowheads.
 import { computed } from 'vue'
 import { TabButtons, TextInput } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import PaletteSection from './PaletteSection.vue'
 import ColorPicker from './ColorPicker.vue'
@@ -16,12 +15,12 @@ const store = useDiagramStore()
 
 // Endpoint styles offered for each end (matches ConnectorMarker shapes).
 const ENDPOINTS = [
-  { value: 'none', icon: 'minus', label: 'None' },
-  { value: 'arrow', icon: 'arrow-right', label: 'Arrow' },
-  { value: 'open-arrow', icon: 'chevron-right', label: 'Open' },
-  { value: 'circle', icon: 'circle', label: 'Circle' },
-  { value: 'square', icon: 'square', label: 'Square' },
-  { value: 'diamond', icon: 'square', label: 'Diamond', rotate: true },
+  { value: 'none', icon: 'lucide-minus', label: 'None' },
+  { value: 'arrow', icon: 'lucide-arrow-right', label: 'Arrow' },
+  { value: 'open-arrow', icon: 'lucide-chevron-right', label: 'Open' },
+  { value: 'circle', icon: 'lucide-circle', label: 'Circle' },
+  { value: 'square', icon: 'lucide-square', label: 'Square' },
+  { value: 'diamond', icon: 'lucide-square', label: 'Diamond', rotate: true },
 ]
 const WIDTHS = [1.5, 2.2, 3, 4]
 
@@ -84,7 +83,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         :aria-pressed="startType === e.value"
         @click="setEnd('start', e.value)"
       >
-        <LucideIcon :name="e.icon" class="h-4 w-4" :class="e.rotate ? 'rotate-45' : ''" />
+        <span class="h-4 w-4" aria-hidden="true" :class="[e.icon, e.rotate ? 'rotate-45' : '']" />
       </button>
     </div>
   </PaletteSection>
@@ -101,7 +100,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         :aria-pressed="endType === e.value"
         @click="setEnd('end', e.value)"
       >
-        <LucideIcon :name="e.icon" class="h-4 w-4" :class="e.rotate ? 'rotate-45' : ''" />
+        <span class="h-4 w-4" aria-hidden="true" :class="[e.icon, e.rotate ? 'rotate-45' : '']" />
       </button>
     </div>
   </PaletteSection>

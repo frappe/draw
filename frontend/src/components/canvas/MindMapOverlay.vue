@@ -9,7 +9,6 @@
 // the toolbar tracks the node at any pan/zoom. Mounted once per editor (EditorShell).
 import { computed } from 'vue'
 import { Popover, Tooltip, Dialog, Button, Divider } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import SwatchGrid from '@/components/floating/SwatchGrid.vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useCanvasToolbarStyle } from '@/composables/useCanvasToolbarStyle.js'
@@ -231,17 +230,17 @@ function activeBtn(on) {
       <template v-if="node">
         <Tooltip text="Bold">
           <button :class="[btn, activeBtn(node.bold)]" @mousedown.prevent @click="toggleBold">
-            <LucideIcon name="bold" class="h-4 w-4" />
+            <span class="lucide-bold h-4 w-4" aria-hidden="true" />
           </button>
         </Tooltip>
         <Tooltip text="Italic">
           <button :class="[btn, activeBtn(node.italic)]" @mousedown.prevent @click="toggleItalic">
-            <LucideIcon name="italic" class="h-4 w-4" />
+            <span class="lucide-italic h-4 w-4" aria-hidden="true" />
           </button>
         </Tooltip>
         <Tooltip text="Strikethrough">
           <button :class="[btn, activeBtn(node.strike)]" @mousedown.prevent @click="toggleStrike">
-            <LucideIcon name="strikethrough" class="h-4 w-4" />
+            <span class="lucide-strikethrough h-4 w-4" aria-hidden="true" />
           </button>
         </Tooltip>
 
@@ -344,7 +343,7 @@ function activeBtn(on) {
         <template #trigger>
           <Tooltip text="Shape">
             <button :class="btn" @mousedown.prevent>
-              <LucideIcon name="shapes" class="h-4 w-4" />
+              <span class="lucide-shapes h-4 w-4" aria-hidden="true" />
             </button>
           </Tooltip>
         </template>
@@ -378,7 +377,7 @@ function activeBtn(on) {
         <template #trigger>
           <Tooltip text="Text size">
             <button :class="btn" @mousedown.prevent>
-              <LucideIcon name="type" class="h-4 w-4" />
+              <span class="lucide-type h-4 w-4" aria-hidden="true" />
             </button>
           </Tooltip>
         </template>
@@ -387,11 +386,11 @@ function activeBtn(on) {
             <div class="mb-1 text-2xs font-semibold text-ink-gray-4">Text size</div>
             <div class="flex items-center gap-1.5">
               <button class="flex h-7 w-7 items-center justify-center rounded-md border border-outline-gray-2 text-ink-gray-7 hover:bg-surface-gray-2" @click="stepFontSize(-1)">
-                <LucideIcon name="minus" class="h-3.5 w-3.5" />
+                <span class="lucide-minus h-3.5 w-3.5" aria-hidden="true" />
               </button>
               <span class="flex-1 text-center text-sm font-medium text-ink-gray-9">{{ currentFontSize }}px</span>
               <button class="flex h-7 w-7 items-center justify-center rounded-md border border-outline-gray-2 text-ink-gray-7 hover:bg-surface-gray-2" @click="stepFontSize(1)">
-                <LucideIcon name="plus" class="h-3.5 w-3.5" />
+                <span class="lucide-plus h-3.5 w-3.5" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -403,7 +402,7 @@ function activeBtn(on) {
         <template #trigger>
           <Tooltip text="Marker">
             <button :class="[btn, activeBtn(!!node.marker?.icon)]" @mousedown.prevent>
-              <LucideIcon name="star" class="h-4 w-4" />
+              <span class="lucide-star h-4 w-4" aria-hidden="true" />
             </button>
           </Tooltip>
         </template>
@@ -418,7 +417,7 @@ function activeBtn(on) {
                 :class="node.marker?.icon === icon ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-outline-gray-1 text-ink-gray-7'"
                 @click="setMarker(icon)"
               >
-                <LucideIcon :name="icon" class="h-4 w-4" />
+                <span class="h-4 w-4" aria-hidden="true" :class="`lucide-${icon}`" />
               </button>
             </div>
           </div>
@@ -429,7 +428,7 @@ function activeBtn(on) {
 
       <Tooltip :text="mindmapUi.pendingLinkSource ? 'Click a target node…' : 'Link to node'">
         <button :class="[btn, activeBtn(!!mindmapUi.pendingLinkSource)]" @click="startCrosslink">
-          <LucideIcon name="link-2" class="h-4 w-4" />
+          <span class="lucide-link-2 h-4 w-4" aria-hidden="true" />
         </button>
       </Tooltip>
 
@@ -438,7 +437,7 @@ function activeBtn(on) {
            selected, and clearing the selection must not strand the user. -->
       <Tooltip :text="isFocused ? 'Exit focus' : 'Focus this branch'">
         <button :class="[btn, activeBtn(isFocused)]" @click="toggleFocusMode">
-          <LucideIcon name="crosshair" class="h-4 w-4" />
+          <span class="lucide-crosshair h-4 w-4" aria-hidden="true" />
         </button>
       </Tooltip>
       </template>
@@ -448,7 +447,7 @@ function activeBtn(on) {
         <Divider orientation="vertical" class="mx-0.5 !h-5" />
         <Tooltip :text="multi ? 'Delete nodes' : 'Delete node'">
           <button class="flex h-8 w-8 items-center justify-center rounded-md text-ink-red-4 hover:bg-red-50" @click="removeNode">
-            <LucideIcon name="trash-2" class="h-4 w-4" />
+            <span class="lucide-trash-2 h-4 w-4" aria-hidden="true" />
           </button>
         </Tooltip>
       </template>
@@ -462,7 +461,7 @@ function activeBtn(on) {
       class="fixed left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-full border border-dashed border-outline-gray-3 bg-surface-base px-5 py-3 text-base font-medium text-ink-gray-7 shadow-sm hover:border-outline-gray-8 hover:text-ink-gray-9"
       @click="addFirstIdea"
     >
-      <LucideIcon name="plus" class="h-4 w-4" /> Add your first idea
+      <span class="lucide-plus h-4 w-4" aria-hidden="true" /> Add your first idea
     </button>
   </Teleport>
 

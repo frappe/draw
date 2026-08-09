@@ -7,7 +7,6 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Button, Spinner } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { createAndOpenDiagram } from './newDiagram.js'
 import { errorMessage } from '@/utils/errorText.js'
 
@@ -39,7 +38,7 @@ onMounted(async () => {
 
     <div v-else class="flex flex-col items-center gap-4 px-6 text-center">
       <div class="flex h-12 w-12 items-center justify-center rounded-full bg-surface-gray-2">
-        <LucideIcon name="alert-triangle" class="h-5 w-5 text-ink-gray-5" />
+        <span class="lucide-triangle-alert h-5 w-5 text-ink-gray-5" aria-hidden="true" />
       </div>
       <div>
         <h1 class="text-lg font-semibold text-ink-gray-9">Couldn't create the diagram</h1>

@@ -8,7 +8,6 @@
 // on selection. Creation is the top-right CTA only. At most MAX_PINNED pinned.
 import { computed, reactive, ref, watch, watchEffect } from 'vue'
 import { useCall, useList, dialog, toast, Dialog, Button, Divider, Dropdown, TabButtons, TextInput, Tooltip } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import DiagramCollection from './DiagramCollection.vue'
 import { pinnedOnly, unpinned } from '@/components/home/homeViews.js'
 import { submitOrThrow } from '@/data/submit.js'
@@ -93,10 +92,11 @@ function setSort(key, dir = null) {
     sortDir.value = defaultDir(key)
   }
 }
-// The arrow lucide name for a column, or null when it isn't the active sort.
+// The arrow's complete lucide class for a column, or null when it isn't the
+// active sort. A complete class because Tailwind's JIT reads it literally.
 function sortArrow(key) {
   if (sortKey.value !== key) return null
-  return sortDir.value === 'asc' ? 'chevron-up' : 'chevron-down'
+  return sortDir.value === 'asc' ? 'lucide-chevron-up' : 'lucide-chevron-down'
 }
 
 function ts(value) {
@@ -161,12 +161,12 @@ const hasActiveFilter = computed(() => Boolean(query.value.trim()))
 // The empty state speaks to the view you're in: a filtered search vs. an empty
 // Shared / Pinned tab want different words (and glyph) than a fresh, unused Home.
 const EMPTY_STATES = {
-  shared: { icon: 'share-2', title: 'Nothing shared with you', hint: 'Diagrams others share with you show up here.' },
-  pinned: { icon: 'pin', title: 'No pinned diagrams', hint: 'Pin a diagram to keep it handy here.' },
+  shared: { icon: 'lucide-share-2', title: 'Nothing shared with you', hint: 'Diagrams others share with you show up here.' },
+  pinned: { icon: 'lucide-pin', title: 'No pinned diagrams', hint: 'Pin a diagram to keep it handy here.' },
 }
 const emptyState = computed(() => {
-  if (hasActiveFilter.value) return { icon: 'search', title: 'No diagrams match', hint: 'Try a different search.' }
-  return EMPTY_STATES[props.mode] || { icon: 'feather', title: 'Nothing here yet', hint: 'Create a diagram to get started.' }
+  if (hasActiveFilter.value) return { icon: 'lucide-search', title: 'No diagrams match', hint: 'Try a different search.' }
+  return EMPTY_STATES[props.mode] || { icon: 'lucide-feather', title: 'Nothing here yet', hint: 'Create a diagram to get started.' }
 })
 const allSelected = computed(() => {
   const diagrams = currentDiagrams.value
@@ -302,7 +302,7 @@ const collectionHandlers = {
       <template v-if="selectedCount">
         <span class="text-sm font-semibold text-ink-gray-9">{{ selectedCount }} selected</span>
         <Button variant="subtle" theme="red" @click="deleteSelected">
-          <template #prefix><LucideIcon name="trash-2" class="h-4 w-4" /></template>
+          <template #prefix><span class="lucide-trash-2 h-4 w-4" aria-hidden="true" /></template>
           Delete
         </Button>
         <Button variant="ghost" @click="clearSelection">Clear</Button>
@@ -311,12 +311,12 @@ const collectionHandlers = {
 
       <template v-else>
         <TextInput v-model="query" type="text" placeholder="Find a diagram" class="max-w-md flex-1">
-          <template #prefix><LucideIcon name="search" class="h-3.5 w-3.5 text-ink-gray-5" /></template>
+          <template #prefix><span class="lucide-search h-3.5 w-3.5 text-ink-gray-5" aria-hidden="true" /></template>
         </TextInput>
         <Dropdown :options="sortOptions" placement="bottom-start">
           <Tooltip :text="`Sort: ${sortLabel}`">
             <Button variant="subtle" :aria-label="`Sort: ${sortLabel}`">
-              <LucideIcon name="arrow-up-down" class="h-4 w-4" />
+              <span class="lucide-arrow-up-down h-4 w-4" aria-hidden="true" />
             </Button>
           </Tooltip>
         </Dropdown>
@@ -356,16 +356,16 @@ const collectionHandlers = {
       <span class="w-8 flex-none" />
       <button class="flex min-w-0 flex-1 items-center gap-1 hover:text-ink-gray-7" @click="setSort('title')">
         Name
-        <LucideIcon v-if="sortArrow('title')" :name="sortArrow('title')" class="h-3 w-3 flex-none" />
+        <span v-if="sortArrow('title')" class="h-3 w-3 flex-none" aria-hidden="true" :class="sortArrow('title')" />
       </button>
       <span class="hidden w-28 flex-none lg:block">Owner</span>
       <button class="hidden w-28 flex-none items-center gap-1 hover:text-ink-gray-7 md:flex" @click="setSort('creation')">
         Created
-        <LucideIcon v-if="sortArrow('creation')" :name="sortArrow('creation')" class="h-3 w-3 flex-none" />
+        <span v-if="sortArrow('creation')" class="h-3 w-3 flex-none" aria-hidden="true" :class="sortArrow('creation')" />
       </button>
       <button class="hidden w-28 flex-none items-center gap-1 hover:text-ink-gray-7 sm:flex" @click="setSort('modified')">
         Last edited
-        <LucideIcon v-if="sortArrow('modified')" :name="sortArrow('modified')" class="h-3 w-3 flex-none" />
+        <span v-if="sortArrow('modified')" class="h-3 w-3 flex-none" aria-hidden="true" :class="sortArrow('modified')" />
       </button>
       <span class="w-7 flex-none" />
     </div>
@@ -397,7 +397,7 @@ const collectionHandlers = {
     <!-- Empty view — worded for the current tab (search / Shared / Pinned / Home). -->
     <div v-if="nothingHere" class="flex flex-col items-center gap-3 py-20 text-center">
       <div class="flex h-12 w-12 items-center justify-center rounded-full bg-surface-gray-2">
-        <LucideIcon :name="emptyState.icon" class="h-5 w-5 text-ink-gray-5" />
+        <span class="h-5 w-5 text-ink-gray-5" aria-hidden="true" :class="emptyState.icon" />
       </div>
       <div>
         <p class="text-base font-semibold text-ink-gray-8">{{ emptyState.title }}</p>
@@ -407,7 +407,7 @@ const collectionHandlers = {
 
     <!-- Quiet end-of-page marker (only when the view actually has content). -->
     <div v-if="!nothingHere" class="mt-16 flex flex-col items-center gap-2 py-10 text-center">
-      <LucideIcon name="feather" class="h-6 w-6 text-ink-gray-3" />
+      <span class="lucide-feather h-6 w-6 text-ink-gray-3" aria-hidden="true" />
       <p class="text-xs text-ink-gray-4">You've reached the end · made with Frappe Draw</p>
     </div>
 

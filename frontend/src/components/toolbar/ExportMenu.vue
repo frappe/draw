@@ -8,7 +8,6 @@
 // background, so "No color" exports transparent and a coloured canvas keeps
 // its colour.
 import { Button, Divider, Popover } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { useExport } from '@/composables/useExport.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 
@@ -23,9 +22,9 @@ function exportPng(scale, close) {
 }
 
 const FORMATS = [
-  { label: 'JPEG', icon: 'image', run: () => exporter.exportJpeg() },
-  { label: 'SVG', icon: 'code', run: () => exporter.exportSvg() },
-  { label: 'PDF', icon: 'file-text', run: () => exporter.exportPdf() },
+  { label: 'JPEG', icon: 'lucide-image', run: () => exporter.exportJpeg() },
+  { label: 'SVG', icon: 'lucide-code', run: () => exporter.exportSvg() },
+  { label: 'PDF', icon: 'lucide-file-text', run: () => exporter.exportPdf() },
 ]
 function runFormat(format, close) {
   format.run()
@@ -44,7 +43,7 @@ const rowClass =
   <Popover>
     <template #trigger>
       <Button variant="outline">
-        <template #prefix><LucideIcon name="download" class="h-4 w-4" /></template>
+        <template #prefix><span class="lucide-download h-4 w-4" aria-hidden="true" /></template>
         Export
       </Button>
     </template>
@@ -54,7 +53,7 @@ const rowClass =
         <div class="rounded-md px-2 py-1.5">
           <div class="flex items-center justify-between">
             <span class="flex items-center gap-2 text-sm text-ink-gray-8">
-              <LucideIcon name="image" class="h-4 w-4 text-ink-gray-6" />
+              <span class="lucide-image h-4 w-4 text-ink-gray-6" aria-hidden="true" />
               PNG
             </span>
             <div class="flex gap-0.5">
@@ -71,14 +70,14 @@ const rowClass =
         </div>
 
         <button v-for="f in FORMATS" :key="f.label" :class="rowClass" @click="runFormat(f, toggle)">
-          <LucideIcon :name="f.icon" class="h-4 w-4 text-ink-gray-6" />
+          <span class="h-4 w-4 text-ink-gray-6" aria-hidden="true" :class="f.icon" />
           {{ f.label }}
         </button>
 
         <Divider class="my-1" />
 
         <button :class="rowClass" @click="print(toggle)">
-          <LucideIcon name="printer" class="h-4 w-4 text-ink-gray-6" />
+          <span class="lucide-printer h-4 w-4 text-ink-gray-6" aria-hidden="true" />
           Print
         </button>
       </div>

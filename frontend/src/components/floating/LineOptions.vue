@@ -3,7 +3,6 @@
 // the tool defaults (new lines) and to a selected line (live edit). Pure — it
 // reads the passed values and emits a patch; the parent decides where to apply
 // it (ui.state defaults vs store.updateLine).
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { CHALK_COLORS, PEN_WIDTHS } from '@/diagram/whiteboardColors.js'
 
 const props = defineProps({
@@ -15,14 +14,14 @@ const props = defineProps({
 const emit = defineEmits(['change'])
 
 const startStyles = [
-  { value: 'none', icon: 'minus', label: 'Plain' },
-  { value: 'arrow', icon: 'arrow-left', label: 'Arrow' },
-  { value: 'dot', icon: 'disc', label: 'Dot' },
+  { value: 'none', icon: 'lucide-minus', label: 'Plain' },
+  { value: 'arrow', icon: 'lucide-arrow-left', label: 'Arrow' },
+  { value: 'dot', icon: 'lucide-disc', label: 'Dot' },
 ]
 const endStyles = [
-  { value: 'none', icon: 'minus', label: 'Plain' },
-  { value: 'arrow', icon: 'arrow-right', label: 'Arrow' },
-  { value: 'dot', icon: 'disc', label: 'Dot' },
+  { value: 'none', icon: 'lucide-minus', label: 'Plain' },
+  { value: 'arrow', icon: 'lucide-arrow-right', label: 'Arrow' },
+  { value: 'dot', icon: 'lucide-disc', label: 'Dot' },
 ]
 
 const cellActive = 'bg-surface-gray-3 text-ink-gray-9'
@@ -40,7 +39,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         :class="start === s.value ? cellActive : cellIdle"
         @click="emit('change', { start: s.value })"
       >
-        <LucideIcon :name="s.icon" class="h-4 w-4" />
+        <span class="h-4 w-4" aria-hidden="true" :class="s.icon" />
       </button>
     </div>
     <div class="mb-1 text-2xs font-semibold text-ink-gray-5">End</div>
@@ -52,7 +51,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
         :class="end === s.value ? cellActive : cellIdle"
         @click="emit('change', { end: s.value })"
       >
-        <LucideIcon :name="s.icon" class="h-4 w-4" />
+        <span class="h-4 w-4" aria-hidden="true" :class="s.icon" />
       </button>
     </div>
     <div class="mb-1 text-2xs font-semibold text-ink-gray-5">Color</div>

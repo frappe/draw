@@ -6,7 +6,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Alert, Button, Dropdown, TabButtons, toast } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { errorMessage } from '@/utils/errorText.js'
 import Logomark from '@/components/Logomark.vue'
 import SettingsDialog from '@/components/home/SettingsDialog.vue'
@@ -124,7 +123,7 @@ function open(name) {
         <div class="mb-6 flex items-center justify-between">
           <div class="text-3xl font-bold text-ink-gray-9">{{ title }}</div>
           <Button variant="solid" :loading="isCreating" @click="create">
-            <template #prefix><LucideIcon name="plus" class="h-4 w-4" /></template>
+            <template #prefix><span class="lucide-plus h-4 w-4" aria-hidden="true" /></template>
             Create
           </Button>
         </div>

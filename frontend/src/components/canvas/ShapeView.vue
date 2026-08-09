@@ -3,7 +3,6 @@
 // shape object. Geometry is in logical canvas units. Text boxes render with no
 // fill and no border (spec §5.1). Interaction is layered on later.
 import { computed, ref } from 'vue'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { useTextEditing, shapeTextArea, textStyleCss } from '@/composables/useTextEditing.js'
 import { useAutoFitText } from '@/composables/useAutoFitText.js'
 import { sanitizeRichText } from '@/utils/sanitizeHtml.js'
@@ -426,14 +425,25 @@ useAutoFitText(richEl, () => ({
     >
       <title>{{ safeLink }}</title>
       <circle :cx="shape.x + shape.w - 13" :cy="shape.y + 13" r="9" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1" />
-      <LucideIcon
-        name="link"
+      <!-- The lucide "link" glyph, inlined. This one badge sits INSIDE the canvas
+           SVG, where an icon-font <span> has no layout box at all — so it is the
+           one icon that cannot be a CSS class (#311). -->
+      <svg
         :x="shape.x + shape.w - 18"
         :y="shape.y + 8"
         width="10"
         height="10"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
         class="text-ink-gray-7"
-      />
+      >
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      </svg>
     </a>
 
     <!-- Legacy plain text (shapes with only a plain `content` string, no rich

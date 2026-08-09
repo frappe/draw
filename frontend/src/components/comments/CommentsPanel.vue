@@ -4,7 +4,6 @@
 // right of the editor; toggled from the toolbar. Clicking a thread focuses its pin.
 import { ref, computed } from 'vue'
 import { Button, TabButtons } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useComments } from '@/composables/useComments.js'
 import CommentThread from './CommentThread.vue'
@@ -33,7 +32,7 @@ function focusThread(thread) {
     <!-- header -->
     <div class="flex items-center justify-between px-3 py-2.5">
       <div class="flex items-center gap-2 text-p-base font-semibold text-ink-gray-9">
-        <LucideIcon name="message-square" class="h-4 w-4" />
+        <span class="lucide-message-square h-4 w-4" aria-hidden="true" />
         Comments
       </div>
       <Button
@@ -50,7 +49,7 @@ function focusThread(thread) {
     <!-- add + arming hint -->
     <div class="px-3 pb-2">
       <Button v-if="comments.canComment.value" class="w-full" variant="subtle" @click="armAdd">
-        <template #prefix><LucideIcon name="message-square" class="h-4 w-4" /></template>
+        <template #prefix><span class="lucide-message-square h-4 w-4" aria-hidden="true" /></template>
         Add comment
       </Button>
       <p v-if="editorUi.state.pendingComment" class="mt-1.5 text-p-xs text-ink-gray-5">

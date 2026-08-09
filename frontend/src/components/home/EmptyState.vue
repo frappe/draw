@@ -2,7 +2,6 @@
 // Home empty state — a welcoming hero shown when there are no diagrams yet. One
 // canvas does everything now (canvas unification), so it's a single "Create"
 // start (no type picker, no folders).
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { Button } from 'frappe-ui'
 
 defineEmits(['create'])
@@ -15,7 +14,7 @@ defineEmits(['create'])
       <div class="absolute inset-0 rotate-6 rounded-2xl border border-outline-gray-2 bg-surface-gray-1" />
       <div class="absolute inset-0 -rotate-6 rounded-2xl border border-outline-gray-2 bg-surface-base" />
       <div class="absolute inset-0 flex items-center justify-center">
-        <LucideIcon name="feather" class="h-7 w-7 text-ink-gray-6" />
+        <span class="lucide-feather h-7 w-7 text-ink-gray-6" aria-hidden="true" />
       </div>
     </div>
 
@@ -26,7 +25,7 @@ defineEmits(['create'])
 
     <!-- One canvas does it all: a single start, straight to the blank canvas. -->
     <Button class="mt-6" variant="solid" size="lg" @click="$emit('create')">
-      <template #prefix><LucideIcon name="plus" class="h-4 w-4" /></template>
+      <template #prefix><span class="lucide-plus h-4 w-4" aria-hidden="true" /></template>
       Create
     </Button>
   </div>

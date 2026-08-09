@@ -41,7 +41,7 @@ provisioned instead.
 
 | Helper | Why it exists |
 | --- | --- |
-| `toolByIcon` | Toolbar buttons are icon-only: no label, no name, no data attribute, and frappe-ui tooltips don't render under synthetic hover. Selectors are derived from the glyph's own path data in `lucideNodes.js`. **Always scope tool lookups to the palette** — the pencil is both the whiteboard Pen and the title's rename button, and an unscoped `.first()` clicks the wrong one. |
+| `toolByIcon` | Toolbar buttons are icon-only: no label, no name, no data attribute, and frappe-ui tooltips don't render under synthetic hover. Selectors match the button's lucide CSS class (every icon is a `lucide-*` class since #311); legacy feather names in specs resolve through `LUCIDE_ALIAS`. **Always scope tool lookups to the palette** — the pencil is both the whiteboard Pen and the title's rename button, and an unscoped `.first()` clicks the wrong one. |
 | `clickNode` | A transparent hit-rect covers each mind-map label and intercepts pointer events, so `Locator.click()` is refused. Dispatches a mouse click at the label's centre. |
 | `dragTileToCanvas` | Playwright's synthetic mouse does not reliably start a native HTML5 drag — a mouse-based attempt hangs. Dispatches the drag events with one shared `DataTransfer`, which is the real producer/consumer contract. |
 | `clickEmptyCanvas` | Clicks near the TOP-left. The bottom-left corner holds the zoom controls, so clicking there never reaches the canvas. |

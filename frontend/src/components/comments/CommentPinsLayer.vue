@@ -7,7 +7,6 @@
 // y*zoom) — no rect math, unlike the body-teleported cursors.
 import { ref, computed } from 'vue'
 import { Button, Tooltip } from 'frappe-ui'
-import LucideIcon from '@/icons/LucideIcon.vue'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useComments } from '@/composables/useComments.js'
@@ -107,7 +106,7 @@ async function submitDraft(content) {
         :style="{ left: `${pin.left}px`, top: `${pin.top}px` }"
         @click="openThread(pin.thread)"
       >
-        <LucideIcon v-if="!pinLabel(pin.thread)" name="message-square" class="h-3.5 w-3.5" />
+        <span class="lucide-message-square h-3.5 w-3.5" aria-hidden="true" v-if="!pinLabel(pin.thread)" />
         <span v-else>{{ pinLabel(pin.thread) }}</span>
       </button>
     </Tooltip>

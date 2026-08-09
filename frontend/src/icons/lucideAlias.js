@@ -2,8 +2,9 @@
 // Frappe Draw historically used feather-icons names; frappe-ui 1.0 ships lucide.
 // Most names are identical between the two packs, so this map only lists the
 // ones lucide renamed (or where the closest lucide glyph has a different name).
-// Both LucideIcon.vue (runtime) and scripts/gen-lucide-nodes.mjs (build) read
-// this, so a name resolves to the same glyph in the bundle and at render time.
+// Icons are lucide CSS classes now (#311), so this is no longer read at render
+// time — it exists for the E2E helpers, which let specs keep using the legacy
+// feather names the app was originally written against.
 export const LUCIDE_ALIAS = {
   // shape / name renames
   home: 'house',
