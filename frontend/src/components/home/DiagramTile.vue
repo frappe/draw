@@ -15,7 +15,7 @@ const props = defineProps({
   selectionActive: { type: Boolean, default: false },
   pinLimitReached: { type: Boolean, default: false },
 })
-const emit = defineEmits(['open', 'toggle-select', 'toggle-pin', 'rename', 'duplicate', 'delete', 'show-info'])
+const emit = defineEmits(['open', 'toggle-select', 'toggle-pin', 'rename', 'duplicate', 'delete', 'show-info', 'collect'])
 
 // A non-empty diagram ALWAYS shows a preview: the saved raster thumbnail when we
 // have one (cheap), otherwise a live SVG rendered from the document. Only a truly
@@ -79,6 +79,8 @@ const menuItems = computed(() => [
     icon: 'pin',
     onClick: togglePin,
   },
+  // Collections are labels, so this ADDS to one rather than moving the diagram (#217).
+  { label: 'Add to collection', icon: 'lucide-library-big', onClick: () => emit('collect', props.diagram) },
   { label: 'Copy link', icon: 'link', onClick: copyLink },
   { label: 'Show info', icon: 'file-text', onClick: () => emit('show-info', props.diagram) },
   { label: 'Rename', icon: 'edit-2', onClick: () => emit('rename', props.diagram) },
