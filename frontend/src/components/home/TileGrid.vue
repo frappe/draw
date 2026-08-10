@@ -9,6 +9,9 @@
 import { computed, reactive, ref, watch, watchEffect } from 'vue'
 import { call, useCall, useList, dialog, toast, Dialog, Button, Divider, Dropdown, TabButtons, TextInput, Tooltip } from 'frappe-ui'
 import DiagramCollection from './DiagramCollection.vue'
+import CollectionChips from './CollectionChips.vue'
+import CollectionPicker from './CollectionPicker.vue'
+import { listCollections, diagramsInCollection } from '@/data/collections.js'
 import {
   pinnedOnly,
   unpinned,
@@ -153,7 +156,46 @@ function byNewest(a, b) {
   return ts(b.modified) - ts(a.modified)
 }
 
-const visibleRows = computed(() => rows.value.filter((d) => matchesQuery(d)))
+// --- collections (#217) ----------------------------------------------------
+// Labels, not folders: the chip row narrows the SAME list rather than navigating
+// into anything, so a diagram in two collections shows under both. Only on Home —
+// Recent / Shared / Pinned are their own answers to "which diagrams", and stacking
+// a second filter on them reads as a bug.
+const collections = ref([])
+const activeCollection = ref('')
+const collectedNames = ref(null) // null = no collection filter
+const collecting = ref(null) // the diagram whose "Add to collection" dialog is open
+
+const showsCollections = computed(() => props.mode === 'home')
+
+async function loadCollections() {
+  collections.value = await listCollections()
+  // A chip can disappear underneath the filter (deleted elsewhere, or by us).
+  if (activeCollection.value && !collections.value.some((c) => c.name === activeCollection.value)) {
+    selectCollection('')
+  }
+}
+
+async function selectCollection(name) {
+  activeCollection.value = name
+  collectedNames.value = name ? new Set(await diagramsInCollection(name)) : null
+}
+
+// Re-read the membership when a chip is filtering and something changed under it.
+async function refreshCollections() {
+  await loadCollections()
+  if (activeCollection.value) await selectCollection(activeCollection.value)
+}
+
+watch(() => props.mode, (mode) => { if (mode === 'home') loadCollections() }, { immediate: true })
+
+function matchesCollection(diagram) {
+  return !collectedNames.value || collectedNames.value.has(diagram.name)
+}
+
+const visibleRows = computed(() =>
+  rows.value.filter((d) => matchesQuery(d) && matchesCollection(d)),
+)
 
 // Home: a Pinned group, then every other diagram (flat — no folders, #115).
 const pinned = computed(() => pinnedOnly(visibleRows.value).sort(bySort))
@@ -192,7 +234,7 @@ const currentDiagrams = computed(() => {
 // Current view shows nothing (a search excluded everything — the truly-empty home
 // renders HomeShell's EmptyState instead of this grid).
 const nothingHere = computed(() => !currentDiagrams.value.length)
-const hasActiveFilter = computed(() => Boolean(query.value.trim()))
+const hasActiveFilter = computed(() => Boolean(query.value.trim()) || Boolean(activeCollection.value))
 
 // The empty state speaks to the view you're in: a filtered search vs. an empty
 // Shared / Pinned tab want different words (and glyph) than a fresh, unused Home.
@@ -316,6 +358,7 @@ const collectionHandlers = {
   duplicate,
   delete: trash,
   'show-info': startInfo,
+  collect: (diagram) => (collecting.value = diagram),
 }
 </script>
 
@@ -371,6 +414,14 @@ const collectionHandlers = {
         ]"
       />
     </div>
+
+    <CollectionChips
+      v-if="showsCollections"
+      :collections="collections"
+      :active="activeCollection"
+      @select="selectCollection"
+      @changed="refreshCollections"
+    />
 
     <!-- List-view column header — aligns column-for-column with the flat rows. The
          master checkbox sits left; Name / Created / Last edited click to sort (#302). -->
@@ -443,6 +494,13 @@ const collectionHandlers = {
         <p class="mt-0.5 text-xs text-ink-gray-5">{{ emptyState.hint }}</p>
       </div>
     </div>
+
+    <CollectionPicker
+      :diagram="collecting"
+      :collections="collections"
+      @close="collecting = null"
+      @changed="refreshCollections"
+    />
 
     <!-- Show info (I5): read-only metadata. -->
     <Dialog v-model:open="info.open" title="Diagram info">
