@@ -5,7 +5,7 @@
 // it (ui.state defaults vs store.updateLine).
 import { CHALK_COLORS, PEN_WIDTHS } from '@/diagram/whiteboardColors.js'
 
-const props = defineProps({
+defineProps({
   start: { type: String, default: 'none' },
   end: { type: String, default: 'arrow' },
   color: { type: String, default: '#171717' },

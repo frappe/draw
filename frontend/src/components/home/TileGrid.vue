@@ -57,7 +57,6 @@ const previewDocuments = useList({
 const documentsByName = computed(() =>
   Object.fromEntries((previewDocuments.data || []).map((d) => [d.name, d.document])),
 )
-const documentsPending = computed(() => !previewDocuments.data)
 
 // "Shared with you" can't be a plain list filter — it joins DocShare and excludes
 // the owner — so it comes from a dedicated endpoint (draw.api.diagram.shared_with_me),

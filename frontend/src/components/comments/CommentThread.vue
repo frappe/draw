@@ -4,7 +4,7 @@
 // injected comments store; permission is enforced on the server — the affordances
 // here just avoid offering what will be refused.
 import { ref, computed } from 'vue'
-import { Avatar, Button, Tooltip, dialog, toast } from 'frappe-ui'
+import { Avatar, Button, dialog, toast } from 'frappe-ui'
 import { useComments } from '@/composables/useComments.js'
 import CommentBody from './CommentBody.vue'
 import CommentComposer from './CommentComposer.vue'

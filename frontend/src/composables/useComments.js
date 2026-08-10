@@ -76,7 +76,7 @@ export function createComments(diagramName) {
       comments.value = result?.comments || []
       canComment.value = !!result?.can_comment
       canModerate.value = !!result?.can_moderate
-    } catch (error) {
+    } catch {
       // A viewer who lost access, or an offline blip: keep whatever we had rather
       // than blanking the panel, and don't toast on every failed poll.
       canComment.value = false

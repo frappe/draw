@@ -335,11 +335,6 @@ function crossOf(node, direction) {
   return direction === 'LR' ? c.y : c.x
 }
 
-function crossSpan(sizes, direction) {
-  const total = sizes.reduce((sum, s) => sum + (direction === 'LR' ? s.h : s.w), 0)
-  return total + (sizes.length - 1) * SIBLING_GAP
-}
-
 // Keep the re-flow roughly where the chart already sits so it doesn't jump far.
 function crossCenter(model, direction) {
   if (!model.nodes.length) return PAD

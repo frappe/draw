@@ -4,7 +4,7 @@
 // loaded at all), parses its document, creates + provides the store and editor
 // UI, then composes the toolbar, palettes, canvas, and floating palette
 // (CONVENTIONS integration).
-import { ref, computed, watch, onMounted } from 'vue'
+import { computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { parseDiagramDocument } from '@/diagram/schema.js'
 import { createDiagramStore, provideDiagramStore } from '@/stores/useDiagramStore.js'
@@ -133,7 +133,7 @@ watch(
 )
 
 // Every type now opens on a plain white canvas (S6); guides are off by default
-// (editorUi.state.gridVisible) and turned on from the bottom-palette control.
+// (editorUi.state.gridVisible) and turned on from the toolbar's Canvas menu.
 
 function rename(title) {
   diagram.setValue.submit({ title })

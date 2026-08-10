@@ -8,7 +8,7 @@
 // small margin, stretched to enclose any shape that leaves the canvas and
 // auto-shrunk when it returns. Native scrollbars appear when that region (in
 // screen pixels) exceeds the viewport. Browser ctrl-zoom is intercepted.
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick, provide, inject } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick, provide } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useComments } from '@/composables/useComments.js'

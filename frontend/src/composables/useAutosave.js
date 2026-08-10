@@ -277,7 +277,7 @@ async function refreshRevision(reader, session, diagramResource) {
     if (revision == null || !diagramResource.doc) return false
     diagramResource.doc.revision = revision
     return true
-  } catch (error) {
+  } catch {
     return false
   }
 }

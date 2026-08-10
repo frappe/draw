@@ -15,7 +15,6 @@ import {
   setAllCollapsed,
   addCrosslink,
   removeCrosslink,
-  childrenOf,
 } from './mindmapModel.js'
 import { parseIndentedText, buildSubtree } from './mindmapPaste.js'
 

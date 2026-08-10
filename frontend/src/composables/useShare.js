@@ -67,7 +67,7 @@ export function useShare(diagramResource) {
     if (!name()) return
     try {
       members.value = (await call(SHARE.list, { name: name() })) || []
-    } catch (error) {
+    } catch {
       members.value = []
     }
   }
@@ -89,7 +89,7 @@ export function useShare(diagramResource) {
     try {
       await call(SHARE.share, { name: name(), user, level })
       await loadShares()
-    } catch (error) {
+    } catch {
       toast.error('Could not update access.')
     }
   }
@@ -99,7 +99,7 @@ export function useShare(diagramResource) {
     try {
       await call(SHARE.remove, { name: name(), user })
       await loadShares()
-    } catch (error) {
+    } catch {
       toast.error('Could not remove access.')
     }
   }
@@ -107,7 +107,7 @@ export function useShare(diagramResource) {
   async function searchUsers(txt) {
     try {
       return (await call(SHARE.search, { txt: txt || '' })) || []
-    } catch (error) {
+    } catch {
       return []
     }
   }

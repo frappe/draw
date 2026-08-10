@@ -276,7 +276,7 @@ async function loadJsPdf() {
   try {
     const module = await import('jspdf')
     return module.jsPDF || module.default
-  } catch (error) {
+  } catch {
     return null
   }
 }

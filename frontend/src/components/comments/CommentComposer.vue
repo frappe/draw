@@ -74,7 +74,7 @@ async function searchMentions(query) {
     mentionResults.value = users || []
     mentionOpen.value = mentionResults.value.length > 0
     mentionIndex.value = 0
-  } catch (error) {
+  } catch {
     closeMention()
   }
 }

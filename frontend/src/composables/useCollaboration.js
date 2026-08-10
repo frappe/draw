@@ -144,7 +144,7 @@ export function useCollaboration(store, editorUi, name, getServerCrdt = () => nu
     let server
     try {
       server = parseDiagramDocument(getServerDoc())
-    } catch (error) {
+    } catch {
       return // Unparseable server doc: skip deletes rather than guess (adds still merged).
     }
     doc.transact(() => {
@@ -244,7 +244,7 @@ export function useCollaboration(store, editorUi, name, getServerCrdt = () => nu
     closeRoom()
     try {
       doc.destroy()
-    } catch (error) {
+    } catch {
       /* ignore teardown races */
     }
   }
@@ -303,7 +303,7 @@ export function useCollaboration(store, editorUi, name, getServerCrdt = () => nu
       provider?.destroy()
       if (dropCache) Promise.resolve(persistence?.clearData()).catch(() => {})
       else persistence?.destroy()
-    } catch (error) {
+    } catch {
       /* ignore teardown races */
     }
     provider = null

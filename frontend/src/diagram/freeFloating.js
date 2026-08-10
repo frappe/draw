@@ -21,7 +21,7 @@
 // on top of this proven core. Keeping the engine separable is what lets phase 1
 // be genuinely no-visible-change while still being real, reviewable progress.
 
-import { rootNodes, childrenOf, subtreeIds, nodeById } from './mindmapModel.js'
+import { nodeById } from './mindmapModel.js'
 import { layoutMindMap, offsetPositions } from './mindmapLayout.js'
 import { DEFAULT_NODE_STYLE, nodeColors, borderProp, connectorColor } from './mindmapNodeStyle.js'
 import { nodeSize } from './flowchartModel.js'

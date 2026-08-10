@@ -72,7 +72,7 @@ async function fetchViaResource(name) {
   try {
     await diagram.reload()
     return diagram.doc?.document ?? null
-  } catch (error) {
+  } catch {
     return null
   }
 }
