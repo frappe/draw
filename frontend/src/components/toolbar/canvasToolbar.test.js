@@ -111,7 +111,7 @@ describe('who opts out of the focus guard', () => {
   // let the edit commit first. Getting these two backwards is silent either way —
   // a lost caret, or a node that never lands.
   it('insert and tool controls allow the blur', () => {
-    for (const file of ['groups/InsertGroups.vue', 'groups/PointerGroup.vue', '../floating/WhiteboardTools.vue']) {
+    for (const file of ['groups/InsertGroups.vue', 'groups/PointerGroup.vue', 'groups/HistoryGroup.vue', '../floating/WhiteboardTools.vue']) {
       expect(read(file), `${file} must let an in-progress edit commit`).toContain('allows-blur')
     }
   })
@@ -120,6 +120,38 @@ describe('who opts out of the focus guard', () => {
     for (const file of ['groups/TextGroup.vue', 'groups/StyleGroup.vue', 'groups/ArrangeGroup.vue']) {
       expect(read(file), `${file} must not blur the text editor`).not.toContain('allows-blur')
     }
+  })
+})
+
+describe('undo and redo', () => {
+  const group = read('groups/HistoryGroup.vue')
+  const toolbar = read('CanvasToolbar.vue')
+
+  // The store has carried undo/redo and canUndo/canRedo since the start, and
+  // until now nothing but useKeyboard called them. A user who did not know the
+  // shortcut had no way back from a mistake.
+  it('reaches the history the keyboard has been the only route to', () => {
+    expect(group).toContain('store.undo()')
+    expect(group).toContain('store.redo()')
+  })
+
+  // Disabled off the store's own computeds. A live Undo on an empty history is
+  // a control that does nothing when clicked.
+  it('disables each end of the history at its end', () => {
+    expect(group).toContain(':disabled="!store.canUndo"')
+    expect(group).toContain(':disabled="!store.canRedo"')
+  })
+
+  // Neither is a toggle, so neither claims a pressed state (#365).
+  it('claims no pressed state', () => {
+    expect(group).not.toContain(':active=')
+  })
+
+  // Ahead of everything contextual, so they hold one position whatever is
+  // selected. Slides, Docs and Figma all lead with them.
+  it('leads the bar', () => {
+    const template = templateOf(toolbar)
+    expect(template.indexOf('<HistoryGroup />')).toBeLessThan(template.indexOf('<PointerGroup />'))
   })
 })
 

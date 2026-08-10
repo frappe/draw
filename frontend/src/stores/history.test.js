@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { computed } from 'vue'
 import { createHistory } from './history.js'
 
 // A minimal store-state shape matching what snapshot()/restore() read.
@@ -55,6 +56,48 @@ describe('history coalescing', () => {
     expect(history.canUndo()).toBe(true)
     history.undo()
     expect(state.shapes[0].opacity).toBe(1)
+  })
+})
+
+describe('history depth is reactive', () => {
+  // The store publishes canUndo/canRedo as computeds over these, and the toolbar
+  // binds its disabled state to them. While the stacks were plain arrays the
+  // computed took no dependency, cached "false" at creation and never changed —
+  // so Undo sat greyed out no matter how much was edited.
+  it('invalidates a computed that reads it', () => {
+    const state = makeState()
+    const history = createHistory(state)
+    const canUndo = computed(() => history.canUndo())
+    const canRedo = computed(() => history.canRedo())
+    expect(canUndo.value).toBe(false)
+    expect(canRedo.value).toBe(false)
+
+    history.commit('Add shape', () => state.shapes.push({ id: 'a' }))
+    expect(canUndo.value).toBe(true)
+
+    history.undo()
+    expect(canUndo.value).toBe(false)
+    expect(canRedo.value).toBe(true)
+
+    history.redo()
+    expect(canRedo.value).toBe(false)
+
+    history.clear()
+    expect(canUndo.value).toBe(false)
+  })
+
+  // Coalescing returns early on its own path, and a run of slider updates must
+  // still light Undo up on the FIRST commit of the run.
+  it('counts a coalesced run as one available step', () => {
+    const state = makeState({ shapes: [{ id: 's1', opacity: 1 }] })
+    const history = createHistory(state)
+    const canUndo = computed(() => history.canUndo())
+    for (let i = 1; i <= 5; i += 1) {
+      history.commit('Update shapes', () => (state.shapes[0].opacity = i / 5))
+    }
+    expect(canUndo.value).toBe(true)
+    history.undo()
+    expect(canUndo.value).toBe(false)
   })
 })
 

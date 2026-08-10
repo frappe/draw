@@ -5,6 +5,7 @@
 // do — the objects affected by the step you reverse light up with their handles,
 // instead of leaving you staring at a changed canvas with nothing selected.
 
+import { ref } from 'vue'
 import { clone } from '@/utils/clone.js'
 
 const MAX_STEPS = 50
@@ -68,6 +69,20 @@ export function createHistory(state) {
   let lastLabel = null
   let lastTime = 0
 
+  // The two stacks stay PLAIN arrays: each entry holds a deep clone of the whole
+  // document, and making the stacks reactive would proxy every one of those.
+  // So the depths are what the interface watches instead. Without them
+  // `computed(() => history.canUndo())` reads a plain `length`, takes no
+  // dependency, and caches its first answer for the life of the editor — which
+  // is why canUndo/canRedo had been correct to call and useless to bind.
+  const undoDepth = ref(0)
+  const redoDepth = ref(0)
+
+  function syncDepths() {
+    undoDepth.value = past.length
+    redoDepth.value = future.length
+  }
+
   // Run a mutation, recording the prior snapshot so it can be undone.
   function commit(label, mutatorFn) {
     const now = Date.now()
@@ -83,13 +98,14 @@ export function createHistory(state) {
       // keep it as the single undo step for the whole run.
       mutatorFn()
       future.length = 0
-      return
+    } else {
+      const before = snapshot(state)
+      mutatorFn()
+      past.push({ label, snap: before })
+      if (past.length > MAX_STEPS) past.shift()
+      future.length = 0
     }
-    const before = snapshot(state)
-    mutatorFn()
-    past.push({ label, snap: before })
-    if (past.length > MAX_STEPS) past.shift()
-    future.length = 0
+    syncDepths()
   }
 
   function undo() {
@@ -98,6 +114,7 @@ export function createHistory(state) {
     const entry = past.pop()
     future.push({ label: entry.label, snap: snapshot(state) })
     restore(state, entry.snap)
+    syncDepths()
   }
 
   function redo() {
@@ -106,12 +123,14 @@ export function createHistory(state) {
     const entry = future.pop()
     past.push({ label: entry.label, snap: snapshot(state) })
     restore(state, entry.snap)
+    syncDepths()
   }
 
   function clear() {
     past.length = 0
     future.length = 0
     lastLabel = null
+    syncDepths()
   }
 
   return {
@@ -119,7 +138,7 @@ export function createHistory(state) {
     undo,
     redo,
     clear,
-    canUndo: () => past.length > 0,
-    canRedo: () => future.length > 0,
+    canUndo: () => undoDepth.value > 0,
+    canRedo: () => redoDepth.value > 0,
   }
 }

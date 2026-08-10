@@ -38,6 +38,7 @@ import MapLayoutGroup from './groups/MapLayoutGroup.vue'
 import WhiteboardObjectGroup from './groups/WhiteboardObjectGroup.vue'
 import StickyGroup from './groups/StickyGroup.vue'
 import TableCellGroup from './groups/TableCellGroup.vue'
+import HistoryGroup from './groups/HistoryGroup.vue'
 import PointerGroup from './groups/PointerGroup.vue'
 import InsertGroups from './groups/InsertGroups.vue'
 import WhiteboardTools from '@/components/floating/WhiteboardTools.vue'
@@ -96,6 +97,8 @@ const flowchartSelected = computed(
   >
     <TooltipProvider>
       <div class="flex min-w-0 flex-1 items-center gap-1">
+        <HistoryGroup />
+        <ToolbarSeparator />
         <PointerGroup />
         <ToolbarSeparator />
         <InsertGroups v-if="isCreateCanvas" />

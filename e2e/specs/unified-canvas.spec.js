@@ -1,6 +1,7 @@
 import { test, expect, watchForErrors } from '../helpers/fixtures.js'
 import {
   SURFACE,
+  TOOLBAR,
   toolByIcon,
   dragShapeFromCatalog,
   armShapeFromCatalog,
@@ -105,6 +106,44 @@ test.describe('unified canvas: block tools', () => {
       .toBe(1)
     const doc = await diagram.saved(name)
     expect(doc.shapes[0].type, 'the placed shape is a polygon').toBe('polygon')
+  })
+})
+
+test.describe('unified canvas: history', () => {
+  // The store has carried undo and redo since the start, reachable only by
+  // keyboard — so this asserts the toolbar route specifically, not the history
+  // itself, which Meta+z already covers above.
+  test('the toolbar undoes and redoes an insert, and stops at each end', async ({ page, diagram }) => {
+    const name = await diagram.open('unified', { empty: true })
+    const bar = page.locator(TOOLBAR)
+    const undo = bar.getByRole('button', { name: 'Undo', exact: true })
+    const redo = bar.getByRole('button', { name: 'Redo', exact: true })
+
+    // A document nobody has edited yet has no step in either direction.
+    await expect(undo).toBeDisabled()
+    await expect(redo).toBeDisabled()
+
+    await dragShapeFromCatalog(page, { x: 500, y: 320 })
+    await expect
+      .poll(async () => (await diagram.saved(name)).shapes.length, { timeout: 20_000 })
+      .toBe(1)
+    await expect(undo).toBeEnabled()
+
+    await undo.click()
+    await expect
+      .poll(async () => (await diagram.saved(name)).shapes.length, {
+        message: 'the toolbar Undo did not remove the shape from the saved document',
+        timeout: 20_000,
+      })
+      .toBe(0)
+
+    await redo.click()
+    await expect
+      .poll(async () => (await diagram.saved(name)).shapes.length, {
+        message: 'the toolbar Redo did not put the shape back',
+        timeout: 20_000,
+      })
+      .toBe(1)
   })
 })
 
