@@ -2,6 +2,7 @@ import { test, expect, watchForErrors } from '../helpers/fixtures.js'
 import {
   SURFACE,
   TOOLBAR,
+  POPOVER,
   toolByIcon,
   dragShapeFromCatalog,
   armShapeFromCatalog,
@@ -144,6 +145,37 @@ test.describe('unified canvas: history', () => {
         timeout: 20_000,
       })
       .toBe(1)
+  })
+})
+
+test.describe('unified canvas: zoom', () => {
+  // The four-button group that used to float bottom-left is one toolbar entry
+  // now. Its trigger reads out the live percentage, which is what these assert
+  // on — the visible text and the accessible name are the same string.
+  test('the menu sets a listed percentage and an exact typed one', async ({ page, diagram }) => {
+    await diagram.open('unified')
+    const trigger = page.locator(TOOLBAR).getByRole('button', { name: /^Zoom / })
+    const panel = page.locator(POPOVER)
+
+    await trigger.click()
+    await panel.getByRole('button', { name: '150%', exact: true }).click()
+    await expect(trigger).toHaveAttribute('aria-label', 'Zoom 150%')
+    expect(await canvasTransform(page)).toContain('scale(1.5)')
+
+    // The stops are round numbers and the steps are 10% apart, so typing is the
+    // only way to reach 137% (spec 1.6). It came across from the floating group.
+    await trigger.click()
+    await panel.getByLabel('Zoom level').fill('137')
+    await panel.getByLabel('Zoom level').press('Enter')
+    await expect(trigger).toHaveAttribute('aria-label', 'Zoom 137%')
+    expect(await canvasTransform(page)).toContain('scale(1.37)')
+  })
+
+  test('leaves no zoom controls floating over the canvas', async ({ page, diagram }) => {
+    await diagram.open('unified')
+    await expect(page.getByRole('button', { name: 'Zoom out' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Zoom in' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Set zoom level' })).toHaveCount(0)
   })
 })
 

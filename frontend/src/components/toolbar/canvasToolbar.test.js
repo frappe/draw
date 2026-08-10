@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
@@ -111,7 +111,14 @@ describe('who opts out of the focus guard', () => {
   // let the edit commit first. Getting these two backwards is silent either way —
   // a lost caret, or a node that never lands.
   it('insert and tool controls allow the blur', () => {
-    for (const file of ['groups/InsertGroups.vue', 'groups/PointerGroup.vue', 'groups/HistoryGroup.vue', '../floating/WhiteboardTools.vue']) {
+    const files = [
+      'groups/InsertGroups.vue',
+      'groups/PointerGroup.vue',
+      'groups/HistoryGroup.vue',
+      'groups/ZoomGroup.vue',
+      '../floating/WhiteboardTools.vue',
+    ]
+    for (const file of files) {
       expect(read(file), `${file} must let an in-progress edit commit`).toContain('allows-blur')
     }
   })
@@ -170,7 +177,45 @@ describe('canvas-level controls', () => {
     expect(group).toContain("modeStrategy?.value?.type !== 'whiteboard'")
   })
 
-  it('no longer leaves a duplicate guides control in the viewport group', () => {
-    expect(read('../floating/ViewportControls.vue')).not.toContain('GuidesMenu')
+  // The bottom-left viewport group is gone entirely: guides moved into this menu
+  // with #360, and zoom and fit onto the bar as one control. What is left over
+  // the canvas is the minimap and nothing else.
+  it('leaves no floating viewport group on the canvas', () => {
+    expect(existsSync(path.join(here, '../floating/ViewportControls.vue'))).toBe(false)
+    expect(read('../../pages/EditorShell.vue')).not.toContain('ViewportControls')
+  })
+})
+
+describe('the zoom control', () => {
+  const group = read('groups/ZoomGroup.vue')
+
+  // Four inline buttons — out, %, in, fit — was the floating group's shape, and
+  // reproducing it on the bar would have cost about 120px of a bar that has
+  // none to spare. One trigger opens the rest, the way Slides does it.
+  it('is one entry on the bar, not the four it replaces', () => {
+    const template = templateOf(group)
+    expect((template.match(/<ToolbarButton\b/g) || []).length).toBe(1)
+  })
+
+  // The trigger reads out the number it shows. A screen reader announcing a bare
+  // "100%" says nothing about what it controls.
+  it('shows the live percentage and says what it is', () => {
+    expect(group).toContain(':label="`Zoom ${zoomPercent}%`"')
+    expect(templateOf(group)).toContain('{{ zoomPercent }}%')
+  })
+
+  // The steps are 10% apart and the menu offers six round stops, so typing is
+  // the only route to a value like 137% (spec 1.6). It came across from the
+  // floating group; losing it would be a silent regression.
+  it('still takes an exact typed value', () => {
+    expect(group).toContain('editorUi.setZoomPercent(draft.value)')
+  })
+
+  // ⌘0 recentres as well as rescaling, and the menu's own 100% has to agree with
+  // it — two routes to "100%" that leave the canvas in different places is the
+  // kind of difference nobody can explain later.
+  it('matches ⌘0 on 100%, and only rescales for the rest', () => {
+    expect(group).toContain('if (percent === 100) editorUi.reset100()')
+    expect(group).toContain('else editorUi.setZoomPercent(percent)')
   })
 })

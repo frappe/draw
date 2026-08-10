@@ -297,7 +297,7 @@ let resizeObserver = null
 
 onMounted(() => {
   openAtActualSize()
-  // Route editorUi.fit() (bottom-left control + ⇧1 shortcut) through fitToView so
+  // Route editorUi.fit() (the toolbar's zoom menu + ⇧1 shortcut) through fitToView so
   // it refreshes the per-type content bounds before framing (O9).
   editorUi.registerFit(fitToView)
   resizeObserver = new ResizeObserver(() => syncMeasure())

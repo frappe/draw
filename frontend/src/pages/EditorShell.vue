@@ -30,7 +30,6 @@ import FlowchartOverlay from '@/components/canvas/FlowchartOverlay.vue'
 import CollaboratorCursors from '@/components/canvas/CollaboratorCursors.vue'
 import CommentPinsLayer from '@/components/comments/CommentPinsLayer.vue'
 import CommentsPanel from '@/components/comments/CommentsPanel.vue'
-import ViewportControls from '@/components/floating/ViewportControls.vue'
 import ShortcutsDialog from '@/components/ShortcutsDialog.vue'
 import { createComments, provideComments } from '@/composables/useComments.js'
 
@@ -182,7 +181,6 @@ onMounted(() => {
              (#359). What is left in here is canvas chrome: the pins, the
              navigators, the per-type empty-state prompts and the cursors. -->
         <CollaboratorCursors :collaborators="collab.collaborators.value" :set-cursor="collab.setCursor" />
-        <ViewportControls />
       </main>
 
       <!-- Comments side panel (#108), docked right when open. -->

@@ -39,6 +39,7 @@ import WhiteboardObjectGroup from './groups/WhiteboardObjectGroup.vue'
 import StickyGroup from './groups/StickyGroup.vue'
 import TableCellGroup from './groups/TableCellGroup.vue'
 import HistoryGroup from './groups/HistoryGroup.vue'
+import ZoomGroup from './groups/ZoomGroup.vue'
 import PointerGroup from './groups/PointerGroup.vue'
 import InsertGroups from './groups/InsertGroups.vue'
 import WhiteboardTools from '@/components/floating/WhiteboardTools.vue'
@@ -149,6 +150,9 @@ const flowchartSelected = computed(
         <MapLayoutGroup />
       </div>
 
+      <!-- View controls, then the canvas menu. Both act on the whole diagram
+           rather than on the selection, so they stay together. -->
+      <ZoomGroup />
       <CanvasGroup />
     </TooltipProvider>
   </div>
