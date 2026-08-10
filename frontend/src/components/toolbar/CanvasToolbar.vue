@@ -13,9 +13,15 @@
 // is ours because EditorFixedMenu binds to a Tiptap editor, and this one drives
 // four canvas models.
 //
-// The canvas group is pinned right and always present, so entries never shift
-// sideways as the contextual middle changes. The insert cluster arrives with
-// #364, and the mind-map, flowchart and whiteboard groups with #362 and #363.
+// Everything sits in ONE left-aligned run. The bar used to hold a fixed cluster
+// on the far left and the Canvas menu pinned to the far right, with a flex-1
+// spacer between them; with nothing selected that read as two islands either
+// side of about 900px of nothing, which reads as broken rather than as a toolbar
+// with room to spare.
+//
+// The fixed prefix comes first and never changes, and the contextual groups grow
+// off the END of it, so no control moves sideways when the selection changes —
+// which is exactly what the eight floating bars did on every click.
 import { computed } from 'vue'
 import { TooltipProvider } from 'frappe-ui'
 import { useSelectionContext } from '@/composables/useSelectionContext.js'
@@ -71,11 +77,16 @@ const isUnified = computed(() => isUnifiedDocument(store.state))
 const isCreateCanvas = computed(
   () => modeStrategy?.value?.type === 'block' || isUnified.value,
 )
-// On the unified bar the annotation group shows only the live modes: Draw,
-// Eraser and Laser. Text, line, image, sticky and table are in the Insert menu,
-// so excluding them here keeps one control per action.
+// The pointer group owns the laser on EVERY canvas now, so the annotation group
+// never renders it — a whiteboard document would otherwise show it twice.
+const ALWAYS_EXCLUDE = ['laser']
+// On the unified bar the annotation group is left with the live modes, Draw and
+// Eraser. Text, line, image, sticky and table are entries of their own in the
+// insert cluster, so excluding them keeps one control per action.
 const UNIFIED_ANNOTATION_EXCLUDE = ['text', 'line', 'image', 'sticky', 'table']
-const annotationExclude = computed(() => (isUnified.value ? UNIFIED_ANNOTATION_EXCLUDE : []))
+const annotationExclude = computed(() =>
+  isUnified.value ? [...ALWAYS_EXCLUDE, ...UNIFIED_ANNOTATION_EXCLUDE] : ALWAYS_EXCLUDE,
+)
 const showsAnnotationTools = computed(
   () => isUnified.value || modeStrategy?.value?.type === 'whiteboard',
 )
@@ -97,63 +108,79 @@ const flowchartSelected = computed(
     class="flex h-10 flex-none items-center gap-1 overflow-x-auto border-b border-outline-gray-1 bg-surface-base px-3"
   >
     <TooltipProvider>
-      <div class="flex min-w-0 flex-1 items-center gap-1">
-        <HistoryGroup />
-        <ToolbarSeparator />
-        <PointerGroup />
-        <ToolbarSeparator />
+      <!-- The fixed prefix: everything that is always here, in an order that
+           never changes. -->
+      <HistoryGroup />
+      <ToolbarSeparator />
+      <PointerGroup />
+      <ToolbarSeparator />
+      <!-- Wrapped so the separator goes with them. A legacy mind map or flowchart
+           has neither, and an unconditional separator left two hairlines side by
+           side with nothing between. -->
+      <template v-if="isCreateCanvas || showsAnnotationTools">
         <InsertGroups v-if="isCreateCanvas" />
         <WhiteboardTools v-if="showsAnnotationTools" :exclude="annotationExclude" />
         <ToolbarSeparator />
-
-        <LineGroup v-if="connectorSelected" :connector="connector" />
-
-        <template v-else-if="shapeSelected">
-          <template v-if="!editing">
-            <StyleGroup />
-            <ToolbarSeparator />
-          </template>
-
-          <!-- Shown while editing too: this IS the text-only menu then (#259). -->
-          <TextGroup />
-
-          <template v-if="!editing">
-            <ToolbarSeparator />
-            <ArrangeGroup />
-          </template>
-        </template>
-
-        <template v-if="showsActions">
-          <ToolbarSeparator />
-          <BlockActionsGroup />
-        </template>
-
-        <template v-if="mindmapSelected">
-          <MindmapStyleGroup />
-          <ToolbarSeparator />
-          <MindmapNodeGroup />
-        </template>
-
-        <FlowchartNodeGroup v-if="flowchartSelected" />
-
-        <!-- Whiteboard objects. All three self-gate: the sticky group on a lone
-             sticky, the cell group on an open cell or a dragged range, and the
-             object group on everything else the board holds. -->
-        <template v-if="chromeType === 'whiteboard'">
-          <StickyGroup />
-          <WhiteboardObjectGroup />
-          <TableCellGroup />
-        </template>
-
-        <!-- Whole-map actions, self-gating: a no-op unless the document is a map
-             or a free-floating map node is selected. -->
-        <MapLayoutGroup />
-      </div>
-
-      <!-- View controls, then the canvas menu. Both act on the whole diagram
-           rather than on the selection, so they stay together. -->
+      </template>
+      <!-- View, then the canvas menu. Both act on the whole diagram rather than
+           on the selection, so they close the fixed part rather than sitting
+           with the contextual groups. -->
       <ZoomGroup />
       <CanvasGroup />
+
+      <!-- Everything below follows the selection, and it grows off the END of
+           the fixed prefix rather than out of its middle. That is the whole
+           point of the arrangement: no control the user is reaching for moves
+           sideways when the selection changes, which is what the eight floating
+           bars did on every click. The cost is that Canvas sits mid-bar while
+           something is selected. -->
+      <template v-if="connectorSelected">
+        <ToolbarSeparator />
+        <LineGroup :connector="connector" />
+      </template>
+
+      <template v-else-if="shapeSelected">
+        <ToolbarSeparator />
+        <template v-if="!editing">
+          <StyleGroup />
+          <ToolbarSeparator />
+        </template>
+
+        <!-- Shown while editing too: this IS the text-only menu then (#259). -->
+        <TextGroup />
+
+        <template v-if="!editing">
+          <ToolbarSeparator />
+          <ArrangeGroup />
+        </template>
+      </template>
+
+      <template v-if="showsActions">
+        <ToolbarSeparator />
+        <BlockActionsGroup />
+      </template>
+
+      <template v-if="mindmapSelected">
+        <ToolbarSeparator />
+        <MindmapStyleGroup />
+        <ToolbarSeparator />
+        <MindmapNodeGroup />
+      </template>
+
+      <FlowchartNodeGroup v-if="flowchartSelected" />
+
+      <!-- Whiteboard objects. All three self-gate: the sticky group on a lone
+           sticky, the cell group on an open cell or a dragged range, and the
+           object group on everything else the board holds. -->
+      <template v-if="chromeType === 'whiteboard'">
+        <StickyGroup />
+        <WhiteboardObjectGroup />
+        <TableCellGroup />
+      </template>
+
+      <!-- Whole-map actions, self-gating: a no-op unless the document is a map
+           or a free-floating map node is selected. -->
+      <MapLayoutGroup />
     </TooltipProvider>
   </div>
 </template>

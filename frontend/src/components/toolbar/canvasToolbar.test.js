@@ -106,6 +106,46 @@ describe('CanvasToolbar placement', () => {
   })
 })
 
+describe('one left-aligned run', () => {
+  const toolbar = read('CanvasToolbar.vue')
+  const template = templateOf(toolbar)
+
+  // A fixed cluster on the far left and Canvas pinned to the far right left
+  // about 900px of nothing between them with nothing selected, which reads as
+  // broken rather than as a bar with room to spare. The spacer that produced it
+  // was a `flex-1` div wrapping everything except Canvas.
+  it('has no spacer holding the two ends apart', () => {
+    expect(template).not.toContain('flex-1')
+  })
+
+  // The fixed prefix in order, then everything contextual after it. Growing off
+  // the END is what keeps a control from moving under the pointer when the
+  // selection changes — the complaint that retired the eight floating bars.
+  it('puts every fixed group ahead of every contextual one', () => {
+    const at = (tag) => {
+      const index = template.indexOf(tag)
+      expect(index, `${tag} is missing from the bar`).toBeGreaterThan(-1)
+      return index
+    }
+    const fixed = ['<HistoryGroup', '<PointerGroup', '<InsertGroups', '<ZoomGroup', '<CanvasGroup']
+    for (let i = 1; i < fixed.length; i += 1) {
+      expect(at(fixed[i]), `${fixed[i]} must follow ${fixed[i - 1]}`).toBeGreaterThan(at(fixed[i - 1]))
+    }
+    const contextual = ['<LineGroup', '<StyleGroup', '<TextGroup', '<ArrangeGroup', '<BlockActionsGroup']
+    for (const group of contextual) {
+      expect(at(group), `${group} must come after the fixed prefix`).toBeGreaterThan(at('<CanvasGroup'))
+    }
+  })
+
+  // Flex items shrink by default. Without this a bar with one control too many
+  // squeezes every button a pixel narrower instead of overflowing, and the E2E
+  // guard asserting scrollWidth === clientWidth passes on a bar that is wrong.
+  it('does not let a crowded bar squash its controls instead of overflowing', () => {
+    expect(read('ToolbarButton.vue')).toContain('class="shrink-0 aria-pressed:bg-surface-gray-3"')
+    expect(read('ToolbarSeparator.vue')).toContain('shrink-0')
+  })
+})
+
 describe('who opts out of the focus guard', () => {
   // Formatting acts on the live editor and must hold the caret; inserting has to
   // let the edit commit first. Getting these two backwards is silent either way —
@@ -159,6 +199,41 @@ describe('undo and redo', () => {
   it('leads the bar', () => {
     const template = templateOf(toolbar)
     expect(template.indexOf('<HistoryGroup />')).toBeLessThan(template.indexOf('<PointerGroup />'))
+  })
+})
+
+describe('what folds, so the bar fits at 1280px', () => {
+  // Everything the refinement round added left the bar 155px wider than a 1280px
+  // screen with two shapes selected, and 187px with a mind-map node among them.
+  // Each collapse below bought that back. They are pinned because re-promoting
+  // any one of them silently overflows the bar again, and the E2E guard would be
+  // the only thing to notice.
+  it('gathers arrange, align, distribute and transform into one menu', () => {
+    const group = read('groups/ArrangeGroup.vue')
+    expect((group.match(/<ToolbarButton\b/g) || []).length).toBe(1)
+    // Each section still gates itself, so a lone shape does not read Align.
+    for (const section of ['<ArrangeSection', '<AlignSection', '<DistributeSizeSection', '<TransformSection']) {
+      expect(group, `${section} must still be reachable`).toContain(section)
+    }
+  })
+
+  // The trigger wears whichever alignment is set, so folding the three does not
+  // also hide which one is on.
+  it('gathers the three text alignments into one menu that shows the current one', () => {
+    const group = read('groups/TextGroup.vue')
+    expect(group).toContain(':label="currentAlignment.label"')
+    expect(group).toContain(':icon="currentAlignment.icon"')
+  })
+
+  // The laser is the only tool on the bar that writes nothing to the document,
+  // and it is reached in bursts rather than continuously — the cheapest of the
+  // always-present controls to put one click away.
+  it('moves the laser in with the pointing modes, and only renders it once', () => {
+    const group = read('groups/PointerGroup.vue')
+    expect(group).toContain("{ tool: 'laser', icon: 'lucide-circle-dot', label: 'Laser pointer' }")
+    // e2e/specs/laser.spec.js addresses the laser by this id wherever it lives.
+    expect(group).toContain("data-testid=\"'wtool-' + mode.tool\"")
+    expect(read('CanvasToolbar.vue')).toContain("const ALWAYS_EXCLUDE = ['laser']")
   })
 })
 

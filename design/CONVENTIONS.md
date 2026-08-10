@@ -67,7 +67,9 @@ frontend/src/
       groups/                  # one component per toolbar entry; see the contract below
     palette-right/            # panel bodies the toolbar's menus reuse (fill, arrange, link...)
     floating/                 # leftovers that are genuinely not the toolbar:
-                               # ViewportControls (zoom, bottom-left) + shared popover bodies
+                               # the whiteboard tool group + shared popover bodies.
+                               # Nothing floats over the canvas any more except
+                               # the minimap — zoom and fit are one toolbar entry
     comments/                  # CommentPinsLayer, CommentsPanel, CommentThread
     home/                      # TileGrid, DiagramTile, TrashView, SettingsDialog
   data/
@@ -84,6 +86,19 @@ Every control that acts on the selection lives in ONE static bar
 (`toolbar/CanvasToolbar.vue`), between the title bar and the ruler. Before #359
 there were eight bars floating over the canvas, each anchored above whatever was
 selected. Do not add a ninth.
+
+The bar is ONE left-aligned run: a fixed prefix that never changes, then the
+contextual groups growing off the end of it. Nothing is pinned right, and there
+is no spacer between. The order matters — a control that moves sideways when the
+selection changes is the fault the eight floating bars had.
+
+**It does not fit.** At the 1280px minimum, in its densest state — a
+multi-selection on a unified document that includes a mind-map node — the bar
+fills the width with nothing to spare. `e2e/specs/narrow-viewport.spec.js`
+measures exactly that state and asserts both that `scrollWidth === clientWidth`
+and that no control was squashed to get there (`ToolbarButton` carries
+`shrink-0` so an overflow cannot hide as a squeeze). Adding an entry means
+folding another one into a menu; it is not a free choice.
 
 What that rules out, and why:
 
