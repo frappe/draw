@@ -494,7 +494,7 @@ function onSurfacePointerDown(event) {
   // Flowchart/whiteboard own the surface (+ handles, drag-to-empty, pen, sticky):
   // delegate to the registered mode interaction (Part G1). Capture the pointer so
   // a drag gesture (pen stroke, eraser, line) still receives move/up even when it
-  // ends off the surface — over the bottom palette or outside the pane. Without
+  // ends off the surface — over the toolbar or outside the pane. Without
   // this, finishStroke/finishErase/finishLine never run: the live stroke lingers,
   // the erase can't be undone, and the drawn line is silently dropped.
   if (delegateSurfaceEvent('onPointerDown', event)) {
@@ -585,7 +585,7 @@ function onSurfacePointerCancel() {
 
 // Double-click: edit the text of a hit shape or the label of a hit connector.
 // Double-click on the EMPTY canvas does not create anything (block/flowchart):
-// creation is via the bottom palette. Double-click-to-create is whiteboard-only,
+// creation is via the toolbar. Double-click-to-create is whiteboard-only,
 // owned by the whiteboard mode interaction (spec §6/§7.1; P4).
 function onSurfaceDoubleClick(event) {
   // Double-click closes the in-progress polygon (its two presses already dropped
@@ -895,7 +895,7 @@ const surfaceCursor = computed(() => {
       class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none text-center"
     >
       <div class="text-md font-medium text-ink-gray-4">Nothing here yet</div>
-      <div class="mt-1 text-sm text-ink-gray-3">Click the + button below to add your first shape</div>
+      <div class="mt-1 text-sm text-ink-gray-3">Pick a shape from the toolbar above to get started</div>
     </div>
 
     <!-- Rulers in screen space (outside the viewport <g>), shown while editing

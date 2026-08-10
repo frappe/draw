@@ -18,7 +18,7 @@ const isBlank = computed(() => (store.state.flowchart?.nodes.length ?? 0) === 0)
 // user can type straight away. It lands where the user is looking without moving the
 // camera (#119: no insert may pan the canvas; #75: it must land in view). The "add
 // next node" picker opens below the node and already flips above / clamps when it
-// would reach the bottom palette, so no pan is needed to keep it clear.
+// sits well inside the view, so no pan is needed to keep it clear.
 function addFirstStep() {
   const size = nodeSize({ nodeType: 'process' })
   const view = editorUi.viewport.visibleRect()

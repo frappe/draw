@@ -207,21 +207,22 @@ const PICKER_W = 260
 const PICKER_H = 240
 
 // Final on-canvas position for the open picker: anchored just below the source
-// node (flipping above / clamping so it never hides behind the bottom palette),
-// recomputed against the live viewport so it stays correct as the canvas pans or
-// zooms while the picker is open.
+// node, flipping above and clamping so it stays inside the view, recomputed
+// against the live viewport so it stays correct as the canvas pans or zooms
+// while the picker is open.
 const pickerPos = computed(() => {
   if (!ui.picker) return { x: 0, y: 0 }
   const view = editorUi.viewport.visibleRect()
   const z = zoom.value || 1
-  // Exclude the bottom strip the palette occupies (~84 screen px) plus a small
-  // margin on every edge, converted to logical units at the current zoom.
+  // An even margin on every edge, in logical units at the current zoom. The
+  // bottom edge used to reserve ~84 screen px for the centred palette (#96);
+  // that palette is gone (#364), so the reservation went with it.
   const margin = 8 / z
   const bounds = {
     x: view.x + margin,
     y: view.y + margin,
     w: view.w - margin * 2,
-    h: view.h - margin - 84 / z,
+    h: view.h - margin * 2,
   }
   const source = ui.picker.source?.fromNodeId
     ? props.flowchart.nodes.find((n) => n.id === ui.picker.source.fromNodeId)
@@ -438,8 +439,8 @@ function onLeave(id) {
       :stroke-dasharray="`${4 / zoom} ${3 / zoom}`"
     />
 
-    <!-- Node-type picker overlay, positioned just below the node and flipped/clamped
-         so it never hides behind the bottom palette (#96). -->
+    <!-- Node-type picker overlay, positioned just below the node and
+         flipped/clamped so it stays inside the view (#96). -->
     <foreignObject
       v-if="ui.picker"
       :x="pickerPos.x"

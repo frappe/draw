@@ -28,7 +28,7 @@ const BLOCK = {
   surfaceTools: [],
   showsShapeTools: true, // left creation palette (shapes/connectors/icons)
   // No right panel: shape editing lives in the floating contextual toolbar
-  // (BlockSelectionEditor); creation + canvas settings in the bottom palette.
+  // creation and canvas settings all live on the canvas toolbar.
 }
 
 const MINDMAP = {
@@ -41,7 +41,7 @@ const MINDMAP = {
   surfaceTools: [],
   showsShapeTools: false, // mind maps grow by keyboard (Tab/Enter), not shape drag
   // No right panel: per-node editing lives in the floating contextual toolbar
-  // (MindMapOverlay), map-wide actions in the bottom palette — Whimsical-style.
+  // and map-wide actions both live on the canvas toolbar.
 }
 
 const FLOWCHART = {
@@ -54,7 +54,7 @@ const FLOWCHART = {
   surfaceTools: [], // flowchart builds via + handles / keyboard, not bottom tools
   showsShapeTools: false, // flowchart builds via + handles / keyboard
   // No right panel: per-node editing lives in the floating contextual toolbar
-  // (FlowchartSelectionEditor); map-wide layout actions in the bottom palette.
+  // and map-wide layout actions both live on the canvas toolbar.
 }
 
 const WHITEBOARD = {

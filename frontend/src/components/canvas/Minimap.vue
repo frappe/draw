@@ -301,7 +301,7 @@ const miniLinks = computed(() =>
           Nothing to preview yet
         </text>
         <text :x="WIDTH / 2" :y="HEIGHT / 2 + 9" text-anchor="middle" font-size="9" fill="#B0B7C0" style="font-family: Inter, sans-serif">
-          Add a shape from the toolbar below
+          Add a shape from the toolbar above
         </text>
       </template>
     </svg>
