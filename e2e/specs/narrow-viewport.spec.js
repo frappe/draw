@@ -1,5 +1,5 @@
 import { test, expect } from '../helpers/fixtures.js'
-import { SURFACE } from '../helpers/editor.js'
+import { SURFACE, TOOLBAR, armShapeFromCatalog, dragOnCanvas } from '../helpers/editor.js'
 
 // #175: below design/SPEC.md's stated 1280px minimum, the minimap overlapped the tool
 // palette and stole its pointer events, and the header overflowed the viewport — an
@@ -37,5 +37,21 @@ test.describe('editor at the supported minimum width (1280px)', () => {
 
     await expect(page.locator(SURFACE).first()).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Open on a larger screen' })).toHaveCount(0)
+  })
+
+  // The toolbar was designed to GROUP into dropdowns rather than scroll: the
+  // product decision was that no control is ever hidden behind a sideways swipe.
+  // `overflow-x-auto` is a safety net on the wrapper, so an overflow would be
+  // silent — the bar would simply start scrolling and nobody would notice until
+  // a user could not find a control. This asserts the decision, not the net.
+  test('the toolbar does not overflow with a shape selected', async ({ page, diagram }) => {
+    await diagram.open('unified')
+    await armShapeFromCatalog(page)
+    await dragOnCanvas(page, { x: 260, y: 220 }, { x: 420, y: 330 })
+
+    const bar = page.locator(TOOLBAR)
+    await expect(bar.getByRole('button', { name: 'Delete', exact: true })).toBeVisible()
+    const overflow = await bar.evaluate((el) => el.scrollWidth - el.clientWidth)
+    expect(overflow, 'the canvas toolbar overflowed at the 1280px minimum').toBe(0)
   })
 })
