@@ -69,10 +69,13 @@ def delete_collection(name: str) -> None:
 	frappe.delete_doc(COLLECTION, name, ignore_permissions=True)
 
 
-@frappe.whitelist(methods=["GET"])
+# Reads accept POST as well as GET: frappe-ui's `call()` POSTs everything, and a
+# GET-only endpoint answers 403 to it. The writes below stay POST-only, which is
+# the restriction that matters — a GET that writes is a CSRF vector.
+@frappe.whitelist(methods=["GET", "POST"])
 def list_collections() -> list:
 	"""The caller's collections with the number of diagrams in each, for Home's chip
-	row. Counted in ONE grouped query rather than one per collection."""
+	row. Two queries whatever the size, never one per collection."""
 	collections = frappe.get_all(
 		COLLECTION,
 		filters={"owner": frappe.session.user},
@@ -117,7 +120,7 @@ def _trashed_among(diagram_names: list) -> set:
 	}
 
 
-@frappe.whitelist(methods=["GET"])
+@frappe.whitelist(methods=["GET", "POST"])
 def diagrams_in_collection(name: str) -> list:
 	"""The diagram names in a collection, for Home to filter its list by."""
 	_own_collection(name)
@@ -127,7 +130,7 @@ def diagrams_in_collection(name: str) -> list:
 	]
 
 
-@frappe.whitelist(methods=["GET"])
+@frappe.whitelist(methods=["GET", "POST"])
 def collections_of(diagram: str) -> list:
 	"""The caller's collections a diagram is in, for the "Add to collection" menu."""
 	_readable_diagram(diagram)
