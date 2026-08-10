@@ -296,11 +296,24 @@ function exportPdfWithPrintWindow(markup, width, height) {
   }, 250)
 }
 
+// The printed page must be the canvas and nothing else (#227). Three things put
+// whitespace on it or changed how it looked:
+//
+//   • `height:auto` sized the SVG from its own aspect ratio rather than the page.
+//     Whenever the page box was not exactly the canvas ratio — which is whenever
+//     the print dialog falls back to the user's paper size — the leftover height
+//     printed as a white band. `height:100%` fills the page box instead, and the
+//     viewBox already centres the drawing.
+//   • html and body had no height, so `100%` had nothing to resolve against.
+//   • browsers drop background colours when printing unless told not to, so a
+//     coloured canvas came out white. print-color-adjust keeps it.
 function printDocument(markup, width, height) {
   return (
     '<!doctype html><html><head><meta charset="utf-8"><title>Diagram</title>' +
     `<style>@page{size:${num(width)}px ${num(height)}px;margin:0}` +
-    'html,body{margin:0;padding:0}svg{display:block;width:100%;height:auto}</style>' +
+    'html,body{margin:0;padding:0;width:100%;height:100%}' +
+    'svg{display:block;width:100%;height:100%}' +
+    '*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style>' +
     `</head><body>${markup}</body></html>`
   )
 }
