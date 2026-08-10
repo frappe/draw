@@ -31,6 +31,12 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      # Before the tests: an undefined identifier inside <script setup> is valid
+      # JavaScript that only throws when the component mounts, so neither the
+      # build nor the browser-free unit tests catch it (#367).
+      - name: Lint
+        run: yarn lint
+
       - name: Unit tests
         run: yarn test
 

@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run"
   },
-  "//resolutions": "frappe-ui (^3.3.1) and jspdf (^3.4.0) each pull their own dompurify, and yarn 1 keeps one lock entry per range — so the tree shipped 3.4.10 and 3.4.11 alongside our 3.4.12. Those two are affected by GHSA-c2j3-45gr-mqc4 (patched in 3.4.12). Both ranges already permit 3.4.12, so this collapses them onto it rather than shipping known-vulnerable copies for the sake of a duplicate.",
-  "//resolutions-postcss": "tailwind, autoprefixer and vite all pull postcss ^8.4, which resolved to 8.5.15 — affected by GHSA-r28c-9q8g-f849 (path traversal via sourceMappingURL auto-loading, patched in 8.5.18). The resolution collapses the tree onto ^8.5.18.",
+  "//resolutions": "frappe-ui (^3.3.1) and jspdf (^3.4.0) each pull their own dompurify, and yarn 1 keeps one lock entry per range \u2014 so the tree shipped 3.4.10 and 3.4.11 alongside our 3.4.12. Those two are affected by GHSA-c2j3-45gr-mqc4 (patched in 3.4.12). Both ranges already permit 3.4.12, so this collapses them onto it rather than shipping known-vulnerable copies for the sake of a duplicate.",
+  "//resolutions-postcss": "tailwind, autoprefixer and vite all pull postcss ^8.4, which resolved to 8.5.15 \u2014 affected by GHSA-r28c-9q8g-f849 (path traversal via sourceMappingURL auto-loading, patched in 8.5.18). The resolution collapses the tree onto ^8.5.18.",
   "resolutions": {
     "dompurify": "^3.4.12",
     "postcss": "^8.5.18"
@@ -33,11 +34,15 @@
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
     "autoprefixer": "^10.4.0",
+    "eslint": "^10.8.1",
+    "eslint-plugin-vue": "^10.10.0",
     "fake-indexeddb": "^6.2.5",
+    "globals": "^17.9.0",
     "jsdom": "^30.0.1",
     "postcss": "^8.5.18",
     "tailwindcss": "^3.4.0",
     "vite": "^5.0.0",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "vue-eslint-parser": "^10.4.1"
   }
 }
