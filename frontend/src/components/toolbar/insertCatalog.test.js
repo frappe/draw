@@ -34,6 +34,22 @@ describe('the mind-map entry (#255 / #75 / #200)', () => {
   })
 })
 
+describe('the Shapes entry icon', () => {
+  const groups = read('./groups/InsertGroups.vue')
+
+  // A lone square is the rectangle TILE's own glyph, so the category trigger
+  // read as "insert a rectangle" rather than "open the shapes". lucide-shapes
+  // draws a triangle, a square and a circle together.
+  //
+  // Spelled out in full: Tailwind's JIT only emits the classes it can read in
+  // the source, so a composed `lucide-${name}` produces no CSS and the button
+  // renders blank.
+  it('draws the category, not one shape from it', () => {
+    expect(groups).toContain('label="Shapes" icon="lucide-shapes"')
+    expect(groups).not.toContain('icon="lucide-square"')
+  })
+})
+
 describe('drag-to-place survives the move (#364)', () => {
   const groups = read('./groups/InsertGroups.vue')
   const catalog = read('../../composables/useInsertCatalog.js')

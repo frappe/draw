@@ -38,7 +38,7 @@ const grid = 'grid w-[228px] grid-cols-6 gap-1 p-2'
 
 <template>
   <Popover>
-    <template #trigger><ToolbarButton allows-blur label="Shapes" icon="lucide-square" /></template>
+    <template #trigger><ToolbarButton allows-blur label="Shapes" icon="lucide-shapes" /></template>
     <template #default="{ toggle }">
       <div :class="grid">
         <ToolbarButton
