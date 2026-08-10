@@ -54,8 +54,14 @@ def share_diagram(name: str, user: str, level: str = "view") -> list:
 	flags = LEVEL_FLAGS.get(level)
 	if not flags:
 		frappe.throw(_("Unknown access level: {0}").format(level))
-	# Clear any prior grant first so lowering a level actually removes flags.
-	frappe.share.remove("Draw Diagram", name, user)
+	# No delete-then-recreate. frappe.share.add_docshare() writes EVERY flag it is
+	# given onto an existing row (`doc.update(share_perms)`), and LEVEL_FLAGS always
+	# passes all four including the zeros — so lowering a level already clears the
+	# rights it drops. The remove() that used to run first needed `delete` on the
+	# DocShare doctype, which ordinary users do not hold, so re-sharing with someone
+	# already on the list threw a bare 403 for everyone but Administrator (#194).
+	# Dropping it also stops the row's owner and creation timestamp being churned on
+	# every level change.
 	frappe.share.add("Draw Diagram", name, user=user, notify=0, **flags)
 	return get_diagram_shares(name)
 
@@ -64,8 +70,25 @@ def share_diagram(name: str, user: str, level: str = "view") -> list:
 def unshare_diagram(name: str, user: str) -> list:
 	"""Revoke a user's access. Returns the current share list."""
 	_check_can_share(name)
-	frappe.share.remove("Draw Diagram", name, user)
+	_delete_share_row(name, user)
 	return get_diagram_shares(name)
+
+
+def _delete_share_row(name: str, user: str) -> None:
+	"""Drop a user's DocShare row for this diagram.
+
+	Not frappe.share.remove(): that deletes through frappe.delete_doc() with
+	permissions enforced, which demands `delete` on the DocShare DOCTYPE — a
+	permission ordinary users do not hold, so revoking access failed for everyone
+	but Administrator (#194). The check that actually matters, _check_can_share(),
+	has already run above. Frappe's own set_docshare_permission() does the same
+	thing: it sets ignore_permissions on the row before deleting it.
+	"""
+	share_name = frappe.db.get_value(
+		"DocShare", {"user": user, "share_name": name, "share_doctype": "Draw Diagram"}
+	)
+	if share_name:
+		frappe.delete_doc("DocShare", share_name, ignore_permissions=True)
 
 
 def _level_of(row) -> str:

@@ -110,6 +110,53 @@ class TestDrawDiagram(IntegrationTestCase):
 		finally:
 			frappe.set_user("Administrator")
 
+	def _draw_user(self, email):
+		# A user who has actually opened Draw, so they hold the owner-scoped
+		# "Draw User" role — the role grants share (and delete) on Draw Diagram, but
+		# nothing at all on the DocShare doctype.
+		user = self._user(email)
+		frappe.get_doc("User", user).add_roles("Draw User")
+		return user
+
+	def test_owner_can_change_a_collaborator_level_and_revoke_it(self):
+		# #194: every share operation that touched an EXISTING DocShare row went
+		# through frappe.share.remove() -> frappe.delete_doc() with permissions on,
+		# which enforces `delete` on the DocShare DOCTYPE. Ordinary users do not hold
+		# that, so a diagram's own owner got a bare PermissionError when they changed
+		# a collaborator's level or removed them. Only the FIRST share of a given user
+		# worked, because remove() no-ops when there is no row yet.
+		#
+		# Runs as the owner, not Administrator — as Administrator every one of these
+		# calls passes and the bug is invisible.
+		from draw.api.share import get_diagram_shares, share_diagram, unshare_diagram
+
+		owner = self._draw_user("draw-owner-194@example.com")
+		target = self._user("draw-collab-194@example.com")
+		doc = self._private_diagram_owned_by(owner, "Share level check")
+
+		frappe.set_user(owner)
+		try:
+			share_diagram(doc.name, target, "view")
+
+			# Re-sharing someone already on the list is the failing case.
+			share_diagram(doc.name, target, "edit")
+			row = {s["user"]: s for s in get_diagram_shares(doc.name)}[target]
+			self.assertEqual(row["level"], "edit")
+			self.assertTrue(row["write"])
+
+			# Lowering has to REMOVE rights, not merely avoid raising — dropping the
+			# delete-then-recreate would be a security bug if `add` only ever added.
+			share_diagram(doc.name, target, "view")
+			row = {s["user"]: s for s in get_diagram_shares(doc.name)}[target]
+			self.assertEqual(row["level"], "view")
+			self.assertFalse(row["write"], "lowering to view left write set")
+			self.assertFalse(row["comment"], "lowering to view left comment set")
+
+			unshare_diagram(doc.name, target)
+			self.assertEqual(get_diagram_shares(doc.name), [], "the share row survived removal")
+		finally:
+			frappe.set_user("Administrator")
+
 	def test_get_shares_reports_level_for_dialog(self):
 		from draw.api.share import get_diagram_shares, share_diagram
 
