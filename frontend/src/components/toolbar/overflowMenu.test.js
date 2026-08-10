@@ -5,9 +5,10 @@ import path from 'node:path'
 import { overflowMenuItems } from './overflowMenu.js'
 
 // Browser-free: assert the editor "…" menu MODEL (labels / icons / the red Delete /
-// the Pin↔Unpin toggle / callback wiring), then source-check that the toolbar SFCs
-// wire it up — that Rename is gone, and the deferred Move / Version history slots.
-// Mirrors ShareMenu.test.js (import the model, string-check the SFC).
+// callback wiring), then source-check that the toolbar SFCs wire it up — that
+// Rename (#232) and Pin (#370) are gone along with everything behind them, and
+// that Move / Version history stay deferred. Mirrors ShareMenu.test.js (import the
+// model, string-check the SFC).
 const here = path.dirname(fileURLToPath(import.meta.url))
 const read = (rel) => readFileSync(path.join(here, rel), 'utf8')
 const overflowSfc = read('OverflowMenu.vue')
@@ -17,33 +18,27 @@ const moveDialog = read('MoveToDriveDialog.vue')
 
 function build(overrides = {}) {
   return overflowMenuItems({
-    isPinned: false,
     driveAvailable: false,
     onShowInfo: () => {},
     onMove: () => {},
-    onTogglePin: () => {},
     onDelete: () => {},
     ...overrides,
   })
 }
 
 describe('overflow menu model (#111)', () => {
-  it('lists Show info · Pin · Delete', () => {
-    expect(build().map((i) => i.label)).toEqual(['Show info', 'Pin', 'Delete'])
+  it('lists Show info · Delete', () => {
+    expect(build().map((i) => i.label)).toEqual(['Show info', 'Delete'])
   })
 
-  it('flips the pin item to Unpin once pinned', () => {
-    expect(build({ isPinned: true }).map((i) => i.label)).toEqual([
-      'Show info',
-      'Unpin',
-      'Delete',
-    ])
-  })
-
-  it('names the pin action Pin / Unpin, matching Home (#233)', () => {
-    // Home's tile menu has always used this pair. "Favourite" was the odd one out.
-    expect(build().map((i) => i.label)).not.toContain('Favourite')
-    expect(build({ isPinned: true }).map((i) => i.label)).not.toContain('Favourite')
+  it('offers no way to pin from the editor (#370)', () => {
+    // Pinning organises the LIBRARY. It changes nothing the editor is showing, so
+    // its result is invisible from here — and this was the one pin path that
+    // ignored Home's cap of five.
+    const labels = build({ driveAvailable: true }).map((i) => i.label)
+    expect(labels).not.toContain('Pin')
+    expect(labels).not.toContain('Unpin')
+    expect(labels).not.toContain('Favourite')
   })
 
   it('marks Delete as the one destructive (red) item', () => {
@@ -53,16 +48,7 @@ describe('overflow menu model (#111)', () => {
   })
 
   it('gives every item a Dropdown icon', () => {
-    expect(build().map((i) => i.icon)).toEqual(['file-text', 'lucide-pin', 'trash-2'])
-  })
-
-  it('draws a real pin, not FeatherIcon\'s circle fallback (#233)', () => {
-    // Feather has no "pin" — only "map-pin" — and FeatherIcon silently falls back
-    // to its "circle" glyph for any name it does not know, which is what shipped.
-    // A complete lucide-* class takes the class path instead and cannot fall back.
-    const pin = build().find((i) => i.label === 'Pin')
-    expect(pin.icon).toBe('lucide-pin')
-    expect(build({ isPinned: true }).find((i) => i.label === 'Unpin').icon).toBe('lucide-pin')
+    expect(build().map((i) => i.icon)).toEqual(['file-text', 'trash-2'])
   })
 
   it('offers Move only when Drive is available (Version history stays deferred)', () => {
@@ -70,9 +56,9 @@ describe('overflow menu model (#111)', () => {
     const withoutDrive = build().map((i) => i.label)
     expect(withoutDrive).not.toContain('Move')
 
-    // Drive present → Move appears, sitting between Show info and the pin toggle.
+    // Drive present → Move appears, between Show info and Delete.
     const withDrive = build({ driveAvailable: true }).map((i) => i.label)
-    expect(withDrive).toEqual(['Show info', 'Move', 'Pin', 'Delete'])
+    expect(withDrive).toEqual(['Show info', 'Move', 'Delete'])
 
     // Version history has no backing yet, so it never shows either way.
     expect(withoutDrive.some((l) => /version/i.test(l))).toBe(false)
@@ -89,16 +75,13 @@ describe('overflow menu model (#111)', () => {
 
   it('wires each row to its callback', () => {
     const onShowInfo = vi.fn()
-    const onTogglePin = vi.fn()
     const onDelete = vi.fn()
     const byLabel = Object.fromEntries(
-      build({ onShowInfo, onTogglePin, onDelete }).map((i) => [i.label, i.onClick]),
+      build({ onShowInfo, onDelete }).map((i) => [i.label, i.onClick]),
     )
     byLabel['Show info']()
-    byLabel['Pin']()
     byLabel['Delete']()
     expect(onShowInfo).toHaveBeenCalledOnce()
-    expect(onTogglePin).toHaveBeenCalledOnce()
     expect(onDelete).toHaveBeenCalledOnce()
   })
 })
@@ -129,8 +112,18 @@ describe('overflow menu wiring', () => {
     expect(overflowSfc).toContain("router.push({ name: 'Home' })")
   })
 
-  it('Favourite toggles is_pinned on the diagram', () => {
-    expect(overflowSfc).toMatch(/is_pinned: isPinned\.value \? 0 : 1/)
+  it('leaves no pin wiring behind in the toolbar (#370)', () => {
+    // The whole path goes, not just the menu row: the component no longer reads
+    // is_pinned and no longer writes it.
+    expect(overflowSfc).not.toContain('is_pinned')
+    expect(overflowSfc).not.toContain('togglePin')
+  })
+
+  it('leaves pinning to Home, which enforces the cap', () => {
+    const tileGrid = read('../home/TileGrid.vue')
+    const diagramTile = read('../home/DiagramTile.vue')
+    expect(tileGrid).toContain('pinLimitReached')
+    expect(diagramTile).toContain('Pin limit reached')
   })
 
   it('reuses the ShareMenu route-param loadDiagram pattern (prop-light toolbar)', () => {

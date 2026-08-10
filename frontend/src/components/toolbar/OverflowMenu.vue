@@ -1,13 +1,13 @@
 <script setup>
 // Editor "…" overflow menu (#111). Sits after Export + Share in the top bar and
 // gathers the less-frequent document actions Drive / Writer tuck under a kebab:
-// Show info (name / created / modified / owner), Pin/Unpin (toggles is_pinned),
-// and Delete (move to Trash). Loads its own copy of the diagram doc the same way
-// ShareMenu does — from the route param — so the toolbar itself stays prop-light.
-// The item set lives in overflowMenu.js so it can be unit-tested without mounting
-// this component.
+// Show info (name / created / modified / owner) and Delete (move to Trash). Loads
+// its own copy of the diagram doc the same way ShareMenu does — from the route
+// param — so the toolbar itself stays prop-light. The item set lives in
+// overflowMenu.js so it can be unit-tested without mounting this component.
 //
 // Rename is not here (#232): renaming happens by clicking the title.
+// Pin is not here either (#370): pinning organises the library, so it lives on Home.
 // Move … and Version history … are intentionally omitted — see overflowMenu.js.
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -21,7 +21,6 @@ const route = useRoute()
 const router = useRouter()
 const diagram = loadDiagram(route.params.name)
 
-const isPinned = computed(() => Boolean(diagram.doc?.is_pinned))
 const showInfo = ref(false)
 const showMove = ref(false)
 
@@ -35,11 +34,9 @@ onMounted(async () => {
 
 const menuItems = computed(() =>
   overflowMenuItems({
-    isPinned: isPinned.value,
     driveAvailable: driveAvailable.value,
     onShowInfo: openInfo,
     onMove: () => (showMove.value = true),
-    onTogglePin: togglePin,
     onDelete: trash,
   }),
 )
@@ -55,14 +52,6 @@ function onMoved({ title } = {}) {
 function openInfo() {
   diagram.reload()
   showInfo.value = true
-}
-
-async function togglePin() {
-  try {
-    await diagram.setValue.submit({ is_pinned: isPinned.value ? 0 : 1 })
-  } catch (error) {
-    toast.error('Could not update', { text: error?.message || '' })
-  }
 }
 
 // Move to Trash, then leave the editor — a trashed diagram has no place in an open
