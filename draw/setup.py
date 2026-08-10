@@ -13,15 +13,43 @@ OWNED_DOCTYPES = ("Draw Diagram", "Draw Folder")
 
 
 def ensure_setup(*args, **kwargs) -> None:
-	"""Create the Draw User role + owner-scoped perms and register the diagram
-	"comment" permission type. Safe to run repeatedly."""
+	"""Create the Draw User role + owner-scoped perms, register the diagram
+	"comment" permission type, and add the schema constraints Frappe will not add
+	from a DocType JSON. Safe to run repeatedly."""
 	_ensure_role()
 	# The permission type first: it adds the `comment` field to Custom DocPerm, and
 	# the perm row below is written with that flag set.
 	_ensure_comment_permission_type()
 	for doctype in OWNED_DOCTYPES:
 		_ensure_owner_permission(doctype)
+	_ensure_collection_member_uniqueness()
 	frappe.clear_cache()
+
+
+def _ensure_collection_member_uniqueness() -> None:
+	"""One membership row per (collection, diagram) — #217.
+
+	A DocType JSON cannot declare a composite unique constraint, and the usual
+	place for one, the controller's `on_doctype_update`, does NOT run on a real
+	migrate: DocType.on_update only calls it when `developer_mode` is on and
+	`flags.in_import` is off, which is the opposite of how migrate syncs a JSON.
+	So it belongs here, with the rest of this app's idempotent setup.
+
+	It matters because "is this diagram already in this collection?" is otherwise a
+	check-then-act: two clients both see "no" and both insert. The API treats the
+	resulting IntegrityError as success, which is what an idempotent add should do.
+	"""
+	try:
+		frappe.db.add_unique(
+			"Draw Collection Member",
+			["collection", "diagram"],
+			constraint_name="unique_collection_diagram",
+		)
+	except Exception:
+		# add_unique is already a no-op when the constraint exists; this guards the
+		# one case it cannot handle — duplicate rows left by a site that ran before
+		# the constraint existed. Setup must never break a migrate.
+		frappe.log_error(title="Draw: could not add the collection membership constraint")
 
 
 def grant_draw_user_role(user: str) -> None:

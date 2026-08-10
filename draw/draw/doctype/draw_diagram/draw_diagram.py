@@ -23,6 +23,14 @@ class DrawDiagram(Document):
 		self.stamp_trashed_on()
 		self.sync_diagram_type()
 
+	def on_trash(self):
+		# Collection membership is a Link to this diagram, so a leftover row would
+		# block the delete on link integrity (#217). Only the grouping goes; nothing
+		# here touches another diagram. This is the HARD delete — moving to Trash is
+		# the `is_trashed` flag, and those rows stay so a restore puts the diagram
+		# back in the collections it was in.
+		frappe.db.delete("Draw Collection Member", {"diagram": self.name})
+
 	def increment_revision(self):
 		self.revision = (self.revision or 0) + 1
 
