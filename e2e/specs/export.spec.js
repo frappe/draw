@@ -14,32 +14,51 @@ import fs from 'node:fs/promises'
 // the one that would return if another diagram type were added without checking
 // every `diagramType ===` dispatch.
 
-// Click an item in the Export dropdown and return the download it produced.
-// The item is awaited for visibility first — popover items miss silently when
-// clicked mid-settle, which then looks like a broken exporter.
+// Export is a DIALOG now (#225), not a menu that fires on click: pick the format,
+// pick a scale if it is a raster one, then press the Export button. Picking a
+// format no longer downloads anything, so every helper here ends on that button.
+//
+// Each control is awaited for visibility first — a dialog control clicked
+// mid-settle misses silently, which then looks like a broken exporter.
 //
 // `exact: true` matters: getByRole name matching is a SUBSTRING match, and the
 // `diagram` fixture titles each document after the test that created it — so the
 // title button in the header matched `name: 'Export'` in every test whose own name
 // contained the word "export". See the warning in helpers/fixtures.js.
-async function exportVia(page, label) {
+async function openExportDialog(page) {
   await page.getByRole('button', { name: 'Export', exact: true }).click()
-  const item = page.getByText(label, { exact: true }).first()
-  await item.waitFor({ state: 'visible' })
-  const [download] = await Promise.all([page.waitForEvent('download'), item.click()])
+  await page.getByText('Format', { exact: true }).waitFor({ state: 'visible' })
+}
+
+async function pick(page, label) {
+  const option = page.getByText(label, { exact: true }).first()
+  await option.waitFor({ state: 'visible' })
+  await option.click()
+}
+
+// The action button names the chosen format ("Export SVG"), so `exact` keeps it
+// clear of the format tab of the same name.
+async function pressExport(page, label) {
+  const run = page.getByText(`Export ${label}`, { exact: true }).first()
+  await run.waitFor({ state: 'visible' })
+  const [download] = await Promise.all([page.waitForEvent('download'), run.click()])
   return download
 }
 
-// PNG is no longer one menu row per scale (#104): the Export menu has a single PNG
-// row carrying a 1–4× scale button strip. Pick the scale by its "N×" button. `×`
-// is the same U+00D7 the button renders ({{ s }}×). There is no transparency
-// checkbox to drive — PNG transparency follows the canvas background (#226).
+async function exportVia(page, label) {
+  await openExportDialog(page)
+  await pick(page, label)
+  return pressExport(page, label)
+}
+
+// PNG carries a 1–4× scale strip (#104, now the dialog's "Size" row). `×` is the
+// same U+00D7 the button renders. There is no transparency checkbox to drive —
+// PNG transparency follows the canvas background (#226).
 async function exportPng(page, scale) {
-  await page.getByRole('button', { name: 'Export', exact: true }).click()
-  const item = page.getByRole('button', { name: `${scale}×`, exact: true })
-  await item.waitFor({ state: 'visible' })
-  const [download] = await Promise.all([page.waitForEvent('download'), item.click()])
-  return download
+  await openExportDialog(page)
+  await pick(page, 'PNG')
+  await pick(page, `${scale}×`)
+  return pressExport(page, 'PNG')
 }
 
 async function downloadedText(download) {

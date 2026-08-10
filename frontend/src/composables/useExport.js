@@ -25,7 +25,9 @@ export function useExport(store, getTitle) {
     // transparent and a coloured one keeps its colour (#226). The old
     // per-export toggle duplicated that setting and could contradict it.
     exportPng: (scale = 2) => guard(() => exportRaster(store, 'png', scale, fileName())),
-    exportJpeg: () => guard(() => exportRaster(store, 'jpeg', 1, fileName())),
+    // JPEG takes a scale like PNG (#225): the export dialog offers one for both
+    // raster formats, and a control the exporter ignored would be a lie.
+    exportJpeg: (scale = 1) => guard(() => exportRaster(store, 'jpeg', scale, fileName())),
     exportSvg: () => guard(() => exportSvgFile(store, fileName())),
     exportPdf: () => guard(() => exportPdfFile(store, fileName())),
     // Selection-only exports at a chosen pixel scale (spec 12.2).

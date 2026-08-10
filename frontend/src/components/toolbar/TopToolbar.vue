@@ -11,7 +11,7 @@ import { Button } from 'frappe-ui'
 import Logomark from '@/components/Logomark.vue'
 import TitleEditor from './TitleEditor.vue'
 import SaveIndicator from './SaveIndicator.vue'
-import ExportMenu from './ExportMenu.vue'
+import ExportDialog from './ExportDialog.vue'
 import ShareMenu from './ShareMenu.vue'
 import CommentsToggle from './CommentsToggle.vue'
 import DriveMenu from './DriveMenu.vue'
@@ -52,7 +52,7 @@ function goHome() {
     <!-- RIGHT: actions. -->
     <div class="flex items-center justify-end gap-2">
       <SaveIndicator :status="saveStatus" :message="saveMessage" />
-      <ExportMenu />
+      <ExportDialog />
       <DriveMenu />
       <CommentsToggle />
       <ShareMenu />

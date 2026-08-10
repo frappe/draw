@@ -18,7 +18,7 @@ const read = (file) => readFileSync(path.join(here, file), 'utf8')
 
 // The cluster's four buttons, each in its own component.
 const CLUSTER = [
-  { file: 'ExportMenu.vue', name: 'Export', icon: 'lucide-download' },
+  { file: 'ExportDialog.vue', name: 'Export', icon: 'lucide-download' },
   { file: 'CommentsToggle.vue', name: 'Comments', icon: 'lucide-message-square' },
   { file: 'ShareMenu.vue', name: 'Share', icon: 'lucide-share-2' },
   { file: 'OverflowMenu.vue', name: 'More actions', icon: 'lucide-ellipsis' },
@@ -51,7 +51,7 @@ describe('top bar actions cluster (#229)', () => {
 
   it('shows no "Export" or "Share" text next to the icons', () => {
     // A self-closing trigger has no default slot, so there is no visible label.
-    expect(firstButtonTag(read('ExportMenu.vue'))).toMatch(/\/>$/)
+    expect(firstButtonTag(read('ExportDialog.vue'))).toMatch(/\/>$/)
     expect(firstButtonTag(read('ShareMenu.vue'))).toMatch(/\/>$/)
   })
 

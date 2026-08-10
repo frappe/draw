@@ -61,3 +61,21 @@ test('a hostile document executes nothing in the home tile preview', async ({ pa
   expect(await xssFired(page), 'a payload executed while previewing a tile').toBe(false)
   expect(errors.pageErrors).toEqual([])
 })
+
+test('a hostile document executes nothing in the export dialog preview', async ({ page, diagram }) => {
+  // The export dialog (#225) previews the diagram through documentToSvg and v-html's
+  // the result, which makes it a THIRD sink for the same untrusted markup — after
+  // the canvas and the home tile. A viewer opening a shared or public diagram and
+  // pressing Export reaches it without authoring anything.
+  const errors = watchForErrors(page)
+
+  await diagram.open('hostile')
+  await expect(page.locator(SURFACE).first()).toBeVisible()
+
+  await page.getByRole('button', { name: 'Export', exact: true }).click()
+  const preview = page.locator('[class*="[&>svg]"] svg').first()
+  await expect(preview, 'no preview rendered, so nothing was exercised').toBeVisible()
+
+  expect(await xssFired(page), 'a payload executed while previewing an export').toBe(false)
+  expect(errors.pageErrors).toEqual([])
+})
