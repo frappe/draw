@@ -1,5 +1,5 @@
 import { test, expect } from '../helpers/fixtures.js'
-import { surfaceBox } from '../helpers/editor.js'
+import { armPointerMode, surfaceBox } from '../helpers/editor.js'
 
 // The laser pointer (#41, #102, #253): a presentation aid. Armed but not pressed,
 // it is a single fading dot under the pointer and hides the OS cursor so nothing
@@ -23,7 +23,7 @@ async function sweep(page, steps = 12) {
 test.describe('laser pointer', () => {
   test('hovering (no press) shows only the dot, no trail, and hides the cursor', async ({ page, diagram }) => {
     await diagram.open('whiteboard', { empty: true })
-    await page.getByTestId('wtool-laser').click()
+    await armPointerMode(page, 'laser')
 
     await expect(page.locator(SURFACE_ROOT)).toHaveCSS('cursor', 'none')
 
@@ -46,7 +46,7 @@ test.describe('laser pointer', () => {
 
   test('pressing and dragging leaves a fading trail, then clears itself', async ({ page, diagram }) => {
     await diagram.open('whiteboard', { empty: true })
-    await page.getByTestId('wtool-laser').click()
+    await armPointerMode(page, 'laser')
 
     const box = await surfaceBox(page)
     await page.mouse.move(box.x + 200, box.y + box.height / 2)
@@ -74,7 +74,7 @@ test.describe('laser pointer', () => {
 
   test('draws nothing into the document', async ({ page, diagram }) => {
     const name = await diagram.open('whiteboard', { empty: true })
-    await page.getByTestId('wtool-laser').click()
+    await armPointerMode(page, 'laser')
 
     // Press and drag too: a laser gesture must stay transient even when it looks
     // exactly like a pen stroke.

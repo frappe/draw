@@ -14,6 +14,10 @@
 // - Pressed state rides on `aria-pressed` and the matching Tailwind variant
 //   rather than a `variant` swap, which is what frappe-ui's own EditorFixedMenu
 //   does. It keeps the state in the accessibility tree, not only in paint.
+// - `shrink-0` keeps an overflowing bar honest. Flex items shrink by default, so
+//   without it a bar with one control too many quietly squeezes every button a
+//   pixel or two narrower instead of overflowing — and the guard that asserts
+//   `scrollWidth === clientWidth` would keep passing while the bar was wrong.
 // - `@mousedown.prevent` stops the button taking focus, so clicking Bold while a
 //   shape's label is being edited does not blur the text editor. The toolbar sits
 //   far from the shape now, so the pointer crosses the canvas to reach it.
@@ -57,7 +61,7 @@ defineProps({
     :tooltip="tooltip || label"
     :disabled="disabled"
     :aria-pressed="active"
-    class="aria-pressed:bg-surface-gray-3"
+    class="shrink-0 aria-pressed:bg-surface-gray-3"
     @mousedown="allowsBlur ? undefined : $event.preventDefault()"
   >
     <!-- Both slots are forwarded only when the caller actually passed one.

@@ -67,6 +67,15 @@ function alignActive(value) {
   return editing.value ? isMarkActive(null, { textAlign: value }) : textAlign.value === value
 }
 
+// The alignment trigger wears whichever of the three is set, so folding them
+// into a menu does not also hide which one is on. While a label is being edited
+// the answer comes from the live editor, which can report none of them (a fresh
+// paragraph with no explicit alignment) — hence the fallback rather than an
+// assumption that one always matches.
+const currentAlignment = computed(
+  () => ALIGNMENTS.find((alignment) => alignActive(alignment.value)) || ALIGNMENTS[1],
+)
+
 function stepFontSize(delta) {
   updateTextStyle({ size: Math.max(6, Math.min(200, Number(fontSize.value) + delta)) })
 }
@@ -106,14 +115,27 @@ function setTextColor(hex) {
     @click="markText(mark.name)"
   />
 
-  <ToolbarButton
-    v-for="alignment in ALIGNMENTS"
-    :key="alignment.value"
-    :label="alignment.label"
-    :icon="alignment.icon"
-    :active="alignActive(alignment.value)"
-    @click="setTextAlign(alignment.value)"
-  />
+  <!-- One entry, opening the three. Left / centre / right as three buttons cost
+       96px of a bar that overflowed a 1280px screen by 155px, and the trigger
+       still shows which alignment is set, so the state stays readable without
+       opening it. -->
+  <Popover>
+    <template #trigger>
+      <ToolbarButton :label="currentAlignment.label" :icon="currentAlignment.icon" />
+    </template>
+    <template #default="{ toggle }">
+      <div class="flex gap-1 p-1">
+        <ToolbarButton
+          v-for="alignment in ALIGNMENTS"
+          :key="alignment.value"
+          :label="alignment.label"
+          :icon="alignment.icon"
+          :active="alignActive(alignment.value)"
+          @click="setTextAlign(alignment.value); toggle()"
+        />
+      </div>
+    </template>
+  </Popover>
 
   <Popover>
     <template #trigger>

@@ -50,6 +50,29 @@ describe('the Shapes entry icon', () => {
   })
 })
 
+describe('the four placeable items are entries, not a dropdown', () => {
+  const groups = read('./groups/InsertGroups.vue')
+
+  // #364 put Text, Sticky note, Image and Table behind an "Insert" dropdown that
+  // held nothing else. Two clicks to reach the four things people place most
+  // often, for a lid on a box with four items in it.
+  it('has no "Insert" dropdown left to open', () => {
+    expect(groups).not.toContain('label="Insert"')
+    expect(groups).not.toContain('lucide-plus')
+  })
+
+  it('renders one entry per create tool, straight onto the bar', () => {
+    expect(groups).toContain('v-for="tool in insertTools"')
+    expect(groups).toContain('@click="runCreateTool(tool)"')
+  })
+
+  // Table is the one that still needs a menu: its picker chooses the size, and
+  // it inserts on pick.
+  it('keeps the table size picker on the Table entry', () => {
+    expect(groups).toContain('<TableSizePicker @pick="insertTable($event, toggle)" />')
+  })
+})
+
 describe('drag-to-place survives the move (#364)', () => {
   const groups = read('./groups/InsertGroups.vue')
   const catalog = read('../../composables/useInsertCatalog.js')

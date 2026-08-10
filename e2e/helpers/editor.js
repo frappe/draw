@@ -94,10 +94,14 @@ export function selectedCrosslinks(page) {
 
 // --- the insert menus (#364) --------------------------------------------------
 //
-// The single circular "+" catalog is gone. Its five sections are five toolbar
-// entries — Shapes, Lines, Insert, Mind map, Flowchart — and the tiles inside
-// each carry real accessible names now (ToolbarButton requires a label), so
-// these no longer have to reach a tile through its section header.
+// The single circular "+" catalog is gone. Its five sections became toolbar
+// entries, and the tiles inside each carry real accessible names now
+// (ToolbarButton requires a label), so these no longer have to reach a tile
+// through its section header.
+//
+// Three of those entries still open a menu — Shapes, Lines and Flowchart, each
+// holding a grid of types. Mind map is a plain button, and Text / Sticky note /
+// Image / Table are plain buttons too since the "Insert" dropdown was retired.
 export async function openInsertMenu(page, label) {
   await page.locator(TOOLBAR).getByRole('button', { name: label, exact: true }).click()
   const menu = page.locator(POPOVER)
@@ -150,31 +154,37 @@ export async function armPolygonFromCatalog(page) {
   await expect(menu).toBeHidden()
 }
 
-// Arm a create tool by its lucide glyph. The live annotation tools (Draw, Eraser,
-// Laser) are buttons ON the bar, while Text / Sticky note / Image / Table sit in
-// the Insert menu — so try the bar first and fall back to opening the menu.
-export async function armCreateToolFromCatalog(page, icon) {
-  const onBar = buttonByIcon(page, icon, page.locator(TOOLBAR))
-  if (await onBar.count()) {
-    await onBar.click()
-    return
-  }
-  const menu = await openInsertMenu(page, 'Insert')
-  await buttonByIcon(page, icon, menu).click()
-  await expect(menu).toBeHidden()
+// Arm a pointing mode: 'select', 'hand' or 'laser'. All three live behind ONE
+// toolbar entry, so the entry opens first. Its own label and icon follow the
+// active mode, which is why it is addressed by test id rather than by name.
+export async function armPointerMode(page, tool) {
+  await page.getByTestId('pointer-modes').click()
+  await page.getByTestId(`wtool-${tool}`).click()
+  await expect(page.locator(POPOVER)).toBeHidden()
 }
 
-// Place a table from the Insert menu's size picker (#134): the Table tile opens a
+// Arm a create tool by its lucide glyph. Every one of them is a button ON the
+// bar: the live annotation tools (Draw, Eraser, Laser) always were, and Text /
+// Sticky note / Image / Table came out of the "Insert" dropdown that used to
+// hold them.
+export async function armCreateToolFromCatalog(page, icon) {
+  await toolByIcon(page, icon).click()
+}
+
+// Place a table from the toolbar's size picker (#134): the Table entry opens a
 // hover grid, and clicking the "rows × cols" cell commits that exact size. The
 // picker's grid is the only role="grid" on the page and each cell's accessible
 // name is its size, so the target is addressed directly rather than by a sweep.
+//
+// toolByIcon takes the FIRST lucide-table on the bar, which is this entry:
+// the whiteboard object group's table glyph only appears further along, after
+// the fixed prefix, and only while a table is selected.
 export async function insertTableFromCatalog(page, rows, cols) {
-  const menu = await openInsertMenu(page, 'Insert')
-  await buttonByIcon(page, 'table', menu).click()
+  await toolByIcon(page, 'table').click()
   const grid = page.getByRole('grid')
   await grid.waitFor({ state: 'visible' })
   await grid.getByRole('button', { name: `${rows} × ${cols}`, exact: true }).click()
-  await expect(menu).toBeHidden()
+  await expect(page.locator(POPOVER)).toBeHidden()
 }
 
 // Drag a palette tile onto the canvas.

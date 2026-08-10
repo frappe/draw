@@ -1,6 +1,9 @@
 <script setup>
 // The insert cluster (#364): the five categories the bottom palette's "+" catalog
-// already had, promoted to one toolbar entry each.
+// already had, promoted to one toolbar entry each — and then Text, Sticky note,
+// Image and Table promoted again, out of the "Insert" dropdown and onto the bar.
+// A dropdown is worth its click when it hides a grid of nine shapes; over four
+// items it is only a lid.
 //
 // Shapes and Lines keep drag-to-place, including the deferred close — closing on
 // dragstart unmounts the dragged element and cancels the drag in some browsers,
@@ -78,30 +81,27 @@ const grid = 'grid w-[228px] grid-cols-6 gap-1 p-2'
     </template>
   </Popover>
 
-  <Popover>
-    <template #trigger><ToolbarButton allows-blur label="Insert" icon="lucide-plus" /></template>
-    <template #default="{ toggle }">
-      <div :class="grid">
-        <template v-for="tool in insertTools" :key="tool.key">
-          <!-- Table opens the size picker, which inserts on pick and closes both. -->
-          <Popover v-if="tool.key === 'table'">
-            <template #trigger><ToolbarButton allows-blur :label="tool.label" :icon="tool.icon" /></template>
-            <template #default="{ toggle: closePicker }">
-              <TableSizePicker @pick="insertTable($event, closePicker); toggle()" />
-            </template>
-          </Popover>
-          <ToolbarButton
-            v-else
-            allows-blur
-            :label="tool.label"
-            :icon="tool.icon"
-            :active="isCreateToolActive(tool)"
-            @click="runCreateTool(tool, toggle)"
-          />
-        </template>
-      </div>
-    </template>
-  </Popover>
+  <!-- Text, Sticky note, Image and Table are entries in their own right. They
+       spent #364 inside an "Insert" dropdown, which cost two clicks to reach the
+       four things people place most often — and the dropdown held nothing else,
+       so it was a lid on a box with four items in it. -->
+  <template v-for="tool in insertTools" :key="tool.key">
+    <!-- Table still opens the size picker, which inserts on pick and closes it. -->
+    <Popover v-if="tool.key === 'table'">
+      <template #trigger><ToolbarButton allows-blur :label="tool.label" :icon="tool.icon" /></template>
+      <template #default="{ toggle }">
+        <TableSizePicker @pick="insertTable($event, toggle)" />
+      </template>
+    </Popover>
+    <ToolbarButton
+      v-else
+      allows-blur
+      :label="tool.label"
+      :icon="tool.icon"
+      :active="isCreateToolActive(tool)"
+      @click="runCreateTool(tool)"
+    />
+  </template>
 
   <template v-if="showsStarters">
     <ToolbarButton
