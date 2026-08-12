@@ -1,8 +1,9 @@
 <script setup>
-// Controls for a selected sticky note (#363): colour, strikethrough, duplicate,
-// delete. Single-selection only, matching the bar it replaces — a multi-selection
-// gets the generic whiteboard group instead.
+// Controls for a selected sticky note (#363): colour, duplicate, delete, with
+// strikethrough behind a "More" entry (#419). Single-selection only, matching the
+// bar it replaces — a multi-selection gets the generic whiteboard group instead.
 import { computed } from 'vue'
+import { Button, Popover } from 'frappe-ui'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { stickyNoteById } from '@/diagram/whiteboardModel.js'
@@ -25,8 +26,9 @@ function setColor(color) {
   store.updateStickyNote(note.value.id, { color })
 }
 
-function toggleStrike() {
+function toggleStrike(close) {
   store.updateStickyNote(note.value.id, { strike: !note.value.strike })
+  close?.()
 }
 
 function duplicate() {
@@ -60,12 +62,34 @@ function removeSticky() {
     </ToolbarButton>
 
     <ToolbarSeparator />
-    <ToolbarButton
-      label="Strikethrough"
-      icon="lucide-strikethrough"
-      :active="Boolean(note.strike)"
-      @click="toggleStrike"
-    />
+    <!-- Strikethrough is behind "More" rather than on the bar (#419). Crossing a
+         note out is something you do once to a note you are finished with, and it
+         was holding a permanent slot next to the colours, which are the control
+         people actually reach for. The trigger stays pressed while the note is
+         struck through, so the state is still readable without opening it. -->
+    <Popover>
+      <template #trigger>
+        <ToolbarButton
+          label="More formatting"
+          icon="lucide-ellipsis"
+          :active="Boolean(note.strike)"
+        />
+      </template>
+      <!-- Closes on pick, like the table size picker: it is a one-shot toggle, and
+           a panel left open sits over the rest of the group. -->
+      <template #default="{ toggle }">
+        <div class="w-44 p-1">
+          <Button
+            variant="ghost"
+            class="w-full justify-start"
+            icon-left="lucide-strikethrough"
+            label="Strikethrough"
+            :aria-pressed="Boolean(note.strike)"
+            @click="toggleStrike(toggle)"
+          />
+        </div>
+      </template>
+    </Popover>
 
     <ToolbarSeparator />
     <ToolbarButton label="Duplicate" icon="lucide-copy" @click="duplicate" />

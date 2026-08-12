@@ -18,6 +18,14 @@ test.describe('sticky note toolbar (#356)', () => {
   // sticky are both reachable.
   const bar = (page) => page.locator('[data-canvas-toolbar]')
 
+  // Strikethrough moved behind "More formatting" (#419), and frappe-ui portals a
+  // Popover's body out of its trigger's subtree — so it is NOT inside the bar and
+  // has to be reached through the portalled panel.
+  async function strikethrough(page) {
+    await bar(page).getByRole('button', { name: 'More formatting' }).click()
+    return page.locator('[data-slot="content"]').getByRole('button', { name: 'Strikethrough' })
+  }
+
   async function selectSticky(page) {
     const sticky = page.getByText('note', { exact: true }).first()
     const box = await sticky.boundingBox()
@@ -29,9 +37,11 @@ test.describe('sticky note toolbar (#356)', () => {
     await diagram.open('whiteboard', {})
     await selectSticky(page)
 
-    const strike = bar(page).getByRole('button', { name: 'Strikethrough' })
-    await expect(strike).toBeVisible()
-    const box = await strike.boundingBox()
+    // The zero-size fault this guards is about the GROUP being laid out, so it
+    // measures the entry that is on the bar now rather than the moved control.
+    const entry = bar(page).getByRole('button', { name: 'More formatting' })
+    await expect(entry).toBeVisible()
+    const box = await entry.boundingBox()
     expect(box?.width, 'the toolbar rendered with no width').toBeGreaterThan(0)
     expect(box?.height, 'the toolbar rendered with no height').toBeGreaterThan(0)
   })
@@ -41,7 +51,7 @@ test.describe('sticky note toolbar (#356)', () => {
     const stickies = async () => (await diagram.saved(name)).whiteboard.stickyNotes
 
     await selectSticky(page)
-    await bar(page).getByRole('button', { name: 'Strikethrough' }).click()
+    await (await strikethrough(page)).click()
     await expect
       .poll(async () => (await stickies())[0].strike, { message: 'strikethrough did not persist', timeout: 20_000 })
       .toBe(true)
