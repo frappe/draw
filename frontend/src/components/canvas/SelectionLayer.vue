@@ -37,6 +37,11 @@ const transform = useShapeTransform(store)
 const marquee = inject('selectionMarquee', null)
 
 const selected = computed(() => store.selectedShapes)
+// Everything that gets a dashed selection box drawn around it. A mind-map node
+// shows selection through its own border instead (#427), so it is left out here.
+const outlined = computed(() =>
+  selected.value.filter((shape) => shape.role !== ROLE.mindmapNode),
+)
 const single = computed(() => (selected.value.length === 1 ? selected.value[0] : null))
 // Mind-map / flowchart nodes are auto-laid-out and non-rotatable, so a selected
 // node shows only its selection outline — no resize handles, no rotation knob
@@ -110,9 +115,12 @@ function startRotate(event) {
 
 <template>
   <g data-selection-layer>
-    <!-- Per-shape dashed outline so every selected shape reads as selected. -->
+    <!-- Per-shape dashed outline so every selected shape reads as selected. A
+         mind-map node is the exception (#427): it answers selection by drawing its
+         OWN border heavier, so the canvas keeps one box per node instead of a
+         second dashed one floating around it. -->
     <rect
-      v-for="shape in selected"
+      v-for="shape in outlined"
       :key="shape.id"
       :x="shape.x"
       :y="shape.y"

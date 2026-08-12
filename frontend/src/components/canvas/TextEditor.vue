@@ -67,9 +67,13 @@ const fieldStyle = computed(() => {
     // minus the frame it was measured with; padding the field again would wrap
     // the text narrower than the box was sized for (#427).
     const padding = isMindmapNode.value ? '0' : '4px 6px'
+    // No edit ring on a mind-map node either: the node is already a box, and a
+    // blue rectangle drawn just inside it is a second box saying the same thing.
+    // The caret and the live text are the feedback that editing is happening.
+    const ring = isMindmapNode.value ? null : EDIT_RING
     return {
       ...textStyleCss(text.style, text.valign, text.align),
-      ...EDIT_RING,
+      ...ring,
       ...nowrap,
       padding,
       height: '100%',

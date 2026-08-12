@@ -19,7 +19,7 @@ import {
 } from '@/diagram/freeFloating.js'
 import { mindmapModelFromShapes, flowchartModelFromShapes } from '@/diagram/freeFloatingGraph.js'
 import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild, flowchartLayoutPatches, mindmapLayoutPatches } from '@/diagram/freeFloatingOps.js'
-import { mindmapNodeSize } from '@/diagram/mindmapNodeSize.js'
+import { mindmapSizeForShape } from '@/diagram/mindmapNodeSize.js'
 import { dropPatches } from '@/diagram/mindmapDrop.js'
 import { DEFAULT_NODE_STYLE } from '@/diagram/mindmapNodeStyle.js'
 import { useAppSettings } from '@/composables/useAppSettings.js'
@@ -361,6 +361,22 @@ function attachMindMap(store, state, history) {
       const node = state.mindmap?.nodes.find((n) => n.id === id)
       if (node) applyPatch(node, patch)
     })
+  // Re-fit mind-map nodes to their own labels and settle the trees they belong to.
+  // The single answer to "this node's text changed, or the style it is set in did"
+  // (#427) — used by the toolbar's font controls through updateShape(s) as well as
+  // by the text editor. Must run inside a caller's commit(); ids that are not
+  // mind-map nodes are skipped, so callers need not care what they are holding.
+  store.fitMindmapNodes = (ids) => {
+    const fitted = []
+    for (const id of ids || []) {
+      const shape = state.shapes.find((s) => s.id === id)
+      if (!shape || shape.role !== ROLE.mindmapNode) continue
+      applyPatch(shape, mindmapSizeForShape(shape))
+      fitted.push(id)
+    }
+    for (const id of fitted) reflowTree(id)
+  }
+
   // Both writes below share this label so history's coalescer (same label, within
   // 450ms, and it must start with "Update ") folds them into one step.
   const NODE_TEXT_EDIT = 'Update node text'
@@ -379,14 +395,9 @@ function attachMindMap(store, state, history) {
   store.commitMindmapNodeText = (id, text) => {
     const shape = state.shapes.find((s) => s.id === id)
     if (!shape) return
-    const size = mindmapNodeSize({
-      text: text.content,
-      fontSize: shape.text?.style?.size,
-      isRoot: !shape.mindmap?.parentId,
-    })
     history.commit(NODE_TEXT_EDIT, () => {
-      applyPatch(shape, { text, ...size })
-      reflowTree(id)
+      applyPatch(shape, { text })
+      store.fitMindmapNodes([id])
     })
   }
   // Move a node to a new place in the tree by dropping it (#427 item 4). A mind map
@@ -844,12 +855,21 @@ function attachShapeMutations(store, state, history) {
     history.commit('Add shape', () => state.shapes.push(shape))
     return shape.id
   }
+  // A mind-map node's box is derived from its label, so any patch that touches the
+  // text — the words OR the style they are set in — has to re-fit the box in the
+  // same commit (#427). Without this, raising the font size grew the letters inside
+  // a box that stayed put, and the node only snapped to its real size later, when
+  // something else happened to re-measure it.
   store.updateShape = (id, patch) =>
-    history.commit('Update shape', () => applyPatch(store.shapeById(id), patch))
+    history.commit('Update shape', () => {
+      applyPatch(store.shapeById(id), patch)
+      if (patch.text) store.fitMindmapNodes?.([id])
+    })
   store.updateShapes = (ids, patch) =>
-    history.commit('Update shapes', () =>
-      ids.forEach((id) => applyPatch(store.shapeById(id), patch)),
-    )
+    history.commit('Update shapes', () => {
+      ids.forEach((id) => applyPatch(store.shapeById(id), patch))
+      if (patch.text) store.fitMindmapNodes?.(ids)
+    })
   store.removeShapes = (ids) =>
     history.commit('Delete shapes', () => removeShapesInternal(state, ids))
   store.removeConnectors = (ids) =>

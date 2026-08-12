@@ -13,14 +13,13 @@ import {
   hoverRegionOf,
   pointInBox,
   ADD_HIT_R,
+  HANDLE_INSET,
   handleAtPoint,
   nextHoverTarget,
-  previewBoxFor,
   hoverStripsOf,
 } from './mindmapHandles.js'
 import { ROLE, flattenSubmodels } from './freeFloating.js'
 import { createMindMap, addChild } from './mindmapModel.js'
-import { mindmapNodeSize, NODE_FONT_SIZE } from './mindmapNodeSize.js'
 
 // A migrated mind-map node is an ordinary shape tagged with role 'mindmap-node' and
 // a mindmap.parentId. These helpers build them with known boxes so placement can be
@@ -124,7 +123,32 @@ describe('handlesForNode', () => {
     expect(handles[0].cy).toBeLessThan(grandCentre) // above
     expect(handles[1].cy).toBeGreaterThan(grandCentre) // below
     // The stub always leaves the node's OWN edge at its mid-height, whatever the gap y.
-    expect(handles.every((h) => h.stubX === 440 && h.stubY === 120 && h.cx === 440 + ADD_OFFSET)).toBe(true)
+    expect(handles.every((h) => h.stubX === 440 && h.stubY === 120)).toBe(true)
+    // #427: a gap handle stands in the CHILD column, not beside the parent. Every
+    // branch leaves the parent from one point, so a "+" parked there sits on the
+    // bundle of curves; out by the children, each curve has reached its own child.
+    const grandBox = ctx.boxes['grand']
+    expect(handles.every((h) => h.cx > 440 + ADD_OFFSET)).toBe(true)
+    expect(handles.every((h) => h.cx + ADD_R < grandBox.x)).toBe(true)
+  })
+
+  it('keeps a gap "+" clear of the child box it precedes', () => {
+    const ctx = buildContext(nodeWithChildren(3))
+    const children = ['c0', 'c1', 'c2'].map((id) => ctx.boxes[id])
+    const columnEdge = Math.min(...children.map((child) => child.x))
+    for (const handle of handlesForNode('p', ctx)) {
+      expect(columnEdge - (handle.cx + ADD_R)).toBeGreaterThanOrEqual(HANDLE_INSET - ADD_R)
+    }
+  })
+
+  it('never lets a gap column crowd the parent, however close the children are', () => {
+    const shapes = [mmNode('root', null, 0, 100, 120, 44), mmNode('p', 'root', 300, 100, 140, 40)]
+    // Children pulled hard against their parent — closer than the handle column wants.
+    shapes.push(mmNode('c0', 'p', 448, 60, 140, 40), mmNode('c1', 'p', 448, 140, 140, 40))
+    const ctx = buildContext(shapes)
+    for (const handle of handlesForNode('p', ctx)) {
+      expect(handle.cx).toBeGreaterThanOrEqual(440 + ADD_OFFSET)
+    }
   })
 
   it('shows N+1 handles for N children on a side', () => {
@@ -254,9 +278,10 @@ describe('hoverRegionOf', () => {
     const ctx = buildContext(treeWithGrandchild())
     const region = hoverRegionOf('right', ctx)
     const box = ctx.boxes['right']
-    // Reaches out on the branch (right) side to cover the "+", only a hair on the other.
-    expect(region.x).toBe(box.x - 6)
-    expect(region.x + region.w).toBe(box.x + box.w + HOVER_OUT)
+    // Only a hair on the non-branch side; on the branch side it reaches however far
+    // the handles actually stand, which is out by the children (#427).
+    expect(region.x).toBeLessThanOrEqual(box.x - 6)
+    expect(region.x + region.w).toBeGreaterThanOrEqual(box.x + box.w + HOVER_OUT)
     // Covers the extreme handle y's — the top ("above the child") and bottom ("below
     // the child") — with margin, so the pointer never drops the hover in the gap.
     const cys = handlesForNode('right', ctx).map((h) => h.cy)
@@ -271,8 +296,9 @@ describe('hoverRegionOf', () => {
     const ctx = buildContext(sampleTree())
     const region = hoverRegionOf('root', ctx)
     const box = ctx.boxes['root']
-    expect(region.x).toBe(box.x - HOVER_OUT)
-    expect(region.x + region.w).toBe(box.x + box.w + HOVER_OUT)
+    // At least the base reach on each side, and further wherever the handles stand.
+    expect(region.x).toBeLessThanOrEqual(box.x - HOVER_OUT)
+    expect(region.x + region.w).toBeGreaterThanOrEqual(box.x + box.w + HOVER_OUT)
     for (const h of handlesForNode('root', ctx)) {
       expect(pointInBox({ x: h.cx, y: h.cy }, region)).toBe(true)
     }
@@ -374,41 +400,6 @@ describe('nextHoverTarget', () => {
   })
 })
 
-// #427 item 2: the affordance used to be tinted with the parent's custom colour,
-// promising a colour the created node never has. The ghost is the honest version:
-// the default box, at the slot the handle marks.
-describe('previewBoxFor', () => {
-  it('stands one column out on the handle side, centred on the slot', () => {
-    const ctx = buildContext(sampleTree())
-    const [handle] = handlesForNode('right', ctx) // node spans x 300..440, mid-y 120
-    const box = previewBoxFor(handle, ctx)
-    expect(box.x).toBeGreaterThan(440)
-    // Whole-pixel box with an odd height, so the centre lands within half a unit.
-    expect(Math.abs(box.y + box.h / 2 - handle.cy)).toBeLessThanOrEqual(0.5)
-  })
-
-  it('mirrors to the left of a left-branch node', () => {
-    const ctx = buildContext(sampleTree())
-    const [handle] = handlesForNode('left', ctx) // node spans x -300..-160
-    expect(previewBoxFor(handle, ctx).x + previewBoxFor(handle, ctx).w).toBeLessThan(-300)
-  })
-
-  // The ghost has to be the size a click actually produces: a new node renders at
-  // NODE_FONT_SIZE, so measuring it at the base size drew a box 20px too narrow.
-  it('is the size a created node really gets, not the base-font size', () => {
-    const ctx = buildContext(sampleTree())
-    const [handle] = handlesForNode('root', ctx) // root is 120x44
-    const real = mindmapNodeSize({ text: '', fontSize: NODE_FONT_SIZE })
-    expect(previewBoxFor(handle, ctx)).toMatchObject(real)
-    expect(real).not.toEqual(mindmapNodeSize({ text: '' }))
-  })
-
-  it('is null for a handle whose node has gone', () => {
-    const ctx = buildContext(sampleTree())
-    const [handle] = handlesForNode('right', ctx)
-    expect(previewBoxFor({ ...handle, nodeId: 'gone' }, ctx)).toBeNull()
-  })
-})
 
 // #427 item 1: the corridor is painted so the pointer never crosses dead canvas on
 // its way to a "+" — but it must not cover the node, whose own cursor zones say

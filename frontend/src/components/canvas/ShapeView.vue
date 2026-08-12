@@ -98,7 +98,16 @@ const transform = computed(() => {
 // radius comes from its own curve setting (#260), every other shape's from type.
 const cornerRadius = computed(() => cornerRadiusOf(props.shape))
 
-const border = computed(() => props.shape.border || {})
+// A selected mind-map node reads as selected by drawing its OWN border heavier and
+// darker, rather than having a dashed box drawn around it (#427). One box per node
+// keeps a dense map legible; the node also keeps its own colour, so a coloured
+// branch still looks like itself while selected.
+const SELECTED_NODE_BORDER = { width: 2.5, color: '#525252' }
+const border = computed(() => {
+  const own = props.shape.border || {}
+  if (!props.selected || !isMindmapNode.value) return own
+  return { ...own, ...SELECTED_NODE_BORDER, color: own.color || SELECTED_NODE_BORDER.color }
+})
 const dashArray = computed(() => {
   const w = border.value.width || 1
   if (border.value.dash === 'dashed') return `${w * 3} ${w * 2}`

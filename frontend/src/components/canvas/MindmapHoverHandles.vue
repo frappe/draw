@@ -29,11 +29,8 @@ import {
   shouldShowHandles,
   nextHoverTarget,
   hoverStripsOf,
-  previewBoxFor,
 } from '@/diagram/mindmapHandles.js'
 import { NODE_GRAY } from '@/diagram/espressoPalette.js'
-import { curveRadius } from '@/diagram/mindmapNodeStyle.js'
-import { useAppSettings } from '@/composables/useAppSettings.js'
 import { useMindmapNodeDrag } from '@/composables/useMindmapNodeDrag.js'
 
 const store = useDiagramStore()
@@ -152,20 +149,6 @@ const hoverCorridor = computed(() =>
 const HANDLE_COLOR = NODE_GRAY.border
 const HANDLE_INK = '#6B7280'
 
-// The handle the pointer is resting on, and the ghost of the node it would create.
-// The ghost is drawn at the DEFAULT size and look — the same monochrome box the
-// click produces — so the preview never over-promises (#427 item 2).
-const hoveredHandleKey = ref(null)
-const childCurve = computed(
-  () => useAppSettings().settings.mindmapNodeStyle?.child?.curve || 'moderate',
-)
-const preview = computed(() => {
-  const handle = handles.value.find((candidate) => candidate.key === hoveredHandleKey.value)
-  if (!handle) return null
-  const box = previewBoxFor(handle, ctx.value)
-  return box ? { ...box, rx: curveRadius(childCurve.value, box.h) } : null
-})
-
 // The white "+" glyph centred in a handle circle.
 function glyphPath(handle) {
   return `M${handle.cx - GLYPH} ${handle.cy} H${handle.cx + GLYPH} M${handle.cx} ${handle.cy - GLYPH} V${handle.cy + GLYPH}`
@@ -208,29 +191,12 @@ function add(handle) {
          marquee or clears the selection; the click adds. The hit circle is a plain
          transparent disc wider than the mark, so the target is generous while the
          mark stays small; the stub and glyph are non-interactive. -->
-    <!-- The node this "+" would create, ghosted at its real default size and look. -->
-    <rect
-      v-if="preview"
-      :x="preview.x"
-      :y="preview.y"
-      :width="preview.w"
-      :height="preview.h"
-      :rx="preview.rx"
-      :fill="NODE_GRAY.fill"
-      fill-opacity="0.5"
-      :stroke="NODE_GRAY.border"
-      stroke-width="1.5"
-      stroke-dasharray="4 4"
-      style="pointer-events: none"
-    />
     <g
       v-for="handle in handles"
       :key="handle.key"
       style="cursor: pointer"
       @click.stop="add(handle)"
       @pointerdown.stop
-      @pointerenter="hoveredHandleKey = handle.key"
-      @pointerleave="hoveredHandleKey === handle.key && (hoveredHandleKey = null)"
     >
       <title>Add node</title>
       <path

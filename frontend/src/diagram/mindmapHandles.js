@@ -20,12 +20,6 @@
 
 import { isMindmapShape } from './freeFloating.js'
 import { mindmapModelFromShapes } from './freeFloatingGraph.js'
-import { mindmapNodeSize, NODE_FONT_SIZE } from './mindmapNodeSize.js'
-
-// The column gap a new child is created at (freeFloatingOps GAP_X), so the ghost
-// stands where the node will.
-const PREVIEW_GAP = 60
-
 // --- geometry constants ------------------------------------------------------
 // The mark is small and quiet; the TARGET is large (#427 items 1 and 7). They are
 // separate numbers on purpose — an affordance that competes with the branches for
@@ -39,6 +33,9 @@ export const GLYPH = 3.5 // half-length of the white "+" strokes inside a circle
 // child" "+" sits GAP/2 above the top child's edge, the "below the last child" one
 // GAP/2 below the bottom child's edge (about one "+" radius clear of the boxes).
 export const GAP = 24
+// How far a gap handle stands clear of the child column it slots into, so the mark
+// has air on both sides rather than touching the box it precedes.
+export const HANDLE_INSET = 20
 // The hover region reaches this far past the branch edge, so sliding the pointer
 // off the node onto a "+" keeps the handles alive. Derived from the HIT radius,
 // not the drawn one, so the region always covers what is clickable.
@@ -152,22 +149,38 @@ function gapCenters(childBoxes) {
 }
 
 // One "+" handle in absolute logical coords for inserting a child at ordinal `index`
-// on `side`. `cy` is the gap position; the stub always leaves the node's own edge at
-// mid-height. `straight` marks the lone childless-node handle (a straight stub); the
-// gap handles curve from the node edge to their offset y.
-function makeHandle(nodeId, box, side, index, cy, straight) {
-  const { cxLocal, stubLocalX } = sideGeometry(box, side)
+// on `side`. `cy` is the gap position, `cx` the column it stands in; the stub always
+// leaves the node's own edge at mid-height. `straight` marks the lone childless-node
+// handle, the only one that draws a stub.
+function makeHandle(nodeId, box, side, index, cx, cy, straight) {
+  const { stubLocalX } = sideGeometry(box, side)
   return {
     key: `add-${nodeId}-${side}-${index}`,
     nodeId,
     side,
     index,
-    cx: box.x + cxLocal,
+    cx,
     cy,
     stubX: box.x + stubLocalX,
     stubY: box.y + box.h / 2,
     straight,
   }
+}
+
+// The column a node's gap handles stand in: just before the children they slot
+// between, NOT beside the parent (#427). Every branch leaves the parent from one
+// point, so next to the parent the curves are still bundled and a "+" dropped in
+// there lands on top of them. A whole column out, each curve has reached its own
+// child, and the gap between two children is empty — which is also exactly where
+// the new node will appear. Clamped so it can never sit closer to the parent than
+// a childless node's handle would.
+function gapColumnX(box, side, childBoxes) {
+  if (side === 'left') {
+    const columnEdge = Math.max(...childBoxes.map((child) => child.x + child.w))
+    return Math.min(columnEdge + HANDLE_INSET, box.x - ADD_OFFSET)
+  }
+  const columnEdge = Math.min(...childBoxes.map((child) => child.x))
+  return Math.max(columnEdge - HANDLE_INSET, box.x + box.w + ADD_OFFSET)
 }
 
 // The gap-insertion handles for one node on one side (#265). With N children on the
@@ -176,8 +189,12 @@ function makeHandle(nodeId, box, side, index, cy, straight) {
 // the first child at the same level".
 function sideHandles(nodeId, box, side, ctx) {
   const childBoxes = childBoxesOnSide(nodeId, ctx, side)
-  if (!childBoxes.length) return [makeHandle(nodeId, box, side, 0, box.y + box.h / 2, true)]
-  return gapCenters(childBoxes).map((cy, index) => makeHandle(nodeId, box, side, index, cy, false))
+  if (!childBoxes.length) {
+    const { cxLocal } = sideGeometry(box, side)
+    return [makeHandle(nodeId, box, side, 0, box.x + cxLocal, box.y + box.h / 2, true)]
+  }
+  const cx = gapColumnX(box, side, childBoxes)
+  return gapCenters(childBoxes).map((cy, index) => makeHandle(nodeId, box, side, index, cx, cy, false))
 }
 
 // Every "+" handle to draw for one node, in absolute logical coords. A root offers a
@@ -208,20 +225,6 @@ export function nodeAtPoint(point, shapes) {
     if (!best || (shape.zIndex || 0) >= (best.zIndex || 0)) best = shape
   }
   return best ? best.id : null
-}
-
-// Where the node this handle would create is going to appear: a default-sized box
-// one column out on the handle's side, centred on the slot the handle marks. Used
-// to ghost the new node under the pointer (#427 item 2) — at the DEFAULT size and
-// look, because that is what clicking actually produces.
-export function previewBoxFor(handle, ctx) {
-  const box = ctx.boxes[handle.nodeId]
-  if (!box) return null
-  // Measured at the size a created node actually renders at — a ghost 20px narrower
-  // than the real thing is the very mismatch this change exists to remove.
-  const { w, h } = mindmapNodeSize({ text: '', fontSize: NODE_FONT_SIZE })
-  const x = handle.side === 'left' ? box.x - PREVIEW_GAP - w : box.x + box.w + PREVIEW_GAP
-  return { x: Math.round(x), y: Math.round(handle.cy - h / 2), w, h }
 }
 
 // The handle of `nodeId` under `point`, or null. The target is the hit radius, so
@@ -279,19 +282,24 @@ export function hoverRegionOf(nodeId, ctx) {
   if (!box) return null
   const root = isRootNode(nodeId, ctx)
   const side = branchSideOf(nodeId, ctx)
-  const left = root || side === 'left' ? HOVER_OUT : 6
-  const right = root || side === 'right' ? HOVER_OUT : 6
+  // The region is measured from the handles themselves rather than a fixed reach:
+  // a gap column stands out by the children it slots between (#427), so a constant
+  // would stop covering the "+" the moment the layout spaced things differently.
+  let left = box.x - (root || side === 'left' ? HOVER_OUT : 6)
+  let right = box.x + box.w + (root || side === 'right' ? HOVER_OUT : 6)
   let top = box.y
   let bottom = box.y + box.h
   for (const handle of handlesForNode(nodeId, ctx)) {
-    top = Math.min(top, handle.cy - ADD_R)
-    bottom = Math.max(bottom, handle.cy + ADD_R)
+    left = Math.min(left, handle.cx - ADD_HIT_R)
+    right = Math.max(right, handle.cx + ADD_HIT_R)
+    top = Math.min(top, handle.cy - ADD_HIT_R)
+    bottom = Math.max(bottom, handle.cy + ADD_HIT_R)
   }
   const margin = 8
   return {
-    x: box.x - left,
+    x: left - margin,
     y: top - margin,
-    w: box.w + left + right,
+    w: right - left + margin * 2,
     h: bottom - top + margin * 2,
   }
 }
