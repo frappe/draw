@@ -198,6 +198,48 @@ describe('mindmapLayoutPatches', () => {
     expect(patches.edges.find((e) => e.id === leftBranch.id).fromAnchor).toBe('left')
   })
 
+  // #427 item 8. The layout spaces a tree against boxes it measures from each
+  // node's text; if only x/y were written back, the shapes kept sizes the spacing
+  // never accounted for and the error surfaced later as branches jumping.
+  it('patches carry the measured size, not just the position', () => {
+    const { shapes, connectors, rootId } = grownTree()
+    for (const patch of mindmapLayoutPatches(shapes, connectors, rootId).nodes) {
+      expect(patch.w).toBeGreaterThan(0)
+      expect(patch.h).toBeGreaterThan(0)
+    }
+  })
+
+  it('is idempotent — re-flowing a settled tree changes nothing', () => {
+    const { shapes, connectors, rootId } = grownTree()
+    for (const patch of mindmapLayoutPatches(shapes, connectors, rootId).nodes) {
+      const shape = shapes.find((s) => s.id === patch.id)
+      Object.assign(shape, { x: patch.x, y: patch.y, w: patch.w, h: patch.h })
+    }
+    for (const patch of mindmapLayoutPatches(shapes, connectors, rootId).nodes) {
+      const shape = shapes.find((s) => s.id === patch.id)
+      expect([patch.x, patch.y, patch.w, patch.h]).toEqual([shape.x, shape.y, shape.w, shape.h])
+    }
+  })
+
+  it('leaves the other side of the root untouched when one side grows', () => {
+    let { shapes, connectors, rootId, childIds } = grownTree()
+    const settle = () => {
+      for (const patch of mindmapLayoutPatches(shapes, connectors, rootId).nodes) {
+        const shape = shapes.find((s) => s.id === patch.id)
+        Object.assign(shape, { x: patch.x, y: patch.y, w: patch.w, h: patch.h })
+      }
+    }
+    settle()
+    // childIds[0] is the right branch, childIds[1] the left one (balanced split).
+    const leftBefore = { ...shapes.find((s) => s.id === childIds[1]) }
+    const grandchild = buildMindmapChild(shapes, childIds[0], 'ocean')
+    shapes = [...shapes, grandchild.shape]
+    connectors = [...connectors, grandchild.connector]
+    settle()
+    const leftAfter = shapes.find((s) => s.id === childIds[1])
+    expect([leftAfter.x, leftAfter.y]).toEqual([leftBefore.x, leftBefore.y])
+  })
+
   it('scopes to the selected tree — a second map on the canvas gets no patches', () => {
     const a = grownTree()
     const b = grownTree()

@@ -23,6 +23,10 @@ export function mindmapModelFromShapes(shapes, connectors = []) {
       id: shape.id,
       parentId: shape.mindmap?.parentId ?? null,
       text: shape.text?.content ?? '',
+      // The rendered font size travels with the node so the layout measures the
+      // box the shape actually draws (#427): free-floating nodes render at 16,
+      // and without this the layout silently measured every one of them at 14.
+      fontSize: shape.text?.style?.size ?? null,
       order: shape.mindmap?.order ?? 0,
       depth: shape.mindmap?.depth ?? 0,
       collapsed: !!shape.mindmap?.collapsed,

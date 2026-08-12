@@ -215,12 +215,20 @@ function attachMindMap(store, state, history) {
   // Write a set of mind-map layout patches back onto the live shapes/connectors.
   // Shared by the auto-tidy on add (#273) and the explicit Tidy up; the caller runs
   // it INSIDE a commit() so the re-flow lands in the same undoable unit as the edit.
+  // Sizes ride along with positions: the layout spaced the tree against boxes it
+  // measured from each node's text, so the shapes must carry those same boxes or
+  // the spacing describes a tree nobody can see (#427). A patch that matches what
+  // the shape already holds is skipped, so an idempotent re-flow writes nothing —
+  // no autosave churn, no phantom diff for a collaborator.
   const applyMindmapPatches = (patches) => {
     for (const patch of patches.nodes) {
       const shape = state.shapes.find((s) => s.id === patch.id)
       if (!shape) continue
+      if (shape.x === patch.x && shape.y === patch.y && shape.w === patch.w && shape.h === patch.h) continue
       shape.x = patch.x
       shape.y = patch.y
+      if (patch.w) shape.w = patch.w
+      if (patch.h) shape.h = patch.h
     }
     for (const patch of patches.edges) {
       const connector = state.connectors.find((c) => c.id === patch.id)

@@ -6,45 +6,25 @@
 // rightward and (mirrored) leftward, with the root centred between the sides.
 
 import { childrenOf, nodeById, subtreeIds, rootNodes, treeOrigin } from './mindmapModel.js'
-import { wrapLineCount, charsPerLine } from './textMetrics.js'
+import { mindmapNodeSize, NODE_PAD_X, LINE_HEIGHT } from './mindmapNodeSize.js'
 import { unionBounds } from './geometry.js'
 
 const H_GAP = 70 // horizontal gap between depth columns
 const V_GAP = 18 // vertical gap between sibling subtrees
 const PAD = 60 // margin around the whole tree after normalising
 
-const CHAR_W = 8.5
-// Exported so the renderer insets its text box (and thus wraps) at exactly the
+// Re-exported so the renderer insets its text box (and thus wraps) at exactly the
 // width the layout measured against — keeps rendered lines and measured height
 // in lockstep, so text never overflows the pill (spec A9, no-overflow rule).
-export const PAD_X = 28
-const PAD_Y = 18
-export const LINE_H = 22
-const MIN_W = 140 // default node width (2× the old 70 — wider resting pill)
-const MAX_W = 200 // horizontal cap: text wraps to a new line past this, then grows down
+export const PAD_X = NODE_PAD_X
+export const LINE_H = LINE_HEIGHT
 
-// Deterministic node box from its text (no DOM measurement, so it is unit
-// testable). Width grows with text up to MAX_W; beyond that the text wraps and
-// the box grows downward (more lines) with no vertical limit — the renderer
-// wraps at the same width so what's drawn always fits (no overflow).
+// A node's box, derived from its text. Delegates to mindmapNodeSize so the framed
+// layout and the free-floating shapes can never drift apart (#427): one heuristic,
+// one set of constants, measured once and used by creation, layout, renderer and
+// editor alike.
 export function measureNodeSize(node, isRoot = false) {
-  // Scale the character/line metrics by the node's chosen font size (default 14)
-  // so a larger pill grows to fit bigger text (spec A9 font-size control).
-  const fontScale = (node.fontSize || (isRoot ? 17 : 14)) / 14
-  const charWidth = CHAR_W * fontScale
-  const lineHeight = LINE_H * fontScale
-  const text = node.text || ''
-  const singleLineWidth = text.length * charWidth + PAD_X
-  const width = clamp(singleLineWidth, MIN_W * fontScale, MAX_W * fontScale)
-  // How many lines the text wraps to inside the padded box, packing whole words
-  // (mirroring CSS normal wrapping) so the height fits the rendered text.
-  const lines = wrapLineCount(text, charsPerLine(width - PAD_X, charWidth))
-  const height = lines * lineHeight + PAD_Y
-  return { w: Math.round(width), h: Math.round(height) }
-}
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value))
+  return mindmapNodeSize({ text: node.text, fontSize: node.fontSize, isRoot })
 }
 
 // Lay out every tree on the map (#48), each around its own root and shifted by

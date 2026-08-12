@@ -9,15 +9,15 @@ import { createShape, createConnector, nextId } from './factories.js'
 import { mindmapModelFromShapes, flowchartModelFromShapes, flowchartComponentIds, mindmapComponentIds } from './freeFloatingGraph.js'
 import { subtreeIds } from './mindmapModel.js'
 import { layoutMindMap } from './mindmapLayout.js'
+import { mindmapNodeSize } from './mindmapNodeSize.js'
 import { DEFAULT_NODE_STYLE, nodeColors, borderProp, connectorColor } from './mindmapNodeStyle.js'
 import { makeFlowchartNode, defaultNodeText, nodeSize, pickFreeBranch } from './flowchartModel.js'
 import { placeChild } from './flowchartLayout.js'
 import { ROLE, flowchartNodeShape, flowchartEdgeConnector, edgeAnchors } from './freeFloating.js'
 
-// Default box of a fresh (empty-text) mind-map node — matches mindmapLayout's
-// MIN_W and one-line height, so it looks right before an explicit Tidy re-flow.
-const NEW_W = 140
-const NEW_H = 40
+// Every free-floating mind-map node renders its label at this size; the box is
+// measured against it, so measurement and render agree (#427).
+const NODE_FONT_SIZE = 16
 const GAP_X = 60
 const GAP_Y = 16
 
@@ -57,10 +57,13 @@ function resolveSide(model, parentNode, explicit) {
 // Position a new child next to its parent on the chosen side, stacked below any
 // existing children on that side. Deliberately local (no full re-layout) — Tidy-up
 // re-flows the whole tree as an explicit action later.
-function childBox(parentShape, side, indexOnSide) {
-  const x = side === 'left' ? parentShape.x - NEW_W - GAP_X : parentShape.x + parentShape.w + GAP_X
-  const y = parentShape.y + parentShape.h / 2 - NEW_H / 2 + indexOnSide * (NEW_H + GAP_Y)
-  return { x: Math.round(x), y: Math.round(y), w: NEW_W, h: NEW_H }
+function childBox(parentShape, side, indexOnSide, fontSize) {
+  // The box comes from the same measurement every other caller uses, so a node is
+  // born at the size the layout will space it at (#427).
+  const { w, h } = mindmapNodeSize({ text: '', fontSize })
+  const x = side === 'left' ? parentShape.x - w - GAP_X : parentShape.x + parentShape.w + GAP_X
+  const y = parentShape.y + parentShape.h / 2 - h / 2 + indexOnSide * (h + GAP_Y)
+  return { x: Math.round(x), y: Math.round(y), w, h }
 }
 
 // Build the tagged shape + branch connector for a new child of `parentShapeId`.
@@ -90,13 +93,13 @@ export function buildMindmapChild(shapes, parentShapeId, themePreset, explicitSi
   }
   model.nodes.push(newNode)
   const colors = nodeColors(style)
-  const box = childBox(parentShape, side, indexOnSide)
+  const box = childBox(parentShape, side, indexOnSide, NODE_FONT_SIZE)
 
   const shape = createShape(
     {
       id, type: 'rounded', ...box, rotation: 0, opacity: 1,
       fill: colors.fill, border: borderProp(colors.border, 1.5),
-      text: { content: '', align: style.align, valign: 'middle', style: { size: 16, bold: false, italic: false, underline: false, color: colors.ink } },
+      text: { content: '', align: style.align, valign: 'middle', style: { size: NODE_FONT_SIZE, bold: false, italic: false, underline: false, color: colors.ink } },
       role: ROLE.mindmapNode,
       mindmap: { parentId: parentShapeId, order, depth, collapsed: false, side: newNode.side, color: null, curve: style.curve, marker: { icon: null, colorDot: null }, isRoot: false, shaped: colors.shaped },
     },
@@ -138,8 +141,11 @@ export function buildMindmapSibling(shapes, nodeShapeId, themePreset, style = DE
 // branches re-flow around it instead of the whole tree teleporting to the map's own
 // origin. Returns the shape/connector PATCHES to write back, never mutating the inputs;
 // the store applies them inside one commit().
-//   - node patches: the new x/y of each laid-out node (a collapsed descendant has no
-//     laid-out box, so it is left where it is).
+//   - node patches: the new x/y AND w/h of each laid-out node (a collapsed descendant
+//     has no laid-out box, so it is left where it is). The sizes travel with the
+//     positions on purpose (#427): the layout spaces the tree against text-measured
+//     boxes, so writing back only x/y left the shapes at sizes the spacing never
+//     accounted for, and the error surfaced as branches jumping on the next add.
 //   - edge patches: branch anchors recomputed from the new boxes, so each curve leaves
 //     the side its child now sits on.
 export function mindmapLayoutPatches(shapes, connectors, rootId) {
@@ -156,18 +162,19 @@ export function mindmapLayoutPatches(shapes, connectors, rootId) {
   const rootPos = positions[model.rootId]
   const rootShape = nodeShapes.find((s) => s.id === model.rootId)
   if (!rootPos || !rootShape) return { nodes: [], edges: [] }
-  const dx = rootShape.x - rootPos.x
-  const dy = rootShape.y - rootPos.y
-
   const boxes = {}
   const nodes = []
   for (const shape of nodeShapes) {
     const p = positions[shape.id]
     if (!p) continue // collapsed descendant — no laid-out box, leave it put
-    const x = Math.round(p.x + dx)
-    const y = Math.round(p.y + dy)
+    // Round each node's offset FROM THE ROOT rather than its absolute position.
+    // The offset is the tree's own geometry, so a branch whose shape did not
+    // change lands on the identical pixel every re-flow — an untouched side of
+    // the map cannot drift while the other side is edited (#427 item 8).
+    const x = rootShape.x + Math.round(p.x - rootPos.x)
+    const y = rootShape.y + Math.round(p.y - rootPos.y)
     boxes[shape.id] = { x, y, w: p.w, h: p.h }
-    nodes.push({ id: shape.id, x, y })
+    nodes.push({ id: shape.id, x, y, w: p.w, h: p.h })
   }
 
   const edges = (connectors || [])
