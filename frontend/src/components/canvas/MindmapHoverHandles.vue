@@ -28,7 +28,6 @@ import {
   handlesForNode,
   shouldShowHandles,
   nextHoverTarget,
-  hoverRegionOf,
   hoverStripsOf,
   previewBoxFor,
 } from '@/diagram/mindmapHandles.js'
