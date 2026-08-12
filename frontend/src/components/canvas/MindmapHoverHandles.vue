@@ -34,9 +34,11 @@ import {
 import { NODE_GRAY } from '@/diagram/espressoPalette.js'
 import { curveRadius } from '@/diagram/mindmapNodeStyle.js'
 import { useAppSettings } from '@/composables/useAppSettings.js'
+import { useMindmapNodeDrag } from '@/composables/useMindmapNodeDrag.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
+const drag = useMindmapNodeDrag()
 
 const layer = ref(null)
 let svg = null
@@ -117,6 +119,9 @@ onBeforeUnmount(() => {
 // selection (#261 — a selected node surfaces its add CTAs), deduped via the pure
 // predicate.
 const targetIds = computed(() => {
+  // A drag is already showing where the node will land; a column of "+" marks
+  // under the ghost would just be competing for the same attention (#427).
+  if (drag.state.active) return []
   const selection = store.state.selection || []
   const sole = selection.length === 1 ? selection[0] : null
   return Object.keys(ctx.value.boxes).filter((id) =>

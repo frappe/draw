@@ -40,6 +40,7 @@ import HoverArrows from './HoverArrows.vue'
 import SelectionLayer from './SelectionLayer.vue'
 import HoverOutline from './HoverOutline.vue'
 import MindmapHoverHandles from './MindmapHoverHandles.vue'
+import MindmapDragLayer from './MindmapDragLayer.vue'
 import FlowchartHoverHandles from './FlowchartHoverHandles.vue'
 import TextEditor from './TextEditor.vue'
 import MindMapNodeLayer from './MindMapNodeLayer.vue'
@@ -806,6 +807,9 @@ const surfaceCursor = computed(() => {
                unless the canvas holds role-tagged mind-map shapes, so legacy
                single-type maps (MindMapNodeLayer, below) are unaffected. -->
           <MindmapHoverHandles />
+          <!-- The ghost and drop indicator while a mind-map node is being dragged
+               to a new place in the tree (#427). Renders only mid-gesture. -->
+          <MindmapDragLayer />
           <!-- The flowchart counterpart (#77): a single "+" below a migrated
                flowchart node. A no-op unless the canvas holds role-tagged flowchart
                shapes, so legacy single-type charts (FlowchartLayer, below) are

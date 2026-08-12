@@ -20,6 +20,7 @@ import {
 import { mindmapModelFromShapes, flowchartModelFromShapes } from '@/diagram/freeFloatingGraph.js'
 import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild, flowchartLayoutPatches, mindmapLayoutPatches } from '@/diagram/freeFloatingOps.js'
 import { mindmapNodeSize } from '@/diagram/mindmapNodeSize.js'
+import { dropPatches } from '@/diagram/mindmapDrop.js'
 import { DEFAULT_NODE_STYLE } from '@/diagram/mindmapNodeStyle.js'
 import { useAppSettings } from '@/composables/useAppSettings.js'
 import {
@@ -377,6 +378,40 @@ function attachMindMap(store, state, history) {
       applyPatch(shape, { text, ...size })
       reflowTree(id)
     })
+  }
+  // Move a node to a new place in the tree by dropping it (#427 item 4). A mind map
+  // is auto-laid-out, so a drag never sets coordinates: it rewrites the node's
+  // parent / side / order tags, drags its subtree along, re-points the branch to
+  // the new parent, and lets the layout place everything. All in ONE commit, so a
+  // single undo puts the branch back exactly where it was.
+  //
+  // The branch connector keeps its id even though the id encodes the old parent: a
+  // new id would read as a delete plus an insert to undo and to collaborators.
+  store.moveMindmapNode = (nodeId, slot) => {
+    const patches = dropPatches(state.shapes, nodeId, slot)
+    if (!patches.nodes.length) return
+    const oldParentId = state.shapes.find((s) => s.id === nodeId)?.mindmap?.parentId
+    history.commit('Move node', () => {
+      for (const { id, ...tags } of patches.nodes) {
+        const shape = state.shapes.find((s) => s.id === id)
+        if (shape) applyPatch(shape.mindmap, tags)
+      }
+      repointBranch(nodeId, slot.parentId)
+      renumberChildShapes(oldParentId)
+      renumberChildShapes(slot.parentId)
+      reflowTree(slot.parentId)
+    })
+  }
+
+  // Hang the node's branch connector off its new parent. Anchors are left to the
+  // re-flow, which recomputes them from the settled boxes.
+  const repointBranch = (nodeId, parentId) => {
+    const branch = state.connectors.find(
+      (c) => c.role === ROLE.mindmapBranch && c.to?.shapeId === nodeId,
+    )
+    if (!branch) return
+    branch.from.shapeId = parentId
+    if (branch.mindmap) branch.mindmap.parentId = parentId
   }
   // Delete migrated mind-map SHAPES and their whole subtrees (free-floating #122):
   // reconstruct the tree from the tags, expand each id to its descendants, then drop
