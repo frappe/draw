@@ -1,15 +1,21 @@
 <script setup>
-// Small outline glyph that draws the ACTUAL shape a palette tile inserts, so the
-// icon always matches the shape (#97/#128/#131). Flowchart glyphs reuse the real
-// on-canvas geometry (nodeShape) scaled to fit, so the picker and the ⊕-menu read
-// identically. Block shapes + the mind-map mark are hand-drawn here. Styled like a
-// Lucide icon (24 viewBox, stroke currentColor, round joins) so it sits beside them.
+// Small outline glyph for the two tile families Lucide cannot stand in for.
+//
+// Flowchart glyphs reuse the real on-canvas geometry (nodeShape) scaled to fit, so
+// the picker and the ⊕-menu read identically — a terminator, a decision and a
+// document have no Lucide equivalents, and a generic stand-in would stop saying
+// which node the tile inserts. The mind-map mark is the "Parent Node" figure (#255).
+//
+// The block shapes left in #425: rectangle, ellipse and the rest each map onto a
+// Lucide icon, and one drawn family beside a bar of Lucide tiles read as artwork
+// from somewhere else. Styled like a Lucide icon (24 viewBox, stroke currentColor,
+// round joins) so what remains still sits beside them.
 import { computed } from 'vue'
 import { NODE_TYPE_META } from '@/diagram/flowchartModel.js'
 import { nodeShape } from '@/diagram/flowchartShapes.js'
 
 const props = defineProps({
-  family: { type: String, default: 'block' }, // 'block' | 'flowchart' | 'mindmap'
+  family: { type: String, default: 'flowchart' }, // 'flowchart' | 'mindmap'
   type: { type: String, default: '' },
 })
 
@@ -49,21 +55,6 @@ const flow = computed(() => {
       <polygon v-else-if="flow.shape.kind === 'polygon'" :points="flow.shape.points" />
       <path v-else-if="flow.shape.kind === 'path'" :d="flow.shape.d" />
     </g>
-
-    <!-- Block shapes. -->
-    <template v-else-if="family === 'block'">
-      <rect v-if="type === 'rectangle'" x="2" y="6" width="20" height="12" rx="1.5" />
-      <rect v-else-if="type === 'square'" x="5" y="5" width="14" height="14" rx="1.5" />
-      <rect v-else-if="type === 'rounded'" x="2" y="6" width="20" height="12" rx="4.5" />
-      <ellipse v-else-if="type === 'ellipse'" cx="12" cy="12" rx="10" ry="7" />
-      <polygon v-else-if="type === 'triangle'" points="12,3 22,20 2,20" />
-      <polygon v-else-if="type === 'diamond'" points="12,2 22,12 12,22 2,12" />
-      <polygon v-else-if="type === 'hexagon'" points="7,4 17,4 22,12 17,20 7,20 2,12" />
-      <!-- Freely-drawn polygon (#139): an irregular outline signals "place your own
-           vertices", distinct from the fixed presets above. -->
-      <polygon v-else-if="type === 'polygon'" points="4,9 11,3 20,7 17,20 7,18" />
-      <path v-else-if="type === 'arrow'" d="M2 9 H13 V5 L22 12 L13 19 V15 H2 Z" />
-    </template>
 
     <!-- Mind map (#255): a single parent node on the left with three curved
          connectors branching off to the right — the "Parent Node" glyph. -->

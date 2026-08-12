@@ -49,15 +49,14 @@ const grid = 'grid w-[228px] grid-cols-6 gap-1 p-2'
           v-for="shape in SHAPES"
           :key="shape.type"
           :label="shape.label"
+          :icon="shape.icon"
           :tooltip="shape.type === 'rectangle' ? 'Rectangle — hold Shift for a square' : undefined"
           :active="isArmed(shape.type)"
           :draggable="!NON_DRAGGABLE_SHAPES.includes(shape.type)"
           @click="arm(shape.type, toggle)"
           @dragstart="startTileDrag($event, shape.type)"
           @dragend="endTileDrag(toggle)"
-        >
-          <template #icon><ShapeGlyph family="block" :type="shape.type" class="h-[18px] w-[18px]" /></template>
-        </ToolbarButton>
+        />
       </div>
     </template>
   </Popover>

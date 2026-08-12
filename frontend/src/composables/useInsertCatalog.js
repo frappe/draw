@@ -25,14 +25,25 @@ import { tableInsertOrigin } from '@/components/floating/tableSizePicker.js'
 // equal), and Diamond stayed reachable only through this catalog, which is
 // gone. Both shape TYPES still exist in the schema/renderer — a mind-map node
 // and a flowchart decision node still use them — this only trims the tile grid.
+// Lucide icons, like every other tile on the bar (#425), rather than the drawn
+// outlines this list used to carry — the Shapes menu was the last place in the
+// editor using artwork of its own, and it read as a different family beside the
+// Lines and Insert tiles next to it.
+//
+// One is a deliberate approximation: Lucide has no wide rectangle, so `square`
+// stands for the rectangle the tile inserts, exactly as Frappe Slides does it.
+// `square-round-corner` keeps it distinct from the rounded rectangle below, which
+// is the pair that actually has to be told apart.
 export const SHAPES = [
-  { type: 'rectangle', label: 'Rectangle' },
-  { type: 'rounded', label: 'Rounded rectangle' },
-  { type: 'ellipse', label: 'Ellipse' },
-  { type: 'triangle', label: 'Triangle' },
-  { type: 'hexagon', label: 'Hexagon' },
-  { type: 'polygon', label: 'Polygon' },
-  { type: 'arrow', label: 'Block arrow' },
+  { type: 'rectangle', icon: 'lucide-square', label: 'Rectangle' },
+  { type: 'rounded', icon: 'lucide-square-round-corner', label: 'Rounded rectangle' },
+  { type: 'ellipse', icon: 'lucide-circle', label: 'Ellipse' },
+  { type: 'triangle', icon: 'lucide-triangle', label: 'Triangle' },
+  { type: 'hexagon', icon: 'lucide-hexagon', label: 'Hexagon' },
+  // The polygon is placed vertex by vertex, so its tile says "draw your own path"
+  // rather than naming a fixed shape — a pentagon glyph would promise a pentagon.
+  { type: 'polygon', icon: 'lucide-pen-tool', label: 'Polygon' },
+  { type: 'arrow', icon: 'lucide-arrow-big-right', label: 'Block arrow' },
 ]
 export const NON_DRAGGABLE_SHAPES = ['polygon']
 

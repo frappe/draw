@@ -1,7 +1,18 @@
-import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { describe, it, expect, vi } from 'vitest'
+import { readFileSync, existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+
+// SHAPES is read from the module rather than scraped out of its source, so the
+// icon names asserted below are the ones the tiles actually render. Reaching it
+// pulls frappe-ui in through useImageInsert, and frappe-ui's own source only
+// resolves through its vite plugin (same stub as useThumbnail.test.js).
+vi.mock('frappe-ui', () => ({
+  FileUploadHandler: class {},
+  createResource: () => ({ submit: () => {} }),
+  call: () => Promise.resolve({}),
+}))
+const { SHAPES } = await import('@/composables/useInsertCatalog.js')
 
 // The insert cluster (#364). The "+" catalog's five sections are five toolbar
 // entries now, so the assertions moved off BottomPalette.vue with the controls.
@@ -100,5 +111,53 @@ describe('the Parent Node glyph (#255)', () => {
     expect((mindmap.match(/<path /g) || []).length).toBe(3)
     expect((mindmap.match(/<rect /g) || []).length).toBe(1)
     expect(mindmap).not.toContain('<circle')
+  })
+})
+
+// The Shapes tiles are Lucide icons now (#425), not drawn outlines. A Lucide class
+// only paints if the icon really exists in the pack — a wrong or renamed name is a
+// silently blank tile, not an error — so the names are checked against the pack
+// itself rather than merely being present in the source.
+describe('the Shapes tiles (#425)', () => {
+  const iconsDir = path.join(here, '../../../node_modules/lucide-static/icons')
+
+  it('gives every shape a Lucide icon that exists in the pack', () => {
+    for (const shape of SHAPES) {
+      expect(shape.icon, `${shape.label} has no icon`).toMatch(/^lucide-[a-z0-9-]+$/)
+      const name = shape.icon.replace('lucide-', '')
+      expect(
+        existsSync(path.join(iconsDir, `${name}.svg`)),
+        `lucide-${name} (${shape.label}) is not in the icon pack — the tile renders blank`,
+      ).toBe(true)
+    }
+  })
+
+  // Rectangle and rounded rectangle are the pair a user actually has to tell
+  // apart, and `square` vs `square-round-corner` is the whole of that signal.
+  it('keeps the rectangle and the rounded rectangle visually distinct', () => {
+    const icons = Object.fromEntries(SHAPES.map((s) => [s.type, s.icon]))
+    expect(icons.rectangle).not.toBe(icons.rounded)
+    expect(icons.rounded).toContain('round')
+  })
+
+  it('renders them icon-only, with the label left as the accessible name', () => {
+    const groups = read('./groups/InsertGroups.vue')
+    const from = groups.indexOf('v-for="shape in SHAPES"')
+    // The tile is self-closing now, so bound the slice on the end of the Shapes
+    // popover rather than on a closing tag it no longer has.
+    const tile = groups.slice(from, groups.indexOf('</Popover>', from))
+    expect(tile).toContain(':icon="shape.icon"')
+    expect(tile).toContain(':label="shape.label"')
+    expect(tile, 'slot content would put a text label in the icon-only grid').not.toContain('<template')
+  })
+
+  // ShapeGlyph now covers only what Lucide cannot: the flowchart node geometry and
+  // the mind-map mark. A block branch left behind would be dead code that still
+  // looks like the source of the shape tiles.
+  it('leaves no block-shape branch behind in ShapeGlyph', () => {
+    const glyph = read('../floating/ShapeGlyph.vue')
+    expect(glyph).not.toContain("family === 'block'")
+    expect(glyph).toContain("family === 'flowchart'")
+    expect(glyph).toContain("family === 'mindmap'")
   })
 })
