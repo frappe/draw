@@ -20,18 +20,29 @@
 
 import { isMindmapShape } from './freeFloating.js'
 import { mindmapModelFromShapes } from './freeFloatingGraph.js'
+import { mindmapNodeSize } from './mindmapNodeSize.js'
 
-// --- geometry constants (identical to MindMapNodeLayer.vue) ------------------
-export const ADD_R = 11 // "+" circle radius
+// The column gap a new child is created at (freeFloatingOps GAP_X), so the ghost
+// stands where the node will.
+const PREVIEW_GAP = 60
+
+// --- geometry constants ------------------------------------------------------
+// The mark is small and quiet; the TARGET is large (#427 items 1 and 7). They are
+// separate numbers on purpose — an affordance that competes with the branches for
+// attention is not the same problem as one that is hard to hit, and the old single
+// radius could only ever trade one against the other.
+export const ADD_R = 7 // drawn "+" circle radius
+export const ADD_HIT_R = 15 // invisible hit radius around that circle
 export const ADD_OFFSET = 28 // gap from the node edge to the "+" centre
-export const GLYPH = 4.5 // half-length of the white "+" strokes inside a circle
+export const GLYPH = 3.5 // half-length of the white "+" strokes inside a circle
 // Vertical breathing room for the two extreme gap handles: the "above the first
 // child" "+" sits GAP/2 above the top child's edge, the "below the last child" one
 // GAP/2 below the bottom child's edge (about one "+" radius clear of the boxes).
 export const GAP = 24
 // The hover region reaches this far past the branch edge, so sliding the pointer
-// off the node onto a "+" keeps the handles alive.
-export const HOVER_OUT = ADD_OFFSET + ADD_R + 12 // 51
+// off the node onto a "+" keeps the handles alive. Derived from the HIT radius,
+// not the drawn one, so the region always covers what is clickable.
+export const HOVER_OUT = ADD_OFFSET + ADD_HIT_R + 12
 
 function boxOf(shape) {
   return { x: shape.x, y: shape.y, w: shape.w, h: shape.h }
@@ -197,6 +208,43 @@ export function nodeAtPoint(point, shapes) {
     if (!best || (shape.zIndex || 0) >= (best.zIndex || 0)) best = shape
   }
   return best ? best.id : null
+}
+
+// Where the node this handle would create is going to appear: a default-sized box
+// one column out on the handle's side, centred on the slot the handle marks. Used
+// to ghost the new node under the pointer (#427 item 2) — at the DEFAULT size and
+// look, because that is what clicking actually produces.
+export function previewBoxFor(handle, ctx) {
+  const box = ctx.boxes[handle.nodeId]
+  if (!box) return null
+  const { w, h } = mindmapNodeSize({ text: '' })
+  const x = handle.side === 'left' ? box.x - PREVIEW_GAP - w : box.x + box.w + PREVIEW_GAP
+  return { x: Math.round(x), y: Math.round(handle.cy - h / 2), w, h }
+}
+
+// The handle of `nodeId` under `point`, or null. The target is the hit radius, so
+// a click lands without pixel-perfect aim (#427 item 1).
+export function handleAtPoint(point, nodeId, ctx) {
+  for (const handle of handlesForNode(nodeId, ctx)) {
+    const dx = point.x - handle.cx
+    const dy = point.y - handle.cy
+    if (dx * dx + dy * dy <= ADD_HIT_R * ADD_HIT_R) return handle
+  }
+  return null
+}
+
+// Which node owns the hover after the pointer moves to `point` (#427 item 1).
+//
+// The order matters, and rule 1 is the fix: a "+" belongs to the node that
+// offered it, so while the pointer is ON one of the current node's handles that
+// node KEEPS the hover — even when the point also falls inside a neighbouring
+// node's box, which used to steal it and make the "+" vanish under the cursor.
+export function nextHoverTarget({ point, currentId = null, ctx, shapes }) {
+  if (currentId && ctx.boxes[currentId] && handleAtPoint(point, currentId, ctx)) return currentId
+  const direct = nodeAtPoint(point, shapes)
+  if (direct) return direct
+  if (currentId && pointInBox(point, hoverRegionOf(currentId, ctx))) return currentId
+  return null
 }
 
 // The padded region that keeps a node "hovered" while the pointer slides off it

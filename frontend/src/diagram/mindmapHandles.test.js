@@ -12,9 +12,14 @@ import {
   nodeAtPoint,
   hoverRegionOf,
   pointInBox,
+  ADD_HIT_R,
+  handleAtPoint,
+  nextHoverTarget,
+  previewBoxFor,
 } from './mindmapHandles.js'
 import { ROLE, flattenSubmodels } from './freeFloating.js'
 import { createMindMap, addChild } from './mindmapModel.js'
+import { mindmapNodeSize } from './mindmapNodeSize.js'
 
 // A migrated mind-map node is an ordinary shape tagged with role 'mindmap-node' and
 // a mindmap.parentId. These helpers build them with known boxes so placement can be
@@ -55,10 +60,16 @@ function nodeWithChildren(n) {
 
 describe('geometry constants', () => {
   it('keeps the "+" sizes and reach', () => {
-    expect(ADD_R).toBe(11)
+    expect(ADD_R).toBe(7)
     expect(ADD_OFFSET).toBe(28)
-    expect(GLYPH).toBe(4.5)
-    expect(HOVER_OUT).toBe(ADD_OFFSET + ADD_R + 12)
+    expect(GLYPH).toBe(3.5)
+    expect(HOVER_OUT).toBe(ADD_OFFSET + ADD_HIT_R + 12)
+  })
+
+  // #427 items 1 and 7: the mark got smaller, the target bigger. One radius could
+  // only trade those against each other, so they are separate numbers now.
+  it('gives the "+" a target larger than the mark it draws', () => {
+    expect(ADD_HIT_R).toBeGreaterThan(ADD_R)
   })
 })
 
@@ -292,3 +303,103 @@ function docWith(partial) {
     ...partial,
   }
 }
+
+// #427 item 1. The "+" used to disappear as the pointer travelled toward it: any
+// node box the pointer crossed stole the hover outright, and leaving the node's
+// own element counted as leaving. Hover ownership is decided here now.
+describe('handleAtPoint', () => {
+  it('hits a handle anywhere inside the target radius, not just on the mark', () => {
+    const ctx = buildContext(sampleTree())
+    const [handle] = handlesForNode('right', ctx)
+    const offCentre = { x: handle.cx + ADD_HIT_R - 1, y: handle.cy }
+    expect(handleAtPoint(offCentre, 'right', ctx)?.key).toBe(handle.key)
+  })
+
+  it('misses beyond the target radius', () => {
+    const ctx = buildContext(sampleTree())
+    const [handle] = handlesForNode('right', ctx)
+    expect(handleAtPoint({ x: handle.cx + ADD_HIT_R + 2, y: handle.cy }, 'right', ctx)).toBeNull()
+  })
+
+  it('is null for a node that offers no handles', () => {
+    const ctx = buildContext(sampleTree())
+    expect(handleAtPoint({ x: 0, y: 0 }, 'nope', ctx)).toBeNull()
+  })
+})
+
+describe('nextHoverTarget', () => {
+  it('keeps the hover on the node whose handle the pointer is over', () => {
+    const shapes = sampleTree()
+    const ctx = buildContext(shapes)
+    const [handle] = handlesForNode('root', ctx)
+    const target = nextHoverTarget({ point: { x: handle.cx, y: handle.cy }, currentId: 'root', ctx, shapes })
+    expect(target).toBe('root')
+  })
+
+  // The regression itself: a handle drawn over a neighbouring node's box still
+  // belongs to the node that offered it.
+  it('does not hand the hover to a node sitting under the current node handle', () => {
+    const shapes = sampleTree()
+    const ctx = buildContext(shapes)
+    const [handle] = handlesForNode('root', ctx)
+    // Park an unrelated node (its own tree) right on top of that handle.
+    shapes.push(mmNode('intruder', null, handle.cx - 20, handle.cy - 20, 40, 40))
+    const moved = buildContext(shapes)
+    const point = { x: handle.cx, y: handle.cy }
+    expect(nextHoverTarget({ point, currentId: 'root', ctx: moved, shapes })).toBe('root')
+    // With no node hovered yet, the box under the pointer wins as before.
+    expect(nextHoverTarget({ point, currentId: null, ctx: moved, shapes })).toBe('intruder')
+  })
+
+  it('takes the node directly under the pointer', () => {
+    const shapes = sampleTree()
+    const ctx = buildContext(shapes)
+    expect(nextHoverTarget({ point: { x: 350, y: 120 }, currentId: null, ctx, shapes })).toBe('right')
+  })
+
+  it('holds the hover inside the padded region, with nothing under the pointer', () => {
+    const shapes = sampleTree()
+    const ctx = buildContext(shapes)
+    const region = hoverRegionOf('right', ctx)
+    const inCorridor = { x: region.x + region.w - 2, y: region.y + region.h / 2 }
+    expect(nodeAtPoint(inCorridor, shapes)).toBeNull()
+    expect(nextHoverTarget({ point: inCorridor, currentId: 'right', ctx, shapes })).toBe('right')
+  })
+
+  it('drops the hover once the pointer leaves the region entirely', () => {
+    const shapes = sampleTree()
+    const ctx = buildContext(shapes)
+    expect(nextHoverTarget({ point: { x: 5000, y: 5000 }, currentId: 'right', ctx, shapes })).toBeNull()
+  })
+})
+
+// #427 item 2: the affordance used to be tinted with the parent's custom colour,
+// promising a colour the created node never has. The ghost is the honest version:
+// the default box, at the slot the handle marks.
+describe('previewBoxFor', () => {
+  it('stands one column out on the handle side, centred on the slot', () => {
+    const ctx = buildContext(sampleTree())
+    const [handle] = handlesForNode('right', ctx) // node spans x 300..440, mid-y 120
+    const box = previewBoxFor(handle, ctx)
+    expect(box.x).toBeGreaterThan(440)
+    expect(box.y + box.h / 2).toBe(handle.cy)
+  })
+
+  it('mirrors to the left of a left-branch node', () => {
+    const ctx = buildContext(sampleTree())
+    const [handle] = handlesForNode('left', ctx) // node spans x -300..-160
+    expect(previewBoxFor(handle, ctx).x + previewBoxFor(handle, ctx).w).toBeLessThan(-300)
+  })
+
+  it('is the default new-node size, not the parent size', () => {
+    const ctx = buildContext(sampleTree())
+    const [handle] = handlesForNode('root', ctx) // root is 120x44
+    expect(previewBoxFor(handle, ctx)).toMatchObject(mindmapNodeSize({ text: '' }))
+  })
+
+  it('is null for a handle whose node has gone', () => {
+    const ctx = buildContext(sampleTree())
+    const [handle] = handlesForNode('right', ctx)
+    expect(previewBoxFor({ ...handle, nodeId: 'gone' }, ctx)).toBeNull()
+  })
+})

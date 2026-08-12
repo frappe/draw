@@ -22,14 +22,18 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import {
   ADD_R,
+  ADD_HIT_R,
   GLYPH,
   buildContext,
   handlesForNode,
   shouldShowHandles,
-  nodeAtPoint,
+  nextHoverTarget,
   hoverRegionOf,
-  pointInBox,
+  previewBoxFor,
 } from '@/diagram/mindmapHandles.js'
+import { NODE_GRAY } from '@/diagram/espressoPalette.js'
+import { curveRadius } from '@/diagram/mindmapNodeStyle.js'
+import { useAppSettings } from '@/composables/useAppSettings.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
@@ -57,28 +61,42 @@ function toLogical(event) {
   return { x: local.x, y: local.y }
 }
 
-// Hover tracking: the node the pointer is directly over wins; failing that, the
-// current node stays hovered while the pointer is within its padded region, so the
-// handles don't vanish as the cursor slides off the node toward a "+".
+// Hover tracking lives in the pure state machine, which knows that a "+" belongs
+// to the node that offered it — so travelling toward a handle never hands the
+// hover to whatever else the pointer passes over (#427 item 1).
 function onPointerMove(event) {
+  clearPendingLeave()
   if (!hasNodes.value || !selectTool.value) {
     hoveredId.value = null
     return
   }
-  const point = toLogical(event)
-  const hit = nodeAtPoint(point, store.state.shapes)
-  if (hit) {
-    hoveredId.value = hit
-    return
-  }
-  if (hoveredId.value) {
-    const region = hoverRegionOf(hoveredId.value, ctx.value)
-    if (!pointInBox(point, region)) hoveredId.value = null
-  }
+  hoveredId.value = nextHoverTarget({
+    point: toLogical(event),
+    currentId: hoveredId.value,
+    ctx: ctx.value,
+    shapes: store.state.shapes,
+  })
+}
+
+// Leaving the SVG drops the hover, but only after a beat. The canvas SVG is
+// pointer-events:none with only its painted children interactive, so this event
+// also fires for the odd frame where the pointer is between two painted things —
+// dropping the column right then is exactly the "+ vanished as I reached for it"
+// bug. A real departure has no follow-up pointermove and clears normally.
+const LEAVE_GRACE_MS = 120
+let leaveTimer = null
+
+function clearPendingLeave() {
+  if (leaveTimer) clearTimeout(leaveTimer)
+  leaveTimer = null
 }
 
 function onPointerLeave() {
-  hoveredId.value = null
+  clearPendingLeave()
+  leaveTimer = setTimeout(() => {
+    hoveredId.value = null
+    leaveTimer = null
+  }, LEAVE_GRACE_MS)
 }
 
 onMounted(() => {
@@ -89,6 +107,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  clearPendingLeave()
   if (!svg) return
   svg.removeEventListener('pointermove', onPointerMove)
   svg.removeEventListener('pointerleave', onPointerLeave)
@@ -111,11 +130,35 @@ const targetIds = computed(() => {
 
 const handles = computed(() => targetIds.value.flatMap((id) => handlesForNode(id, ctx.value)))
 
-// The "+" takes the node's own branch colour (its border) so it reads as part of the
-// branch, exactly like MindMapNodeLayer tints its buttons with the node colour.
-function colorOf(nodeId) {
-  return store.shapeById(nodeId)?.border?.color || '#525252'
-}
+// The corridor between the hovered node and its handles, painted transparent so
+// the pointer always has something under it there (#427 item 1). The canvas SVG
+// only receives pointer events over painted children, so this gap used to be dead
+// space: no pointermove fired, and crossing it read as leaving the SVG. It is
+// purely a hover surface — presses fall through to the canvas, which hit-tests by
+// geometry, so a marquee started here still behaves normally.
+const hoverCorridor = computed(() =>
+  hoveredId.value ? hoverRegionOf(hoveredId.value, ctx.value) : null,
+)
+
+// The "+" is drawn in the neutral default node colour, never the node's own custom
+// colour (#427 item 2). A new node is always created with the default look, so a
+// coloured parent tinting its "+" promised a colour the node would not have.
+const HANDLE_COLOR = NODE_GRAY.border
+const HANDLE_INK = '#6B7280'
+
+// The handle the pointer is resting on, and the ghost of the node it would create.
+// The ghost is drawn at the DEFAULT size and look — the same monochrome box the
+// click produces — so the preview never over-promises (#427 item 2).
+const hoveredHandleKey = ref(null)
+const childCurve = computed(
+  () => useAppSettings().settings.mindmapNodeStyle?.child?.curve || 'moderate',
+)
+const preview = computed(() => {
+  const handle = handles.value.find((candidate) => candidate.key === hoveredHandleKey.value)
+  if (!handle) return null
+  const box = previewBoxFor(handle, ctx.value)
+  return box ? { ...box, rx: curveRadius(childCurve.value, box.h) } : null
+})
 
 // The white "+" glyph centred in a handle circle.
 function glyphPath(handle) {
@@ -143,31 +186,71 @@ function add(handle) {
 
 <template>
   <g ref="layer" data-mindmap-hover-handles>
+    <!-- The hover corridor: invisible, but painted, so the pointer never crosses
+         dead canvas on its way from the node to a "+". -->
+    <rect
+      v-if="hoverCorridor"
+      :x="hoverCorridor.x"
+      :y="hoverCorridor.y"
+      :width="hoverCorridor.w"
+      :height="hoverCorridor.h"
+      fill="transparent"
+    />
     <!-- One "+" per handle. pointerdown is stopped so pressing a "+" never starts a
-         marquee or clears the selection; the click adds. The stub line and glyph are
-         non-interactive, so the hit-area is exactly the visible circle. -->
+         marquee or clears the selection; the click adds. The hit circle is a plain
+         transparent disc wider than the mark, so the target is generous while the
+         mark stays small; the stub and glyph are non-interactive. -->
+    <!-- The node this "+" would create, ghosted at its real default size and look. -->
+    <rect
+      v-if="preview"
+      :x="preview.x"
+      :y="preview.y"
+      :width="preview.w"
+      :height="preview.h"
+      :rx="preview.rx"
+      :fill="NODE_GRAY.fill"
+      fill-opacity="0.5"
+      :stroke="NODE_GRAY.border"
+      stroke-width="1.5"
+      stroke-dasharray="4 4"
+      style="pointer-events: none"
+    />
     <g
       v-for="handle in handles"
       :key="handle.key"
       style="cursor: pointer"
       @click.stop="add(handle)"
       @pointerdown.stop
+      @pointerenter="hoveredHandleKey = handle.key"
+      @pointerleave="hoveredHandleKey === handle.key && (hoveredHandleKey = null)"
     >
       <title>Add node</title>
       <path
+        v-if="handle.straight"
         :d="stubPath(handle)"
-        :stroke="colorOf(handle.nodeId)"
-        stroke-width="2"
+        :stroke="HANDLE_COLOR"
+        stroke-width="1.5"
         stroke-linecap="round"
         stroke-dasharray="2 3"
         fill="none"
         style="pointer-events: none"
       />
-      <circle :cx="handle.cx" :cy="handle.cy" :r="ADD_R" :fill="colorOf(handle.nodeId)" />
+      <circle :cx="handle.cx" :cy="handle.cy" :r="ADD_HIT_R" fill="transparent" />
+      <!-- A white disc under the mark so a branch curve passing behind the handle
+           reads as passing behind it, instead of through the "+" (#427 item 7). -->
+      <circle
+        :cx="handle.cx"
+        :cy="handle.cy"
+        :r="ADD_R"
+        fill="#FFFFFF"
+        :stroke="HANDLE_COLOR"
+        stroke-width="1.25"
+        style="pointer-events: none"
+      />
       <path
         :d="glyphPath(handle)"
-        stroke="#FFFFFF"
-        stroke-width="1.8"
+        :stroke="HANDLE_INK"
+        stroke-width="1.5"
         stroke-linecap="round"
         fill="none"
         style="pointer-events: none"
