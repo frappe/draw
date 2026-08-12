@@ -44,7 +44,9 @@ async function setRole(page, triggerLabel, level) {
 // Invite by typing the address and picking the search result.
 async function invite(page, email, level) {
   if (level) await setRole(page, 'Access level for the person being added', level)
-  await page.getByPlaceholder('Add people by email…').fill(email)
+  // The field says "Add people or groups" since #422 lined the dialog up with the
+  // one Slides and Writer share; its accessible name is still "Add people by email".
+  await page.getByPlaceholder('Add people or groups').fill(email)
   const result = page.getByRole('button', { name: new RegExp(email, 'i') }).first()
   await result.waitFor({ state: 'visible' })
   await result.click()

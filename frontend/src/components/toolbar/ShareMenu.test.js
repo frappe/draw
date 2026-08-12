@@ -65,13 +65,26 @@ describe('ShareMenu per-member options', () => {
     ])
   })
 
-  it('renders the per-member roles from the shared list and a Remove control', () => {
-    // Roles are frappe-ui <Select>s bound to the shared list (#292), and the
-    // Remove control is a <Button> whose accessible name names the member.
+  it('offers the invite role from the shared list', () => {
     expect(source).toMatch(/:options="memberRoleOptions"/)
-    expect(source).toMatch(/:label="`Remove \$\{m\.user\}`"/)
+  })
+
+  // Removal moved INTO the member's role select (#422) — it was a separate ✕
+  // beside it, which put two controls in every row's trailing lane. Both actions
+  // still have to be reachable, and both still go through useShare.
+  it('reaches remove and re-role from one control per member', () => {
+    expect(source).toMatch(/:options="MEMBER_ROW_OPTIONS"/)
+    expect(source).toContain('setMemberAccess(m.user, $event)')
     expect(source).toContain('share.setMemberRole')
     expect(source).toContain('share.removeMember')
+    expect(source, 'the row must still name whose access it sets').toMatch(
+      /:aria-label="`Access level for \$\{m\.user\}`"/,
+    )
+  })
+
+  it('puts Remove last, after the three roles', () => {
+    const list = source.slice(source.indexOf('const MEMBER_ROW_OPTIONS'))
+    expect(list.slice(0, list.indexOf('\n'))).toContain("...MEMBER_ROLE_OPTIONS, { value: 'remove'")
   })
 })
 
@@ -80,8 +93,23 @@ describe('ShareMenu Writer layout', () => {
     expect(source).toContain('Sharing "')
   })
 
-  it('places General access above the People list', () => {
+  // "People" became "Members", matching the dialog Slides and Writer share (#422).
+  it('places General access above the Members list', () => {
     expect(source.indexOf('>General access<')).toBeGreaterThanOrEqual(0)
-    expect(source.indexOf('>General access<')).toBeLessThan(source.indexOf('>People<'))
+    expect(source.indexOf('>General access<')).toBeLessThan(source.indexOf('>Members<'))
+  })
+
+  // General access is view-only (#106), so the permission beside it is TEXT. A
+  // second select there would hold exactly one option — a control that cannot be
+  // used, which is what makes Drive's two-dropdown row wrong for Draw.
+  it('states the general-access permission rather than offering a dead picker', () => {
+    const row = source.slice(source.indexOf('>General access<'), source.indexOf('>Members<'))
+    expect(row).toContain('Can view')
+    expect((row.match(/<Select/g) || []).length, 'a second picker appeared').toBe(1)
+  })
+
+  // Legacy in frappe-ui's own guidance, and it was the search results' row.
+  it('uses no legacy ItemListRow', () => {
+    expect(source).not.toContain('ItemListRow')
   })
 })
