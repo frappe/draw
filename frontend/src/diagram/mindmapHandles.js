@@ -20,7 +20,7 @@
 
 import { isMindmapShape } from './freeFloating.js'
 import { mindmapModelFromShapes } from './freeFloatingGraph.js'
-import { mindmapNodeSize } from './mindmapNodeSize.js'
+import { mindmapNodeSize, NODE_FONT_SIZE } from './mindmapNodeSize.js'
 
 // The column gap a new child is created at (freeFloatingOps GAP_X), so the ghost
 // stands where the node will.
@@ -217,7 +217,9 @@ export function nodeAtPoint(point, shapes) {
 export function previewBoxFor(handle, ctx) {
   const box = ctx.boxes[handle.nodeId]
   if (!box) return null
-  const { w, h } = mindmapNodeSize({ text: '' })
+  // Measured at the size a created node actually renders at — a ghost 20px narrower
+  // than the real thing is the very mismatch this change exists to remove.
+  const { w, h } = mindmapNodeSize({ text: '', fontSize: NODE_FONT_SIZE })
   const x = handle.side === 'left' ? box.x - PREVIEW_GAP - w : box.x + box.w + PREVIEW_GAP
   return { x: Math.round(x), y: Math.round(handle.cy - h / 2), w, h }
 }
@@ -253,6 +255,25 @@ export function nextHoverTarget({ point, currentId = null, ctx, shapes }) {
 // extent of the gap column — from the top handle down to the bottom one — plus the
 // node box itself and a small margin, so moving from the node to any "+" (above the
 // first child or below the last) never drops the hover.
+// The hover region MINUS the node's own box: the strips to either side, which is
+// all the corridor that needs painting. Covering the node too would put a
+// transparent sheet over its own cursor zones and its link badge — the node would
+// stop offering the I-beam that says "click to edit" exactly while hovered (#123).
+export function hoverStripsOf(nodeId, ctx) {
+  const box = ctx.boxes[nodeId]
+  const region = hoverRegionOf(nodeId, ctx)
+  if (!box || !region) return []
+  return [
+    { x: region.x, y: region.y, w: Math.max(0, box.x - region.x), h: region.h },
+    {
+      x: box.x + box.w,
+      y: region.y,
+      w: Math.max(0, region.x + region.w - (box.x + box.w)),
+      h: region.h,
+    },
+  ].filter((strip) => strip.w > 0)
+}
+
 export function hoverRegionOf(nodeId, ctx) {
   const box = ctx.boxes[nodeId]
   if (!box) return null

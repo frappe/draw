@@ -9,7 +9,6 @@ import {
   orderForSlot,
   dropPatches,
   isNoOpDrop,
-  isDraggableNode,
 } from './mindmapDrop.js'
 import { handlesForNode } from './mindmapHandles.js'
 import { ROLE } from './freeFloating.js'
@@ -206,13 +205,14 @@ describe('isNoOpDrop', () => {
   it('rejects a drag that found no slot at all', () => {
     expect(isNoOpDrop(tree(), 'c', null)).toBe(true)
   })
-})
 
-describe('isDraggableNode', () => {
-  it('is true for a child and false for a root or a plain shape', () => {
-    const shapes = tree()
-    expect(isDraggableNode(shapes, 'b')).toBe(true)
-    expect(isDraggableNode(shapes, 'root')).toBe(false)
-    expect(isDraggableNode([{ id: 'plain', type: 'rect' }], 'plain')).toBe(false)
+  // Same parent, same ordinal, other side of the root: the node ends up somewhere
+  // visibly different, so the drop has to land.
+  it('accepts a move across the root to the other side', () => {
+    const shapes = [...tree(), mmNode('left', 'root', -400, 100, 3, 'left')]
+    const slot = { kind: 'gap', parentId: 'root', side: 'right', index: 0 }
+    expect(isNoOpDrop(shapes, 'left', slot)).toBe(false)
   })
 })
+
+

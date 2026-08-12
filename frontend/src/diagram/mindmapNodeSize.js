@@ -30,6 +30,11 @@ const BASE_FONT_SIZE = 14
 const ROOT_FONT_SIZE = 17
 const CHAR_WIDTH = 8.5
 
+// Every free-floating mind-map node renders its label at this size. Anything that
+// measures a node it has not created yet — the "+" ghost, a placeholder box — must
+// measure at this size too, or it promises a box the click will not produce.
+export const NODE_FONT_SIZE = 16
+
 function clamp(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value))
 }
@@ -44,12 +49,17 @@ function fontScaleOf(fontSize, isRoot) {
 export function mindmapNodeSize({ text = '', fontSize = null, isRoot = false } = {}) {
   const scale = fontScaleOf(fontSize, isRoot)
   const charWidth = CHAR_WIDTH * scale
-  const content = String(text || '')
+  // A label can carry hard line breaks (Enter inside a node keeps typing on a new
+  // line), and those are lines the box has to pay for — wrapping alone would fold
+  // them into one and clip everything below the first (#427).
+  const paragraphs = String(text || '').split(/\r?\n/)
+  const longest = Math.max(...paragraphs.map((line) => line.length))
   // Padding is a fixed frame around the text, not a scaled one: a bigger font
   // needs more room for glyphs, not more empty margin.
-  const singleLine = content.length * charWidth + NODE_PAD_X
+  const singleLine = longest * charWidth + NODE_PAD_X
   const width = clamp(singleLine, NODE_MIN_WIDTH * scale, NODE_MAX_WIDTH * scale)
-  const lines = wrapLineCount(content, charsPerLine(width - NODE_PAD_X, charWidth))
+  const perLine = charsPerLine(width - NODE_PAD_X, charWidth)
+  const lines = paragraphs.reduce((total, line) => total + wrapLineCount(line, perLine), 0)
   return { w: Math.round(width), h: Math.round(lines * LINE_HEIGHT * scale + NODE_PAD_Y) }
 }
 

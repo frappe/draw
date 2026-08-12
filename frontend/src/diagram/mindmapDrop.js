@@ -165,6 +165,9 @@ export function isNoOpDrop(shapes, draggedId, slot) {
   const dragged = (shapes || []).find((shape) => shape.id === draggedId)
   if (!dragged || dragged.mindmap?.parentId !== slot.parentId) return false
   const ctx = contextWithout(shapes, draggedId)
+  // Crossing to the root's other side is a real move even though the parent and
+  // the ordinal are unchanged — the node ends up somewhere visibly different.
+  if (slot.kind === 'gap' && sideOfDragged(shapes, draggedId) !== slot.side) return false
   const siblings = siblingsForSlot(shapes, slot, ctx, draggedId)
   // The ordinal the node already occupies among the siblings that are staying put.
   const order = dragged.mindmap?.order ?? 0
@@ -172,9 +175,10 @@ export function isNoOpDrop(shapes, draggedId, slot) {
   return slot.kind === 'onto' ? held === siblings.length : slot.index === held
 }
 
-// A node may only be dragged if it has a parent — a root moves the whole tree by
-// ordinary dragging, which is a different gesture entirely.
-export function isDraggableNode(shapes, shapeId) {
-  const shape = (shapes || []).find((candidate) => candidate.id === shapeId)
-  return !!(shape && isMindmapShape(shape) && shape.mindmap?.parentId)
+// The branch side the dragged node currently sits on, read from its geometry (the
+// stored tag can lag a re-flow) with the tag as the fallback.
+function sideOfDragged(shapes, draggedId) {
+  const ctx = buildContext(shapes)
+  if (ctx.boxes[draggedId]) return branchSideOf(draggedId, ctx)
+  return (shapes || []).find((shape) => shape.id === draggedId)?.mindmap?.side || 'right'
 }

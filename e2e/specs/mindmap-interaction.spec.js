@@ -109,8 +109,13 @@ test.describe('mind map interaction (#427)', () => {
 
     await expect
       .poll(async () => {
+        // Optional all the way down: the first poll lands before autosave has
+        // flushed, and a throw here would fail the test outright instead of
+        // retrying.
         const doc = await diagram.saved(name)
-        return node(doc, 'm3').mindmap.order < node(doc, 'm2').mindmap.order
+        const moved = node(doc, 'm3')?.mindmap?.order
+        const other = node(doc, 'm2')?.mindmap?.order
+        return moved !== undefined && other !== undefined && moved < other
       }, {
         message: 'Branch B did not move above Branch A',
         timeout: 20_000,

@@ -16,10 +16,11 @@ import {
   handleAtPoint,
   nextHoverTarget,
   previewBoxFor,
+  hoverStripsOf,
 } from './mindmapHandles.js'
 import { ROLE, flattenSubmodels } from './freeFloating.js'
 import { createMindMap, addChild } from './mindmapModel.js'
-import { mindmapNodeSize } from './mindmapNodeSize.js'
+import { mindmapNodeSize, NODE_FONT_SIZE } from './mindmapNodeSize.js'
 
 // A migrated mind-map node is an ordinary shape tagged with role 'mindmap-node' and
 // a mindmap.parentId. These helpers build them with known boxes so placement can be
@@ -382,7 +383,8 @@ describe('previewBoxFor', () => {
     const [handle] = handlesForNode('right', ctx) // node spans x 300..440, mid-y 120
     const box = previewBoxFor(handle, ctx)
     expect(box.x).toBeGreaterThan(440)
-    expect(box.y + box.h / 2).toBe(handle.cy)
+    // Whole-pixel box with an odd height, so the centre lands within half a unit.
+    expect(Math.abs(box.y + box.h / 2 - handle.cy)).toBeLessThanOrEqual(0.5)
   })
 
   it('mirrors to the left of a left-branch node', () => {
@@ -391,15 +393,46 @@ describe('previewBoxFor', () => {
     expect(previewBoxFor(handle, ctx).x + previewBoxFor(handle, ctx).w).toBeLessThan(-300)
   })
 
-  it('is the default new-node size, not the parent size', () => {
+  // The ghost has to be the size a click actually produces: a new node renders at
+  // NODE_FONT_SIZE, so measuring it at the base size drew a box 20px too narrow.
+  it('is the size a created node really gets, not the base-font size', () => {
     const ctx = buildContext(sampleTree())
     const [handle] = handlesForNode('root', ctx) // root is 120x44
-    expect(previewBoxFor(handle, ctx)).toMatchObject(mindmapNodeSize({ text: '' }))
+    const real = mindmapNodeSize({ text: '', fontSize: NODE_FONT_SIZE })
+    expect(previewBoxFor(handle, ctx)).toMatchObject(real)
+    expect(real).not.toEqual(mindmapNodeSize({ text: '' }))
   })
 
   it('is null for a handle whose node has gone', () => {
     const ctx = buildContext(sampleTree())
     const [handle] = handlesForNode('right', ctx)
     expect(previewBoxFor({ ...handle, nodeId: 'gone' }, ctx)).toBeNull()
+  })
+})
+
+// #427 item 1: the corridor is painted so the pointer never crosses dead canvas on
+// its way to a "+" — but it must not cover the node, whose own cursor zones say
+// "click here to edit" (#123).
+describe('hoverStripsOf', () => {
+  it('covers the reach on each side without covering the node box', () => {
+    const ctx = buildContext(sampleTree())
+    const box = ctx.boxes.root
+    const strips = hoverStripsOf('root', ctx)
+    expect(strips.length).toBe(2)
+    for (const strip of strips) {
+      const overlapsNode = strip.x < box.x + box.w && box.x < strip.x + strip.w
+      expect(overlapsNode).toBe(false)
+    }
+  })
+
+  it('reaches past the furthest handle on the branch side', () => {
+    const ctx = buildContext(sampleTree())
+    const handle = handlesForNode('right', ctx)[0]
+    const strip = hoverStripsOf('right', ctx).find((s) => s.x > ctx.boxes.right.x)
+    expect(strip.x + strip.w).toBeGreaterThanOrEqual(handle.cx + ADD_HIT_R)
+  })
+
+  it('is empty for a node that is not on the canvas', () => {
+    expect(hoverStripsOf('gone', buildContext(sampleTree()))).toEqual([])
   })
 })

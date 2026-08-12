@@ -9,15 +9,12 @@ import { createShape, createConnector, nextId } from './factories.js'
 import { mindmapModelFromShapes, flowchartModelFromShapes, flowchartComponentIds, mindmapComponentIds } from './freeFloatingGraph.js'
 import { subtreeIds } from './mindmapModel.js'
 import { layoutMindMap } from './mindmapLayout.js'
-import { mindmapNodeSize } from './mindmapNodeSize.js'
+import { mindmapNodeSize, NODE_FONT_SIZE } from './mindmapNodeSize.js'
 import { DEFAULT_NODE_STYLE, nodeColors, borderProp, connectorColor } from './mindmapNodeStyle.js'
 import { makeFlowchartNode, defaultNodeText, nodeSize, pickFreeBranch } from './flowchartModel.js'
 import { placeChild } from './flowchartLayout.js'
 import { ROLE, flowchartNodeShape, flowchartEdgeConnector, edgeAnchors } from './freeFloating.js'
 
-// Every free-floating mind-map node renders its label at this size; the box is
-// measured against it, so measurement and render agree (#427).
-const NODE_FONT_SIZE = 16
 const GAP_X = 60
 const GAP_Y = 16
 

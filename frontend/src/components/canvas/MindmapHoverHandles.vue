@@ -29,6 +29,7 @@ import {
   shouldShowHandles,
   nextHoverTarget,
   hoverRegionOf,
+  hoverStripsOf,
   previewBoxFor,
 } from '@/diagram/mindmapHandles.js'
 import { NODE_GRAY } from '@/diagram/espressoPalette.js'
@@ -135,14 +136,15 @@ const targetIds = computed(() => {
 
 const handles = computed(() => targetIds.value.flatMap((id) => handlesForNode(id, ctx.value)))
 
-// The corridor between the hovered node and its handles, painted transparent so
-// the pointer always has something under it there (#427 item 1). The canvas SVG
-// only receives pointer events over painted children, so this gap used to be dead
-// space: no pointermove fired, and crossing it read as leaving the SVG. It is
-// purely a hover surface — presses fall through to the canvas, which hit-tests by
-// geometry, so a marquee started here still behaves normally.
+// The corridor to either side of the hovered node, painted transparent so the
+// pointer always has something under it on its way to a "+" (#427 item 1). The
+// canvas SVG only receives pointer events over painted children, so that gap used
+// to be dead space: no pointermove fired, and crossing it read as leaving the SVG.
+// The node's own box is deliberately left out — a sheet over it would swallow the
+// I-beam zone and the link badge. Presses here fall through to the canvas, which
+// hit-tests by geometry, so a marquee started in the corridor still behaves.
 const hoverCorridor = computed(() =>
-  hoveredId.value ? hoverRegionOf(hoveredId.value, ctx.value) : null,
+  hoveredId.value ? hoverStripsOf(hoveredId.value, ctx.value) : [],
 )
 
 // The "+" is drawn in the neutral default node colour, never the node's own custom
@@ -194,12 +196,14 @@ function add(handle) {
     <!-- The hover corridor: invisible, but painted, so the pointer never crosses
          dead canvas on its way from the node to a "+". -->
     <rect
-      v-if="hoverCorridor"
-      :x="hoverCorridor.x"
-      :y="hoverCorridor.y"
-      :width="hoverCorridor.w"
-      :height="hoverCorridor.h"
+      v-for="(strip, index) in hoverCorridor"
+      :key="`corridor-${index}`"
+      :x="strip.x"
+      :y="strip.y"
+      :width="strip.w"
+      :height="strip.h"
       fill="transparent"
+      style="cursor: inherit"
     />
     <!-- One "+" per handle. pointerdown is stopped so pressing a "+" never starts a
          marquee or clears the selection; the click adds. The hit circle is a plain

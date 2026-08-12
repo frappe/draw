@@ -361,6 +361,16 @@ function attachMindMap(store, state, history) {
       const node = state.mindmap?.nodes.find((n) => n.id === id)
       if (node) applyPatch(node, patch)
     })
+  // Both writes below share this label so history's coalescer (same label, within
+  // 450ms, and it must start with "Update ") folds them into one step.
+  const NODE_TEXT_EDIT = 'Update node text'
+  // Resize a node to its label WHILE the label is being typed. It carries the same
+  // history label as the commit below on purpose: history coalesces consecutive
+  // commits that share a label, so a burst of typing plus the final commit collapse
+  // into one undo step instead of leaving a step that holds the new box with the
+  // old text (#427).
+  store.resizeMindmapNodeToText = (id, size) =>
+    history.commit(NODE_TEXT_EDIT, () => applyPatch(state.shapes.find((s) => s.id === id), size))
   // Land an edited label on a free-floating node: the text, the box that text
   // measures to, and the re-flow that box needs, as ONE undoable unit (#427).
   // Typing itself never re-flows — a tree that rearranged on every keystroke is
@@ -374,7 +384,7 @@ function attachMindMap(store, state, history) {
       fontSize: shape.text?.style?.size,
       isRoot: !shape.mindmap?.parentId,
     })
-    history.commit('Update node text', () => {
+    history.commit(NODE_TEXT_EDIT, () => {
       applyPatch(shape, { text, ...size })
       reflowTree(id)
     })
@@ -400,6 +410,11 @@ function attachMindMap(store, state, history) {
       renumberChildShapes(oldParentId)
       renumberChildShapes(slot.parentId)
       reflowTree(slot.parentId)
+      // A canvas can hold several maps (#48) and a node can be dropped into a
+      // different one, which leaves a gap — and stale branch anchors — behind in
+      // the map it came from. Re-flowing both settles the tree it left as well as
+      // the tree it joined; on the usual same-tree move the second pass is a no-op.
+      if (oldParentId) reflowTree(oldParentId)
     })
   }
 

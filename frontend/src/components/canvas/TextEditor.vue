@@ -157,7 +157,9 @@ function growMindmapNode() {
     isRoot: !shape.value.mindmap?.parentId,
   })
   if (size.w === shape.value.w && size.h === shape.value.h) return
-  store.updateShape(shape.value.id, size)
+  // Through the mind-map path, so this resize shares a history label with the
+  // commit that follows and the whole edit stays one undo step.
+  store.resizeMindmapNodeToText(shape.value.id, size)
 }
 
 function growToFit(s, areaHeight) {

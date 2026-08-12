@@ -50,26 +50,34 @@ function start({ toLogical, start: origin, nodeId }) {
 
 function runGesture(store, { toLogical, origin, nodeId, slots }) {
   let frame = null
+  let lastPoint = origin
   const onMove = (event) => {
     const point = toLogical(event)
+    lastPoint = point
     state.dx = point.x - origin.x
     state.dy = point.y - origin.y
     if (!state.active && Math.hypot(state.dx, state.dy) < MOVE_THRESHOLD) return
     state.active = true
     // One slot search per frame, not per event: a mind map can carry hundreds of
-    // slots and a pointer fires far faster than it paints (G11).
+    // slots and a pointer fires far faster than it paints (G11). This only drives
+    // the INDICATOR — the drop resolves the slot itself, from the release point.
     if (frame) return
     frame = requestAnimationFrame(() => {
       frame = null
-      state.slot = dropTargetAt(point, slots)
+      state.slot = dropTargetAt(lastPoint, slots)
     })
   }
   const onEnd = () => {
     if (frame) cancelAnimationFrame(frame)
     teardown()
-    const { nodeId: dragged, slot, active } = state
+    const { nodeId: dragged, active } = state
+    // Resolve where the node lands from the release point, not from whatever the
+    // last painted frame happened to hold: a quick flick can cross the threshold
+    // and release inside a single frame, and cancelling that frame would otherwise
+    // throw away the only slot the gesture ever found.
+    const slot = active ? dropTargetAt(lastPoint, slots) : null
     reset()
-    if (active && slot && !isNoOpDrop(store.state.shapes, dragged, slot)) {
+    if (slot && !isNoOpDrop(store.state.shapes, dragged, slot)) {
       store.moveMindmapNode(dragged, slot)
     }
   }
