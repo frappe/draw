@@ -34,7 +34,14 @@ async function openShareDialog(page) {
 // native <select> and selectOption() fails with "Element is not a <select>
 // element". Open the trigger by its accessible name, then click the option by its
 // visible label — the same shape as setGeneralAccess below.
-const MEMBER_ROLE_LABELS = { view: 'Can view', comment: 'Can comment', edit: 'Can edit' }
+// `remove` is an option in the member's own access select since #422 — it was a
+// separate ✕ button beside it, which put two controls in every row's trailing lane.
+const MEMBER_ROLE_LABELS = {
+  view: 'Can view',
+  comment: 'Can comment',
+  edit: 'Can edit',
+  remove: 'Remove',
+}
 
 async function setRole(page, triggerLabel, level) {
   await page.getByLabel(triggerLabel).click()
@@ -52,9 +59,12 @@ async function invite(page, email, level) {
   await result.click()
 }
 
-// The row for `email` in the members list, and its level dropdown.
-function memberRow(page, email) {
-  return page.locator('div').filter({ hasText: new RegExp(`^${email}$`) }).first()
+// A member's presence in the list, found by their own access control rather than by
+// their text: since #422 the name and address are <span>s inside the row, so a
+// text-matching `div` locator finds nothing, and the aria-label names the member
+// anyway — so this proves the RIGHT row rendered, not just that some row did.
+function memberAccessControl(page, email) {
+  return page.getByLabel(`Access level for ${email}`)
 }
 
 // General access is a frappe-ui <Select> (#292, tiers from #106): click the trigger
@@ -108,7 +118,7 @@ test.describe('sharing: inviting people', () => {
     await openShareDialog(page)
     await invite(page, TARGET, 'edit')
 
-    await expect(memberRow(page, TARGET), 'the invited member did not render').toBeVisible()
+    await expect(memberAccessControl(page, TARGET), 'the invited member did not render').toBeVisible()
   })
 
   test('changing a member level updates the persisted share', async ({ page, diagram }) => {
@@ -143,7 +153,7 @@ test.describe('sharing: inviting people', () => {
       .poll(async () => (await fetchShares(page, name)).length, { timeout: 20_000 })
       .toBeGreaterThan(0)
 
-    await page.getByRole('button', { name: 'Remove' }).first().click()
+    await setRole(page, `Access level for ${TARGET}`, 'remove')
 
     await expect
       .poll(async () => (await fetchShares(page, name)).some((s) => s.user === TARGET), {
