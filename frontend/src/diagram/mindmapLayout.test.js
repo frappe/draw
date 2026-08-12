@@ -156,3 +156,55 @@ function span(positions, model) {
   const bottom = Math.max(...boxes.map((b) => b.y + b.h))
   return bottom - top
 }
+
+// #427: nodes at the same level should read as evenly spaced. The old rule gave a
+// branch a band as tall as its whole subtree and centred it there, so a branch with
+// children sat four times further from its neighbour than two plain ones did.
+describe('even sibling spacing (#427)', () => {
+  const gapsBetween = (model, parentId, positions) => {
+    const boxes = model.nodes
+      .filter((node) => node.parentId === parentId)
+      .map((node) => positions[node.id])
+      .sort((a, b) => a.y - b.y)
+    return boxes.slice(1).map((box, i) => box.y - (boxes[i].y + boxes[i].h))
+  }
+
+  it('spaces siblings equally when one of them carries children', () => {
+    const model = createMindMap()
+    const bushy = addChild(model, model.rootId, 'bushy', 'right')
+    addChild(model, model.rootId, 'plain', 'right')
+    const last = addChild(model, model.rootId, 'last', 'right')
+    for (let i = 0; i < 3; i += 1) addChild(model, bushy, `b${i}`, 'right')
+    addChild(model, last, 'l0', 'right')
+
+    const { positions } = layoutMindMap(model)
+    const gaps = gapsBetween(model, model.rootId, positions)
+    expect(new Set(gaps).size, `sibling gaps were uneven: ${gaps.join(', ')}`).toBe(1)
+    assertNoOverlaps(positions)
+  })
+
+  it('spaces siblings equally when their labels are different heights', () => {
+    const model = createMindMap()
+    addChild(model, model.rootId, 'short', 'right')
+    addChild(model, model.rootId, 'a much longer label that has to wrap several times over', 'right')
+    addChild(model, model.rootId, 'middling label', 'right')
+
+    const { positions } = layoutMindMap(model)
+    const gaps = gapsBetween(model, model.rootId, positions)
+    expect(new Set(gaps).size, `sibling gaps were uneven: ${gaps.join(', ')}`).toBe(1)
+    assertNoOverlaps(positions)
+  })
+
+  it('never overlaps, even where descendants force a wider gap', () => {
+    const model = createMindMap()
+    const ids = []
+    for (let i = 0; i < 5; i += 1) ids.push(addChild(model, model.rootId, `n${i}`, 'right'))
+    for (let i = 0; i < 4; i += 1) addChild(model, ids[2], `deep${i}`, 'right')
+    for (let i = 0; i < 2; i += 1) addChild(model, ids[0], `x${i}`, 'right')
+
+    const { positions } = layoutMindMap(model)
+    assertNoOverlaps(positions)
+    // The level below is packed evenly, whatever the level above had to do.
+    expect(new Set(gapsBetween(model, ids[2], positions)).size).toBe(1)
+  })
+})

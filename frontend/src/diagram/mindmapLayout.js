@@ -8,6 +8,7 @@
 import { childrenOf, nodeById, subtreeIds, rootNodes, treeOrigin } from './mindmapModel.js'
 import { mindmapNodeSize, NODE_PAD_X, LINE_HEIGHT } from './mindmapNodeSize.js'
 import { unionBounds } from './geometry.js'
+import { tidySubtree, tidyGroup } from './mindmapTidy.js'
 
 const H_GAP = 70 // horizontal gap between depth columns
 const V_GAP = 18 // vertical gap between sibling subtrees
@@ -34,7 +35,6 @@ export function layoutMindMap(model) {
   const roots = rootNodes(model)
   if (!roots.length) return { positions: {}, bbox: { x: 0, y: 0, w: 0, h: 0 } }
   const sizes = sizeNodes(model)
-  const metrics = makeSubtreeMetrics(model, sizes)
   const positions = {}
   // The anchor is the first tree's layout BEFORE its own origin is applied, so it
   // is fixed for a given set of nodes: moving ANY tree — the first one included —
@@ -42,7 +42,7 @@ export function layoutMindMap(model) {
   let anchor = null
   for (const root of roots) {
     const tree = {}
-    placeRoot(model, root, sizes, metrics, tree)
+    placeRoot(model, root, sizes, tree)
     if (!anchor) anchor = bounds(Object.values(tree))
     const origin = treeOrigin(root)
     for (const id in tree) {
@@ -89,29 +89,19 @@ export function mindmapTreeRects(model, positions, pad = 0) {
   return rects
 }
 
-// Memoised subtree heights + the stacked-band height of a sibling group.
-// A node's subtree height is its own height or its children band, whichever is
-// taller; collapsed nodes count as leaves.
-function makeSubtreeMetrics(model, sizes) {
-  const memo = new Map()
-  function height(node) {
-    if (memo.has(node.id)) return memo.get(node.id)
-    const children = node.collapsed ? [] : childrenOf(model, node.id)
-    let value = sizes[node.id].h
-    if (children.length) value = Math.max(value, band(children))
-    memo.set(node.id, value)
-    return value
-  }
-  function band(children) {
-    const total = children.reduce((sum, child) => sum + height(child), 0)
-    return total + (children.length - 1) * V_GAP
-  }
-  return { height, band }
+// The vertical shape of one branch, packed by contour (mindmapTidy): where every
+// node under it sits relative to the branch itself.
+function tidyBranch(model, branch, sizes) {
+  return tidySubtree(branch, {
+    sizeOf: (node) => sizes[node.id],
+    childrenOf: (node) => (node.collapsed ? [] : childrenOf(model, node.id)),
+    gap: V_GAP,
+  })
 }
 
 // Root centred at the origin; first-level branches split left/right (alternating
 // by order for a deterministic, roughly balanced split), each side mirrored.
-function placeRoot(model, root, sizes, metrics, positions) {
+function placeRoot(model, root, sizes, positions) {
   const rootSize = sizes[root.id]
   positions[root.id] = { x: -rootSize.w / 2, y: -rootSize.h / 2, ...rootSize }
 
@@ -128,36 +118,35 @@ function placeRoot(model, root, sizes, metrics, positions) {
     else (autoIndex++ % 2 === 0 ? right : left).push(branch)
   }
 
-  placeSide(model, right, rootSize.w / 2 + H_GAP, 1, sizes, metrics, positions)
-  placeSide(model, left, -rootSize.w / 2 - H_GAP, -1, sizes, metrics, positions)
+  placeSide(model, right, rootSize.w / 2 + H_GAP, 1, sizes, positions)
+  placeSide(model, left, -rootSize.w / 2 - H_GAP, -1, sizes, positions)
 }
 
-// Stack a side's branch subtrees, vertically centred on the root (y=0).
-function placeSide(model, branches, attachX, dir, sizes, metrics, positions) {
+// Stack a side's branches, each clearing the ones already placed at the depths they
+// share, with the group centred on the root (y=0).
+function placeSide(model, branches, attachX, dir, sizes, positions) {
   if (!branches.length) return
-  let top = -metrics.band(branches) / 2
-  for (const branch of branches) {
-    const height = metrics.height(branch)
-    place(model, branch, attachX, top + height / 2, dir, sizes, metrics, positions)
-    top += height + V_GAP
-  }
+  const tidied = branches.map((branch) => tidyBranch(model, branch, sizes))
+  const shifts = tidyGroup(tidied, V_GAP)
+  branches.forEach((branch, index) => {
+    place(model, branch, attachX, shifts[index], dir, sizes, tidied[index], positions)
+  })
 }
 
-// Position one node (its edge nearest the root at `attachX`), then recurse to its
-// children one column further out in direction `dir` (+1 right, -1 left).
-function place(model, node, attachX, centerY, dir, sizes, metrics, positions) {
-  const size = sizes[node.id]
-  const x = dir > 0 ? attachX : attachX - size.w
-  positions[node.id] = { x, y: centerY - size.h / 2, ...size }
-
-  const children = node.collapsed ? [] : childrenOf(model, node.id)
-  if (!children.length) return
-  const childAttachX = dir > 0 ? x + size.w + H_GAP : x - H_GAP
-  let top = centerY - metrics.band(children) / 2
-  for (const child of children) {
-    const height = metrics.height(child)
-    place(model, child, childAttachX, top + height / 2, dir, sizes, metrics, positions)
-    top += height + V_GAP
+// Position a branch and everything under it. `centerY` is the branch's own centre;
+// each descendant sits at its packed offset from it, and each depth is one column
+// further out in direction `dir` (+1 right, -1 left).
+function place(model, node, attachX, centerY, dir, sizes, tidied, positions) {
+  const columnX = { [node.id]: attachX }
+  for (const [id, dy] of tidied.offsets) {
+    const size = sizes[id]
+    const attach = columnX[id]
+    const x = dir > 0 ? attach : attach - size.w
+    positions[id] = { x, y: centerY + dy - size.h / 2, ...size }
+    const nodeAt = nodeById(model, id)
+    const children = nodeAt?.collapsed ? [] : childrenOf(model, id)
+    const childAttach = dir > 0 ? x + size.w + H_GAP : x - H_GAP
+    for (const child of children) columnX[child.id] = childAttach
   }
 }
 
