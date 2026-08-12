@@ -8,6 +8,11 @@ from frappe.tests import IntegrationTestCase
 import frappe
 
 
+# Sentinel for _whitelisted_methods: the decorator is not @frappe.whitelist at all,
+# which is different from a whitelist that declares no methods.
+_NOT_WHITELISTED = object()
+
+
 class TestDrawDiagram(IntegrationTestCase):
 	def _make(self, diagram_type, doc_json, title=None):
 		doc = frappe.get_doc(
@@ -1335,3 +1340,85 @@ class TestDrawDiagram(IntegrationTestCase):
 			"whitelisted endpoints with unannotated arguments fail over HTTP with 417:\n"
 			+ "\n".join(offenders),
 		)
+
+	# Endpoint-name prefixes that mean "this changes something".
+	_MUTATING_PREFIXES = (
+		"add_",
+		"create_",
+		"delete_",
+		"duplicate_",
+		"edit_",
+		"move_",
+		"purge_",
+		"remove_",
+		"rename_",
+		"reply_",
+		"resolve_",
+		"save_",
+		"set_",
+		"share_",
+		"unshare_",
+		"upload_",
+	)
+
+	def test_every_whitelisted_write_is_post_only(self):
+		"""A whitelisted method with no `methods` is reachable by GET, which puts it
+		one cross-site request away from being fired by any page the victim visits.
+		Sharing is the worst case — it grants the attacker standing access rather than
+		damaging one document — but comments and the Drive hand-off were the same
+		shape.
+
+		Frappe rolls a GET back, so nothing persisted today. That is a property of the
+		transaction handler, not of these modules: diagram.py already had a manual
+		commit turn exactly this into a live CSRF write vector, which is why the rule
+		is checked rather than assumed.
+
+		Signature-checked like the annotation test above, for the same reason — an
+		in-process call cannot see which HTTP verbs the endpoint would accept.
+		"""
+		import ast
+		import pathlib
+
+		app_root = pathlib.Path(frappe.get_app_path("draw"))
+		offenders = []
+		checked = 0
+
+		for path in app_root.rglob("*.py"):
+			for node in ast.walk(ast.parse(path.read_text())):
+				if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+					continue
+				if not node.name.startswith(self._MUTATING_PREFIXES):
+					continue
+				for decorator in node.decorator_list:
+					methods = self._whitelisted_methods(decorator)
+					if methods is _NOT_WHITELISTED:
+						continue
+					checked += 1
+					if methods is None or "GET" in methods:
+						rel = path.relative_to(app_root.parent)
+						offenders.append(f"{rel}:{node.lineno} {node.name}() -> {methods or 'any verb'}")
+
+		self.assertGreater(checked, 0, "found no write endpoints to check — is the walk broken?")
+		self.assertEqual(
+			offenders,
+			[],
+			'these endpoints CHANGE data but accept GET; add methods=["POST"]:\n' + "\n".join(offenders),
+		)
+
+	@staticmethod
+	def _whitelisted_methods(decorator):
+		"""The `methods` a @frappe.whitelist decorator declares.
+
+		Returns _NOT_WHITELISTED for any other decorator, None for a bare
+		@frappe.whitelist() (which accepts every verb), else the declared list.
+		"""
+		import ast
+
+		if isinstance(decorator, ast.Call) and getattr(decorator.func, "attr", "") == "whitelist":
+			for keyword in decorator.keywords:
+				if keyword.arg == "methods":
+					return [element.value for element in keyword.value.elts]
+			return None
+		if getattr(decorator, "attr", "") == "whitelist":
+			return None
+		return _NOT_WHITELISTED

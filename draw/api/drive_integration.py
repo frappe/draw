@@ -158,7 +158,7 @@ def is_available() -> dict:
 	return {"installed": available, "ready": available}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def add_to_drive(name: str) -> dict:
 	"""Manual (re-)register entry point, kept as a fallback now that registration
 	is automatic on create (e.g. for diagrams made before this shipped, or if the
@@ -166,7 +166,7 @@ def add_to_drive(name: str) -> dict:
 	return {"drive_installed": drive_available(), "file": register_diagram_in_drive(name)}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def move_to_drive_folder(name: str, folder: str | None = None) -> dict:
 	"""Move a diagram's backing Drive File into `folder` (a Drive File id), or into
 	the owner's Drive Home when `folder` is empty (#105). No-op shape when Drive is

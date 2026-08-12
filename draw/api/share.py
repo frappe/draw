@@ -9,6 +9,16 @@
 #     site_users_view / public_view (see set_general_access). The tiers map to the
 #     `is_public` and `all_site_users_can_view` flags and are enforced by
 #     draw.api.permission (list) + draw.api.diagram (document read).
+#
+# Every endpoint that CHANGES access is POST-only. A whitelisted method with no
+# `methods` is reachable by GET, which makes it a cross-site request away from
+# being triggered by any page the victim visits — and a share is exactly the write
+# an attacker would want, since it grants themselves standing access rather than
+# damaging one document. The framework rolls a GET back, so nothing persisted
+# today, but that is a property of the transaction handler rather than of this
+# module: diagram.py already had a manual commit turn the same shape into a live
+# CSRF write vector. The rest of Draw's write endpoints are POST-only; these were
+# the exception (#422).
 
 import frappe
 from frappe import _
@@ -45,7 +55,7 @@ def _validate_share_target(user: str) -> None:
 		frappe.throw(_("Unknown or disabled user: {0}").format(user))
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def share_diagram(name: str, user: str, level: str = "view") -> list:
 	"""Share a diagram with a user at view / comment / edit level (idempotent —
 	re-sharing updates the level). Returns the current share list."""
@@ -66,7 +76,7 @@ def share_diagram(name: str, user: str, level: str = "view") -> list:
 	return get_diagram_shares(name)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def unshare_diagram(name: str, user: str) -> list:
 	"""Revoke a user's access. Returns the current share list."""
 	_check_can_share(name)
@@ -154,7 +164,7 @@ def search_users(txt: str = "") -> list:
 	)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def set_general_access(name: str, level: str) -> str:
 	"""Set a diagram's general-access tier (GitHub #106). VIEW-ONLY, one of:
 	'restricted' (invited members only), 'site_users_view' (every signed-in site
@@ -190,7 +200,7 @@ def get_general_access(name: str) -> str:
 	return general_access_level(flags)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def set_public(name: str, enabled: int) -> None:
 	"""Backward-compatible shim for the old two-state public toggle: flip the
 	public_view tier on/off via the diagram's is_public flag. New clients call

@@ -144,7 +144,7 @@ def _attach_authors(rows: list) -> None:
 # --- writes ------------------------------------------------------------------
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def add_comment(
 	diagram: str,
 	content: str,
@@ -183,7 +183,7 @@ def add_comment(
 	return _enriched(doc)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def reply_comment(diagram: str, parent_comment: str, content: str) -> dict:
 	"""Reply to a thread's root comment. Gated on the comment permission."""
 	_assert_can_comment(diagram)
@@ -206,7 +206,7 @@ def reply_comment(diagram: str, parent_comment: str, content: str) -> dict:
 	return _enriched(doc)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def resolve_comment(diagram: str, comment: str, resolved: int = 1) -> dict:
 	"""Resolve or reopen a thread. Any comment-level user may do this (Vibhav's call);
 	only a root carries resolved state."""
@@ -225,7 +225,7 @@ def resolve_comment(diagram: str, comment: str, resolved: int = 1) -> dict:
 	return _enriched(root)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def edit_comment(diagram: str, comment: str, content: str) -> dict:
 	"""Edit a comment's text. Author only — moderating someone else's words is not a
 	delete-and-replace we want to hide."""
@@ -240,7 +240,7 @@ def edit_comment(diagram: str, comment: str, content: str) -> dict:
 	return _enriched(doc)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def delete_comment(diagram: str, comment: str) -> dict:
 	"""Delete a comment. The author may delete their own; the owner / editors may
 	delete anyone's. Deleting a root takes its replies with it (controller on_trash)."""
