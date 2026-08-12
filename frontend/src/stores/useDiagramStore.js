@@ -19,6 +19,7 @@ import {
 } from '@/diagram/freeFloating.js'
 import { mindmapModelFromShapes, flowchartModelFromShapes } from '@/diagram/freeFloatingGraph.js'
 import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild, flowchartLayoutPatches, mindmapLayoutPatches } from '@/diagram/freeFloatingOps.js'
+import { mindmapNodeSize } from '@/diagram/mindmapNodeSize.js'
 import { DEFAULT_NODE_STYLE } from '@/diagram/mindmapNodeStyle.js'
 import { useAppSettings } from '@/composables/useAppSettings.js'
 import {
@@ -359,6 +360,24 @@ function attachMindMap(store, state, history) {
       const node = state.mindmap?.nodes.find((n) => n.id === id)
       if (node) applyPatch(node, patch)
     })
+  // Land an edited label on a free-floating node: the text, the box that text
+  // measures to, and the re-flow that box needs, as ONE undoable unit (#427).
+  // Typing itself never re-flows — a tree that rearranged on every keystroke is
+  // what made editing feel like fighting the layout — so the tree settles once,
+  // here, when the editor closes.
+  store.commitMindmapNodeText = (id, text) => {
+    const shape = state.shapes.find((s) => s.id === id)
+    if (!shape) return
+    const size = mindmapNodeSize({
+      text: text.content,
+      fontSize: shape.text?.style?.size,
+      isRoot: !shape.mindmap?.parentId,
+    })
+    history.commit('Update node text', () => {
+      applyPatch(shape, { text, ...size })
+      reflowTree(id)
+    })
+  }
   // Delete migrated mind-map SHAPES and their whole subtrees (free-floating #122):
   // reconstruct the tree from the tags, expand each id to its descendants, then drop
   // those shapes and any connector touching them — one undoable unit, no dangling

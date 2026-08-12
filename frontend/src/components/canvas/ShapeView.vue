@@ -456,13 +456,30 @@ useAutoFitText(richEl, () => ({
       </svg>
     </a>
 
+    <!-- A mind-map node's plain label wraps (#427 item 5). An SVG <text> is one
+         unwrapped line, so a long label simply spilled out of the node however
+         big the box was. It renders in the same padded area, and wraps at the
+         same width, that the box was measured against — so what is drawn fits. -->
+    <foreignObject
+      v-if="!isEditingThis && !richHtml && isMindmapNode && (shape.text?.content || mindmapPlaceholder)"
+      :x="textArea.x"
+      :y="textArea.y"
+      :width="textArea.w"
+      :height="textArea.h"
+      style="overflow: visible"
+    >
+      <div class="fd-richtext" :style="{ ...richStyle, color: labelFill }">
+        {{ mindmapPlaceholder ? 'New idea' : shape.text.content }}
+      </div>
+    </foreignObject>
+
     <!-- Legacy plain text (shapes with only a plain `content` string, no rich
          html). Must be its own v-if guarded by !richHtml: a shape with BOTH html
          and content (e.g. whiteboard text) would otherwise render the rich
          foreignObject AND this <text>, showing the text twice (Q2). The prior
          v-else-if chained to the hyperlink <a>, not the foreignObject. -->
     <text
-      v-if="!isEditingThis && !richHtml && (shape.text?.content || mindmapPlaceholder)"
+      v-if="!isEditingThis && !richHtml && !isMindmapNode && shape.text?.content"
       :x="center.x"
       :y="center.y"
       text-anchor="middle"
@@ -474,9 +491,8 @@ useAutoFitText(richEl, () => ({
       :text-decoration="textStyle.underline ? 'underline' : 'none'"
       :opacity="shape.opacity"
       :font-family="textStyle.font || 'Inter, sans-serif'"
-      :style="isMindmapNode ? { pointerEvents: 'none' } : null"
     >
-      {{ mindmapPlaceholder ? 'New idea' : shape.text.content }}
+      {{ shape.text.content }}
     </text>
   </g>
 </template>

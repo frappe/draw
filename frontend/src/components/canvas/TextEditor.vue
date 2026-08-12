@@ -24,6 +24,7 @@ import {
 import { textWidth, lineCount } from '@/diagram/textMetrics.js'
 import { RICH_EXTENSIONS, setActiveEditor, clearActiveEditor, contentToHtml } from '@/composables/useRichText.js'
 import { sanitizeRichText } from '@/utils/sanitizeHtml.js'
+import { mindmapNodeSize } from '@/diagram/mindmapNodeSize.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
@@ -51,6 +52,8 @@ function resolve(endpoint) {
   return { x: endpoint?.x || 0, y: endpoint?.y || 0 }
 }
 
+const isMindmapNode = computed(() => shape.value?.role === 'mindmap-node')
+
 const EDIT_RING = { boxShadow: 'inset 0 0 0 1.5px #006EDB', borderRadius: '4px' }
 // Room either side of the measured text, so the caret at the end of a line is not
 // flush against the edge of the box.
@@ -60,11 +63,15 @@ const fieldStyle = computed(() => {
   if (shape.value) {
     const text = shape.value.text || {}
     const nowrap = fitsWidthToText(shape.value) ? { whiteSpace: 'pre' } : {}
+    // A mind-map node's padding already lives in its text area, which is the box
+    // minus the frame it was measured with; padding the field again would wrap
+    // the text narrower than the box was sized for (#427).
+    const padding = isMindmapNode.value ? '0' : '4px 6px'
     return {
       ...textStyleCss(text.style, text.valign, text.align),
       ...EDIT_RING,
       ...nowrap,
-      padding: '4px 6px',
+      padding,
       height: '100%',
     }
   }
@@ -112,6 +119,7 @@ watch(
 // typed into it would move the diagram around them.
 function autoGrow() {
   if (!shape.value || !editor.value) return
+  if (isMindmapNode.value) return growMindmapNode()
   if (fitsWidthToText(shape.value)) return fitBoxToText()
   const dom = editor.value.view?.dom
   if (!dom) return
@@ -136,6 +144,20 @@ function fitBoxToText() {
   const height = Math.ceil(lineCount(text) * (style.size || 16) * LINE_HEIGHT) + 8
   if (width === shape.value.w && height === shape.value.h) return
   store.updateShape(shape.value.id, { w: width, h: height })
+}
+
+// A mind-map node is a text container: it takes the size its label measures to on
+// BOTH axes, so padding around the text stays constant and the text can never
+// leak out (#427 item 5). Measured, not read back from the DOM, so the box the
+// user is typing into is exactly the box the layout will space the tree against.
+function growMindmapNode() {
+  const size = mindmapNodeSize({
+    text: editor.value.getText() || '',
+    fontSize: shape.value.text?.style?.size,
+    isRoot: !shape.value.mindmap?.parentId,
+  })
+  if (size.w === shape.value.w && size.h === shape.value.h) return
+  store.updateShape(shape.value.id, size)
 }
 
 function growToFit(s, areaHeight) {
@@ -164,7 +186,11 @@ function commitShape() {
     store.removeShapes([shape.value.id])
     return
   }
-  store.updateShape(shape.value.id, { text: { html: editor.value.getHTML(), content: text } })
+  const value = { html: editor.value.getHTML(), content: text }
+  // A mind-map node settles its box and its tree in the same commit as the text,
+  // so one undo takes back the whole edit (#427).
+  if (isMindmapNode.value) return store.commitMindmapNodeText(shape.value.id, value)
+  store.updateShape(shape.value.id, { text: value })
 }
 
 function commitConnector() {

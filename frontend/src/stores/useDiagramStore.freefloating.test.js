@@ -288,3 +288,42 @@ describe('store.addChildNodeAt (gap insertion #265)', () => {
     expect(store.state.shapes.length).toBe(before)
   })
 })
+
+// #427 item 5/8: a node is a text container. Its box follows its label, and the
+// tree settles once when the edit lands — not on every keystroke.
+describe('store.commitMindmapNodeText (#427)', () => {
+  it('resizes the node to fit the committed label', () => {
+    const { store, ids } = migratedMindmapStoreWith(['right'])
+    const before = { ...store.shapeById(ids[0]) }
+    store.commitMindmapNodeText(ids[0], { content: 'a much longer idea than before', html: '' })
+    const after = store.shapeById(ids[0])
+    expect(after.text.content).toBe('a much longer idea than before')
+    expect(after.w).toBeGreaterThan(before.w)
+  })
+
+  it('is one undo step covering the text, the box and the re-flow', () => {
+    const { store, rootId, ids } = migratedMindmapStoreWith(['right', 'right'])
+    const sibling = { ...store.shapeById(ids[1]) }
+    const before = store.shapeById(ids[0])
+    const edited = { w: before.w, h: before.h, content: before.text.content }
+    store.commitMindmapNodeText(ids[0], { content: 'w'.repeat(80), html: '' })
+    store.undo()
+    const restored = store.shapeById(ids[0])
+    expect([restored.w, restored.h, restored.text.content]).toEqual([edited.w, edited.h, edited.content])
+    expect(store.shapeById(ids[1])).toMatchObject({ x: sibling.x, y: sibling.y })
+    expect(store.shapeById(rootId)).toBeTruthy()
+  })
+
+  it('re-flows so a grown node stops overlapping its sibling', () => {
+    const { store, ids } = migratedMindmapStoreWith(['right', 'right'])
+    store.commitMindmapNodeText(ids[0], { content: 'w'.repeat(120), html: '' })
+    const grown = store.shapeById(ids[0])
+    const sibling = store.shapeById(ids[1])
+    expect(grown.y + grown.h).toBeLessThanOrEqual(sibling.y)
+  })
+
+  it('ignores an id that is not on the canvas', () => {
+    const { store } = migratedMindmapStoreWith(['right'])
+    expect(() => store.commitMindmapNodeText('nope', { content: 'x', html: '' })).not.toThrow()
+  })
+})

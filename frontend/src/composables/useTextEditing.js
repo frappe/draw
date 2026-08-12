@@ -5,6 +5,7 @@
 
 import { reactive, computed } from 'vue'
 import { shapeCenter } from '@/diagram/geometry.js'
+import { mindmapTextArea } from '@/diagram/mindmapNodeSize.js'
 
 // The text area inside a shape. Diamonds/triangles use their inscribed
 // rectangle so wrapped text never spills past the sloped edges (spec §6).
@@ -71,6 +72,10 @@ function attachConnectorEditing(api, session, store) {
 // diamonds/triangles). Returns null when no shape is editing.
 export function shapeTextArea(shape) {
   if (!shape) return null
+  // A mind-map node's padding is part of its measured box (#427 item 5): the box
+  // was sized as text plus this frame, so editing and rendering must inset by the
+  // same frame or the text wraps at a width the box was never measured for.
+  if (shape.role === 'mindmap-node') return mindmapTextArea(shape)
   const factor = INSCRIBED_FACTOR[shape.type]
   if (!factor) {
     return { x: shape.x + TEXT_PADDING, y: shape.y, w: Math.max(8, shape.w - TEXT_PADDING * 2), h: shape.h }
