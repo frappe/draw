@@ -5,7 +5,7 @@
 // tables could be selected but never drag-moved — nothing on the table started a
 // move gesture, so startGroupMove was only ever reached from the sticky/frame.
 import { describe, it, expect, vi } from 'vitest'
-import { startTableMove, editTableCellAt } from './useWhiteboardInteraction.js'
+import { startTableMove, editTableCellAt, extendStroke } from './useWhiteboardInteraction.js'
 import { useWhiteboardUi } from './useWhiteboardUi.js'
 import { createWhiteboard, addTable } from '@/diagram/whiteboardModel.js'
 
@@ -128,5 +128,52 @@ describe('editTableCellAt', () => {
 
     expect(editTableCellAt(store, { x: 5, y: 5 })).toBe(false)
     expect(ui.state.editingCell).toBeNull()
+  })
+})
+
+// Freehand capture (#426). A stroke used to be run through RDP on pointer-up, so a
+// curve could visibly straighten the moment the pointer lifted. The thinning that
+// keeps the document compact happens during capture now, which is why it has to be
+// small enough to be invisible and strict enough to still drop dead samples.
+describe('thinning a stroke while it is drawn', () => {
+  const draw = (...points) => {
+    const drawing = { points: [] }
+    const grew = points.map((point) => extendStroke(drawing, point))
+    return { kept: drawing.points, grew }
+  }
+
+  it('keeps the first point, whatever it is', () => {
+    const { kept, grew } = draw({ x: 7, y: 9 })
+    expect(kept).toEqual([{ x: 7, y: 9 }])
+    expect(grew).toEqual([true])
+  })
+
+  it('drops a sample that has barely moved, and says so', () => {
+    const { kept, grew } = draw({ x: 0, y: 0 }, { x: 0.4, y: 0.2 }, { x: 0.5, y: 0 })
+    expect(kept, 'a pointer that has not travelled still added points').toEqual([{ x: 0, y: 0 }])
+    expect(grew, 'the caller was told to re-render for a point that was dropped').toEqual([
+      true,
+      false,
+      false,
+    ])
+  })
+
+  it('keeps every sample a hand actually moves between', () => {
+    const drawn = [
+      { x: 0, y: 0 },
+      { x: 3, y: 1 },
+      { x: 6, y: 4 },
+      { x: 6, y: 9 },
+    ]
+    expect(draw(...drawn).kept).toEqual(drawn)
+  })
+
+  // The distance is measured from the last point KEPT, not the last one seen —
+  // otherwise a slow drag creeping a third of a unit per event is dropped forever
+  // and the stroke never grows past its first point.
+  it('accumulates a slow drag instead of discarding it forever', () => {
+    const creep = Array.from({ length: 6 }, (_, i) => ({ x: (i + 1) * 0.4, y: 0 }))
+    const { kept } = draw({ x: 0, y: 0 }, ...creep)
+    expect(kept.length, 'a slow drag never reached the threshold').toBeGreaterThan(1)
   })
 })

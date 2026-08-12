@@ -22,7 +22,7 @@ import {
   tableCellRuns,
 } from '@/diagram/whiteboardModel.js'
 import { resolveMark } from '@/diagram/richText.js'
-import { pointsToPath } from '@/diagram/svgPath.js'
+import { pointsToPath, smoothPath } from '@/diagram/svgPath.js'
 import { polygonPointsString } from '@/diagram/polygon.js'
 import { shapeCornerRadius, SHARP_CORNER_RADIUS } from '@/diagram/shapeGeometry.js'
 import { contrastInk, HIGHLIGHTER_OPACITY } from '@/diagram/whiteboardColors.js'
@@ -445,12 +445,15 @@ const WB_BODY = {
   sticky: whiteboardSticky,
 }
 
+// Curved through the same builder the canvas uses (#426). A stroke drawn as a
+// smooth line on screen and exported as a polyline is the divergence #409 is
+// about, one function further down the same file.
 function whiteboardStroke(stroke) {
   if (!stroke.points || stroke.points.length < 2) return ''
   const opacity = stroke.kind === 'highlighter' ? HIGHLIGHTER_OPACITY : 1
   const linecap = stroke.kind === 'highlighter' ? 'butt' : 'round'
   const color = safeColor(stroke.color, '#171717')
-  return `<path d="${pointsToPath(stroke.points)}" fill="none" stroke="${color}" stroke-width="${num(stroke.width, 2)}" stroke-opacity="${opacity}" stroke-linecap="${linecap}" stroke-linejoin="round"/>`
+  return `<path d="${smoothPath(stroke.points)}" fill="none" stroke="${color}" stroke-width="${num(stroke.width, 2)}" stroke-opacity="${opacity}" stroke-linecap="${linecap}" stroke-linejoin="round"/>`
 }
 
 function whiteboardSticky(note) {

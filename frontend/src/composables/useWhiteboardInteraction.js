@@ -4,17 +4,17 @@
 // `point` already in canvas units from the shared viewport transform, so pen
 // width, hit-tests and placement are correct at any zoom (Part G4/C10).
 //
-// Drawing accumulates raw points on pointermove; on pointer-up the path is
-// simplified with RDP (diagram/strokeSimplify.js, Part G7) BEFORE it reaches the
-// store, so autosave (debounced on the document) only sees a completed, compact
-// stroke (spec W2/C10). Each store mutation is one undoable unit (Part G6).
+// Drawing accumulates points on pointermove, dropping only those that land within
+// MIN_POINT_DISTANCE of the last one kept, and commits exactly those points on
+// pointer-up. The path is NOT re-shaped at the end (#426, replacing the RDP pass of
+// spec G7): thinning the user can see happen beats handing back a different line
+// than the one they drew. Each store mutation is one undoable unit (Part G6).
 
 import { onBeforeUnmount } from 'vue'
 import { HANDWRITTEN_FONT } from '@/composables/useTextEditing.js'
 import { contrastInk } from '@/diagram/whiteboardColors.js'
 import { registerModeInteraction, unregisterModeInteraction, useModeInteraction } from '@/composables/useModeInteraction.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
-import { simplifyStroke } from '@/diagram/strokeSimplify.js'
 import {
   strokeAt, lineAt, tableAt, tableCellAt, tableById, mergeCovering,
   colWidthsOf, rowHeightsOf, resizeTableColumn, resizeTableRow, MIN_TABLE_CELL,
@@ -134,6 +134,28 @@ function placeTable(context, store, editorUi, ui) {
   ui.selectTable(id)
 }
 
+// The closest two captured points may sit, in canvas units. A pointer that has not
+// really travelled still fires moves — hand tremor, a high-rate mouse, a stylus
+// resting — and each one used to become a point. Those samples carry no shape,
+// only weight in the saved document, and clustering them is what made a slow line
+// wobble. Small enough that nothing a hand can draw is lost: at 1 unit a deliberate
+// curve still records a point every screen pixel at 100% zoom.
+const MIN_POINT_DISTANCE = 1
+
+// Add `point` to the stroke unless it is closer than MIN_POINT_DISTANCE to the last
+// one kept. Returns whether the stroke actually grew, so the caller can skip the
+// re-render too. This is the ONLY thinning a stroke gets (#426) — it happens while
+// drawing, in front of the user, rather than re-shaping the finished path.
+//
+// Exported for useWhiteboardInteraction.test.js: the thinning rule is the whole of
+// what keeps the document compact now, so it is worth pinning on its own.
+export function extendStroke(drawing, point) {
+  const last = drawing.points[drawing.points.length - 1]
+  if (last && Math.hypot(point.x - last.x, point.y - last.y) < MIN_POINT_DISTANCE) return false
+  drawing.points.push(point)
+  return true
+}
+
 // Start capturing a freehand stroke; the live preview renders from ui.liveStroke.
 function beginStroke(context, ui, drawing, tool) {
   drawing.active = true
@@ -185,7 +207,7 @@ function restoreErasable(state, original) {
 
 function onPointerMove(event, context, ui, drawing, erasing, store, lining, lasering) {
   if (drawing.active) {
-    drawing.points.push(context.point)
+    if (!extendStroke(drawing, context.point)) return
     // Re-assign so the live preview re-renders (a pushed array isn't reactive).
     ui.liveStroke.value = { ...ui.liveStroke.value, points: [...drawing.points] }
     return
@@ -264,16 +286,20 @@ function finishLine(ui, lining, store) {
   ui.selectLine(id)
 }
 
-// Simplify (RDP) then commit so autosave only sees the compact final path
-// (spec W2/C10/G7). Discard a degenerate (single-point) stroke.
+// Commit exactly the points that were drawn. Nothing is re-shaped here (#426):
+// the stroke used to be run through RDP on pointer-up, which is why a curve could
+// visibly straighten the moment the pointer lifted — the user drew one line and
+// was handed another. The thinning that keeps the document compact now happens
+// during capture instead, so the committed path IS the previewed path.
+// Discard a degenerate (single-point) stroke.
 function finishStroke(ui, drawing, store) {
   drawing.active = false
   const live = ui.liveStroke.value
   ui.liveStroke.value = null
-  const simplified = simplifyStroke(drawing.points)
+  const points = drawing.points
   drawing.points = []
-  if (!live || simplified.length < 2) return
-  store.addStroke(simplified, { color: live.color, width: live.width, kind: live.kind })
+  if (!live || points.length < 2) return
+  store.addStroke(points, { color: live.color, width: live.width, kind: live.kind })
 }
 
 // One erase sample: the tip at `point` either rubs ink out or takes whole objects,

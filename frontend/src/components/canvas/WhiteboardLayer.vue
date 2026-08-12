@@ -20,7 +20,7 @@ import { useWhiteboardInteraction } from '@/composables/useWhiteboardInteraction
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { trailSegments, LASER_COLOR, LASER_HEAD_RADIUS, LASER_FADE_MS } from '@/diagram/laser.js'
 import { roughenSegment } from '@/diagram/sketch.js'
-import { pointsToPath } from '@/diagram/svgPath.js'
+import { pointsToPath, smoothPath } from '@/diagram/svgPath.js'
 import { whiteboardObjectsInZOrder, isWhiteboardEmpty } from '@/diagram/whiteboardModel.js'
 import ConnectorView from './ConnectorView.vue'
 import ShapeView from './ShapeView.vue'
@@ -55,10 +55,15 @@ const orderedObjects = computed(() => [
 // SVG path `d` for a stroke. Highlighter and pen share the geometry; sketch mode
 // roughens each segment into a hand-drawn wobble (spec C4). Width is in canvas
 // units so it scales with zoom (spec C10).
+//
+// Curved, not a polyline (#426): straight segments between captured points is what
+// made every freehand stroke read as angular however densely it was sampled. Sketch
+// mode keeps the straight segments — its whole effect is the deliberate wobble, and
+// curving through it would smooth away the thing it exists to add.
 function strokePath(stroke) {
   const points = stroke.points
   if (points.length < 2) return ''
-  if (!props.whiteboard.sketchStyle) return pointsToPath(points)
+  if (!props.whiteboard.sketchStyle) return smoothPath(points)
   const wobbled = []
   for (let i = 0; i < points.length - 1; i += 1) {
     const segment = roughenSegment(points[i], points[i + 1], Math.max(1, stroke.width * 0.4), i + 1)

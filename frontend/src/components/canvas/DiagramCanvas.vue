@@ -679,6 +679,14 @@ const DRAW_CURSOR =
 const PEN_CURSOR =
   "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path d='M3 21 L4.5 16 L16 4.5 L19.5 8 L8 19.5 Z' fill='white' stroke='black' stroke-width='1.4' stroke-linejoin='round'/><line x1='14.5' y1='6' x2='18' y2='9.5' stroke='black' stroke-width='1.4'/><path d='M3 21 L4.5 16 L8 19.5 Z' fill='black'/></svg>\") 3 21, crosshair"
 
+// Highlighter: the Draw tool's other ink, and until now it borrowed the pen's
+// cursor, so nothing but the popover said which one was loaded (#426). Same
+// construction as PEN_CURSOR — white body, black outline, tip on the hotspot — so
+// the two read as siblings; the difference is the silhouette, a broad chisel tip
+// against the pen's narrow nib, which survives being 24px on any background.
+const HIGHLIGHTER_CURSOR =
+  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path d='M3 21 L3.5 15.5 L15 4 L20 9 L8.5 20.5 Z' fill='white' stroke='black' stroke-width='1.4' stroke-linejoin='round'/><line x1='13.5' y1='5.5' x2='18.5' y2='10.5' stroke='black' stroke-width='1.4'/><path d='M3 21 L3.5 15.5 L8.5 20.5 Z' fill='black'/></svg>\") 3 21, crosshair"
+
 // Eraser tool: a circle the size of the actual tip, centered on the pointer, so
 // the size picked in the eraser options is visible while erasing (#39). The tip
 // radius is in canvas units, so it scales with zoom; clamped to what a cursor
@@ -708,7 +716,10 @@ const surfaceCursor = computed(() => {
   if (editorUi.state.pendingComment) return DRAW_CURSOR
   if (tool === 'hand') return 'grab'
   if (tool === 'draw') return DRAW_CURSOR
-  if (tool === 'pen') return PEN_CURSOR
+  // 'pen' is the merged Draw tool; which ink it lays down is drawKind (#242).
+  if (tool === 'pen') {
+    return whiteboardUi.state.drawKind === 'highlighter' ? HIGHLIGHTER_CURSOR : PEN_CURSOR
+  }
   if (tool === 'eraser') return eraserCursor(whiteboardUi.state.eraserSize, viewport.state.zoom)
   // Armed laser shows only the red dot, not the OS arrow on top of it (#253).
   if (tool === 'laser') return 'none'

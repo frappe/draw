@@ -19,6 +19,31 @@ export function pointsToPath(points, close = false) {
   return `${head} ${rest.join(' ')}${close ? ' Z' : ''}`
 }
 
+// The same point path drawn as a SMOOTH curve: one quadratic per captured point,
+// which takes the point itself as the control and the midpoint to its neighbour as
+// the end. The curve therefore passes through every midpoint and bends around every
+// captured point, so a freehand path reads as a drawn line instead of the chain of
+// straight segments `pointsToPath` produces (#426).
+//
+// It changes only how the points are DRAWN — none of them move, none are dropped.
+// That is what lets the live preview and the committed stroke render identically:
+// the same points through the same builder, before and after the pointer lifts.
+//
+// Two points or fewer have no interior to curve through, so they fall back to the
+// straight path. Coordinates are coerced by the same `coord` as above.
+export function smoothPath(points) {
+  if (!points || points.length < 3) return points ? pointsToPath(points) : ''
+  const parts = [`M ${coord(points[0].x)} ${coord(points[0].y)}`]
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const midX = (Number(points[i].x) + Number(points[i + 1].x)) / 2
+    const midY = (Number(points[i].y) + Number(points[i + 1].y)) / 2
+    parts.push(`Q ${coord(points[i].x)} ${coord(points[i].y)} ${coord(midX)} ${coord(midY)}`)
+  }
+  const last = points[points.length - 1]
+  parts.push(`L ${coord(last.x)} ${coord(last.y)}`)
+  return parts.join(' ')
+}
+
 function coord(value) {
   const n = Number(value)
   return Number.isFinite(n) ? n : 0

@@ -314,7 +314,7 @@ Push document mutations, never layout positions. Recompute layout after undo/red
 ### G7. De-risk hard algorithms (simplest-correct first)
 - Mind-map layout: first right-side-only non-overlapping (subtree extents bottom-up, positions top-down), tested; then balanced left/right.
 - Flowchart positioning: per-node `manuallyPositioned` flag; auto-place/reflow only move non-manual + newly inserted; Tidy clears flags.
-- Whiteboard strokes: simplify (RDP) on pointer-up; hit-test path geometry.
+- Whiteboard strokes: thin during capture (drop a sample within 1 canvas unit of the last kept point); hit-test path geometry. **Amended August 2026, #426** — this said "simplify (RDP) on pointer-up", which re-shaped the finished stroke: a curve could visibly straighten the moment the pointer lifted, so the user was handed a different line from the one they drew. Thinning while drawing keeps the document compact in front of the user instead of behind their back, and the committed path is exactly the previewed one. Reinstate a pointer-up pass only if stroke weight in the document becomes a measured problem, and then only at a tolerance that cannot be seen.
 
 ### G8. One render-to-SVG path
 Each strategy renders to SVG; export/thumbnail/print/viewer reuse it. Frame content bbox (critical for auto-expanding canvases). Laser/grid never exported. Viewer = same path, tools disabled.
