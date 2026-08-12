@@ -97,15 +97,23 @@ test.describe('mind map interaction (#427)', () => {
   // else. Branch C is on the other side of the root and may not budge.
   test('dragging a node among its siblings re-orders it and leaves other branches alone', async ({ page, diagram }) => {
     const name = await diagram.open('unified', { framesInView: true })
-    const untouched = await ffShape(page, 'm4').boundingBox()
-    const source = await boxInWindow(page, ffShape(page, 'm3'), 'Branch B')
-    const above = await boxInWindow(page, ffShape(page, 'm2'), 'Branch A')
 
-    await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2)
-    await page.mouse.down()
-    // Just above Branch A: the slot before the first child.
-    await page.mouse.move(above.x + above.width / 2, above.y - 24, { steps: 15 })
-    await page.mouse.up()
+    // Re-order Branch B above Branch A. This first drag also settles the seeded
+    // map, whose boxes predate measuring a node from its text — they are re-sized
+    // once here, which moves every branch a little. What must not happen is a
+    // branch moving on LATER edits, so the baseline is taken after this one.
+    const reorder = async () => {
+      const source = await boxInWindow(page, ffShape(page, 'm3'), 'Branch B')
+      const target = await boxInWindow(page, ffShape(page, 'm2'), 'Branch A')
+      const above = target.y < source.y ? target : source
+      const moving = target.y < source.y ? source : target
+      await page.mouse.move(moving.x + moving.width / 2, moving.y + moving.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(above.x + above.width / 2, above.y - 24, { steps: 15 })
+      await page.mouse.up()
+      await page.waitForTimeout(500)
+    }
+    await reorder()
 
     await expect
       .poll(async () => {
@@ -121,6 +129,10 @@ test.describe('mind map interaction (#427)', () => {
         timeout: 20_000,
       })
       .toBe(true)
+    // Now the settled tree: another re-order must move the dragged node and
+    // nothing else. Branch C is on the other side of the root and may not budge.
+    const untouched = await ffShape(page, 'm4').boundingBox()
+    await reorder()
     const after = await ffShape(page, 'm4').boundingBox()
     expect(
       { x: Math.round(after.x), y: Math.round(after.y) },
