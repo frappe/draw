@@ -6,6 +6,7 @@ import {
   flowchartNode,
   boxInWindow,
   dragNode,
+  exitTextEdit,
   mindmapAddHandles,
 } from '../helpers/editor.js'
 
@@ -159,7 +160,7 @@ test.describe('unified canvas: objects alongside the rest of the canvas', () => 
 
     await selectShape(page, ffNode(page, 'Branch A'), 'mind-map node "Branch A"')
     await page.keyboard.press('Tab')
-    await page.keyboard.press('Escape')
+    await exitTextEdit(page)
     await dragNode(page, flowchartNode(page, 'Do work'), 'flowchart node "Do work"', 40, 30)
 
     await expect(page.locator(SURFACE).first()).toBeVisible()

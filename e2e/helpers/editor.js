@@ -16,6 +16,22 @@ export const TOOLBAR = '[data-canvas-toolbar]'
 // content is NOT inside [data-palette]. Scope lookups to the portalled panel.
 export const POPOVER = '[data-slot="content"]'
 export const TOOL_PAYLOAD_KEY = 'application/x-frappe-draw-tool'
+// The in-shape text editor's foreignObject, mounted only while a session is live.
+export const TEXT_EDITOR = '[data-text-editor]'
+
+// Leave in-shape text editing and WAIT for the session to actually end.
+//
+// Escape does not commit by itself — it calls the Tiptap editor's blur(), and the
+// commit plus the teardown of the session ride on the blur that follows. A key
+// sent straight after Escape can therefore arrive while the editor still owns the
+// keyboard, and is swallowed instead of reaching the canvas handler. A person
+// typing has tens of milliseconds between keystrokes and never sees it; Playwright
+// sends the next key in under one, which is why this only ever failed on a loaded
+// CI runner (#415's E2E run, green on the retry).
+export async function exitTextEdit(page) {
+  await page.keyboard.press('Escape')
+  await expect(page.locator(TEXT_EDITOR)).toBeHidden()
+}
 
 export async function openDiagram(page, name) {
   await page.goto(`/draw/d/${name}`)

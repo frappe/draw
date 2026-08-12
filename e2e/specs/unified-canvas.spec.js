@@ -10,6 +10,7 @@ import {
   armCreateToolFromCatalog,
   insertTableFromCatalog,
   dragOnCanvas,
+  exitTextEdit,
   clickCanvas,
   clickEmptyCanvas,
   insertMindmapNode,
@@ -321,7 +322,7 @@ test.describe('unified canvas: free-floating mind map & flowchart', () => {
     const name = await diagram.open('unified', { empty: true })
 
     await insertMindmapNode(page) // the new root drops straight into text edit (#263)
-    await page.keyboard.press('Escape') // finish typing the root before growing children
+    await exitTextEdit(page) // finish typing the root before growing children
     // The "+" handles are hover-only (#265) and the node was created on the click
     // (so the click's own move never hovered it) — move the pointer onto the node now.
     const box = await surfaceBox(page)
@@ -396,10 +397,9 @@ test.describe('unified canvas: free-floating mind map & flowchart', () => {
 
     // A dropped node now lands straight in text-edit with its label pre-selected
     // (#410), which is the whole point of that change — so the build shortcut below
-    // would otherwise just type into the label. Escape commits and exits the editing
-    // session (TextEditor's own handler) before the key reaches the free-floating
-    // flowchart keydown handler.
-    await page.keyboard.press('Escape')
+    // would otherwise just type into the label. Leave the editor and WAIT for the
+    // session to end: Enter sent before it does is swallowed by the text editor.
+    await exitTextEdit(page)
     await page.keyboard.press('Enter') // Enter adds a connected Process step below (#77)
 
     await expect
