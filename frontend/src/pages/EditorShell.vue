@@ -109,10 +109,13 @@ useClipboard(store)
 
 // Regenerate the thumbnail after each successful save; generate() self-throttles
 // to at most once / 30s (spec §11.2/§11.4).
+let savedThisSession = false
 watch(
   () => autosave.status.value,
   (status) => {
-    if (status === 'saved') thumbnail.generate()
+    if (status !== 'saved') return
+    savedThisSession = true
+    thumbnail.generate()
   },
 )
 
@@ -124,7 +127,15 @@ watch(
 // nothing else regenerates it until the diagram is edited again 30s apart. Force
 // one last capture of the in-memory document on the way out, bypassing the
 // throttle, so Home always reflects what was actually left on the canvas (#399).
-onUnmounted(() => thumbnail.generate({ force: true }))
+//
+// Only when this session actually saved, though. The editor also opens for
+// view-level and public shares, and save_thumbnail is a write: forcing it on the
+// way out of a diagram nobody edited raises a permission error for a read-only
+// viewer, and for everyone else rasterizes and re-uploads a thumbnail identical
+// to the stored one — churning a File row per visit — just for looking.
+onUnmounted(() => {
+  if (savedThisSession) thumbnail.generate({ force: true })
+})
 
 // The doc may arrive after mount; load it into the store once it lands. Reset the
 // mind-map chrome with it — this fires for a late-arriving document and for any

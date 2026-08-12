@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
 
 // What useThumbnail SENDS, as opposed to what documentToSvg renders (covered in
 // useThumbnail.test.js). Records every save_thumbnail submission through the
@@ -59,5 +62,19 @@ describe('forcing a regeneration past the throttle (#399)', () => {
     await thumbnail.generate({ force: true })
 
     expect(submissions).toHaveLength(2)
+  })
+
+  // save_thumbnail is a write, and the editor opens for view-level and public
+  // shares too. An unconditional force on unmount would 403 for every read-only
+  // viewer and re-upload an identical raster for everyone who only looked.
+  it('is gated on this session having saved, not fired on every unmount', () => {
+    const source = readFileSync(
+      path.join(path.dirname(fileURLToPath(import.meta.url)), '../pages/EditorShell.vue'),
+      'utf8',
+    )
+    const unmount = source.slice(source.indexOf('onUnmounted('))
+
+    expect(unmount).toMatch(/if \(savedThisSession\) thumbnail\.generate\(\{ force: true \}\)/)
+    expect(source).toMatch(/savedThisSession = true/)
   })
 })
