@@ -58,6 +58,7 @@ declare module 'vue' {
     LinkSection: typeof import('./src/components/palette-right/LinkSection.vue')['default']
     Logomark: typeof import('./src/components/Logomark.vue')['default']
     MapLayoutGroup: typeof import('./src/components/toolbar/groups/MapLayoutGroup.vue')['default']
+    MindmapDragLayer: typeof import('./src/components/canvas/MindmapDragLayer.vue')['default']
     MindmapHoverHandles: typeof import('./src/components/canvas/MindmapHoverHandles.vue')['default']
     MindmapNodeGroup: typeof import('./src/components/toolbar/groups/MindmapNodeGroup.vue')['default']
     MindMapNodeLayer: typeof import('./src/components/canvas/MindMapNodeLayer.vue')['default']
