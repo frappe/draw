@@ -31,8 +31,9 @@ describe('useAppSettings', () => {
     expect(settings.defaultThemePreset).toBe('slate')
     expect(settings.defaultCanvasBackground).toBe(null)
     // #260: every node defaults to a boxed monochrome node (border + fill on),
-    // moderate corner curve, centred — kept separately for parent and child.
-    expect(settings.mindmapNodeStyle.child).toEqual({ border: true, fill: true, curve: 'moderate', align: 'center' })
+    // centred — kept separately for parent and child. #427 item 6: a child's
+    // corners default rounder than the parent's, for a softer brainstorm look.
+    expect(settings.mindmapNodeStyle.child).toEqual({ border: true, fill: true, curve: 'high', align: 'center' })
     expect(settings.mindmapNodeStyle.parent).toEqual({ border: true, fill: true, curve: 'moderate', align: 'center' })
   })
 

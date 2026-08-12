@@ -1,3 +1,5 @@
+import { curveRadius } from './mindmapNodeStyle.js'
+
 // Corner radius for the box shapes, shared so the live draw preview, the
 // committed shape and every export agree (#130). A plain rectangle / square is
 // only lightly rounded (8); the dedicated "rounded rectangle" is pill-round (20).
@@ -17,6 +19,17 @@ export const CORNER_RADIUS_OPTIONS = [4, 12, 20, 32]
 export function shapeCornerRadius(type, radius) {
   if (Number.isFinite(radius) && radius >= 0) return radius
   return type === 'rounded' ? ROUNDED_CORNER_RADIUS : SHARP_CORNER_RADIUS
+}
+
+// The radius a SHAPE is actually drawn with. A mind-map node's corners come from
+// its own curve setting, every other shape's from its type (or an explicit
+// override). Everything that traces a shape's outline reads this one function, so
+// a highlight can never draw corners the shape itself does not have (#427 item 3).
+export function cornerRadiusOf(shape) {
+  if (shape?.role === 'mindmap-node' && shape.mindmap?.curve) {
+    return curveRadius(shape.mindmap.curve, shape.h)
+  }
+  return shapeCornerRadius(shape?.type, shape?.cornerRadius)
 }
 
 // A plain rounded rectangle — the one shape whose roundedness is adjustable (#411).

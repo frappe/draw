@@ -9,8 +9,7 @@ import { sanitizeRichText } from '@/utils/sanitizeHtml.js'
 import { safeHref, safeImageSrc } from '@/utils/safeUrl.js'
 import { nodeShape } from '@/diagram/flowchartShapes.js'
 import { polygonPointsString } from '@/diagram/polygon.js'
-import { shapeCornerRadius } from '@/diagram/shapeGeometry.js'
-import { curveRadius } from '@/diagram/mindmapNodeStyle.js'
+import { cornerRadiusOf } from '@/diagram/shapeGeometry.js'
 import { NODE_BORDER_ZONE } from '@/diagram/mindmapNodeShape.js'
 
 const props = defineProps({
@@ -93,16 +92,11 @@ const transform = computed(() => {
   return parts.length ? parts.join(' ') : null
 })
 
-// Corner radius for the rect branch, from the shared helper so the draw preview
-// (which ghosts through this same component) renders identical corners (#130).
-const cornerRadius = computed(() => {
-  // A mind-map node's corner roundness follows its own curve setting (#260); every
-  // other shape uses the shared box radius. isMindmapNode is declared below — safe
-  // here because the getter only runs at render time (same TDZ pattern as autofit).
-  const curve = props.shape.mindmap?.curve
-  if (isMindmapNode.value && curve) return curveRadius(curve)
-  return shapeCornerRadius(props.shape.type, props.shape.cornerRadius)
-})
+// Corner radius from the shared helper, so the draw preview (which ghosts through
+// this same component) renders identical corners (#130) and nothing that traces a
+// shape draws corners the shape does not have (#427 item 3). A mind-map node's
+// radius comes from its own curve setting (#260), every other shape's from type.
+const cornerRadius = computed(() => cornerRadiusOf(props.shape))
 
 const border = computed(() => props.shape.border || {})
 const dashArray = computed(() => {

@@ -25,7 +25,10 @@ const DEFAULTS = {
   // Espresso grid (#274). Applies app-wide to every new diagram.
   mindmapNodeStyle: {
     parent: { border: true, fill: true, curve: 'moderate', align: 'center' },
-    child: { border: true, fill: true, curve: 'moderate', align: 'center' },
+    // A child defaults to the softer, rounder corner (#427 item 6): child nodes
+    // are what a brainstorm is made of, and the rounder box reads lighter and
+    // more approachable next to the squarer parent.
+    child: { border: true, fill: true, curve: 'high', align: 'center' },
   },
 }
 

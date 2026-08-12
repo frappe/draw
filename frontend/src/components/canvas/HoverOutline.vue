@@ -1,7 +1,8 @@
 <script setup>
 // A subtle outline on the shape under the cursor in select mode, so every element
-// — block shapes, mind-map / flowchart nodes, text — gives a hover affordance
-// (#261). Self-contained like MindmapHoverHandles: it owns a pointer listener on
+// — block shapes, flowchart nodes, text — gives a hover affordance (#261). A
+// mind-map node is the exception (#427 item 3): it answers a hover with its "+"
+// column instead. Self-contained like MindmapHoverHandles: it owns a listener on
 // the SVG and renders a NON-interactive halo, so it never touches the core
 // selection/pointer path. Skipped for the already-selected shape (its selection
 // outline shows instead) and whenever a non-select tool is active. Mounted last in
@@ -12,7 +13,7 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { pointInShape } from '@/diagram/geometry.js'
 import { isInteractable } from '@/diagram/shapeFlags.js'
-import { shapeCornerRadius } from '@/diagram/shapeGeometry.js'
+import { cornerRadiusOf } from '@/diagram/shapeGeometry.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
@@ -75,13 +76,18 @@ const outline = computed(() => {
   if (!id || !selectTool.value || store.state.selection.includes(id)) return null
   const shape = store.shapeById(id)
   if (!shape) return null
+  // A mind-map node gets no halo (#427 item 3). Its hover affordance is the "+"
+  // column revealing itself — a second blue box around a node that is already a
+  // box was just noise on a canvas dense with branches, and it could not trace a
+  // boxless (`shaped: false`) node at all.
+  if (shape.role === 'mindmap-node') return null
   return {
     x: shape.x,
     y: shape.y,
     w: shape.w,
     h: shape.h,
     // The shape's own roundedness (#411), so the outline hugs the corner it traces.
-    rx: shapeCornerRadius(shape.type, shape.cornerRadius) || 0,
+    rx: cornerRadiusOf(shape) || 0,
   }
 })
 </script>

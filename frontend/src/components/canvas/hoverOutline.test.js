@@ -19,6 +19,14 @@ describe('hover outline (#261)', () => {
     )
   })
 
+  // #427 item 3: the halo could not trace a mind-map node — it read the radius
+  // from the shape TYPE while the node drew its own curve radius, and a boxless
+  // node had no box to trace at all. The "+" column is the hover affordance now.
+  it('skips mind-map nodes, and traces every other shape with its drawn radius', () => {
+    expect(hover).toContain("if (shape.role === 'mindmap-node') return null")
+    expect(hover).toContain('rx: cornerRadiusOf(shape)')
+  })
+
   it('tracks the topmost interactable shape actually under the pointer', () => {
     expect(hover).toContain('isInteractable(shape)')
     expect(hover).toContain('pointInShape(point, shape)')

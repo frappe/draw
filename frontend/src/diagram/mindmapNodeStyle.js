@@ -17,12 +17,14 @@ export function isShaped(style) {
   return !!(style.border || style.fill)
 }
 
-// Corner radius for a node's rect body, from its curve setting. Moderate is the
-// default (~8, a rounded rectangle); High is pill-like; None is a sharp box.
-export function curveRadius(curve) {
+// Corner radius for a node's rect body, from its curve setting. Moderate is a
+// rounded rectangle; High is pill-like; None is a sharp box. The radius is capped
+// at half the node's height so a tall, multi-line node keeps its corners instead
+// of turning into an oval (#124) — pass the height to get that cap.
+export function curveRadius(curve, height = Infinity) {
   if (curve === 'none') return 0
-  if (curve === 'high') return 20
-  return 8 // moderate
+  const radius = curve === 'high' ? 20 : 8
+  return Math.min(radius, height / 2)
 }
 
 // Concrete fill / border / ink / shaped for a node built with `style`. `override`
