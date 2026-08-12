@@ -5,9 +5,9 @@
 // two things — become child number N of some parent, or become that parent's last
 // child — and this module decides which, from the pointer position alone.
 //
-// The slots are the "+" handle positions (mindmapHandles), deliberately: the place
-// you can drop a node is exactly the place a "+" would have added one, so the two
-// affordances can never disagree about where a child goes.
+// The slots come from the "+" handle positions (mindmapHandles), deliberately: the
+// ordinal you can drop a node into is exactly the ordinal a "+" would have added
+// one at, so the two affordances can never disagree about where a child goes.
 //
 // The context is built from the shapes MINUS the dragged subtree, so slots describe
 // the tree as it will be once the node has left its old place.
@@ -22,6 +22,10 @@ import { isMindmapShape } from './freeFloating.js'
 // meant — the alternative is a drag that silently does nothing.
 export const DROP_CAPTURE = 90
 
+// The column a childless parent's first child would occupy, measured from the
+// parent's edge (freeFloatingOps GAP_X plus half a default node).
+const COLUMN_GAP = 130
+
 // The shapes of the tree the dragged node belongs to, without the node's own
 // subtree — the tree the drop is being aimed at.
 export function contextWithout(shapes, draggedId) {
@@ -30,15 +34,33 @@ export function contextWithout(shapes, draggedId) {
   return buildContext((shapes || []).filter((shape) => !moving.has(shape.id)))
 }
 
+// Where a gap slot is AIMED at, which is not where its "+" is drawn. The "+" sits
+// just off the parent's edge, but a node is dragged to where it should end up —
+// into the column its new siblings occupy, a whole gap further out. Measuring from
+// the parent's edge instead put every slot ~100 units from the natural drop point,
+// which is to say out of reach.
+function slotColumnX(parentId, side, ctx) {
+  const siblings = Object.keys(ctx.byId)
+    .filter((id) => ctx.byId[id].parentId === parentId && branchSideOf(id, ctx) === side)
+    .map((id) => ctx.boxes[id])
+    .filter(Boolean)
+  if (siblings.length) return siblings[0].x + siblings[0].w / 2
+  const box = ctx.boxes[parentId]
+  return side === 'left' ? box.x - COLUMN_GAP : box.x + box.w + COLUMN_GAP
+}
+
 // Every slot the dragged node could take: one "become child N of P" per gap in
 // each remaining node's child column, plus one "become P's last child" per node.
+// A gap keeps its handle's y — the ordinal it marks — but is aimed at the child
+// column, where the node is actually being dragged to.
 export function dropSlotsFor(ctx, draggedId) {
   const slots = []
   for (const nodeId of Object.keys(ctx.boxes)) {
     if (nodeId === draggedId) continue
     slots.push({ kind: 'onto', parentId: nodeId, box: ctx.boxes[nodeId] })
     for (const handle of handlesForNode(nodeId, ctx)) {
-      slots.push({ kind: 'gap', parentId: nodeId, side: handle.side, index: handle.index, x: handle.cx, y: handle.cy })
+      const x = slotColumnX(nodeId, handle.side, ctx)
+      slots.push({ kind: 'gap', parentId: nodeId, side: handle.side, index: handle.index, x, y: handle.cy })
     }
   }
   return slots

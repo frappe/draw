@@ -61,11 +61,26 @@ describe('dropSlotsFor', () => {
     expect(slots.some((s) => s.kind === 'gap' && s.parentId === 'root')).toBe(true)
   })
 
-  it('puts its gaps exactly where the "+" handles are, so both add in one place', () => {
+  it('marks the same ordinals the "+" handles do, so both add in one place', () => {
     const ctx = contextWithout(tree(), 'c')
     const slots = dropSlotsFor(ctx, 'c').filter((s) => s.kind === 'gap' && s.parentId === 'root')
     const handles = handlesForNode('root', ctx)
     expect(slots.map((s) => s.y).sort()).toEqual(handles.map((h) => h.cy).sort())
+  })
+
+  // A "+" is drawn just off the parent's edge, but a node is DRAGGED to where it
+  // should end up: into the column its new siblings occupy.
+  it('aims a gap at the child column, not at the parent edge the "+" sits on', () => {
+    const ctx = contextWithout(tree(), 'c')
+    const slot = dropSlotsFor(ctx, 'c').find((s) => s.kind === 'gap' && s.parentId === 'root')
+    const sibling = ctx.boxes.a
+    expect(slot.x).toBe(sibling.x + sibling.w / 2)
+  })
+
+  it('aims at where the first child WOULD go when the parent has none yet', () => {
+    const ctx = contextWithout(tree(), 'c')
+    const slot = dropSlotsFor(ctx, 'c').find((s) => s.kind === 'gap' && s.parentId === 'b1')
+    expect(slot.x).toBeGreaterThan(ctx.boxes.b1.x + ctx.boxes.b1.w)
   })
 
   it('never offers the dragged node or its own descendants as a parent', () => {
