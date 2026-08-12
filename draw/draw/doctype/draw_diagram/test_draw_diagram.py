@@ -633,6 +633,53 @@ class TestDrawDiagram(IntegrationTestCase):
 			frappe.local.uploaded_file = None
 			frappe.local.uploaded_filename = None
 
+	def test_inserted_image_upload_takes_the_diagram_from_the_form_data(self):
+		# THE call the framework makes (#415). frappe.handler.upload_file ends in a
+		# bare `method()` — no arguments — and passes the target as `docname` in the
+		# form data. The tests above call it directly with a name, which is the one
+		# way it is never reached in production, so a signature requiring `name`
+		# raised TypeError on every real insert while they stayed green.
+		from draw.api.diagram import upload_diagram_image
+
+		doc = self._make("block", {"schemaVersion": 1, "diagramType": "block"})
+		frappe.local.uploaded_file = b"\x89PNG\r\n\x1a\n fake image bytes"
+		frappe.local.uploaded_filename = "from-the-wire.png"
+		frappe.form_dict["docname"] = doc.name
+		try:
+			result = upload_diagram_image()
+		finally:
+			frappe.local.uploaded_file = None
+			frappe.local.uploaded_filename = None
+			frappe.form_dict.pop("docname", None)
+
+		file_name = frappe.db.get_value(
+			"File",
+			{"attached_to_doctype": "Draw Diagram", "attached_to_name": doc.name},
+			"name",
+		)
+		self.addCleanup(
+			lambda: frappe.delete_doc("File", file_name, force=True, ignore_permissions=True)
+		)
+		self.assertTrue(result["file_url"])
+
+	def test_inserted_image_rejects_a_docname_that_is_not_a_string(self):
+		# form_dict is client-controlled and Frappe accepts complex values there. A
+		# dict reaching frappe.db.exists would be read as FILTERS rather than a name,
+		# letting the caller shape the lookup instead of naming a diagram.
+		from draw.api.diagram import upload_diagram_image
+
+		frappe.form_dict["docname"] = {"like": "%"}
+		try:
+			self.assertRaises(frappe.ValidationError, upload_diagram_image)
+		finally:
+			frappe.form_dict.pop("docname", None)
+
+	def test_inserted_image_rejects_a_missing_diagram(self):
+		from draw.api.diagram import upload_diagram_image
+
+		frappe.form_dict.pop("docname", None)
+		self.assertRaises(frappe.ValidationError, upload_diagram_image)
+
 	# ----- collaboration room (real-time session scoping) -----
 
 	def test_collab_room_is_not_the_diagram_name(self):

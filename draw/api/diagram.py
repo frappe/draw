@@ -448,7 +448,7 @@ _MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
 
 @frappe.whitelist(methods=["POST"])
-def upload_diagram_image(name: str) -> dict:
+def upload_diagram_image(name: str | None = None) -> dict:
 	"""Store an image inserted onto the canvas as a File ATTACHED to the diagram.
 
 	Reached through Frappe's upload endpoint (frappe-ui FileUploadHandler passes
@@ -461,9 +461,15 @@ def upload_diagram_image(name: str) -> dict:
 	never seen by that hook, so no stray entries appear — and being attached to the
 	diagram, the image is owned by it and cleaned up when the diagram is deleted.
 
+	`name` DEFAULTS rather than being required, because the upload endpoint calls a
+	custom method with no arguments at all — `frappe.handler.upload_file` ends in a
+	bare `method()` — and passes the target in the form data as `docname`. Requiring
+	it raised TypeError before this body ever ran, so every insert failed once the
+	diagram had a name to route by (#415).
+
 	Kept PUBLIC (is_private=0): the file_url is embedded in the diagram document and
 	must render for anyone the diagram is shared/exported to, exactly as before."""
-	diagram = _get_writable_diagram(name)
+	diagram = _get_writable_diagram(_uploaded_image_diagram(name))
 
 	content, filename = _uploaded_image()
 	if not content:
@@ -486,6 +492,20 @@ def upload_diagram_image(name: str) -> dict:
 		}
 	).insert(ignore_permissions=True)
 	return {"file_url": file_doc.file_url, "file_name": file_doc.file_name}
+
+
+def _uploaded_image_diagram(name: str | None) -> str:
+	"""The diagram to attach the image to: the argument, else the upload's `docname`.
+
+	Typed explicitly because form_dict is client-controlled and Frappe accepts complex
+	values there: a list or dict reaching `_get_writable_diagram` would be read by
+	`frappe.db.exists` as FILTERS rather than as a name, which is a lookup the caller
+	should never be able to shape.
+	"""
+	target = name if name is not None else frappe.form_dict.get("docname")
+	if not isinstance(target, str) or not target:
+		frappe.throw(_("Missing the diagram to attach the image to"), frappe.ValidationError)
+	return target
 
 
 def _uploaded_image() -> tuple[bytes | None, str]:
