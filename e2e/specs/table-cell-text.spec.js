@@ -152,17 +152,27 @@ test.describe('opening a table cell by double-click (#353, #354)', () => {
     })
   }
 
-  // The unified route is deliberately narrow: only a table under the cursor is
-  // routed to the whiteboard layer, so empty canvas keeps its old behaviour
-  // rather than gaining the whiteboard's double-click-makes-a-text-box.
-  test('double-clicking empty unified canvas still creates nothing', async ({ page, diagram }) => {
+  // The unified route is deliberately narrow: only a table UNDER THE CURSOR is
+  // routed to the whiteboard layer. That is still what this guards — but empty
+  // canvas no longer does nothing there: it starts a canvas text element, which is
+  // what the empty state has always promised and what #418 delivered.
+  //
+  // The property the old assertion was really protecting still holds, and is what
+  // is checked here: walking away from that double-click leaves NO stray shape,
+  // because an empty text element is discarded when it commits.
+  test('double-clicking empty unified canvas types there, and leaves nothing if abandoned', async ({
+    page,
+    diagram,
+  }) => {
     const name = await diagram.open('unified', { table: true })
     const before = (await diagram.saved(name)).shapes.length
 
     await page.mouse.dblclick(120, 700)
+    await expect(editor(page), 'double-click left no caret to type into').toBeVisible()
 
+    // Click away without typing: the element commits empty and is dropped.
+    await page.mouse.click(400, 700)
     await page.waitForTimeout(2000)
-    expect((await diagram.saved(name)).shapes.length, 'a stray shape was created').toBe(before)
-    await expect(editor(page)).toHaveCount(0)
+    expect((await diagram.saved(name)).shapes.length, 'an empty text element was left behind').toBe(before)
   })
 })
