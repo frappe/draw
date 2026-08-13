@@ -16,7 +16,7 @@ import {
   HANDLE_INSET,
   handleAtPoint,
   nextHoverTarget,
-  hoverStripsOf,
+  slotAtPoint,
 } from './mindmapHandles.js'
 import { ROLE, flattenSubmodels } from './freeFloating.js'
 import { createMindMap, addChild } from './mindmapModel.js'
@@ -404,42 +404,48 @@ describe('nextHoverTarget', () => {
 // #427 item 1: the corridor is painted so the pointer never crosses dead canvas on
 // its way to a "+" — but it must not cover the node, whose own cursor zones say
 // "click here to edit" (#123).
-describe('hoverStripsOf', () => {
-  it('covers the reach on each side without covering the node box', () => {
-    const ctx = buildContext(sampleTree())
-    const box = ctx.boxes.root
-    const strips = hoverStripsOf('root', ctx)
-    expect(strips.length).toBeGreaterThanOrEqual(2)
-    for (const strip of strips) {
-      const overlapsNode = strip.x < box.x + box.w && box.x < strip.x + strip.w
-      expect(overlapsNode).toBe(false)
+// Hovering the whitespace where two branches split offers THAT slot's "+", without
+// hovering the parent first — and offers only that one, not the node's whole
+// column (#427). The zone is the band between the two branches, from the node's
+// edge out past the mark.
+describe('slotAtPoint', () => {
+  const ctx = () => buildContext(nodeWithChildren(4))
+
+  it('offers the slot whose whitespace the pointer is in', () => {
+    const context = ctx()
+    const [, second] = handlesForNode('p', context)
+    const handle = slotAtPoint({ x: second.cx, y: second.cy }, context)
+    expect(handle.key).toBe(second.key)
+  })
+
+  // The point that matters: the fork itself, back where the branches leave the
+  // parent, long before the column the marks stand in.
+  it('answers from the fork, not only from the mark', () => {
+    const context = ctx()
+    const [, second] = handlesForNode('p', context)
+    const parent = context.boxes.p
+    const handle = slotAtPoint({ x: parent.x + parent.w + 6, y: second.cy }, context)
+    expect(handle.key).toBe(second.key)
+  })
+
+  it('picks one slot, and it is the nearest', () => {
+    const context = ctx()
+    const handles = handlesForNode('p', context)
+    for (const handle of handles) {
+      expect(slotAtPoint({ x: handle.cx, y: handle.cy }, context).key).toBe(handle.key)
     }
   })
 
-  // The corridor paints empty canvas only: a band laid over a NEIGHBOURING node
-  // would cover that node's own cursor zones, which is what tells the user its
-  // label is click-to-edit (#123). Once the "+" marks stand in the child column
-  // (#427) the corridor reaches across the children, so it is cut around them.
-  it('leaves every other node uncovered', () => {
-    const ctx = buildContext(sampleTree())
-    const overlaps = (a, b) =>
-      a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
-    for (const strip of hoverStripsOf('root', ctx)) {
-      for (const [id, other] of Object.entries(ctx.boxes)) {
-        if (id === 'root') continue
-        expect(overlaps(strip, other)).toBe(false)
-      }
-    }
+  it('offers nothing out in open canvas', () => {
+    expect(slotAtPoint({ x: 4000, y: 4000 }, ctx())).toBe(null)
   })
 
-  it('reaches past the furthest handle on the branch side', () => {
-    const ctx = buildContext(sampleTree())
-    const handle = handlesForNode('right', ctx)[0]
-    const strip = hoverStripsOf('right', ctx).find((s) => s.x > ctx.boxes.right.x)
-    expect(strip.x + strip.w).toBeGreaterThanOrEqual(handle.cx + ADD_HIT_R)
-  })
-
-  it('is empty for a node that is not on the canvas', () => {
-    expect(hoverStripsOf('gone', buildContext(sampleTree()))).toEqual([])
+  // A childless node's single "+" is a slot like any other, so approaching the
+  // empty side of a leaf offers it.
+  it('offers a childless node its one slot', () => {
+    const context = buildContext(sampleTree())
+    const box = context.boxes.right
+    const handle = slotAtPoint({ x: box.x + box.w + 10, y: box.y + box.h / 2 }, context)
+    expect(handle.nodeId).toBe('right')
   })
 })

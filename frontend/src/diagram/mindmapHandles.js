@@ -173,7 +173,20 @@ function sideHandles(nodeId, box, side, ctx) {
 // Every "+" handle to draw for one node, in absolute logical coords. A root offers a
 // gap column on BOTH sides; any other node only on its branch side. Empty for a shape
 // id that is not a migrated mind-map node.
+//
+// Memoised per context. Placing the marks samples the branch curves, and the hover
+// state machine asks for them on every pointer move; a context is rebuilt whenever
+// the shapes change, so caching against it can never answer for a stale tree.
+const handleCache = new WeakMap()
+
 export function handlesForNode(nodeId, ctx) {
+  let byNode = handleCache.get(ctx)
+  if (!byNode) handleCache.set(ctx, (byNode = new Map()))
+  if (!byNode.has(nodeId)) byNode.set(nodeId, computeHandles(nodeId, ctx))
+  return byNode.get(nodeId)
+}
+
+function computeHandles(nodeId, ctx) {
   const box = ctx.boxes[nodeId]
   if (!ctx.byId[nodeId] || !box) return []
   return addSidesFor(nodeId, ctx).flatMap((side) => sideHandles(nodeId, box, side, ctx))
@@ -231,52 +244,6 @@ export function nextHoverTarget({ point, currentId = null, ctx, shapes }) {
 // extent of the gap column — from the top handle down to the bottom one — plus the
 // node box itself and a small margin, so moving from the node to any "+" (above the
 // first child or below the last) never drops the hover.
-// The hover region MINUS the node's own box: the strips to either side, which is
-// all the corridor that needs painting. Covering the node too would put a
-// transparent sheet over its own cursor zones and its link badge — the node would
-// stop offering the I-beam that says "click to edit" exactly while hovered (#123).
-export function hoverStripsOf(nodeId, ctx) {
-  const box = ctx.boxes[nodeId]
-  const region = hoverRegionOf(nodeId, ctx)
-  if (!box || !region) return []
-  const others = Object.entries(ctx.boxes)
-    .filter(([id]) => id !== nodeId)
-    .map(([, other]) => other)
-  return [
-    { x: region.x, y: region.y, w: Math.max(0, box.x - region.x), h: region.h },
-    {
-      x: box.x + box.w,
-      y: region.y,
-      w: Math.max(0, region.x + region.w - (box.x + box.w)),
-      h: region.h,
-    },
-  ]
-    .filter((strip) => strip.w > 0)
-    .flatMap((strip) => stripBands(strip, others))
-}
-
-// A strip, cut wherever another node's box crosses it. The corridor exists to paint
-// EMPTY canvas so the pointer always has something under it; a sheet laid over a
-// neighbouring node would take that node's own cursor zones and badges with it
-// (#123). Cutting on y leaves exactly the gaps between the children — which is
-// where the "+" marks stand once a node has enough children to push them into the
-// child column (#427).
-function stripBands(strip, boxes) {
-  const bottom = strip.y + strip.h
-  const cuts = boxes
-    .filter((box) => box.x < strip.x + strip.w && box.x + box.w > strip.x)
-    .map((box) => [box.y, box.y + box.h])
-    .sort((a, b) => a[0] - b[0])
-  const bands = []
-  let top = strip.y
-  for (const [start, end] of cuts) {
-    if (start > top) bands.push({ ...strip, y: top, h: Math.min(start, bottom) - top })
-    top = Math.max(top, end)
-  }
-  if (top < bottom) bands.push({ ...strip, y: top, h: bottom - top })
-  return bands.filter((band) => band.h > 0)
-}
-
 export function hoverRegionOf(nodeId, ctx) {
   const box = ctx.boxes[nodeId]
   if (!box) return null
@@ -302,4 +269,69 @@ export function hoverRegionOf(nodeId, ctx) {
     w: right - left + margin * 2,
     h: bottom - top + margin * 2,
   }
+}
+
+// --- slot hover ---------------------------------------------------------------
+//
+// A slot's own catchment: the whitespace between the two branches it sits between,
+// from the node's edge out past its "+". Hovering the fork between two branches is
+// how you say "another child, here" — it should offer THAT slot's "+" without
+// first hovering the parent and tracing the corridor, and it should offer only
+// that one, not the node's whole column.
+
+// The band is at least tall enough to aim at and never taller than the gap it
+// belongs to, so two neighbouring slots cannot both claim the same pixel.
+const SLOT_BAND_MIN = 20
+const SLOT_BAND_MAX = 44
+// The furthest a node's own "+" can stand from its box (a column gap plus a child's
+// width). Nodes further than this from the pointer cannot own the slot under it, so
+// they are skipped before their handles are placed.
+const SLOT_REACH = 360
+
+// The vertical room a slot has: the gap between the two children it sits between,
+// or the standing GAP for the first, last and childless-node slots.
+function slotGapHeight(handle, childBoxes) {
+  const above = childBoxes[handle.index - 1]
+  const below = childBoxes[handle.index]
+  if (!above || !below) return GAP
+  return below.y - (above.y + above.h)
+}
+
+function slotZone(handle, box, side, childBoxes) {
+  const height = Math.min(Math.max(slotGapHeight(handle, childBoxes), SLOT_BAND_MIN), SLOT_BAND_MAX)
+  const inner = side === 'right' ? box.x + box.w : box.x
+  const outer = side === 'right' ? handle.cx + ADD_HIT_R : handle.cx - ADD_HIT_R
+  return {
+    x: Math.min(inner, outer),
+    y: handle.cy - height / 2,
+    w: Math.abs(outer - inner),
+    h: height,
+  }
+}
+
+// Every slot of one node paired with the whitespace it answers for.
+export function slotZonesForNode(nodeId, ctx) {
+  const box = ctx.boxes[nodeId]
+  if (!box) return []
+  const bySide = {}
+  for (const side of addSidesFor(nodeId, ctx)) bySide[side] = childBoxesOnSide(nodeId, ctx, side)
+  return handlesForNode(nodeId, ctx).map((handle) => ({
+    handle,
+    zone: slotZone(handle, box, handle.side, bySide[handle.side] || []),
+  }))
+}
+
+// The one "+" the pointer is asking for, or null. Ties go to the nearest mark, so
+// where two slots' bands touch the pointer gets the one it is actually closest to.
+export function slotAtPoint(point, ctx) {
+  let best = null
+  for (const [nodeId, box] of Object.entries(ctx.boxes)) {
+    if (!pointInBox(point, { x: box.x - SLOT_REACH, y: box.y - SLOT_REACH, w: box.w + SLOT_REACH * 2, h: box.h + SLOT_REACH * 2 })) continue
+    for (const { handle, zone } of slotZonesForNode(nodeId, ctx)) {
+      if (!pointInBox(point, zone)) continue
+      const distance = Math.hypot(point.x - handle.cx, point.y - handle.cy)
+      if (!best || distance < best.distance) best = { handle, distance }
+    }
+  }
+  return best?.handle || null
 }

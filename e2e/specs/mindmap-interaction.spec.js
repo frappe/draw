@@ -67,6 +67,38 @@ test.describe('mind map interaction (#427)', () => {
       .toBe(5) // Root + Branch A/B/C, plus the one just added
   })
 
+  // Hovering the fork between two branches is how you say "another child, here".
+  // It must offer that slot's "+" without hovering the parent first, and offer only
+  // that one — the whole column appearing over a fork is noise, and the mark used
+  // to need the parent hovered and the corridor traced before it existed at all.
+  test('the fork between two branches offers its own "+", and only that one', async ({ page, diagram }) => {
+    const name = await diagram.open('unified', { framesInView: true })
+    const root = await boxInWindow(page, ffShape(page, 'm1'), 'Root')
+    const a = await boxInWindow(page, ffShape(page, 'm2'), 'Branch A')
+    const b = await boxInWindow(page, ffShape(page, 'm3'), 'Branch B')
+
+    // Straight into the whitespace between the two right-hand branches, from open
+    // canvas — the pointer never touches the root.
+    await page.mouse.move(root.x - 200, root.y - 200)
+    await expect(mindmapAddHandles(page)).toHaveCount(0)
+    const forkY = (Math.min(a.y, b.y) + Math.max(a.y + a.height, b.y + b.height)) / 2
+    await page.mouse.move(root.x + root.width + 12, forkY, { steps: 8 })
+
+    const marks = page.locator('[data-mindmap-hover-handles] circle[r="7"]')
+    await expect(marks, 'the fork offered no "+"').toHaveCount(1)
+
+    // By coordinate: the mark's own (larger, invisible) hit circle covers it, which
+    // is the point of the two radii — so aim at it the way a user does.
+    const mark = await marks.first().boundingBox()
+    await page.mouse.click(mark.x + mark.width / 2, mark.y + mark.height / 2)
+    await expect
+      .poll(async () => nodes(await diagram.saved(name)).length, {
+        message: 'clicking the fork\'s "+" added no node',
+        timeout: 20_000,
+      })
+      .toBe(5)
+  })
+
   // Item 4: a child could not be dragged at all. Dropping one INSIDE another node
   // makes it that node's child, and its branch follows.
   test('dragging a node onto another re-parents it, and the branch follows', async ({ page, diagram }) => {
