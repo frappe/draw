@@ -8,8 +8,11 @@ import { newlineIntent, plainPaste, stickyLines, stickyTextHeight } from './stic
 // here is the one case the browser cannot: continuing a "- " list.
 
 describe('newlineIntent', () => {
-  it('leaves an ordinary line to the browser', () => {
-    expect(newlineIntent('First line')).toBeNull()
+  it('breaks an ordinary line itself', () => {
+    // Not left to the browser: a key event dispatched without a raw key code
+    // reaches the page and inserts nothing, so the note would take lines from a
+    // real keyboard and refuse them from anything else.
+    expect(newlineIntent('First line')).toEqual({ deleteBefore: 0, insert: '\n' })
   })
 
   it('carries a hyphen list onto the next line', () => {
@@ -27,7 +30,7 @@ describe('newlineIntent', () => {
   })
 
   it('does not mistake a hyphenated word for a list', () => {
-    expect(newlineIntent('well-known')).toBeNull()
+    expect(newlineIntent('well-known')).toEqual({ deleteBefore: 0, insert: '\n' })
   })
 })
 

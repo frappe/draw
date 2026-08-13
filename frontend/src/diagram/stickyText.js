@@ -15,8 +15,13 @@ import { charsPerLine, wrapLines } from './textMetrics.js'
 const FILLED_ITEM = /^(\s*)-\s+\S/
 const EMPTY_ITEM = /^(\s*)-\s*$/
 
-// What Enter should do, given the text of the line the caret sits on. Null means
-// "nothing special" — the browser's own line break is exactly right.
+// What Enter should do, given the text of the line the caret sits on: how much to
+// take back before the caret, and what to put in.
+//
+// Every Enter is answered here rather than left to the browser. The browser's own
+// line break is only as good as the key event that triggers it — one dispatched
+// without a raw key code reaches the page but inserts nothing — so the note would
+// gain lines from a real keyboard and none from anything else.
 //
 // Typing "- first" and pressing Enter offers "- " again rather than making the user
 // retype the marker. Enter on a marker with nothing after it ends the list instead,
@@ -24,7 +29,7 @@ const EMPTY_ITEM = /^(\s*)-\s*$/
 export function newlineIntent(line) {
   if (EMPTY_ITEM.test(line)) return { deleteBefore: line.length, insert: '' }
   const item = FILLED_ITEM.exec(line)
-  return item ? { deleteBefore: 0, insert: `\n${item[1]}- ` } : null
+  return { deleteBefore: 0, insert: item ? `\n${item[1]}- ` : '\n' }
 }
 
 // A pasted string, reduced to what a note can hold: text with normalized breaks.

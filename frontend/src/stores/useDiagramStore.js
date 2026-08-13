@@ -693,6 +693,13 @@ function attachWhiteboard(store, state, history) {
       const note = stickyNoteById(state.whiteboard || {}, id)
       if (note) applyPatch(note, patch)
     })
+  // Live, unrecorded growth while a note is being typed into (#416). The editor
+  // grows the note line by line and commits the final text and height together, so
+  // one undo takes back the whole edit instead of peeling off half-typed notes.
+  store.growStickyNote = (id, height) => {
+    const note = stickyNoteById(state.whiteboard || {}, id)
+    if (note && height > note.h) note.h = height
+  }
   store.removeStickyNote = (id) => {
     if (!state.whiteboard) return
     history.commit('Delete sticky', () => removeStickyNote(state.whiteboard, id))

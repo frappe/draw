@@ -206,14 +206,13 @@ function fieldText() {
   return (field.value?.innerText || '').trim()
 }
 
-// The browser's own line break is right for ordinary text, so Enter is intercepted
-// only to carry a "- " list onto the next line (or to end one).
+// Enter inserts the break itself (see newlineIntent) instead of leaving it to the
+// browser, and carries a "- " list onto the next line.
 function onKeydown(event) {
   if (event.key === 'Escape') return field.value?.blur()
   if (event.key !== 'Enter' || event.isComposing) return
-  const intent = newlineIntent(lineBeforeCaret())
-  if (!intent) return
   event.preventDefault()
+  const intent = newlineIntent(lineBeforeCaret())
   deleteBeforeCaret(intent.deleteBefore)
   if (intent.insert) document.execCommand('insertText', false, intent.insert)
   growToText(fieldText())
@@ -266,13 +265,11 @@ function deleteBeforeCaret(count) {
 // taller keeps that height, and deleting text does not yank the box in under the
 // pointer.
 //
-// The live model is mutated directly, OUTSIDE history — the same preview-then-
-// commit shape startGroupMove uses. A store call per line would leave the undo
-// stack holding a stack of half-typed notes, and commit() records the final text
-// and height together as one step.
+// The growth is not recorded — the same preview-then-commit shape startGroupMove
+// uses. A history step per line would leave the undo stack holding half-typed
+// notes; commit() records the final text and height together as one step.
 function growToText(text) {
-  const height = fittedHeight(text)
-  if (height > props.note.h) props.note.h = height
+  store.growStickyNote(props.note.id, fittedHeight(text))
 }
 
 function fittedHeight(text) {
