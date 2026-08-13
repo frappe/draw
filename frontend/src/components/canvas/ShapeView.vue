@@ -3,7 +3,7 @@
 // shape object. Geometry is in logical canvas units. Text boxes render with no
 // fill and no border (spec §5.1). Interaction is layered on later.
 import { computed, ref } from 'vue'
-import { useTextEditing, shapeTextArea, textStyleCss } from '@/composables/useTextEditing.js'
+import { useTextEditing, shapeTextArea, textStyleCss, fitsWidthToText } from '@/composables/useTextEditing.js'
 import { useAutoFitText } from '@/composables/useAutoFitText.js'
 import { sanitizeRichText } from '@/utils/sanitizeHtml.js'
 import { safeHref, safeImageSrc } from '@/utils/safeUrl.js'
@@ -54,9 +54,13 @@ const richStyle = computed(() => {
     // Wrap inside the shape and break over-long words, so committed text never
     // spills horizontally past the box (G3). wordBreak is inherited by the inner
     // <p>, so the rendered label matches how it wrapped while editing.
-    whiteSpace: 'normal',
-    wordBreak: 'break-word',
-    overflowWrap: 'break-word',
+    //
+    // A canvas text element is the exception (#418): its box was grown to the
+    // measured width of the unwrapped text, so wrapping it here would re-flow the
+    // committed label into something the editor never showed.
+    ...(fitsWidthToText(props.shape)
+      ? { whiteSpace: 'pre' }
+      : { whiteSpace: 'normal', wordBreak: 'break-word', overflowWrap: 'break-word' }),
     opacity: props.shape.opacity ?? 1,
   }
 })
@@ -409,7 +413,13 @@ useAutoFitText(richEl, () => ({
       :height="textArea.h"
       style="overflow: visible"
     >
-      <div ref="richEl" class="fd-richtext" :style="richStyle" v-html="richHtml" />
+      <div
+        ref="richEl"
+        class="fd-richtext"
+        :data-fit-width="fitsWidthToText(shape) ? '' : undefined"
+        :style="richStyle"
+        v-html="richHtml"
+      />
     </foreignObject>
 
     <!-- Hyperlink badge (spec 6.5): opens the shape's link in a new tab. Sits at

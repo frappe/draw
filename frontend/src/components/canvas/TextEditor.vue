@@ -14,7 +14,14 @@ import { useEditor, EditorContent } from '@tiptap/vue-3'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { anchorPoint } from '@/diagram/geometry.js'
-import { useTextEditing, shapeTextArea, textStyleCss, LINE_HEIGHT } from '@/composables/useTextEditing.js'
+import {
+  useTextEditing,
+  shapeTextArea,
+  textStyleCss,
+  fitsWidthToText,
+  LINE_HEIGHT,
+} from '@/composables/useTextEditing.js'
+import { textWidth, lineCount } from '@/diagram/textMetrics.js'
 import { RICH_EXTENSIONS, setActiveEditor, clearActiveEditor, contentToHtml } from '@/composables/useRichText.js'
 import { sanitizeRichText } from '@/utils/sanitizeHtml.js'
 
@@ -45,10 +52,21 @@ function resolve(endpoint) {
 }
 
 const EDIT_RING = { boxShadow: 'inset 0 0 0 1.5px #006EDB', borderRadius: '4px' }
+// Room either side of the measured text, so the caret at the end of a line is not
+// flush against the edge of the box.
+const TEXT_FIT_PADDING = 16
+
 const fieldStyle = computed(() => {
   if (shape.value) {
     const text = shape.value.text || {}
-    return { ...textStyleCss(text.style, text.valign, text.align), ...EDIT_RING, padding: '4px 6px', height: '100%' }
+    const nowrap = fitsWidthToText(shape.value) ? { whiteSpace: 'pre' } : {}
+    return {
+      ...textStyleCss(text.style, text.valign, text.align),
+      ...EDIT_RING,
+      ...nowrap,
+      padding: '4px 6px',
+      height: '100%',
+    }
   }
   return { ...textStyleCss({ size: 12 }, 'middle', 'center'), ...EDIT_RING, padding: '2px 8px', height: '100%' }
 })
@@ -85,15 +103,39 @@ watch(
   },
 )
 
-// Grow the shape's height so wrapped/multi-line text never overflows (spec §6).
+// Grow the shape so wrapped/multi-line text never overflows (spec §6).
+//
+// A canvas text element also grows SIDEWAYS (#418): it does not wrap, so the box
+// tracks the words as they arrive instead of standing off them inside a fixed
+// width. Everything else keeps wrapping at its own width and grows down only —
+// a shape's label has a box to live in, and widening a rectangle because someone
+// typed into it would move the diagram around them.
 function autoGrow() {
   if (!shape.value || !editor.value) return
+  if (fitsWidthToText(shape.value)) return fitBoxToText()
   const dom = editor.value.view?.dom
   if (!dom) return
   const needed = dom.scrollHeight + 10
-  const minimum = lineMinimum(shape.value)
-  const target = Math.max(needed, minimum)
+  const target = Math.max(needed, lineMinimum(shape.value))
   if (target > shape.value.h) store.updateShape(shape.value.id, { h: growToFit(shape.value, target) })
+}
+
+// Size a canvas text element to its content, both ways (#418).
+//
+// Measured against the FONT rather than off the live field. The field is laid out
+// inside the box being sized, so its `scrollWidth` is bounded by the number it is
+// meant to produce, and ProseMirror's own `white-space: pre-wrap` wraps anything
+// longer — which sent the width down to its padding and the height into the
+// hundreds. `chrome` is the inset between the shape and its text area, added back
+// so the text gets the width it measured.
+function fitBoxToText() {
+  const text = editor.value.getText()
+  const style = shape.value.text?.style || {}
+  const chrome = shape.value.w - shapeTextArea(shape.value).w
+  const width = Math.ceil(textWidth(text, style)) + TEXT_FIT_PADDING + chrome
+  const height = Math.ceil(lineCount(text) * (style.size || 16) * LINE_HEIGHT) + 8
+  if (width === shape.value.w && height === shape.value.h) return
+  store.updateShape(shape.value.id, { w: width, h: height })
 }
 
 function growToFit(s, areaHeight) {
@@ -156,6 +198,7 @@ function onKeydown(event) {
   >
     <div
       class="fd-richtext outline-none"
+      :data-fit-width="shape && fitsWidthToText(shape) ? '' : undefined"
       :style="fieldStyle"
       style="box-sizing: border-box; width: 100%; cursor: text"
       @keydown="onKeydown"
@@ -173,6 +216,11 @@ function onKeydown(event) {
 /* Wrap + break long words in BOTH the editor and the committed render, so text
    stays inside the shape and doesn't reflow/garble on blur (G3). */
 .fd-richtext { overflow-wrap: break-word; word-break: break-word; white-space: normal; }
+/* A canvas text element (#418) is sized to its own text, so it must not wrap —
+   ProseMirror sets white-space: pre-wrap on itself, which would re-flow it inside
+   the box it was just measured for. */
+.fd-richtext[data-fit-width] { white-space: pre; overflow-wrap: normal; word-break: normal; }
+.fd-richtext[data-fit-width] .ProseMirror { white-space: pre; }
 .fd-richtext .ProseMirror { outline: none; min-height: 1em; }
 .fd-richtext p { margin: 0; }
 .fd-richtext ul,

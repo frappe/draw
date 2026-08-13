@@ -35,3 +35,52 @@ export function wrapLineCount(text, perLine) {
 export function charsPerLine(textWidth, charWidth) {
   return Math.max(1, Math.floor(textWidth / charWidth))
 }
+
+// --- measured metrics, for text that does NOT wrap ---------------------------
+//
+// The two above answer "how tall once it wraps?" for a box of a known width. A
+// canvas text element (#418) is the other way round: the text is fixed and the box
+// follows it, so what is needed is the real width of the string.
+//
+// It cannot be measured off the live editor. That field is laid out INSIDE the box
+// being sized, so its `scrollWidth` is bounded by the number it is meant to
+// produce, and ProseMirror's own `white-space: pre-wrap` wraps anything longer —
+// together they drove the width down to the padding and the height into the
+// hundreds. Measuring the string against the font is independent of whatever box
+// it currently sits in. A 2D context is used purely as a ruler; nothing is drawn.
+
+let ruler = null
+
+function measuringContext() {
+  if (ruler) return ruler
+  if (typeof document === 'undefined') return null
+  ruler = document.createElement('canvas').getContext('2d')
+  return ruler
+}
+
+// The CSS `font` shorthand for a text style. Order matters to the parser: style,
+// weight, size, family.
+function fontOf(style = {}) {
+  const size = style.size || 16
+  const family = style.font || 'Inter, sans-serif'
+  return `${style.italic ? 'italic ' : ''}${style.bold ? 700 : 500} ${size}px ${family}`
+}
+
+// The width of the widest line in `content` at `style`. Zero for empty text and in
+// a browser-free environment, so callers fall back to their own minimum rather
+// than to NaN.
+export function textWidth(content, style = {}) {
+  const context = measuringContext()
+  if (!context || !content) return 0
+  context.font = fontOf(style)
+  return String(content)
+    .split('\n')
+    .reduce((widest, line) => Math.max(widest, context.measureText(line).width), 0)
+}
+
+// How many lines `content` occupies when nothing wraps it — at least one, so an
+// empty element keeps a line's height instead of collapsing.
+export function lineCount(content) {
+  if (!content) return 1
+  return String(content).split('\n').length
+}

@@ -82,6 +82,32 @@ export function shapeTextArea(shape) {
 }
 
 // CSS for the contentEditable, derived from the shape's text.style.
+// A text element dropped straight onto the canvas, by double-clicking empty space
+// or with the text tool (#418). It differs from a text box someone sizes by hand in
+// one way, carried as `text.fitWidth`: it does not wrap. The box grows sideways as
+// the words arrive and downwards only on a real newline, so its bounds stay wrapped
+// around the text instead of standing off it — which is what a fixed 180×44 box did
+// however few characters went in.
+//
+// Sized here for ONE empty line, and anchored so the caret lands where the pointer
+// was rather than the box being centred on it.
+export function canvasTextShape(point, style = {}) {
+  const size = style.size || 16
+  return {
+    type: 'text',
+    x: Math.round(point.x - TEXT_PADDING),
+    y: Math.round(point.y - (size * LINE_HEIGHT) / 2),
+    w: TEXT_PADDING * 2 + size,
+    h: Math.ceil(size * LINE_HEIGHT) + 8,
+    text: { content: '', align: 'left', valign: 'top', fitWidth: true, style: { size, ...style } },
+  }
+}
+
+// Whether a shape's text hugs its content rather than wrapping inside a fixed box.
+export function fitsWidthToText(shape) {
+  return Boolean(shape?.text?.fitWidth)
+}
+
 export function textStyleCss(style = {}, valign = 'middle', align = 'center') {
   return {
     fontFamily: style.font || FONT_FAMILY,

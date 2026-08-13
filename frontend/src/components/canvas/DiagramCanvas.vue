@@ -28,7 +28,8 @@ import { useShapeCreation, draftPreviewShape } from '@/composables/useShapeCreat
 import { usePolygonCreation } from '@/composables/usePolygonCreation.js'
 import { useImageInsert } from '@/composables/useImageInsert.js'
 import { useCanvasPaste } from '@/composables/useCanvasPaste.js'
-import { useTextEditing } from '@/composables/useTextEditing.js'
+import { useTextEditing, canvasTextShape } from '@/composables/useTextEditing.js'
+import { contrastInk } from '@/diagram/whiteboardColors.js'
 import { useClipboard } from '@/composables/useClipboard.js'
 import GridLayer from './GridLayer.vue'
 import SectionView from './SectionView.vue'
@@ -612,6 +613,21 @@ function onSurfaceDoubleClick(event) {
   if (isUnified.value && editTableCellAt(store, point)) return
   const connector = connectorAt(point)
   if (connector) return editing.beginConnectorLabelEdit(connector.id)
+  // Nothing under the pointer: start typing here (#418). Double-clicking empty
+  // canvas used to do nothing at all on a block or unified document — the empty
+  // state has said "Double-click to type" the whole time — and drop a fixed
+  // 180×44 box on a whiteboard. Both now place the same content-hugging text
+  // element at the click.
+  placeCanvasText(point)
+}
+
+// Drop a text element at `point` and open it for typing. Shared with the text
+// tool's own click placement so both produce the same element.
+function placeCanvasText(point) {
+  const id = store.addShape(
+    canvasTextShape(point, { color: contrastInk(store.state.canvas.background || '#FFFFFF') }),
+  )
+  editing.beginTextEdit(id)
 }
 
 // Consume an armed add-comment click (#108): anchor the pin to the shape under the

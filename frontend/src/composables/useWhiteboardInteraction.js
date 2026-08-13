@@ -11,7 +11,7 @@
 // than the one they drew. Each store mutation is one undoable unit (Part G6).
 
 import { onBeforeUnmount } from 'vue'
-import { HANDWRITTEN_FONT } from '@/composables/useTextEditing.js'
+import { HANDWRITTEN_FONT, canvasTextShape } from '@/composables/useTextEditing.js'
 import { contrastInk } from '@/diagram/whiteboardColors.js'
 import { registerModeInteraction, unregisterModeInteraction, useModeInteraction } from '@/composables/useModeInteraction.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
@@ -88,21 +88,15 @@ function onPointerDown(event, context, ctx) {
 // Drop a text box at the click and enter edit (S12 — the text tool now places on
 // a single click, cursor already a crosshair). Shared with double-click-to-type.
 function placeText(context, store) {
-  const w = 180
-  const h = 44
-  const id = store.addShape({
-    type: 'text',
-    x: context.point.x - w / 2,
-    y: context.point.y - h / 2,
-    w,
-    h,
-    text: {
-      content: '',
-      align: 'left',
-      valign: 'top',
-      style: { font: HANDWRITTEN_FONT, color: contrastInk(store.state.canvas.background || '#FFFFFF') },
-    },
-  })
+  // One shared text element, sized to its content (#418). This dropped a fixed
+  // 180×44 box centred on the click, so a two-word label sat inside a box several
+  // times its size and the selection outline stood well off the text.
+  const id = store.addShape(
+    canvasTextShape(context.point, {
+      font: HANDWRITTEN_FONT,
+      color: contrastInk(store.state.canvas.background || '#FFFFFF'),
+    }),
+  )
   context.editorUi.setTool('select')
   context.editing?.beginTextEdit(id)
 }
