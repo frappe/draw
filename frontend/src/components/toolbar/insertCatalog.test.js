@@ -25,13 +25,18 @@ const read = (rel) => readFileSync(path.join(here, rel), 'utf8')
 describe('the mind-map entry (#255 / #75 / #200)', () => {
   const groups = read('./groups/InsertGroups.vue')
 
-  // #255 named the tile "Parent Node" when it sat inside a catalog section
-  // headed "Mind map". The section IS the entry now, so the entry takes the
-  // category name and the parent-node wording moves into the tooltip — both
-  // words stay reachable, which is what #255 was protecting.
-  it('is labelled for the category and still names the parent node', () => {
+  // #255 named the tile "Parent Node" when it sat inside a catalog section headed
+  // "Mind map". The section IS the entry now, so the entry carries the category
+  // name.
+  //
+  // The tooltip used to spell out "Mind map — click the canvas to place the parent
+  // node". A tooltip names its control; instructions belong where the tool is armed,
+  // and every neighbouring entry says one word (#413). The instruction is not lost:
+  // arming a starter turns the cursor into the placement crosshair, which is the
+  // affordance a sentence in a tooltip was standing in for.
+  it('is labelled for the category, with no instructions in the tooltip', () => {
     expect(groups).toContain('label="Mind map"')
-    expect(groups).toContain('tooltip="Mind map — click the canvas to place the parent node"')
+    expect(groups).not.toContain('click the canvas to place')
   })
 
   // The #200 behaviour a stale build regresses to: dropping the node centred in

@@ -107,7 +107,6 @@ const grid = 'grid w-[228px] grid-cols-6 gap-1 p-2'
     <ToolbarButton
       allows-blur
       label="Mind map"
-      tooltip="Mind map — click the canvas to place the parent node"
       :active="isMindmapStarterArmed()"
       @click="insertMindmap()"
     >
