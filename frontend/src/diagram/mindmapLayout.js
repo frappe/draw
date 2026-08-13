@@ -11,7 +11,10 @@ import { unionBounds } from './geometry.js'
 import { tidySubtree, tidyGroup } from './mindmapTidy.js'
 
 const H_GAP = 70 // horizontal gap between depth columns
-const V_GAP = 18 // vertical gap between sibling subtrees
+// Vertical gap between sibling subtrees. Wide enough to hold an add-node "+" with
+// air on both sides (#427): with a denser stack the marks fit only by touching the
+// boxes they sit between, and the map itself reads as a wall rather than a tree.
+const V_GAP = 26
 const PAD = 60 // margin around the whole tree after normalising
 
 // Re-exported so the renderer insets its text box (and thus wraps) at exactly the
@@ -192,8 +195,17 @@ export function hiddenDescendantCount(model, id) {
 // horizontally (tangents flat at both ends) and mirrors for up vs down branches.
 // Shared by the legacy layout and the free-floating branch connector (#266).
 export function branchPathPoints(start, end) {
+  const [p0, p1, p2, p3] = branchControlPoints(start, end)
+  return `M ${p0.x} ${p0.y} C ${p1.x} ${p1.y} ${p2.x} ${p2.y} ${p3.x} ${p3.y}`
+}
+
+// The same curve as four points instead of a path string, so code that has to
+// REASON about where a branch runs — the "+" placement, which keeps out of the
+// branches' way (#427) — measures the curve that is actually drawn rather than an
+// approximation of it.
+export function branchControlPoints(start, end) {
   const midX = (start.x + end.x) / 2
-  return `M ${start.x} ${start.y} C ${midX} ${start.y} ${midX} ${end.y} ${end.x} ${end.y}`
+  return [start, { x: midX, y: start.y }, { x: midX, y: end.y }, end]
 }
 
 // A smooth cubic-bezier path from a parent box edge to a child box edge, fanning

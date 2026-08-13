@@ -20,22 +20,18 @@
 
 import { isMindmapShape } from './freeFloating.js'
 import { mindmapModelFromShapes } from './freeFloatingGraph.js'
+import { gapHandlePoints, ADD_R, ADD_OFFSET, GAP, HANDLE_INSET } from './mindmapHandleSlots.js'
 // --- geometry constants ------------------------------------------------------
 // The mark is small and quiet; the TARGET is large (#427 items 1 and 7). They are
 // separate numbers on purpose — an affordance that competes with the branches for
 // attention is not the same problem as one that is hard to hit, and the old single
 // radius could only ever trade one against the other.
-export const ADD_R = 7 // drawn "+" circle radius
+//
+// The sizes the "+" placement itself reasons about live in mindmapHandleSlots and
+// are re-exported here, so a caller still has one module to import from.
+export { ADD_R, ADD_OFFSET, GAP, HANDLE_INSET }
 export const ADD_HIT_R = 15 // invisible hit radius around that circle
-export const ADD_OFFSET = 28 // gap from the node edge to the "+" centre
 export const GLYPH = 3.5 // half-length of the white "+" strokes inside a circle
-// Vertical breathing room for the two extreme gap handles: the "above the first
-// child" "+" sits GAP/2 above the top child's edge, the "below the last child" one
-// GAP/2 below the bottom child's edge (about one "+" radius clear of the boxes).
-export const GAP = 24
-// How far a gap handle stands clear of the child column it slots into, so the mark
-// has air on both sides rather than touching the box it precedes.
-export const HANDLE_INSET = 20
 // The hover region reaches this far past the branch edge, so sliding the pointer
 // off the node onto a "+" keeps the handles alive. Derived from the HIT radius,
 // not the drawn one, so the region always covers what is clickable.
@@ -136,18 +132,6 @@ function childBoxesOnSide(nodeId, ctx, side) {
     .sort((a, b) => a.y - b.y)
 }
 
-// The N+1 gap y's for the sorted children on a side: one above the top child, one
-// in each gap between adjacent children (midpoint of their vertical centres), one
-// below the bottom child — so the handles interleave with the children (H,C,H,…,H).
-function gapCenters(childBoxes) {
-  const mid = (box) => box.y + box.h / 2
-  const ys = [childBoxes[0].y - GAP / 2]
-  for (let i = 0; i < childBoxes.length - 1; i += 1) ys.push((mid(childBoxes[i]) + mid(childBoxes[i + 1])) / 2)
-  const last = childBoxes[childBoxes.length - 1]
-  ys.push(last.y + last.h + GAP / 2)
-  return ys
-}
-
 // One "+" handle in absolute logical coords for inserting a child at ordinal `index`
 // on `side`. `cy` is the gap position, `cx` the column it stands in; the stub always
 // leaves the node's own edge at mid-height. `straight` marks the lone childless-node
@@ -167,34 +151,23 @@ function makeHandle(nodeId, box, side, index, cx, cy, straight) {
   }
 }
 
-// The column a node's gap handles stand in: just before the children they slot
-// between, NOT beside the parent (#427). Every branch leaves the parent from one
-// point, so next to the parent the curves are still bundled and a "+" dropped in
-// there lands on top of them. A whole column out, each curve has reached its own
-// child, and the gap between two children is empty — which is also exactly where
-// the new node will appear. Clamped so it can never sit closer to the parent than
-// a childless node's handle would.
-function gapColumnX(box, side, childBoxes) {
-  if (side === 'left') {
-    const columnEdge = Math.max(...childBoxes.map((child) => child.x + child.w))
-    return Math.min(columnEdge + HANDLE_INSET, box.x - ADD_OFFSET)
-  }
-  const columnEdge = Math.min(...childBoxes.map((child) => child.x))
-  return Math.max(columnEdge - HANDLE_INSET, box.x + box.w + ADD_OFFSET)
-}
-
 // The gap-insertion handles for one node on one side (#265). With N children on the
 // side there are N+1 slots: index 0 above the top child … index N below the bottom
 // one. A childless side gets a single straight "+" at the node's mid-height — "add
 // the first child at the same level".
+//
+// Where each of the N+1 marks lands is gapHandlePoints' job: it measures the actual
+// branch curves and puts every "+" in the whitespace between them, which no single
+// column could do once a node has enough children for its branches to pack together.
 function sideHandles(nodeId, box, side, ctx) {
   const childBoxes = childBoxesOnSide(nodeId, ctx, side)
   if (!childBoxes.length) {
     const { cxLocal } = sideGeometry(box, side)
     return [makeHandle(nodeId, box, side, 0, box.x + cxLocal, box.y + box.h / 2, true)]
   }
-  const cx = gapColumnX(box, side, childBoxes)
-  return gapCenters(childBoxes).map((cy, index) => makeHandle(nodeId, box, side, index, cx, cy, false))
+  return gapHandlePoints(box, side, childBoxes).map(({ cx, cy }, index) =>
+    makeHandle(nodeId, box, side, index, cx, cy, false),
+  )
 }
 
 // Every "+" handle to draw for one node, in absolute logical coords. A root offers a
@@ -266,6 +239,9 @@ export function hoverStripsOf(nodeId, ctx) {
   const box = ctx.boxes[nodeId]
   const region = hoverRegionOf(nodeId, ctx)
   if (!box || !region) return []
+  const others = Object.entries(ctx.boxes)
+    .filter(([id]) => id !== nodeId)
+    .map(([, other]) => other)
   return [
     { x: region.x, y: region.y, w: Math.max(0, box.x - region.x), h: region.h },
     {
@@ -274,7 +250,31 @@ export function hoverStripsOf(nodeId, ctx) {
       w: Math.max(0, region.x + region.w - (box.x + box.w)),
       h: region.h,
     },
-  ].filter((strip) => strip.w > 0)
+  ]
+    .filter((strip) => strip.w > 0)
+    .flatMap((strip) => stripBands(strip, others))
+}
+
+// A strip, cut wherever another node's box crosses it. The corridor exists to paint
+// EMPTY canvas so the pointer always has something under it; a sheet laid over a
+// neighbouring node would take that node's own cursor zones and badges with it
+// (#123). Cutting on y leaves exactly the gaps between the children — which is
+// where the "+" marks stand once a node has enough children to push them into the
+// child column (#427).
+function stripBands(strip, boxes) {
+  const bottom = strip.y + strip.h
+  const cuts = boxes
+    .filter((box) => box.x < strip.x + strip.w && box.x + box.w > strip.x)
+    .map((box) => [box.y, box.y + box.h])
+    .sort((a, b) => a[0] - b[0])
+  const bands = []
+  let top = strip.y
+  for (const [start, end] of cuts) {
+    if (start > top) bands.push({ ...strip, y: top, h: Math.min(start, bottom) - top })
+    top = Math.max(top, end)
+  }
+  if (top < bottom) bands.push({ ...strip, y: top, h: bottom - top })
+  return bands.filter((band) => band.h > 0)
 }
 
 export function hoverRegionOf(nodeId, ctx) {

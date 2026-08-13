@@ -409,10 +409,26 @@ describe('hoverStripsOf', () => {
     const ctx = buildContext(sampleTree())
     const box = ctx.boxes.root
     const strips = hoverStripsOf('root', ctx)
-    expect(strips.length).toBe(2)
+    expect(strips.length).toBeGreaterThanOrEqual(2)
     for (const strip of strips) {
       const overlapsNode = strip.x < box.x + box.w && box.x < strip.x + strip.w
       expect(overlapsNode).toBe(false)
+    }
+  })
+
+  // The corridor paints empty canvas only: a band laid over a NEIGHBOURING node
+  // would cover that node's own cursor zones, which is what tells the user its
+  // label is click-to-edit (#123). Once the "+" marks stand in the child column
+  // (#427) the corridor reaches across the children, so it is cut around them.
+  it('leaves every other node uncovered', () => {
+    const ctx = buildContext(sampleTree())
+    const overlaps = (a, b) =>
+      a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+    for (const strip of hoverStripsOf('root', ctx)) {
+      for (const [id, other] of Object.entries(ctx.boxes)) {
+        if (id === 'root') continue
+        expect(overlaps(strip, other)).toBe(false)
+      }
     }
   })
 
