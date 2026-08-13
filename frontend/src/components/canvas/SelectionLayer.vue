@@ -8,8 +8,10 @@ import { computed, inject } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useShapeTransform } from '@/composables/useShapeTransform.js'
+import { useTextEditing } from '@/composables/useTextEditing.js'
 import { shapeCenter, unionBounds } from '@/diagram/geometry.js'
 import { ROLE } from '@/diagram/freeFloating.js'
+import { isTextElement, selectionOutline, SELECT_BLUE } from '@/diagram/selectionChrome.js'
 
 const HANDLE = 12
 const ROTATION_ARM = 28
@@ -36,9 +38,21 @@ const transform = useShapeTransform(store)
 // provide; falls back to no marquee when absent so the layer renders standalone.
 const marquee = inject('selectionMarquee', null)
 
-const selected = computed(() => store.selectedShapes)
-// Everything that gets a dashed selection box drawn around it. A mind-map node
-// shows selection through its own border instead (#427), so it is left out here.
+// The text element being typed into, if any. Its chrome is dropped for the
+// duration: double-clicking the canvas should leave a caret and nothing else
+// (#414), and a box drawn around the words while they are being typed is the
+// "large blue editing rectangle" that made a one-line note feel like a form field.
+const editing = useTextEditing()
+const editingTextId = computed(() => {
+  const id = editing?.editingShapeId?.value
+  return id && isTextElement(store.shapeById(id)) ? id : null
+})
+
+const selected = computed(() =>
+  store.selectedShapes.filter((shape) => shape.id !== editingTextId.value),
+)
+// Everything that gets a selection box drawn around it. A mind-map node shows
+// selection through its own border instead (#427), so it is left out here.
 const outlined = computed(() =>
   selected.value.filter((shape) => shape.role !== ROLE.mindmapNode),
 )
@@ -60,6 +74,11 @@ const isGroup = computed(() => {
 const zoom = computed(() => editorUi.viewport.state.zoom || 1)
 const handleSize = computed(() => HANDLE / zoom.value)
 const strokeWidth = computed(() => 1.5 / zoom.value)
+// The handles follow the outline they belong to, so a selected text element is one
+// grey treatment rather than a grey box wearing blue furniture.
+const handleColor = computed(() =>
+  single.value && isTextElement(single.value) ? selectionOutline(single.value).color : SELECT_BLUE,
+)
 
 // Rotate the handle group with a single shape so handles track its orientation.
 const groupTransform = computed(() => {
@@ -115,10 +134,11 @@ function startRotate(event) {
 
 <template>
   <g data-selection-layer>
-    <!-- Per-shape dashed outline so every selected shape reads as selected. A
-         mind-map node is the exception (#427): it answers selection by drawing its
-         OWN border heavier, so the canvas keeps one box per node instead of a
-         second dashed one floating around it. -->
+    <!-- Per-shape outline so every selected shape reads as selected. Two
+         exceptions: a mind-map node answers selection by drawing its OWN border
+         heavier (#427), so it is not outlined here at all, and a text element gets
+         a quiet solid grey line instead of the blue dashes (#414) — it has no
+         border of its own for the dashes to distinguish it from. -->
     <rect
       v-for="shape in outlined"
       :key="shape.id"
@@ -132,9 +152,9 @@ function startRotate(event) {
           : null
       "
       fill="none"
-      stroke="#006EDB"
-      :stroke-width="strokeWidth"
-      :stroke-dasharray="`${4 / zoom} ${3 / zoom}`"
+      :stroke="selectionOutline(shape).color"
+      :stroke-width="selectionOutline(shape).width / zoom"
+      :stroke-dasharray="selectionOutline(shape).dashed ? `${4 / zoom} ${3 / zoom}` : null"
     />
 
     <!-- Group bounding box: a single solid box around a selected group (in
@@ -159,7 +179,7 @@ function startRotate(event) {
         :y1="box.y"
         :x2="rotationKnob.x"
         :y2="rotationKnob.y"
-        stroke="#006EDB"
+        :stroke="handleColor"
         :stroke-width="strokeWidth"
       />
       <!-- Rotation knob: a rotate glyph (circular arrow) rather than a bare dot. -->
@@ -168,17 +188,17 @@ function startRotate(event) {
         style="cursor: grab"
         @pointerdown="startRotate"
       >
-        <circle :r="9 / zoom" fill="#FFFFFF" stroke="#006EDB" :stroke-width="strokeWidth" />
+        <circle :r="9 / zoom" fill="#FFFFFF" :stroke="handleColor" :stroke-width="strokeWidth" />
         <g :transform="`scale(${0.5 / zoom}) translate(-12 -12)`" style="pointer-events: none">
           <path
             d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"
             fill="none"
-            stroke="#006EDB"
+            :stroke="handleColor"
             stroke-width="2.5"
             stroke-linecap="round"
             stroke-linejoin="round"
           />
-          <path d="M21 3v5h-5" fill="none" stroke="#006EDB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M21 3v5h-5" fill="none" :stroke="handleColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
         </g>
       </g>
       <rect
@@ -190,7 +210,7 @@ function startRotate(event) {
         :height="handleSize"
         :rx="2.5 / zoom"
         fill="#FFFFFF"
-        stroke="#006EDB"
+        :stroke="handleColor"
         :stroke-width="strokeWidth"
         :style="{ cursor: RESIZE_CURSORS[name] }"
         @pointerdown="startResize(name, $event)"

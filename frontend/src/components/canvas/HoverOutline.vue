@@ -14,6 +14,7 @@ import { useEditorUi } from '@/stores/useEditorUi.js'
 import { pointInShape } from '@/diagram/geometry.js'
 import { isInteractable } from '@/diagram/shapeFlags.js'
 import { cornerRadiusOf } from '@/diagram/shapeGeometry.js'
+import { hoverOutline } from '@/diagram/selectionChrome.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
@@ -23,8 +24,6 @@ const hoveredId = ref(null)
 
 const zoom = computed(() => editorUi.viewport.state.zoom || 1)
 const selectTool = computed(() => editorUi.state.tool === 'select')
-// Constant on-screen halo gap + stroke, independent of zoom.
-const margin = computed(() => 3 / zoom.value)
 
 function toLogical(event) {
   const ctm = layer.value?.getScreenCTM()
@@ -81,6 +80,9 @@ const outline = computed(() => {
   // box was just noise on a canvas dense with branches, and it could not trace a
   // boxless (`shaped: false`) node at all.
   if (shape.role === 'mindmap-node') return null
+  // Text hovers to a tight, subtle grey line rather than the blue halo (#414);
+  // everything else keeps the blue. selectionChrome holds the whole rule.
+  const style = hoverOutline(shape)
   return {
     x: shape.x,
     y: shape.y,
@@ -88,6 +90,7 @@ const outline = computed(() => {
     h: shape.h,
     // The shape's own roundedness (#411), so the outline hugs the corner it traces.
     rx: cornerRadiusOf(shape) || 0,
+    ...style,
   }
 })
 </script>
@@ -96,15 +99,15 @@ const outline = computed(() => {
   <g ref="layer" data-hover-outline style="pointer-events: none">
     <rect
       v-if="outline"
-      :x="outline.x - margin"
-      :y="outline.y - margin"
-      :width="outline.w + margin * 2"
-      :height="outline.h + margin * 2"
-      :rx="outline.rx + margin"
+      :x="outline.x - outline.margin / zoom"
+      :y="outline.y - outline.margin / zoom"
+      :width="outline.w + (outline.margin * 2) / zoom"
+      :height="outline.h + (outline.margin * 2) / zoom"
+      :rx="outline.rx + outline.margin / zoom"
       fill="none"
-      stroke="#006EDB"
-      stroke-opacity="0.45"
-      :stroke-width="1.5 / zoom"
+      :stroke="outline.color"
+      :stroke-opacity="outline.opacity"
+      :stroke-width="outline.width / zoom"
     />
   </g>
 </template>

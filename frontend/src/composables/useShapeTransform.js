@@ -124,14 +124,35 @@ function geometryChanged(originals, finals) {
 function createResizer(store) {
   return ({ toLogical, handle, id }) => {
     const [original] = snapshotShapes(store, [id])
+    // A text element hugs its content until the user sizes it by hand (#414). From
+    // that drag on it keeps the box they chose and wraps inside it, instead of
+    // snapping back to the words on the next edit. The original text rides in the
+    // snapshot so undo puts the hug back together with the size.
+    const release = releaseTextFit(store, id)
+    if (release) original.text = store.shapeById(id).text
     const fixed = fixedCornerWorld(original, handle)
-    const apply = (point, lockAspect) => [resizeShape(original, handle, point, fixed, lockAspect)]
+    const apply = (point, lockAspect) => {
+      const patch = resizeShape(original, handle, point, fixed, lockAspect)
+      // Only a gesture that actually resized releases the hug. Pressing a handle
+      // and letting go without moving is not the user choosing a size, and the
+      // release alone would read as a change and commit a history step for it.
+      const resized = patch.w !== original.w || patch.h !== original.h
+      return [resized ? { ...patch, ...release } : patch]
+    }
     runDrag(
       toLogical,
       (event, point) => applyLive(store, apply(point, event.shiftKey)),
       (event, point) => finishGesture(store, 'Resize', [original], apply(point, event.shiftKey)),
     )
   }
+}
+
+// The patch that stops a text element from re-hugging its content, or null when the
+// shape does not hug in the first place (every shape but a canvas text element).
+function releaseTextFit(store, id) {
+  const shape = store.shapeById(id)
+  if (!shape?.text?.fitWidth) return null
+  return { text: { ...shape.text, fitWidth: false } }
 }
 
 // Rotate one shape around its center; Shift snaps to the fixed-angle family.

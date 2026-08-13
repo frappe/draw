@@ -22,6 +22,7 @@ import {
   LINE_HEIGHT,
 } from '@/composables/useTextEditing.js'
 import { textWidth, lineCount } from '@/diagram/textMetrics.js'
+import { isTextElement } from '@/diagram/selectionChrome.js'
 import { RICH_EXTENSIONS, setActiveEditor, clearActiveEditor, contentToHtml } from '@/composables/useRichText.js'
 import { sanitizeRichText } from '@/utils/sanitizeHtml.js'
 import { mindmapNodeSize } from '@/diagram/mindmapNodeSize.js'
@@ -53,6 +54,8 @@ function resolve(endpoint) {
 }
 
 const isMindmapNode = computed(() => shape.value?.role === 'mindmap-node')
+// A canvas text element (#414): double-click, caret, type. No ring — see below.
+const isCanvasText = computed(() => isTextElement(shape.value))
 
 const EDIT_RING = { boxShadow: 'inset 0 0 0 1.5px #006EDB', borderRadius: '4px' }
 // Room either side of the measured text, so the caret at the end of a line is not
@@ -70,7 +73,11 @@ const fieldStyle = computed(() => {
     // No edit ring on a mind-map node either: the node is already a box, and a
     // blue rectangle drawn just inside it is a second box saying the same thing.
     // The caret and the live text are the feedback that editing is happening.
-    const ring = isMindmapNode.value ? null : EDIT_RING
+    //
+    // A canvas text element gets none for the opposite reason (#414): there is no
+    // box at all, and drawing one around the words turns "type on the canvas" into
+    // "fill in this field". Double-click leaves a caret and nothing else.
+    const ring = isMindmapNode.value || isCanvasText.value ? null : EDIT_RING
     return {
       ...textStyleCss(text.style, text.valign, text.align),
       ...ring,
