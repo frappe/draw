@@ -356,6 +356,40 @@ class TestDrawDiagram(IntegrationTestCase):
 		self.assertNotIn(shared.name, visible, "general access does not inject into a non-owner's list (if_owner gate)")
 		self.assertNotIn(private.name, visible, "a restricted diagram must stay private")
 
+	# ----- a shared diagram is reachable without a "Shared with you" view -----
+
+	def test_a_shared_diagram_appears_in_the_recipients_list(self):
+		"""Home lists by permission, so a diagram shared with you lands on the shelf
+		like any other. That is what let the "Shared with you" view and its
+		shared_with_me() endpoint go in #407.
+
+		Worth a test of its own precisely BECAUSE the endpoint went: the behaviour
+		moved from code this app owns to Frappe's permission query, which it does
+		not. Add `if_owner` to the Draw User role and shared diagrams quietly stop
+		appearing on Home — no error, no empty state, they are simply not there.
+		"""
+		from draw.api.share import share_diagram
+
+		owner = self._user("draw-list-owner@example.com")
+		other = self._user("draw-list-other@example.com")
+		for user in (owner, other):
+			frappe.get_doc("User", user).add_roles("Draw User")
+
+		doc = self._private_diagram_owned_by(owner, "Shared into the list")
+		share_diagram(doc.name, other, "view")
+
+		frappe.set_user(other)
+		try:
+			visible = {d.name for d in frappe.get_list("Draw Diagram", filters={"is_trashed": 0})}
+		finally:
+			frappe.set_user("Administrator")
+
+		self.assertIn(
+			doc.name,
+			visible,
+			"a diagram shared with me is missing from my list — Home has no other way to show it",
+		)
+
 	# ----- optional Frappe Drive / Suite integration (soft-coupled) -----
 	# This dev/CI site has NO Drive, so these pin the "Drive absent" contract: every
 	# entry point must no-op cleanly and never block a diagram's own lifecycle. The

@@ -293,7 +293,6 @@ function refresh() {
     // A save may have added or cleared a thumbnail, which changes which diagrams
     // still need their document fetched.
     previewDocuments.reload(),
-    // Keep the Shared view live after an action taken from it (e.g. duplicate).
   ])
 }
 
