@@ -17,18 +17,18 @@ export function useAutoFitText(elRef, getInputs) {
     const el = elRef.value
     const { enabled, base } = getInputs()
     if (!el) return
-    // Disabled → hand the size back to the base style and stop.
+    // Disabled → hand the size back to the shape's own base size and stop.
     if (!enabled) {
-      el.style.fontSize = ''
+      el.style.fontSize = fitFontSize(base)
       return
     }
     let size = base
-    el.style.fontSize = `${size}px`
+    el.style.fontSize = fitFontSize(base, size)
     // Step down until the content stops overflowing, or we hit the floor.
     let guard = 0
     while (size > MIN_SIZE && overflowing(el) && guard < 60) {
       size -= 1
-      el.style.fontSize = `${size}px`
+      el.style.fontSize = fitFontSize(base, size)
       guard += 1
     }
   }
@@ -45,6 +45,21 @@ export function useAutoFitText(elRef, getInputs) {
   onBeforeUnmount(() => cancelAnimationFrame(frame))
 
   return { refit: schedule }
+}
+
+// The inline font-size this element should carry: the fitted size while shrinking,
+// the shape's own base size otherwise.
+//
+// The "otherwise" half is the whole point. This used to clear the property
+// (`fontSize = ''`), which also erased the size ShapeView's :style binding had
+// just written — and Vue re-writes a style property only when the BOUND value
+// changes, so nothing put it back. Raising a label's font size therefore painted
+// the new size for one frame and then dropped to the stylesheet's default, where
+// it stayed until the next size change (#427). Writing the base size instead is
+// the same value the binding holds, so the two writers can no longer disagree.
+export function fitFontSize(base, fitted = null) {
+  const size = Number.isFinite(fitted) ? fitted : base
+  return Number.isFinite(size) ? `${size}px` : ''
 }
 
 // True when the element's content exceeds its box in either axis (a 1px slack
