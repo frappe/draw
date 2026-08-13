@@ -18,12 +18,12 @@ test.describe('sticky note toolbar (#356)', () => {
   // sticky are both reachable.
   const bar = (page) => page.locator('[data-canvas-toolbar]')
 
-  // Strikethrough moved behind "More formatting" (#419), and frappe-ui portals a
-  // Popover's body out of its trigger's subtree — so it is NOT inside the bar and
-  // has to be reached through the portalled panel.
-  async function strikethrough(page) {
-    await bar(page).getByRole('button', { name: 'More formatting' }).click()
-    return page.locator('[data-slot="content"]').getByRole('button', { name: 'Strikethrough' })
+  // Strikethrough (#419) and Duplicate both live behind the "More" entry, and
+  // frappe-ui portals a Popover's body out of its trigger's subtree — so neither is
+  // inside the bar, and both have to be reached through the portalled panel.
+  async function moreAction(page, name) {
+    await bar(page).getByRole('button', { name: 'More sticky note actions' }).click()
+    return page.locator('[data-slot="content"]').getByRole('button', { name })
   }
 
   async function selectSticky(page) {
@@ -39,7 +39,7 @@ test.describe('sticky note toolbar (#356)', () => {
 
     // The zero-size fault this guards is about the GROUP being laid out, so it
     // measures the entry that is on the bar now rather than the moved control.
-    const entry = bar(page).getByRole('button', { name: 'More formatting' })
+    const entry = bar(page).getByRole('button', { name: 'More sticky note actions' })
     await expect(entry).toBeVisible()
     const box = await entry.boundingBox()
     expect(box?.width, 'the toolbar rendered with no width').toBeGreaterThan(0)
@@ -51,12 +51,12 @@ test.describe('sticky note toolbar (#356)', () => {
     const stickies = async () => (await diagram.saved(name)).whiteboard.stickyNotes
 
     await selectSticky(page)
-    await (await strikethrough(page)).click()
+    await (await moreAction(page, 'Strikethrough')).click()
     await expect
       .poll(async () => (await stickies())[0].strike, { message: 'strikethrough did not persist', timeout: 20_000 })
       .toBe(true)
 
-    await bar(page).getByRole('button', { name: 'Duplicate' }).click()
+    await (await moreAction(page, 'Duplicate')).click()
     await expect
       .poll(async () => (await stickies()).length, { message: 'duplicate did not persist', timeout: 20_000 })
       .toBe(2)

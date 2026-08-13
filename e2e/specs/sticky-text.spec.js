@@ -98,7 +98,7 @@ test.describe('sticky note selection (#416)', () => {
     const note = page.getByText('note', { exact: true }).first()
     const noteBox = await boxInWindow(page, note, 'the seeded sticky note')
     await page.mouse.click(noteBox.x + noteBox.width / 2, noteBox.y + noteBox.height / 2)
-    await expect(bar.getByRole('button', { name: 'More formatting' })).toBeVisible()
+    await expect(bar.getByRole('button', { name: 'More sticky note actions' })).toBeVisible()
 
     // s1, the seeded rectangle at (120,140) — far from the sticky at (700,200).
     const shape = page.locator('[data-shape-id="s1"]')
@@ -107,6 +107,6 @@ test.describe('sticky note selection (#416)', () => {
 
     // The sticky's own group must be gone from the bar: while it was there, a
     // colour picked for the rectangle recoloured the sticky instead.
-    await expect(bar.getByRole('button', { name: 'More formatting' })).toHaveCount(0)
+    await expect(bar.getByRole('button', { name: 'More sticky note actions' })).toHaveCount(0)
   })
 })
