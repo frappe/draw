@@ -135,6 +135,9 @@ function onKeydown(event) {
 
 <template>
   <div class="relative">
+    <!-- The accessible name rides on aria-label, not a visible <label>: in a panel
+         of threads the label repeated over every composer, saying what the
+         placeholder already says (#424). -->
     <Textarea
       ref="textarea"
       v-model="text"
@@ -142,7 +145,7 @@ function onKeydown(event) {
       variant="outline"
       :placeholder="placeholder"
       :rows="2"
-      label="Write a comment"
+      :aria-label="placeholder"
       @input="onInput"
       @keydown="onKeydown"
     />
@@ -165,10 +168,11 @@ function onKeydown(event) {
       </button>
     </div>
 
-    <div class="mt-1.5 flex items-center justify-end gap-2">
+    <!-- Subtle, not solid: this sits inside a list of threads, and a black button
+         per composer made the panel read as a stack of forms (#424). -->
+    <div class="mt-1.5 flex items-center justify-end gap-1">
       <Button v-if="showCancel" variant="ghost" size="sm" label="Cancel" @click="cancel" />
-      <Button variant="solid" size="sm" :loading="submitting" :disabled="!text.trim()" @click="submit">
-        <template #prefix><span class="lucide-message-square h-3.5 w-3.5" aria-hidden="true" /></template>
+      <Button variant="subtle" size="sm" :loading="submitting" :disabled="!text.trim()" :label="submitLabel" @click="submit">
         {{ submitLabel }}
       </Button>
     </div>
