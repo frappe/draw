@@ -7,6 +7,7 @@
 import { computed, ref, watch } from 'vue'
 import { Checkbox, Dropdown, toast } from 'frappe-ui'
 import { documentToSvg, isDocumentEmpty } from '@/composables/useThumbnail.js'
+import PinIcon from './PinIcon.vue'
 
 const props = defineProps({
   diagram: { type: Object, required: true },
@@ -157,7 +158,7 @@ const TIME_UNITS = [
       :disabled="pinBlocked"
       @click.stop="togglePin"
     >
-      <span class="lucide-pin h-4 w-4" aria-hidden="true" :class="isPinned ? 'fill-current text-ink-amber-2' : 'text-ink-gray-4 hover:text-ink-gray-6'" />
+      <PinIcon :pinned="isPinned" :class="isPinned ? 'text-ink-gray-8' : 'text-ink-gray-4 hover:text-ink-gray-6'" />
     </button>
 
     <button class="min-w-0 flex-1 truncate text-left text-sm font-medium text-ink-gray-9" @click.stop="emit('open', diagram.name)">
@@ -202,7 +203,7 @@ const TIME_UNITS = [
       :disabled="pinBlocked"
       @click.stop="togglePin"
     >
-      <span class="lucide-pin h-4 w-4" aria-hidden="true" :class="isPinned ? 'fill-current text-ink-amber-2' : 'text-ink-gray-5'" />
+      <PinIcon :pinned="isPinned" :class="isPinned ? 'text-ink-gray-8' : 'text-ink-gray-5'" />
     </button>
 
     <button class="block w-full" @click="emit('open', diagram.name)">

@@ -68,6 +68,7 @@ declare module 'vue' {
     MoveToDriveDialog: typeof import('./src/components/toolbar/MoveToDriveDialog.vue')['default']
     OverflowMenu: typeof import('./src/components/toolbar/OverflowMenu.vue')['default']
     PaletteSection: typeof import('./src/components/palette-right/PaletteSection.vue')['default']
+    PinIcon: typeof import('./src/components/home/PinIcon.vue')['default']
     PointerGroup: typeof import('./src/components/toolbar/groups/PointerGroup.vue')['default']
     PresenceAvatars: typeof import('./src/components/toolbar/PresenceAvatars.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
