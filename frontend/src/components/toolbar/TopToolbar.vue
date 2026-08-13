@@ -23,6 +23,8 @@ defineProps({
   saveStatus: { type: String, default: 'saved' },
   // Autosave's freeze reason, when it is frozen — shown in place of the status.
   saveMessage: { type: String, default: '' },
+  // Connectivity is announced as a toast instead, so the indicator stays quiet.
+  offline: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:title'])
 
@@ -51,7 +53,7 @@ function goHome() {
 
     <!-- RIGHT: actions. -->
     <div class="flex items-center justify-end gap-2">
-      <SaveIndicator :status="saveStatus" :message="saveMessage" />
+      <SaveIndicator :status="saveStatus" :message="saveMessage" :offline="offline" />
       <ExportDialog />
       <DriveMenu />
       <CommentsToggle />

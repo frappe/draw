@@ -9,7 +9,10 @@ import { ref } from 'vue'
 // cache wants IndexedDB — neither is reachable in the node test environment. flush()
 // takes its saver by injection and only touches the cache to clear it, so stubbing
 // both module boundaries keeps this a pure unit test of the coalescing order.
-vi.mock('frappe-ui', () => ({ createResource: () => ({ submit: () => {} }) }))
+vi.mock('frappe-ui', () => ({
+  createResource: () => ({ submit: () => {} }),
+  toast: { warning: () => {}, error: () => {} },
+}))
 vi.mock('@/utils/localCache.js', () => ({
   putLocalDoc: () => Promise.resolve(),
   getLocalDoc: () => Promise.resolve(null),
@@ -229,7 +232,6 @@ describe('flush on a stale revision', () => {
     expect(h.saver.submit).toHaveBeenCalledTimes(1)
     expect(h.session.refreshRevision).not.toHaveBeenCalled()
     expect(h.frozen.value).toBe('This diagram was changed elsewhere — reload.')
-    expect(h.session.frozenReason).toBe('stale')
     expect(h.status.value).toBe('error')
   })
 
@@ -287,54 +289,124 @@ describe('flush on a stale revision', () => {
   })
 })
 
-// Regression tests for the offline-freeze recovery (finding D3).
+// Regression tests for offline REPORTING (#417).
 //
-// An offline save failure freezes the editor after ~5s. The 'online' handler exists
-// to lift that freeze and flush — but flush() early-returns while frozen, so without
-// clearing the freeze first the handler was dead code for exactly the case it exists
-// for, and the editor stayed frozen until a manual reload. A stale-revision freeze is
-// deliberately left in place, since that genuinely needs a reload.
-function reconnectHarness(frozenReason) {
-  const frozen = ref(frozenReason ? 'a freeze message' : null)
+// Every save failure that was not a revision conflict used to start a 5s countdown
+// to "You're offline — reconnect to keep editing." in the header. A 500 from
+// save_diagram, a revoked permission and a dropped Wi-Fi all arrived there as the
+// same sentence, so people were told they had no connection while they were online.
+// Only a request that never reached the server is a connectivity problem now, and it
+// is said once, as a toast.
+function failingSaveHarness(error) {
   const session = {
-    frozenReason,
+    pendingDocument: { shapes: ['a'] },
+    inFlight: false,
+    revision: () => 1,
+    diagramName: () => 'diagram-1',
+    hasPeers: () => false,
+    goOffline: vi.fn(),
+    clearOffline: vi.fn(),
+  }
+  const saver = {
+    submit: vi.fn(async () => {
+      throw error
+    }),
+  }
+  const status = ref('saving')
+  const frozen = ref(null)
+  session.flushNow = () => flush(session, saver, { doc: { name: 'diagram-1', revision: 1 } }, status, frozen)
+  return { session, status, frozen }
+}
+
+// A server that answered, with the shape frappe-ui gives an HTTP error.
+const SERVER_ERROR = Object.assign(new Error('Internal Server Error'), {
+  response: { status: 500 },
+  messages: ['Internal Server Error'],
+})
+// A request that never completed: fetch rejects with a bare TypeError.
+const NETWORK_ERROR = new TypeError('Failed to fetch')
+
+describe('offline reporting', () => {
+  it('does not claim offline when the server answered with an error', async () => {
+    const h = failingSaveHarness(SERVER_ERROR)
+
+    await h.session.flushNow()
+
+    expect(h.session.goOffline, 'a 500 is not a lost connection').not.toHaveBeenCalled()
+    expect(h.session.clearOffline).toHaveBeenCalled()
+    expect(h.status.value, 'it is still a failed save').toBe('error')
+    expect(h.frozen.value, 'and it must not freeze the editor').toBeNull()
+  })
+
+  it('reports offline when the request never reached the server', async () => {
+    const h = failingSaveHarness(NETWORK_ERROR)
+
+    await h.session.flushNow()
+
+    expect(h.session.goOffline).toHaveBeenCalled()
+    expect(h.frozen.value, 'losing the network no longer freezes the editor').toBeNull()
+    expect(h.session.pendingDocument, 'the edit is held for the reconnect flush').toEqual({ shapes: ['a'] })
+  })
+
+  it('separates a dead network from an unreachable server', async () => {
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    const h = failingSaveHarness(NETWORK_ERROR)
+
+    await h.session.flushNow()
+
+    // false = the browser itself is offline, so the toast says "You're offline"
+    // rather than blaming the server.
+    expect(h.session.goOffline).toHaveBeenCalledWith(false)
+    online.mockRestore()
+  })
+})
+
+function reconnectHarness({ frozenMessage = null } = {}) {
+  const frozen = ref(frozenMessage)
+  const session = {
     frozen,
     flushNow: vi.fn(),
-    clearFrozen: vi.fn(() => {
-      frozen.value = null
-      session.frozenReason = null
-    }),
+    goOffline: vi.fn(),
+    clearOffline: vi.fn(),
   }
   return { session, frozen }
 }
 
 describe('watchConnectivity', () => {
-  it('lifts an offline freeze on reconnect, then flushes', () => {
-    const { session, frozen } = reconnectHarness('offline')
+  it('clears the offline state on reconnect, then flushes', () => {
+    const { session } = reconnectHarness()
     const dispose = watchConnectivity(session)
 
     window.dispatchEvent(new Event('online'))
 
-    expect(session.clearFrozen, 'the offline freeze was never lifted').toHaveBeenCalled()
-    expect(frozen.value).toBeNull()
-    expect(session.flushNow).toHaveBeenCalled()
+    expect(session.clearOffline).toHaveBeenCalled()
+    expect(session.flushNow, 'edits made offline must go up on reconnect').toHaveBeenCalled()
+    dispose()
+  })
+
+  it('announces a disconnection as it happens, without waiting for a save to fail', () => {
+    const { session } = reconnectHarness()
+    const dispose = watchConnectivity(session)
+
+    window.dispatchEvent(new Event('offline'))
+
+    expect(session.goOffline).toHaveBeenCalled()
     dispose()
   })
 
   it('leaves a stale-revision freeze in place on reconnect', () => {
-    const { session, frozen } = reconnectHarness('stale')
+    const { session, frozen } = reconnectHarness({ frozenMessage: 'a freeze message' })
     const dispose = watchConnectivity(session)
 
     window.dispatchEvent(new Event('online'))
 
     // A stale conflict needs a reload; reconnecting must not silently resume saving.
-    expect(session.clearFrozen).not.toHaveBeenCalled()
     expect(frozen.value).toBe('a freeze message')
     dispose()
   })
 
   it('detaches the listener when disposed', () => {
-    const { session } = reconnectHarness('offline')
+    const { session } = reconnectHarness()
     const dispose = watchConnectivity(session)
     dispose()
 
@@ -355,9 +427,10 @@ describe('watchBeforeUnload', () => {
     return event.defaultPrevented
   }
 
-  it('warns only when a save is failing (error) or frozen (offline/stale)', () => {
+  it('warns when a save is failing (error) or the editor is frozen (stale)', () => {
+    // Offline reaches this through 'error': the save that could not go out is what
+    // makes closing the tab risky, and it is the state an offline editor sits in.
     expect(fires('error', null)).toBe(true)
-    expect(fires('saved', "You're offline — reconnect to keep editing.")).toBe(true)
     expect(fires('saved', 'This diagram was changed elsewhere — reload.')).toBe(true)
   })
 

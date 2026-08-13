@@ -4,20 +4,26 @@
 // state needs no chrome, and advertising "Saved" trains people to ignore the one
 // place a real problem would appear (#307).
 //
-// `message` is autosave's freeze reason ("changed elsewhere — reload", "you're
-// offline"). It wins over the status label: a frozen editor still accepts every
-// edit, so "Save failed" alone left the user with no idea their work had stopped
-// being kept, or what to do about it (GitHub #171).
+// `message` is autosave's freeze reason ("changed elsewhere — reload"). It wins
+// over the status label: a frozen editor still accepts every edit, so "Save failed"
+// alone left the user with no idea their work had stopped being kept, or what to do
+// about it (GitHub #171).
+//
+// Losing the network is NOT reported here (#417). It is announced once as a toast,
+// and saying "Save failed" underneath it would give one problem two voices — the
+// louder of which is wrong, since the edits are safe locally and go up on reconnect.
 import { computed } from 'vue'
 
 const props = defineProps({
   status: { type: String, default: 'saved' },
   message: { type: String, default: '' },
+  offline: { type: Boolean, default: false },
 })
 
 // Only a freeze reason or an outright save failure surfaces.
 const problem = computed(() => {
   if (props.message) return props.message
+  if (props.offline) return ''
   if (props.status === 'error') return 'Save failed'
   return ''
 })

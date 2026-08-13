@@ -182,6 +182,7 @@ onMounted(() => {
       :title="diagram.doc?.title || 'Untitled diagram'"
       :save-status="autosave.status.value"
       :save-message="autosave.frozen.value || ''"
+      :offline="autosave.offline.value"
       @update:title="rename"
     />
 

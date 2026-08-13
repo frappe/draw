@@ -1,16 +1,15 @@
 // Debounced autosave (SPEC §8): saves the diagram document ~1.5s after the last
 // change via the whitelisted save_diagram method, revision-checked for concurrent
-// writes. Exposes a `status` ref ('saved' | 'saving' | 'error') and a `frozen` ref,
-// both rendered by EditorShell → TopToolbar → SaveIndicator. Unsaved state is held
-// in memory and flushed on reconnect; connectivity loss freezes after ~5s. A
+// writes. Exposes a `status` ref ('saved' | 'saving' | 'error'), a `frozen` ref and
+// an `offline` ref, all rendered by EditorShell → TopToolbar → SaveIndicator.
+// Unsaved state is held in memory (and in IndexedDB) and flushed on reconnect. A
 // revision race against a connected co-editor is retried instead of freezing.
 
 import { ref, watch, onUnmounted } from 'vue'
-import { createResource } from 'frappe-ui'
+import { createResource, toast } from 'frappe-ui'
 import { putLocalDoc, getLocalDoc, clearLocalDoc } from '@/utils/localCache.js'
 
 const DEBOUNCE_MS = 1500
-const OFFLINE_FREEZE_MS = 5000
 const MAX_STALE_RETRIES = 3
 const LOCAL_DEBOUNCE_MS = 400 // persist to IndexedDB sooner than the server save
 
@@ -22,7 +21,10 @@ export function useAutosave(
 ) {
   const status = ref('saved')
   const frozen = ref(null)
-  const session = createSaveSession(store, diagramResource, status, frozen)
+  // Whether the editor can currently reach the server. Announced once per episode
+  // as a toast rather than as standing header chrome (#417).
+  const offline = ref(false)
+  const session = createSaveSession(store, diagramResource, status, frozen, offline)
   // Whether a co-editor is connected to the same Yjs room. A stale revision
   // between two peers of that room is a save race, not a conflict — see
   // recoverFromStaleRevision().
@@ -64,7 +66,7 @@ export function useAutosave(
     session.teardown()
   })
 
-  return { status, frozen, flush: session.flushNow }
+  return { status, frozen, offline, flush: session.flushNow }
 }
 
 // One-shot restore: if a dirty local copy exists for this diagram on the same
@@ -84,20 +86,15 @@ async function maybeRestoreLocal(session, store, diagramResource, revision) {
   }
 }
 
-// A save session bundles the debounce timer, the in-memory pending document, the
-// last known server revision, and the offline-freeze timer.
-function createSaveSession(store, diagramResource, status, frozen) {
+// A save session bundles the debounce timer, the in-memory pending document and
+// the last known server revision.
+function createSaveSession(store, diagramResource, status, frozen, offline) {
   const saver = createResource({ url: 'draw.api.diagram.save_diagram' })
   const revisionReader = createResource({ url: 'draw.api.diagram.get_revision' })
   const session = {
     debounceTimer: null,
-    offlineTimer: null,
     pendingDocument: null,
     inFlight: false,
-    // Why the editor is frozen: 'offline' (lift on reconnect) or 'stale' (needs a
-    // reload). Tracked structurally so the reconnect handler doesn't have to
-    // string-match the user-facing message.
-    frozenReason: null,
     // Stale-revision retries spent inside the current flush (reset per flush), so
     // a race we keep losing stops re-sending instead of hammering the server.
     staleRetries: 0,
@@ -111,8 +108,17 @@ function createSaveSession(store, diagramResource, status, frozen) {
   session.flushNow = () => flush(session, saver, diagramResource, status, frozen)
   session.teardown = () => {
     clearTimeout(session.debounceTimer)
-    clearTimeout(session.offlineTimer)
     clearTimeout(session.localTimer)
+  }
+  // Say it once per episode: a failing save retries on every edit, and a toast per
+  // attempt would bury the canvas in the same sentence.
+  session.goOffline = (unreachableServer = false) => {
+    if (offline.value) return
+    offline.value = true
+    toast.warning(unreachableServer ? "Can't reach the server" : "You're offline")
+  }
+  session.clearOffline = () => {
+    offline.value = false
   }
   // Write the in-memory pending document to IndexedDB right now. Called before the
   // timers are cancelled on unmount and on tab-close, so the edits made since the
@@ -121,10 +127,6 @@ function createSaveSession(store, diagramResource, status, frozen) {
     if (session.pendingDocument && session.diagramName()) {
       putLocalDoc(session.diagramName(), session.pendingDocument, session.revision())
     }
-  }
-  session.clearFrozen = () => {
-    frozen.value = null
-    session.frozenReason = null
   }
   return session
 }
@@ -210,8 +212,8 @@ function onSaveSuccess(session, diagramResource, status, savedDocument, result) 
   if (result?.revision != null && diagramResource.doc) {
     diagramResource.doc.revision = result.revision
   }
-  clearTimeout(session.offlineTimer)
-  session.offlineTimer = null
+  // The save landed, so the server is reachable again.
+  session.clearOffline?.()
   if (session.pendingDocument === savedDocument) {
     session.pendingDocument = null
     status.value = 'saved'
@@ -225,8 +227,9 @@ function onSaveSuccess(session, diagramResource, status, savedDocument, result) 
   return true
 }
 
-// A stale revision freezes the editor for reload; a network failure starts the
-// 5s offline-freeze countdown while keeping the unsaved document in memory.
+// A stale revision freezes the editor for reload; anything else leaves the pending
+// document in memory to retry, and only a request that never reached the server
+// reports a connectivity problem.
 function onSaveError(session, status, frozen, error, peered = false) {
   status.value = 'error'
   if (isStaleRevision(error)) {
@@ -237,10 +240,29 @@ function onSaveError(session, status, frozen, error, peered = false) {
     // user drew afterwards (GitHub #171).
     if (peered) return
     frozen.value = 'This diagram was changed elsewhere — reload.'
-    session.frozenReason = 'stale'
     return
   }
-  startOfflineFreeze(session, frozen)
+  // A server that answered — with ANY status — is reachable, so the save failed on
+  // its own merits and "Save failed" is the honest report. Reporting every failure
+  // as offline is what told people they had no connection while they were online
+  // (#417): a 500 from save_diagram, a revoked permission and a dropped Wi-Fi all
+  // came out of here as the same sentence.
+  if (reachedServer(error)) return session.clearOffline?.()
+  session.goOffline?.(isBrowserOnline())
+}
+
+// Whether the request got a reply from the server. frappe-ui attaches the Response
+// (and the exception type it carried) to an HTTP error; a request that never
+// completed rejects with a bare fetch TypeError instead.
+function reachedServer(error) {
+  return Boolean(error?.response || error?.exc_type)
+}
+
+// The browser's own verdict on connectivity. It is only trusted to tell offline
+// from server-unreachable — never as the reason to declare an editor offline,
+// since it reports "online" for any live network, routable or not.
+function isBrowserOnline() {
+  return typeof navigator === 'undefined' || navigator.onLine !== false
 }
 
 // A stale revision between two peers of the SAME Yjs room is not a conflict: both
@@ -291,30 +313,25 @@ function isStaleRevision(error) {
   return message.includes('changed elsewhere')
 }
 
-function startOfflineFreeze(session, frozen) {
-  if (session.offlineTimer) return
-  session.offlineTimer = setTimeout(() => {
-    frozen.value = "You're offline — reconnect to keep editing."
-    session.frozenReason = 'offline'
-  }, OFFLINE_FREEZE_MS)
-}
-
-// Flush immediately when the browser regains connectivity so no edits are lost.
-// Returns a disposer that detaches the listener on unmount. Exported for
-// useAutosave.test.js: the offline-freeze-lifting order below was once dead code
-// (the reconnect handler ran but flush() early-returned while still frozen), so it
-// is unit-tested directly rather than only through the editor.
+// Track connectivity both ways: announce a real disconnection as it happens, and
+// flush the moment it comes back so no edits are left behind. Losing the network
+// no longer freezes the editor (#417) — drawing continues, every edit still lands
+// in IndexedDB, and the retry rides the next debounce. A stale-revision freeze is
+// untouched by either handler: that one genuinely needs a reload.
+//
+// Exported for useAutosave.test.js, which drives the two events directly.
 export function watchConnectivity(session) {
   const onReconnect = () => {
-    // Lift an offline freeze before flushing: flush() early-returns while frozen,
-    // so without clearing it here the 'online' handler was dead code for exactly
-    // the case it exists for, and the editor stayed frozen until a manual reload.
-    // A stale-revision freeze is left in place — that genuinely needs a reload.
-    if (session.frozenReason === 'offline') session.clearFrozen()
+    session.clearOffline?.()
     session.flushNow()
   }
+  const onDisconnect = () => session.goOffline?.()
   window.addEventListener('online', onReconnect)
-  return () => window.removeEventListener('online', onReconnect)
+  window.addEventListener('offline', onDisconnect)
+  return () => {
+    window.removeEventListener('online', onReconnect)
+    window.removeEventListener('offline', onDisconnect)
+  }
 }
 
 // Persist unsaved edits when the tab is hidden or closed. `pagehide` fires in the
