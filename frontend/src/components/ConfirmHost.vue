@@ -5,6 +5,10 @@
 // The point of it is `:show-close-button="false"` alongside the default
 // `dismissible` — a confirm carries its question, its two answers, and nothing
 // else, while Esc and outside-click keep working.
+//
+// `sm`, not `md` (#424): a one-line question in a dialog sized for a form reads as
+// a much bigger interruption than it is, which is what the delete-comment prompt
+// was called out for. Every confirm in the app is the same two-answer question.
 import { computed } from 'vue'
 import { Button, Dialog, ErrorMessage } from 'frappe-ui'
 import { useConfirmState, runConfirm, closeConfirm } from '@/composables/useConfirm.js'
@@ -37,7 +41,7 @@ function onOpenChange(open) {
     :open="state.open"
     :title="request.title"
     :icon="icon"
-    size="md"
+    size="sm"
     :show-close-button="false"
     @update:open="onOpenChange"
   >

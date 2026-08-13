@@ -121,6 +121,11 @@ export function createComments(diagramName) {
   }
 
   // ----- mutations -----
+  //
+  // Every one of these changes the list FIRST and reconciles with the server row
+  // when it lands (#424). Waiting for the round trip made replying and resolving
+  // feel like the editor had missed the click. A failure puts back exactly what was
+  // there and says so — the UI never keeps a change the server refused.
 
   async function addComment(anchor, content) {
     try {
@@ -135,53 +140,114 @@ export function createComments(diagramName) {
       apply(row)
       return row
     } catch (error) {
-      toast.error(error?.messages?.[0] || 'Could not add the comment.')
+      toast.error(userMessage(error, 'Unable to add the comment. Please try again.'))
       return null
     }
   }
 
   async function reply(rootName, content) {
     if (!content?.trim()) return null
+    // Show the reply in the thread straight away, under a provisional name the
+    // server row replaces. The count and the thread grow with the click.
+    const pending = pendingRow({ parent_comment: rootName, content })
+    comments.value = [...comments.value, pending]
     try {
       const row = await call(API.reply, { diagram: name(), parent_comment: rootName, content })
-      apply(row)
+      replaceRow(pending.name, row)
       return row
     } catch (error) {
-      toast.error(error?.messages?.[0] || 'Could not post the reply.')
+      dropLocal(pending.name)
+      toast.error(userMessage(error, 'Unable to post the reply. Please try again.'))
       return null
     }
   }
 
   async function resolve(rootName, resolved) {
+    const previous = rowFor(rootName)
+    if (!previous) return null
+    patchRow(rootName, { resolved: resolved ? 1 : 0, resolved_by: resolved ? me.id : null })
     try {
       const row = await call(API.resolve, { diagram: name(), comment: rootName, resolved: resolved ? 1 : 0 })
       apply(row)
       return row
     } catch (error) {
-      toast.error(error?.messages?.[0] || 'Could not update the thread.')
+      replaceRow(rootName, previous)
+      toast.error(userMessage(error, 'Unable to update the thread. Please try again.'))
       return null
     }
   }
 
   async function edit(commentName, content) {
     if (!content?.trim()) return null
+    const previous = rowFor(commentName)
+    if (!previous) return null
+    patchRow(commentName, { content })
     try {
       const row = await call(API.edit, { diagram: name(), comment: commentName, content })
       apply(row)
       return row
     } catch (error) {
-      toast.error(error?.messages?.[0] || 'Could not edit the comment.')
+      replaceRow(commentName, previous)
+      toast.error(userMessage(error, 'Unable to save the comment. Please try again.'))
       return null
     }
   }
 
+  // Throws when the server refuses. The caller is the confirm dialog, which holds
+  // itself open and shows the message — and, crucially, does NOT go on to say
+  // "Comment deleted". Reporting a delete that did not happen, next to the error
+  // that says it did not happen, is the contradiction in #424.
   async function remove(commentName) {
+    const removed = comments.value.filter(
+      (c) => c.name === commentName || c.parent_comment === commentName,
+    )
+    dropLocal(commentName)
+    const wasActive = activeThread.value === commentName
+    if (wasActive) activeThread.value = null
     try {
       await call(API.remove, { diagram: name(), comment: commentName })
-      dropLocal(commentName)
-      if (activeThread.value === commentName) activeThread.value = null
     } catch (error) {
-      toast.error(error?.messages?.[0] || 'Could not delete the comment.')
+      comments.value = [...comments.value, ...removed]
+      if (wasActive) activeThread.value = commentName
+      throw new Error(userMessage(error, 'Unable to delete the comment. Please try again.'))
+    }
+  }
+
+  // ----- local list helpers -----
+
+  function rowFor(commentName) {
+    return comments.value.find((c) => c.name === commentName) || null
+  }
+
+  function patchRow(commentName, patch) {
+    comments.value = comments.value.map((c) => (c.name === commentName ? { ...c, ...patch } : c))
+  }
+
+  // Swap one row for another, by name. A realtime nudge can refetch the whole list
+  // between an optimistic insert and its answer, taking the provisional row with it
+  // — so a row that is no longer there is upserted rather than dropped, or the
+  // reply the user watched appear would vanish for good.
+  function replaceRow(commentName, row) {
+    if (!row?.name) return
+    if (!rowFor(commentName)) return apply(row)
+    comments.value = comments.value.map((c) => (c.name === commentName ? row : c))
+  }
+
+  // A comment that exists on screen but not yet on the server. `pending` marks it
+  // so the card can show it as still going out.
+  let pendingCount = 0
+  function pendingRow(fields) {
+    pendingCount += 1
+    return {
+      name: `pending-${pendingCount}`,
+      parent_comment: null,
+      content: '',
+      resolved: 0,
+      owner: me.id,
+      author: me.fullName,
+      creation: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      pending: true,
+      ...fields,
     }
   }
 
@@ -245,6 +311,20 @@ export function createComments(diagramName) {
     openThread,
     closeThread,
   }
+}
+
+// What to actually show the user when a call fails.
+//
+// frappe-ui synthesises "Internal Server Error" for any non-OK response that
+// carries no server message, and that string went straight into a toast — beside a
+// "Comment deleted" toast, in the case that opened #424. A message Frappe wrote is
+// worth reading ("You do not have permission to delete this comment"); the
+// framework's fallback is not, so it is replaced with what the user can do next.
+const FRAMEWORK_FALLBACK = 'Internal Server Error'
+
+function userMessage(error, fallback) {
+  const message = error?.messages?.[0]
+  return message && message !== FRAMEWORK_FALLBACK ? message : fallback
 }
 
 // The signed-in user from Frappe's session cookies (no extra request), matching

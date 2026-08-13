@@ -1,18 +1,25 @@
 <script setup>
 // Comment pins over the canvas (#108). A pin sits at a board point or on a shape's
 // bottom-right corner, follows pan/zoom and the shape as it moves, and opens its
-// thread on click. A draft (a comment being placed) shows its own pin with an open
-// composer. The overlay shares the canvas surface's coordinate origin (both fill
-// <main>), so a board point (x,y) maps to surface pixels (panX + x*zoom, panY +
-// y*zoom) — no rect math, unlike the body-teleported cursors.
+// thread IN THE PANEL when clicked. A draft (a comment being placed) shows its own
+// pin with an open composer, because placing a comment is a thing you do at a spot.
+//
+// The canvas used to carry the whole thread as a card too — the same thread the
+// panel was showing, with its own edit, resolve and delete controls. Two live copies
+// of one comment meant editing in the panel left a stale one over the canvas (the
+// "ghost comments" of #424), and it put comment management in two places at once.
+// The panel is the one place a comment is managed now; the canvas says where.
+//
+// The overlay shares the canvas surface's coordinate origin (both fill <main>), so a
+// board point (x,y) maps to surface pixels (panX + x*zoom, panY + y*zoom) — no rect
+// math, unlike the body-teleported cursors.
 import { ref, computed } from 'vue'
-import { Button, Tooltip } from 'frappe-ui'
+import { Tooltip } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useComments } from '@/composables/useComments.js'
 import { anchorPoint } from '@/diagram/geometry.js'
 import { commentPreview } from './commentMarkup.js'
-import CommentThread from './CommentThread.vue'
 import CommentComposer from './CommentComposer.vue'
 
 const editorUi = useEditorUi()
@@ -40,7 +47,9 @@ function toScreen(point) {
 }
 
 // Unresolved, anchored pins with a screen position. Resolved threads leave the
-// canvas (reachable from the panel) so the board doesn't fill with old markers.
+// canvas (reachable from the panel) so the board doesn't fill with old markers, and
+// a deleted one leaves with the comment it belonged to — the list is the only
+// source of pins, so a pin cannot outlive its thread (#424).
 const pins = computed(() =>
   comments.pins.value
     .filter((t) => !t.root.resolved)
@@ -50,15 +59,6 @@ const pins = computed(() =>
     })
     .filter(Boolean),
 )
-
-const activeCard = computed(() => {
-  const name = comments.activeThread.value
-  if (!name) return null
-  const thread = comments.threads.value.find((t) => t.root.name === name)
-  if (!thread) return null
-  const point = anchorOf(thread.root)
-  return point ? { thread, ...place(toScreen(point)) } : null
-})
 
 const draftCard = computed(() => {
   const draft = comments.draft.value
@@ -70,7 +70,7 @@ const draftCard = computed(() => {
   return point ? place(toScreen(point)) : null
 })
 
-// Position a card next to a pin, nudged to stay inside the canvas area.
+// Position the draft composer next to its pin, nudged to stay inside the canvas.
 function place({ left, top }) {
   const box = layer.value?.getBoundingClientRect()
   const width = box?.width || CARD_W * 2
@@ -87,7 +87,10 @@ function pinLabel(thread) {
   return count > 1 ? String(count) : ''
 }
 
+// Navigating to a comment means showing it where it is managed: open the panel and
+// make that thread the active one, which scrolls it into view and highlights it.
 function openThread(thread) {
+  editorUi.state.commentsPanelOpen = true
   comments.openThread(thread.root.name)
 }
 
@@ -98,40 +101,22 @@ async function submitDraft(content) {
 
 <template>
   <div ref="layer" class="pointer-events-none absolute inset-0 z-30 overflow-hidden">
-    <!-- pins -->
     <Tooltip v-for="pin in pins" :key="pin.thread.root.name" :text="commentPreview(pin.thread.root.content)">
       <button
         class="pointer-events-auto absolute flex h-7 w-7 -translate-y-full items-center justify-center rounded-full rounded-bl-none border border-white bg-surface-gray-7 text-p-xs font-semibold text-white shadow-md transition hover:bg-surface-gray-6"
         :class="comments.activeThread.value === pin.thread.root.name ? 'ring-2 ring-outline-gray-3' : ''"
         :style="{ left: `${pin.left}px`, top: `${pin.top}px` }"
+        :aria-label="`Open comment thread: ${commentPreview(pin.thread.root.content)}`"
         @click="openThread(pin.thread)"
       >
-        <span class="lucide-message-square h-3.5 w-3.5" aria-hidden="true" v-if="!pinLabel(pin.thread)" />
+        <span v-if="!pinLabel(pin.thread)" class="lucide-message-square h-3.5 w-3.5" aria-hidden="true" />
         <span v-else>{{ pinLabel(pin.thread) }}</span>
       </button>
     </Tooltip>
 
-    <!-- open thread card -->
-    <div
-      v-if="activeCard"
-      class="pointer-events-auto absolute"
-      :style="{ left: `${activeCard.cardLeft}px`, top: `${activeCard.cardTop}px`, width: `${CARD_W}px` }"
-    >
-      <div class="mb-1 flex justify-end">
-        <Button
-          variant="ghost"
-          theme="gray"
-          size="sm"
-          icon="lucide-x"
-          tooltip="Close comment"
-          label="Close comment"
-          @click="comments.closeThread()"
-        />
-      </div>
-      <CommentThread :thread="activeCard.thread" variant="popover" />
-    </div>
-
-    <!-- draft (placing a new comment) -->
+    <!-- The comment being placed. The only composer the canvas carries: it belongs
+         to the spot that was just clicked, and there is no second copy of it
+         anywhere for it to disagree with. -->
     <div
       v-if="draftCard"
       class="pointer-events-auto absolute rounded-lg border border-outline-gray-2 bg-surface-elevation-1 p-3 shadow-2xl"

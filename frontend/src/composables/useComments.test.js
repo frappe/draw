@@ -130,3 +130,115 @@ describe('draft placement', () => {
     expect(call).not.toHaveBeenCalled()
   })
 })
+
+// #424: what the UI does when the server refuses, and how quickly it responds when
+// it does not. The fault that opened the issue was a delete reporting both
+// "Comment deleted" and "Internal Server Error" while the comment stayed on screen:
+// remove() swallowed the failure, so the caller went on to claim success.
+
+const failure = (messages) => Object.assign(new Error('boom'), { messages })
+
+describe('a refused action puts the list back', () => {
+  it('remove throws and restores the thread', async () => {
+    const c = createComments('d1')
+    seed(c)
+    c.openThread('r1')
+    call.mockRejectedValueOnce(failure(['Internal Server Error']))
+
+    await expect(c.remove('r1')).rejects.toThrow('Unable to delete the comment. Please try again.')
+
+    expect(c.comments.value.map((x) => x.name).sort(), 'the comment vanished from a delete that failed').toEqual(
+      ['g1', 'r1', 'r1a', 'r2'],
+    )
+    expect(c.activeThread.value, 'the restored thread is active again').toBe('r1')
+  })
+
+  it('keeps a message Frappe wrote, and drops the framework fallback', async () => {
+    const c = createComments('d1')
+    seed(c)
+    call.mockRejectedValueOnce(failure(['You do not have permission to delete this comment.']))
+
+    await expect(c.remove('r1')).rejects.toThrow('You do not have permission to delete this comment.')
+  })
+
+  it('resolve reverts the thread it moved', async () => {
+    const c = createComments('d1')
+    seed(c)
+    call.mockRejectedValueOnce(failure([]))
+
+    await c.resolve('r1', true)
+
+    expect(c.comments.value.find((x) => x.name === 'r1').resolved).toBe(0)
+  })
+
+  it('reply takes back the message it showed', async () => {
+    const c = createComments('d1')
+    seed(c)
+    call.mockRejectedValueOnce(failure([]))
+
+    await c.reply('r1', 'nearly')
+
+    expect(c.comments.value.some((x) => x.content === 'nearly')).toBe(false)
+  })
+
+  it('edit puts the old text back', async () => {
+    const c = createComments('d1')
+    c.comments.value = [{ name: 'r1', parent_comment: null, content: 'first', resolved: 0, creation: 'x' }]
+    call.mockRejectedValueOnce(failure([]))
+
+    await c.edit('r1', 'second')
+
+    expect(c.comments.value[0].content).toBe('first')
+  })
+})
+
+describe('an action shows before the server answers', () => {
+  it('reply appears in the thread while it is still going out', async () => {
+    const c = createComments('d1')
+    seed(c)
+    let settle
+    call.mockReturnValueOnce(new Promise((resolve) => (settle = resolve)))
+
+    const posting = c.reply('r1', 'on its way')
+
+    const thread = c.threads.value.find((t) => t.root.name === 'r1')
+    expect(thread.replies.map((r) => r.content)).toContain('on its way')
+    expect(thread.replies.at(-1).pending, 'the card needs to show it as sending').toBe(true)
+
+    settle({ name: 'r1b', parent_comment: 'r1', content: 'on its way', resolved: 0, creation: 'y' })
+    await posting
+    const settled = c.threads.value.find((t) => t.root.name === 'r1')
+    expect(settled.replies.map((r) => r.name), 'the server row replaced the provisional one').toEqual(['r1a', 'r1b'])
+  })
+
+  it('resolve moves the thread before the call lands', async () => {
+    const c = createComments('d1')
+    seed(c)
+    call.mockReturnValueOnce(new Promise(() => {}))
+
+    c.resolve('r1', true)
+
+    expect(c.openThreads.value.map((t) => t.root.name)).toEqual(['g1'])
+    expect(c.resolvedThreads.value.map((t) => t.root.name)).toEqual(['r2', 'r1'])
+  })
+})
+
+describe('a refetch mid-flight', () => {
+  it('keeps a reply whose provisional row was swept away by a reload', async () => {
+    // The realtime nudge refetches the whole list. If that lands between showing a
+    // reply and its answer, the provisional row is gone — and the answer has to
+    // bring the real one in rather than replacing something that no longer exists.
+    const c = createComments('d1')
+    seed(c)
+    let settle
+    call.mockReturnValueOnce(new Promise((resolve) => (settle = resolve)))
+
+    const posting = c.reply('r1', 'survives a reload')
+    seed(c) // a reload replaces the list, provisional row and all
+
+    settle({ name: 'r1b', parent_comment: 'r1', content: 'survives a reload', resolved: 0, creation: 'y' })
+    await posting
+
+    expect(c.comments.value.map((x) => x.name)).toContain('r1b')
+  })
+})
