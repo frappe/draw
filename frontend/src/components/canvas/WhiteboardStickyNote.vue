@@ -3,7 +3,9 @@
 // the canvas viewport <g>, so geometry is in canvas units. Supports:
 // - drag to move and a corner handle to resize (deltas divided by zoom so they
 //   stay correct at any scale, Part G4);
-// - inline text editing via a contentEditable foreignObject;
+// - inline PLAIN-TEXT editing via a contentEditable foreignObject (#416): Enter
+//   inserts a real line break and continues a "- " list, a paste keeps only its
+//   text, and the note grows so what was typed stays inside it;
 // - auto-contrast text color against the note fill (spec C3/C10);
 // - an optional hyperlink (URL or another Frappe Draw diagram) that navigates on
 //   click while the select tool is active (spec W6).
@@ -21,6 +23,15 @@ import { safeHref } from '@/utils/safeUrl.js'
 import { contrastInk } from '@/diagram/whiteboardColors.js'
 import { roughenRect } from '@/diagram/sketch.js'
 import { pointsToPath } from '@/diagram/svgPath.js'
+import {
+  newlineIntent,
+  plainPaste,
+  stickyTextHeight,
+  STICKY_FONT_SIZE,
+  STICKY_LINE_HEIGHT,
+  STICKY_PAD_X,
+  STICKY_PAD_Y,
+} from '@/diagram/stickyText.js'
 
 const props = defineProps({
   note: { type: Object, required: true },
@@ -36,6 +47,20 @@ const field = ref(null)
 const editing = ref(false)
 
 const ink = computed(() => contrastInk(props.note.color))
+// The field is laid out with the same font, leading and padding the height
+// measurement assumes, so a note that grew to fit its text really does fit it.
+const fieldStyle = computed(() => ({
+  color: ink.value,
+  padding: `${STICKY_PAD_Y / 2}px ${STICKY_PAD_X / 2}px`,
+  boxSizing: 'border-box',
+  fontFamily: 'Inter, sans-serif',
+  fontSize: `${STICKY_FONT_SIZE}px`,
+  lineHeight: String(STICKY_LINE_HEIGHT),
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-word',
+  textDecoration: props.note.strike ? 'line-through' : 'none',
+  cursor: editing.value ? 'text' : 'move',
+}))
 // Highlighted whenever part of the selection (multi-select shows every member's
 // border); `solo` (single-object) gates the resize handle so
 // they don't clutter a multi-selection.
@@ -45,9 +70,6 @@ const solo = computed(
 )
 const MIN = 80
 
-// Author chip (Whimsical-style). The floating contextual toolbar lives in
-// floating/StickyNoteToolbar.vue — see the note there on why it cannot be here.
-const authorInitial = computed(() => (props.note.author || '?').trim().charAt(0).toUpperCase() || '?')
 // Keep the (non-editing) DOM text in sync with the model without interpolating
 // inside the contentEditable, mirroring the shared TextEditor so user keystrokes
 // are never clobbered by a re-render.
@@ -170,9 +192,91 @@ watch(
 
 function commit() {
   if (!editing.value) return
-  const text = (field.value?.textContent || '').trim()
+  const text = fieldText()
   editing.value = false
-  store.updateStickyNote(props.note.id, { text })
+  store.updateStickyNote(props.note.id, { text, h: fittedHeight(text) })
+}
+
+// innerText, NOT textContent (#416). Pressing Enter in a contentEditable makes the
+// browser wrap each line in its own <div> — it does that here whatever the CSS says
+// — and textContent concatenates those with nothing between them, so "First line /
+// Second line" was saved as "First lineSecond line". innerText reports the text as
+// it is laid out, line breaks included.
+function fieldText() {
+  return (field.value?.innerText || '').trim()
+}
+
+// The browser's own line break is right for ordinary text, so Enter is intercepted
+// only to carry a "- " list onto the next line (or to end one).
+function onKeydown(event) {
+  if (event.key === 'Escape') return field.value?.blur()
+  if (event.key !== 'Enter' || event.isComposing) return
+  const intent = newlineIntent(lineBeforeCaret())
+  if (!intent) return
+  event.preventDefault()
+  deleteBeforeCaret(intent.deleteBefore)
+  if (intent.insert) document.execCommand('insertText', false, intent.insert)
+  growToText(fieldText())
+}
+
+// Paste as plain text: a note holds a string, so pasted markup has nothing to be
+// pasted into. insertText leaves the DOM and the undo stack to the browser.
+function onPaste(event) {
+  event.preventDefault()
+  document.execCommand('insertText', false, plainPaste(event.clipboardData?.getData('text/plain')))
+  growToText(fieldText())
+}
+
+// The text of the line the caret is on, up to the caret. Read from the caret's own
+// block (the <div> the browser made for that line, or the field itself for the
+// first one), because a Range spanning several blocks reports their text with the
+// breaks between them missing. A note opened for editing starts as ONE text node
+// carrying real newlines, so the last break inside the block still decides where
+// the line begins.
+function lineBeforeCaret() {
+  const selection = window.getSelection()
+  if (!selection?.rangeCount || !field.value) return ''
+  const range = selection.getRangeAt(0).cloneRange()
+  range.setStart(blockOf(range.startContainer), 0)
+  const text = range.toString()
+  return text.slice(text.lastIndexOf('\n') + 1)
+}
+
+function blockOf(node) {
+  const root = field.value
+  let current = node
+  while (current && current.parentNode !== root) current = current.parentNode
+  return current?.nodeType === 1 ? current : root
+}
+
+// Take `count` characters back from the caret — the "- " marker being cleared when
+// a list ends.
+function deleteBeforeCaret(count) {
+  if (!count) return
+  const selection = window.getSelection()
+  if (!selection?.rangeCount) return
+  const range = selection.getRangeAt(0)
+  range.setStart(range.startContainer, Math.max(0, range.startOffset - count))
+  selection.removeAllRanges()
+  selection.addRange(range)
+  document.execCommand('delete')
+}
+
+// Grow the note so the text stays inside it. Growth only: a note the user made
+// taller keeps that height, and deleting text does not yank the box in under the
+// pointer.
+//
+// The live model is mutated directly, OUTSIDE history — the same preview-then-
+// commit shape startGroupMove uses. A store call per line would leave the undo
+// stack holding a stack of half-typed notes, and commit() records the final text
+// and height together as one step.
+function growToText(text) {
+  const height = fittedHeight(text)
+  if (height > props.note.h) props.note.h = height
+}
+
+function fittedHeight(text) {
+  return Math.max(props.note.h, MIN, stickyTextHeight(text, { width: props.note.w }))
 }
 
 // Navigate a hyperlink on a plain click (select tool). Diagram links route within
@@ -215,20 +319,12 @@ function openLink(event) {
         :contenteditable="editing"
         spellcheck="false"
         class="h-full w-full outline-none"
-        :style="{
-          color: ink,
-          padding: '12px',
-          boxSizing: 'border-box',
-          fontFamily: 'Inter, sans-serif',
-          fontSize: '15px',
-          lineHeight: '1.35',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          textDecoration: note.strike ? 'line-through' : 'none',
-          cursor: editing ? 'text' : 'move',
-        }"
+        :style="fieldStyle"
         @dblclick="beginEdit"
         @pointerdown="editing ? null : startMove($event)"
+        @keydown="onKeydown"
+        @paste="onPaste"
+        @input="growToText(fieldText())"
         @blur="commit"
       ></div>
     </foreignObject>
@@ -237,13 +333,6 @@ function openLink(event) {
     <g v-if="note.hyperlink" :transform="`translate(${note.w - 22} 8)`" style="cursor: pointer">
       <circle r="9" cx="7" cy="7" fill="#FFFFFF" stroke="#006EDB" stroke-width="1.2" />
       <path d="M4 7 a3 3 0 0 1 3 -3 M10 7 a3 3 0 0 1 -3 3" stroke="#006EDB" stroke-width="1.3" fill="none" stroke-linecap="round" transform="translate(0 0)" />
-    </g>
-
-    <!-- Author chip (who created it), bottom-left. -->
-    <g v-if="note.author" :transform="`translate(12 ${note.h - 24})`" style="pointer-events: none">
-      <circle cx="8" cy="8" r="8" :fill="ink" fill-opacity="0.16" />
-      <text x="8" y="8" text-anchor="middle" dominant-baseline="central" font-size="8" font-weight="700" :fill="ink" font-family="Inter, sans-serif">{{ authorInitial }}</text>
-      <text x="24" y="8" dominant-baseline="central" font-size="10" :fill="ink" fill-opacity="0.85" font-family="Inter, sans-serif">{{ note.author }}</text>
     </g>
 
     <!-- Resize handle (bottom-right), shown only for a lone selection. -->

@@ -12,6 +12,13 @@ import { nodeSize as flowchartNodeSize } from '@/diagram/flowchartModel.js'
 import { nodeShape } from '@/diagram/flowchartShapes.js'
 import { routeEdge, routeOffsets, flowchartContentBounds } from '@/diagram/flowchartLayout.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
+import {
+  stickyLines,
+  STICKY_FONT_SIZE,
+  STICKY_LINE_HEIGHT,
+  STICKY_PAD_X,
+  STICKY_PAD_Y,
+} from '@/diagram/stickyText.js'
 import { unionBounds } from '@/diagram/geometry.js'
 import {
   whiteboardObjectsInZOrder,
@@ -461,11 +468,24 @@ function whiteboardSticky(note) {
   const ink = safeColor(contrastInk(color), '#171717')
   const { x, y, w, h } = box(note)
   const rect = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${color}" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>`
-  const text = note.text
-    ? `<text x="${x + 12}" y="${y + 24}" fill="${ink}" font-size="15" font-family="Inter, sans-serif">${escapeText(note.text)}</text>`
-    : ''
-  return rect + text
+  return rect + stickyText(note, { x, y, w, h }, ink)
 }
+
+// A note is multi-line plain text (#416), and SVG <text> neither wraps nor honours
+// a newline — one <text> per note exported three typed lines as one long run that
+// ran off the note. Each line gets its own <tspan>, hard breaks first and then the
+// wrap the canvas applies, and lines past the bottom of the note are dropped rather
+// than drawn over whatever sits below it.
+function stickyText(note, { x, y, w, h }, ink) {
+  if (!note.text) return ''
+  const step = STICKY_FONT_SIZE * STICKY_LINE_HEIGHT
+  const lines = stickyLines(note.text, w).slice(0, Math.max(0, Math.floor((h - STICKY_PAD_Y) / step)) || 1)
+  const spans = lines
+    .map((line, index) => `<tspan x="${x + STICKY_PAD_X / 2}" y="${y + STICKY_PAD_Y / 2 + step * (index + 0.8)}">${escapeText(line)}</tspan>`)
+    .join('')
+  return `<text fill="${ink}" font-size="${STICKY_FONT_SIZE}" font-family="Inter, sans-serif">${spans}</text>`
+}
+
 
 // Straight lines. Endpoint decorations (arrow / dot) are approximated by a dot at the
 // decorated end: the export is a flat SVG with no marker defs for these, and a missing

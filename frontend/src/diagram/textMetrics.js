@@ -29,6 +29,37 @@ export function wrapLineCount(text, perLine) {
   return lines
 }
 
+// The same greedy wrap, returning the lines themselves. The exporter needs the
+// text of each line (SVG has no wrapping <text>), while the layout engines only
+// ever needed how many there would be.
+export function wrapLines(text, perLine) {
+  const words = String(text).split(/\s+/).filter(Boolean)
+  if (!words.length) return ['']
+  const lines = []
+  let line = ''
+  for (const word of words) {
+    for (const part of splitLongWord(word, perLine)) {
+      if (!line) line = part
+      else if (line.length + 1 + part.length <= perLine) line += ` ${part}`
+      else {
+        lines.push(line)
+        line = part
+      }
+    }
+  }
+  lines.push(line)
+  return lines
+}
+
+// A word too long for one line is cut into full-width pieces, the way the renderer
+// breaks it (`word-break: break-word`).
+function splitLongWord(word, perLine) {
+  if (word.length <= perLine) return [word]
+  const parts = []
+  for (let at = 0; at < word.length; at += perLine) parts.push(word.slice(at, at + perLine))
+  return parts
+}
+
 // Characters that fit across a box `textWidth` px wide at `charWidth` px each.
 // At least one, so a box narrower than a single character still wraps instead of
 // dividing by zero.

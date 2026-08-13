@@ -33,8 +33,6 @@ export function makeStickyNote(x, y, partial = {}) {
     ...STICKY_SIZE,
     text: partial.text || '',
     color: partial.color || '#FFE8A3',
-    // Who created it, shown as an author chip (spec — Whimsical-style).
-    author: partial.author || '',
     zIndex: partial.zIndex || 0,
   }
 }

@@ -44,7 +44,9 @@ const props = defineProps({
 const diagram = props.diagram
 const store = createDiagramStore(parseDiagramDocument(diagram.doc?.document), props.name)
 const editorUi = createEditorUi()
-const whiteboardUi = useWhiteboardUi()
+// The store goes in so that selecting a whiteboard object can drop the block-shape
+// selection (#416); the two are never selected together.
+const whiteboardUi = useWhiteboardUi(store)
 // editorUi is created per editor, but mindmapUi is a module singleton whose fields
 // all hold node ids — and node ids are per-document counters, so they repeat across
 // maps. Clear it as each document loads, or leftovers (a branch focus, a half-armed

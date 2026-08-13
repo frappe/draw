@@ -13,8 +13,15 @@ import { ERASER_SIZES } from '@/diagram/eraser.js'
 
 let singleton = null
 
-export function useWhiteboardUi() {
+// `store` is the document store, passed by EditorShell as each diagram loads (the
+// same binding idiom useTextEditing and useMindmapNodeDrag use). It is how picking
+// a sticky can drop the block-shape selection — see attachSelection. Every other
+// caller passes nothing and shares whatever is bound. The singleton itself is NOT
+// rebuilt on a new document: it carries the tool preferences (pen colour, eraser
+// mode) that deliberately outlive one diagram, and reset() clears the rest.
+export function useWhiteboardUi(store = null) {
   if (!singleton) singleton = createWhiteboardUi()
+  if (store) singleton.documentStore = store
   return singleton
 }
 
@@ -120,7 +127,11 @@ function attachSelection(api, state) {
   // The one place selection is mutated: assign the array and re-derive `selected`
   // so every single-object call site keeps working (selected is null unless the
   // selection holds exactly one object). Route ALL mutations through here.
-  const setSelection = (list) => {
+  //
+  // `keepShapes` is for Select All, the one caller that legitimately wants both
+  // kinds selected at once (Cmd+A → Delete has to clear the board as well as the
+  // shapes). Everything else takes the selection over.
+  const setSelection = (list, { keepShapes = false } = {}) => {
     state.selection = list
     state.selected = list.length === 1 ? list[0] : null
     // Any selection change (click away, marquee, select another object) closes an
@@ -128,6 +139,12 @@ function attachSelection(api, state) {
     // editingCell → null transition. The direct cell-to-cell switch does NOT route
     // through here (it sets editingCell straight), so this never cuts an edit short.
     state.editingCell = null
+    // A whiteboard object and a block shape are never selected together (#416).
+    // The canvas toolbar resolves its chrome from whichever selection is filled and
+    // gives this one priority, so a sticky left selected here kept owning the bar
+    // while the user edited a shape — and the colour they picked landed on the
+    // sticky. See resolveChromeType in useSelectionContext.
+    if (list.length && !keepShapes) api.documentStore?.clearSelection()
   }
   api.setSelection = setSelection
 

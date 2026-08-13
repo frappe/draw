@@ -213,7 +213,7 @@ Large, freely auto-expanding; fit-to-view, 100%, small **minimap**.
 - **Text** — double-click anywhere creates a text box (headline interaction).
 - **Freehand pen** — smoothed vector strokes; Espresso color + thickness; **highlighter** variant.
 - **Eraser** — two modes and three tip sizes (#39). *Erase* rubs ink out along the swept tip (a straight line, which has no partial form, goes whole); *erase by object* deletes the whole element under the tip — stroke, line, table, sticky, shape or connector.
-- **Sticky notes** — Espresso colors, auto-contrast text; resizable/draggable; Tab drops adjacent note. Colors are picked from the palette; there is no number-key shortcut (removed — the block keyboard used 1–9 to recolor a shape, and both meanings cannot hold on the unified canvas).
+- **Sticky notes** — Espresso colors, auto-contrast text; resizable/draggable; Tab drops adjacent note. Colors are picked from the palette; there is no number-key shortcut (removed — the block keyboard used 1–9 to recolor a shape, and both meanings cannot hold on the unified canvas). The text is **multi-line plain text** (#416): line breaks are kept as typed, Enter on a `- ` line starts the next item and Enter on an empty marker ends the list, and the note grows downward so what was typed stays inside it. A note carries no author chip — it shows its content and nothing else.
 - **Shapes & connectors** — full base set.
 - **Hyperlinks** — any object links to a URL or another Frappe Draw diagram.
 

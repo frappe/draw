@@ -991,15 +991,30 @@ function attachConnectorMutations(store, state, history) {
 }
 
 function attachSelection(store, state) {
-  store.select = (ids) => (state.selection = Array.isArray(ids) ? [...ids] : [ids])
+  // Selecting a shape drops any whiteboard-object selection, and vice versa (#416,
+  // the mirror of the rule in useWhiteboardUi's setSelection). The two selections
+  // are separate arrays, so without this both stayed filled: the toolbar followed
+  // the whiteboard one, and a colour meant for the shape under the cursor went to
+  // the sticky selected three clicks ago. Select All is the one caller that wants
+  // both, and it assigns state.selection directly rather than coming through here.
+  const takeSelection = () => {
+    if (state.selection.length) useWhiteboardUi().clearSelection()
+  }
+
+  store.select = (ids) => {
+    state.selection = Array.isArray(ids) ? [...ids] : [ids]
+    takeSelection()
+  }
   store.addToSelection = (ids) => {
     const next = Array.isArray(ids) ? ids : [ids]
     state.selection = [...new Set([...state.selection, ...next])]
+    takeSelection()
   }
   store.toggleInSelection = (id) => {
     state.selection = state.selection.includes(id)
       ? state.selection.filter((existing) => existing !== id)
       : [...state.selection, id]
+    takeSelection()
   }
   store.clearSelection = () => (state.selection = [])
   store.selectAll = () => {
@@ -1021,7 +1036,7 @@ function attachSelection(store, state) {
         ...(wb.lines || []).map((o) => ({ kind: 'line', id: o.id })),
         ...(wb.tables || []).map((o) => ({ kind: 'table', id: o.id })),
       ]
-      useWhiteboardUi().setSelection(all)
+      useWhiteboardUi().setSelection(all, { keepShapes: true })
     }
   }
   // Expand a set of shape ids to include every shape sharing a groupId with any

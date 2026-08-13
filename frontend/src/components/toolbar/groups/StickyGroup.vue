@@ -36,7 +36,6 @@ function duplicate() {
   const id = store.addStickyNote(current.x + 16, current.y + 16, {
     color: current.color,
     text: current.text,
-    author: current.author,
   })
   ui.selectSticky(id)
 }
