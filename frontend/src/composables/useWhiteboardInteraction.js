@@ -151,11 +151,15 @@ export function extendStroke(drawing, point) {
 }
 
 // Start capturing a freehand stroke; the live preview renders from ui.liveStroke.
+// Width and opacity are read once, here — the stroke keeps whatever the tool was
+// set to when it was drawn, however the sliders move afterwards.
 function beginStroke(context, ui, drawing, tool) {
   drawing.active = true
   drawing.points = [context.point]
-  const width = tool === 'highlighter' ? ui.state.highlighterWidth : ui.state.penWidth
-  ui.liveStroke.value = { points: drawing.points, color: ui.state.penColor, width, kind: tool }
+  const highlighter = tool === 'highlighter'
+  const width = highlighter ? ui.state.highlighterWidth : ui.state.penWidth
+  const opacity = highlighter ? ui.state.highlighterOpacity : ui.state.penOpacity
+  ui.liveStroke.value = { points: drawing.points, color: ui.state.penColor, width, opacity, kind: tool }
 }
 
 // Start an erase gesture in the mode the eraser options select: 'ink' rubs out
@@ -293,7 +297,7 @@ function finishStroke(ui, drawing, store) {
   const points = drawing.points
   drawing.points = []
   if (!live || points.length < 2) return
-  store.addStroke(points, { color: live.color, width: live.width, kind: live.kind })
+  store.addStroke(points, { color: live.color, width: live.width, opacity: live.opacity, kind: live.kind })
 }
 
 // One erase sample: the tip at `point` either rubs ink out or takes whole objects,

@@ -6,6 +6,7 @@ vi.mock('frappe-ui', () => ({ createResource: () => ({ submit: () => {} }) }))
 
 const { documentToSvg, isDocumentEmpty, safeColor } = await import('./useThumbnail.js')
 const { ROUNDED_CORNER_RADIUS, SHARP_CORNER_RADIUS } = await import('@/diagram/shapeGeometry.js')
+const { HIGHLIGHTER_OPACITY } = await import('@/diagram/whiteboardColors.js')
 
 // documentToSvg is the SINGLE render-to-SVG path: PNG/PDF export (useExport), the
 // saved thumbnail, and the home + trash tile previews all go through it. So anything
@@ -79,6 +80,22 @@ describe('documentToSvg for a unified document', () => {
     const svg = documentToSvg(unifiedDocument())
     expect(svg, 'whiteboard stroke colour missing from the export').toContain('#123456')
     expect(svg, 'sticky note missing from the export').toContain('STICKY-TEXT')
+  })
+
+  it('paints a stroke at the opacity it was drawn with', () => {
+    // #409: the export recomputed opacity from `kind` alone, so a pen set to 30%
+    // came out solid and a highlighter always came out at exactly the default —
+    // the board on screen and every rendering of it disagreed.
+    const doc = unifiedDocument()
+    doc.whiteboard.strokes[0].opacity = 0.3
+    expect(documentToSvg(doc)).toContain('stroke-opacity="0.3"')
+  })
+
+  it('falls back to the ink default for a stroke saved before opacity was stored', () => {
+    const doc = unifiedDocument()
+    doc.whiteboard.strokes[0].kind = 'highlighter'
+    delete doc.whiteboard.strokes[0].opacity
+    expect(documentToSvg(doc)).toContain(`stroke-opacity="${HIGHLIGHTER_OPACITY}"`)
   })
 
   it('includes whiteboard lines and tables', () => {
@@ -377,6 +394,7 @@ describe('no persisted value can escape its SVG attribute', () => {
     },
     'whiteboard stroke colour': (d) => (d.whiteboard.strokes[0].color = PAYLOAD),
     'whiteboard stroke width': (d) => (d.whiteboard.strokes[0].width = PAYLOAD),
+    'whiteboard stroke opacity': (d) => (d.whiteboard.strokes[0].opacity = PAYLOAD),
     'whiteboard stroke point': (d) => (d.whiteboard.strokes[0].points[0] = { x: CLOSING, y: 0 }),
     'sticky note colour': (d) => (d.whiteboard.stickyNotes[0].color = PAYLOAD),
     'sticky note geometry': (d) => (d.whiteboard.stickyNotes[0].x = CLOSING),

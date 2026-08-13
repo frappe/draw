@@ -28,7 +28,7 @@ import {
   setTableCellRuns,
   tableCellRuns,
 } from './whiteboardModel.js'
-import { contrastInk } from './whiteboardColors.js'
+import { contrastInk, strokeOpacity, HIGHLIGHTER_OPACITY, PEN_OPACITY } from './whiteboardColors.js'
 
 describe('whiteboard model', () => {
   it('adds and removes strokes with stable ids', () => {
@@ -38,6 +38,25 @@ describe('whiteboard model', () => {
     expect(model.strokes[0].id).toBe(id)
     removeStroke(model, id)
     expect(model.strokes).toHaveLength(0)
+  })
+
+  it('stores the opacity a stroke was drawn at, defaulting per ink', () => {
+    // #409: opacity used to be a live editor preference, so it reached neither the
+    // saved document nor anything rendering from it. It travels with the stroke now.
+    const model = createWhiteboard()
+    const points = [{ x: 0, y: 0 }, { x: 10, y: 0 }]
+    addStroke(model, points, { kind: 'pen', opacity: 0.3 })
+    addStroke(model, points, { kind: 'highlighter' })
+    addStroke(model, points, {})
+    expect(model.strokes.map((s) => s.opacity)).toEqual([0.3, HIGHLIGHTER_OPACITY, PEN_OPACITY])
+  })
+
+  it('keeps a fully transparent stroke transparent', () => {
+    // Guards the `typeof === 'number'` check: `partial.opacity || default` would
+    // read 0 as absent and paint the stroke at full strength.
+    const model = createWhiteboard()
+    addStroke(model, [{ x: 0, y: 0 }, { x: 10, y: 0 }], { opacity: 0 })
+    expect(model.strokes[0].opacity).toBe(0)
   })
 
   it('hit-tests stroke path geometry, not the bounding box', () => {
@@ -191,6 +210,30 @@ describe('contrastInk', () => {
   it('uses dark ink on light fills and light ink on dark fills', () => {
     expect(contrastInk('#FFF7D3')).toBe('#171717')
     expect(contrastInk('#171717')).toBe('#FFFFFF')
+  })
+})
+
+describe('strokeOpacity (#409)', () => {
+  // The one function the canvas, the export, the thumbnail and the minimap all
+  // read, so a stroke cannot look different depending on what is painting it.
+  it('prefers the stroke’s own value', () => {
+    expect(strokeOpacity({ kind: 'highlighter', opacity: 0.9 })).toBe(0.9)
+    expect(strokeOpacity({ kind: 'pen', opacity: 0 })).toBe(0)
+  })
+
+  it('falls back to the ink default for a stroke saved without one', () => {
+    expect(strokeOpacity({ kind: 'highlighter' })).toBe(HIGHLIGHTER_OPACITY)
+    expect(strokeOpacity({ kind: 'pen' })).toBe(PEN_OPACITY)
+  })
+
+  it('refuses anything that is not a real number in range', () => {
+    // The value reaches an SVG attribute in the export, so a saved document must
+    // not be able to put arbitrary text — or a NaN — into it.
+    expect(strokeOpacity({ kind: 'pen', opacity: '" onload="alert(1)' })).toBe(PEN_OPACITY)
+    expect(strokeOpacity({ kind: 'pen', opacity: NaN })).toBe(PEN_OPACITY)
+    expect(strokeOpacity({ kind: 'pen', opacity: Infinity })).toBe(PEN_OPACITY)
+    expect(strokeOpacity({ kind: 'pen', opacity: 4 })).toBe(1)
+    expect(strokeOpacity({ kind: 'pen', opacity: -2 })).toBe(0)
   })
 })
 

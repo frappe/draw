@@ -32,7 +32,7 @@ import { resolveMark } from '@/diagram/richText.js'
 import { pointsToPath, smoothPath } from '@/diagram/svgPath.js'
 import { polygonPointsString } from '@/diagram/polygon.js'
 import { shapeCornerRadius, SHARP_CORNER_RADIUS } from '@/diagram/shapeGeometry.js'
-import { contrastInk, HIGHLIGHTER_OPACITY } from '@/diagram/whiteboardColors.js'
+import { contrastInk, strokeOpacity } from '@/diagram/whiteboardColors.js'
 
 const THROTTLE_MS = 30000
 
@@ -452,12 +452,13 @@ const WB_BODY = {
   sticky: whiteboardSticky,
 }
 
-// Curved through the same builder the canvas uses (#426). A stroke drawn as a
-// smooth line on screen and exported as a polyline is the divergence #409 is
-// about, one function further down the same file.
+// Curved through the same builder the canvas uses (#426), and faded through the
+// same one (#409) — this file paints exports, thumbnails and the minimap, none of
+// which can reach the editor's UI state, so anything it recomputes locally is a
+// divergence waiting to happen.
 function whiteboardStroke(stroke) {
   if (!stroke.points || stroke.points.length < 2) return ''
-  const opacity = stroke.kind === 'highlighter' ? HIGHLIGHTER_OPACITY : 1
+  const opacity = strokeOpacity(stroke)
   const linecap = stroke.kind === 'highlighter' ? 'butt' : 'round'
   const color = safeColor(stroke.color, '#171717')
   return `<path d="${smoothPath(stroke.points)}" fill="none" stroke="${color}" stroke-width="${num(stroke.width, 2)}" stroke-opacity="${opacity}" stroke-linecap="${linecap}" stroke-linejoin="round"/>`

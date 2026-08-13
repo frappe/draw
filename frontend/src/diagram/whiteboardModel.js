@@ -8,17 +8,24 @@
 
 import { nextId } from './factories.js'
 import { distanceToSegment } from './geometry.js'
+import { strokeOpacity } from './whiteboardColors.js'
 import { hasFormatting, normalizeRuns, runsToText, toRuns } from './richText.js'
 
 // Pen and highlighter are the two stroke kinds (spec C3); eraser removes whole
 // strokes rather than producing one.
 export function makeStroke(points, partial = {}) {
+  const kind = partial.kind || 'pen'
   return {
     id: nextId('w'),
     points: points || [],
     color: partial.color || '#1F2933',
     width: partial.width || 3,
-    kind: partial.kind || 'pen',
+    kind,
+    // Ink strength travels with the stroke, like width — so it survives a reload
+    // and moving the slider later cannot restyle ink already on the board (#409).
+    // Through the same reader the renderers use, so a stroke is born holding the
+    // value they would have shown it at.
+    opacity: strokeOpacity({ opacity: partial.opacity, kind }),
     zIndex: partial.zIndex || 0,
   }
 }

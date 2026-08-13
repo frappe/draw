@@ -45,6 +45,25 @@ export const HIGHLIGHTER_WIDTHS = [10, 18, 26]
 export const PEN_OPACITY = 1
 export const HIGHLIGHTER_OPACITY = 0.4
 
+// The opacity a stroke is drawn at. Read this everywhere ink is painted — the
+// canvas, the export, the thumbnail and the minimap — so they cannot disagree
+// (#409). Opacity is stored on the stroke at commit time, like width; a stroke
+// saved before that carries none and keeps the default for its ink.
+//
+// The value comes out of a saved document, and useThumbnail interpolates it into
+// an SVG attribute, so it is validated here rather than trusted: anything that is
+// not a real number in range falls back, the same way that file treats every other
+// persisted number (`num`) and colour (`safeColor`).
+export function strokeOpacity(stroke) {
+  const opacity = stroke?.opacity
+  if (Number.isFinite(opacity)) return Math.min(1, Math.max(0, opacity))
+  return defaultOpacity(stroke?.kind)
+}
+
+function defaultOpacity(kind) {
+  return kind === 'highlighter' ? HIGHLIGHTER_OPACITY : PEN_OPACITY
+}
+
 // Relative luminance (sRGB) of a #rrggbb color, used for auto-contrast text.
 function luminance(hex) {
   const value = hex.replace('#', '')

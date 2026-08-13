@@ -31,10 +31,10 @@ function createWhiteboardUi() {
     penWidth: PEN_WIDTHS[1],
     highlighterWidth: HIGHLIGHTER_WIDTHS[1],
     // The merged Draw tool's sub-mode (#242): 'pen' | 'highlighter', which ink the
-    // next stroke commits as. `penOpacity`/`highlighterOpacity` are global
-    // preferences, one per ink — applied uniformly to every stroke of that kind on
-    // the canvas rather than stored per-stroke, see WhiteboardLayer.vue's
-    // strokeOpacity().
+    // next stroke commits as. `penOpacity`/`highlighterOpacity` are tool settings,
+    // one per ink: they say how the NEXT stroke is drawn, and beginStroke copies
+    // the value onto the stroke (#409). Moving a slider never restyles ink that is
+    // already on the board, exactly as changing the width does not.
     drawKind: 'pen',
     penOpacity: PEN_OPACITY,
     highlighterOpacity: HIGHLIGHTER_OPACITY,

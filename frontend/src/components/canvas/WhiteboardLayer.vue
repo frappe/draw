@@ -22,6 +22,7 @@ import { trailSegments, LASER_COLOR, LASER_HEAD_RADIUS, LASER_FADE_MS } from '@/
 import { roughenSegment } from '@/diagram/sketch.js'
 import { pointsToPath, smoothPath } from '@/diagram/svgPath.js'
 import { whiteboardObjectsInZOrder, isWhiteboardEmpty } from '@/diagram/whiteboardModel.js'
+import { strokeOpacity } from '@/diagram/whiteboardColors.js'
 import ConnectorView from './ConnectorView.vue'
 import ShapeView from './ShapeView.vue'
 import WhiteboardStickyNote from './WhiteboardStickyNote.vue'
@@ -70,13 +71,6 @@ function strokePath(stroke) {
     wobbled.push(...(i === 0 ? segment : segment.slice(1)))
   }
   return pointsToPath(wobbled)
-}
-
-// Ink opacity is a global preference per kind (ui.state.penOpacity /
-// highlighterOpacity, #242), not stored per-stroke — every stroke on the canvas
-// (old and new) reads the current slider value live.
-function strokeOpacity(stroke) {
-  return stroke.kind === 'highlighter' ? ui.state.highlighterOpacity : ui.state.penOpacity
 }
 
 // Highlight EVERY selected object (multi-select), not just a lone selection.
@@ -205,7 +199,7 @@ const laserHead = computed(() => {
       fill="none"
       :stroke="live.color"
       :stroke-width="live.width"
-      :stroke-opacity="live.kind === 'highlighter' ? ui.state.highlighterOpacity : ui.state.penOpacity"
+      :stroke-opacity="strokeOpacity(live)"
       :stroke-linecap="live.kind === 'highlighter' ? 'butt' : 'round'"
       stroke-linejoin="round"
     />

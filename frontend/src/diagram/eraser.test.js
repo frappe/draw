@@ -42,6 +42,15 @@ describe('eraseInkAt', () => {
     expect(Math.min(...right.points.map((p) => p.x))).toBeGreaterThanOrEqual(61)
   })
 
+  it('keeps the erased stroke’s ink strength on the pieces that survive', () => {
+    // The survivors are new stroke objects (#409): a faint highlighter rubbed in
+    // the middle must not leave two full-strength halves behind.
+    const model = { strokes: [horizontalStroke({ kind: 'highlighter', opacity: 0.25 })], lines: [] }
+    expect(eraseInkAt(model, { x: 50, y: 0 }, 10)).toBe(true)
+    expect(model.strokes.length).toBe(2)
+    for (const piece of model.strokes) expect(piece.opacity).toBe(0.25)
+  })
+
   it('clips the tip of a stroke when only its last segment is caught', () => {
     // Regression: the "untouched" shortcut used to compare point COUNTS, and
     // clipping one end swaps the erased endpoint for a boundary point — same

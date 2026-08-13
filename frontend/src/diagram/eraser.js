@@ -11,6 +11,7 @@
 
 import { anchorPoint, distanceToSegment, pointInRect, pointInShape } from '@/diagram/geometry.js'
 import { distanceToStroke, makeStroke, tableHeight, tableWidth } from '@/diagram/whiteboardModel.js'
+import { strokeOpacity } from '@/diagram/whiteboardColors.js'
 
 // Tip radii in canvas units, in the order the size picker shows them.
 export const ERASER_SIZES = [6, 14, 30]
@@ -138,7 +139,19 @@ function eraseStrokes(strokes, point, radius) {
     }
     changed = true
     for (const run of runs) {
-      if (run.length >= 2) next.push(makeStroke(run, { color: stroke.color, width: stroke.width, kind: stroke.kind }))
+      // The surviving pieces are new stroke objects, so every visual property of
+      // the original has to be copied onto them — a missed one repaints what is
+      // left of the stroke the moment the tip touches it.
+      if (run.length >= 2) {
+        next.push(
+          makeStroke(run, {
+            color: stroke.color,
+            width: stroke.width,
+            opacity: strokeOpacity(stroke),
+            kind: stroke.kind,
+          }),
+        )
+      }
     }
   }
   return changed ? next : null
