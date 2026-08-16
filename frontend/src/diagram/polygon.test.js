@@ -10,6 +10,9 @@ import {
   isValidPolygonSides,
   MAX_POLYGON_SIDES,
   MIN_POLYGON_VERTICES,
+  isPresetPolygon,
+  presetPolygonPoints,
+  PRESET_POLYGONS,
 } from './polygon.js'
 
 // A right triangle whose extent is a neat 100x80 box at (10,20), so the normalised
@@ -210,5 +213,56 @@ describe('isValidPolygonSides', () => {
     expect(isValidPolygonSides(5.5)).toBe(false)
     expect(isValidPolygonSides('')).toBe(false)
     expect(isValidPolygonSides('abc')).toBe(false)
+  })
+})
+
+// #468: these presets used to live inside ShapeView, so only the canvas could draw
+// them and every other surface fell back to a rectangle. They are shared geometry
+// now, and this is where their outlines are pinned.
+describe('preset polygons (#468)', () => {
+  // A 200x100 box at the origin, so each normalised component lands on a round
+  // number and a wrong table shows up as a wrong coordinate.
+  const box = { x: 0, y: 0, w: 200, h: 100 }
+
+  it('recognises every preset, generated or tabulated', () => {
+    for (const type of Object.keys(PRESET_POLYGONS)) expect(isPresetPolygon(type)).toBe(true)
+    // star has no table entry — it is generated — so a table lookup would miss it.
+    expect(isPresetPolygon('star')).toBe(true)
+  })
+
+  // A freely-drawn polygon carries its own points and must NOT be answered here,
+  // or it would render as an empty outline instead of the shape the user drew.
+  it('claims neither the free polygon nor the box shapes', () => {
+    for (const type of ['polygon', 'rectangle', 'rounded', 'ellipse', 'triangle', 'diamond']) {
+      expect(isPresetPolygon(type), `${type} is not a preset`).toBe(false)
+      expect(presetPolygonPoints({ ...box, type })).toBe('')
+    }
+  })
+
+  it('scales the tabulated outlines onto the box', () => {
+    expect(presetPolygonPoints({ ...box, type: 'hexagon' }))
+      .toBe('50,0 150,0 200,50 150,100 50,100 0,50')
+    expect(presetPolygonPoints({ ...box, type: 'pentagon' }))
+      .toBe('100,0 200,38 164,100 36,100 0,38')
+    expect(presetPolygonPoints({ ...box, type: 'arrow' }))
+      .toBe('0,30 124,30 124,5 200,50 124,95 124,70 0,70')
+  })
+
+  it('generates a five-pointed star, first point straight up', () => {
+    const points = presetPolygonPoints({ ...box, type: 'star' }).split(' ')
+    expect(points).toHaveLength(10)
+    expect(points[0]).toBe('100,0') // outer vertex at the top centre
+    // Alternating radii: the second is the inner one, so it sits nearer the centre.
+    const [, firstInnerY] = points[1].split(',').map(Number)
+    expect(firstInnerY).toBeGreaterThan(0)
+    expect(firstInnerY).toBeLessThan(50)
+  })
+
+  // The points string is interpolated straight into export markup, so a persisted
+  // box has to be coerced the same way polygonPointsString coerces its vertices.
+  it('coerces a crafted box instead of letting it escape the attribute', () => {
+    const points = presetPolygonPoints({ x: '0" onload="alert(1)', y: 0, w: 200, h: 100, type: 'hexagon' })
+    expect(points).not.toMatch(/\son[a-z]+\s*=/i)
+    expect(points).not.toContain('alert(1)')
   })
 })

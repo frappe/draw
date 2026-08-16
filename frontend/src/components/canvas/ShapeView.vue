@@ -8,7 +8,7 @@ import { useAutoFitText } from '@/composables/useAutoFitText.js'
 import { sanitizeRichText } from '@/utils/sanitizeHtml.js'
 import { safeHref, safeImageSrc } from '@/utils/safeUrl.js'
 import { nodeShape } from '@/diagram/flowchartShapes.js'
-import { polygonPointsString } from '@/diagram/polygon.js'
+import { polygonPointsString, isPresetPolygon, presetPolygonPoints } from '@/diagram/polygon.js'
 import { cornerRadiusOf } from '@/diagram/shapeGeometry.js'
 import { NODE_BORDER_ZONE } from '@/diagram/mindmapNodeShape.js'
 
@@ -128,36 +128,14 @@ const diamondPoints = computed(() => {
   return `${x + w / 2},${y} ${x + w},${y + h / 2} ${x + w / 2},${y + h} ${x},${y + h / 2}`
 })
 
-// Polygon shapes described by normalized (0..1) points scaled to the box.
-const POLYGONS = {
-  pentagon: [[0.5, 0], [1, 0.38], [0.82, 1], [0.18, 1], [0, 0.38]],
-  hexagon: [[0.25, 0], [0.75, 0], [1, 0.5], [0.75, 1], [0.25, 1], [0, 0.5]],
-  arrow: [[0, 0.3], [0.62, 0.3], [0.62, 0.05], [1, 0.5], [0.62, 0.95], [0.62, 0.7], [0, 0.7]],
-}
-function scale(points) {
-  const { x, y, w, h } = props.shape
-  return points.map(([nx, ny]) => `${x + nx * w},${y + ny * h}`).join(' ')
-}
-const polygonPoints = computed(() => (POLYGONS[props.shape.type] ? scale(POLYGONS[props.shape.type]) : ''))
+// The fixed presets (pentagon, hexagon, arrow, star) come from diagram/polygon.js
+// so the canvas and the export path draw one geometry — they used to live here,
+// where only the canvas could reach them (#468).
+const presetPoints = computed(() => presetPolygonPoints(props.shape))
 
 // A freely-drawn polygon (#139) carries its own vertices, normalised to the box —
 // so it scales, moves and rotates through x/y/w/h like every other shape.
 const freePolygonPoints = computed(() => polygonPointsString(props.shape))
-
-// Five-pointed star generated around the box centre.
-const starPoints = computed(() => {
-  const { x, y, w, h } = props.shape
-  const cx = x + w / 2
-  const cy = y + h / 2
-  const pts = []
-  for (let i = 0; i < 10; i += 1) {
-    const angle = (-90 + i * 36) * (Math.PI / 180)
-    const rx = (i % 2 ? 0.2 : 0.5) * w
-    const ry = (i % 2 ? 0.2 : 0.5) * h
-    pts.push(`${cx + rx * Math.cos(angle)},${cy + ry * Math.sin(angle)}`)
-  }
-  return pts.join(' ')
-})
 
 // Cylinder: a body path; the top rim ellipse is drawn separately for the lid.
 const cylinderRy = computed(() => Math.min(props.shape.h * 0.16, 18))
@@ -329,9 +307,11 @@ useAutoFitText(richEl, () => ({
       :stroke-width="border.width"
       :stroke-dasharray="dashArray"
     />
+    <!-- Every fixed preset, on one branch. Listing the types here is what let star
+         be added with its own duplicate branch, and a later preset be forgotten. -->
     <polygon
-      v-else-if="shape.type === 'pentagon' || shape.type === 'hexagon' || shape.type === 'arrow'"
-      :points="polygonPoints"
+      v-else-if="isPresetPolygon(shape.type)"
+      :points="presetPoints"
       :fill="fill"
       :fill-opacity="shape.opacity"
       :stroke="border.color"
@@ -341,15 +321,6 @@ useAutoFitText(richEl, () => ({
     <polygon
       v-else-if="shape.type === 'polygon'"
       :points="freePolygonPoints"
-      :fill="fill"
-      :fill-opacity="shape.opacity"
-      :stroke="border.color"
-      :stroke-width="border.width"
-      :stroke-dasharray="dashArray"
-    />
-    <polygon
-      v-else-if="shape.type === 'star'"
-      :points="starPoints"
       :fill="fill"
       :fill-opacity="shape.opacity"
       :stroke="border.color"

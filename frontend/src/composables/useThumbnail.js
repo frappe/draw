@@ -30,7 +30,7 @@ import {
 } from '@/diagram/whiteboardModel.js'
 import { resolveMark } from '@/diagram/richText.js'
 import { pointsToPath, smoothPath } from '@/diagram/svgPath.js'
-import { polygonPointsString } from '@/diagram/polygon.js'
+import { polygonPointsString, isPresetPolygon, presetPolygonPoints } from '@/diagram/polygon.js'
 import { shapeCornerRadius, SHARP_CORNER_RADIUS } from '@/diagram/shapeGeometry.js'
 import { contrastInk, strokeOpacity } from '@/diagram/whiteboardColors.js'
 
@@ -70,6 +70,13 @@ function shapeBody(s) {
   }
   if (s.type === 'triangle') return `<polygon points="${trianglePoints({ x, y, w, h })}" ${fill} ${stroke}/>`
   if (s.type === 'diamond') return `<polygon points="${diamondPoints({ x, y, w, h })}" ${fill} ${stroke}/>`
+  // Preset outlines — pentagon, hexagon, block arrow, star (#468). This branch did
+  // not exist, so all four fell through to the <rect> below and exported as plain
+  // rectangles in every surface this function feeds. The geometry is the one the
+  // canvas draws from, so adding a preset can no longer reach the canvas alone.
+  if (isPresetPolygon(s.type)) {
+    return `<polygon points="${presetPolygonPoints({ ...s, x, y, w, h })}" ${fill} ${stroke}/>`
+  }
   // Freely-drawn polygon (#139): normalised points scaled onto the box, matching
   // ShapeView. polygonPointsString coerces every component to a number, so a
   // crafted point can't escape the attribute here.

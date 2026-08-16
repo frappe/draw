@@ -7,6 +7,7 @@ vi.mock('frappe-ui', () => ({ createResource: () => ({ submit: () => {} }) }))
 const { documentToSvg, isDocumentEmpty, safeColor } = await import('./useThumbnail.js')
 const { ROUNDED_CORNER_RADIUS, SHARP_CORNER_RADIUS } = await import('@/diagram/shapeGeometry.js')
 const { HIGHLIGHTER_OPACITY } = await import('@/diagram/whiteboardColors.js')
+const { presetPolygonPoints } = await import('@/diagram/polygon.js')
 
 // documentToSvg is the SINGLE render-to-SVG path: PNG/PDF export (useExport), the
 // saved thumbnail, and the home + trash tile previews all go through it. So anything
@@ -545,5 +546,62 @@ describe('documentToSvg — table cell formatting (#344)', () => {
     })
     expect(svg).toContain('REAL-TEXT')
     expect(svg).not.toContain('STALE-RUNS')
+  })
+})
+
+// #468: pentagon, hexagon, block arrow and star had no branch in this file at all
+// and fell through to the <rect> fallback, so they exported as plain rectangles in
+// PNG/PDF export, the saved thumbnail, the home tiles and the minimap — while
+// drawing correctly on the canvas. The geometry is shared with ShapeView now.
+describe('documentToSvg — preset polygon shapes (#468)', () => {
+  // 200x100 at the origin, matching the box the geometry unit tests use.
+  function presetDoc(type) {
+    return {
+      schemaVersion: 2,
+      diagramType: 'block',
+      themePreset: 'ocean',
+      canvas: { width: 1280, height: 720, background: 'none' },
+      sections: [],
+      connectors: [],
+      shapes: [
+        {
+          id: 's1', type, x: 0, y: 0, w: 200, h: 100, rotation: 0, opacity: 1, zIndex: 1,
+          fill: '#EFF6FF', border: { color: '#4F94FF', width: 2 },
+          text: { content: '', style: {} },
+        },
+      ],
+      mindmap: null, flowchart: null, whiteboard: null,
+    }
+  }
+
+  it('exports each preset as its own outline, not as a rectangle', () => {
+    const expected = {
+      hexagon: '50,0 150,0 200,50 150,100 50,100 0,50',
+      pentagon: '100,0 200,38 164,100 36,100 0,38',
+      arrow: '0,30 124,30 124,5 200,50 124,95 124,70 0,70',
+    }
+    for (const [type, points] of Object.entries(expected)) {
+      const svg = documentToSvg(presetDoc(type))
+      expect(svg, `${type} did not export its outline`).toContain(`<polygon points="${points}"`)
+      // The fallback drew the shape's own fill onto a <rect>. Nothing should.
+      expect(svg, `${type} still exports a rectangle`).not.toMatch(/<rect[^>]*#EFF6FF/)
+    }
+  })
+
+  it('exports a star as a ten-vertex outline', () => {
+    const svg = documentToSvg(presetDoc('star'))
+    const match = svg.match(/<polygon points="([^"]+)"/)
+    expect(match, 'the star did not export as a polygon').not.toBeNull()
+    expect(match[1].split(' ')).toHaveLength(10)
+    expect(svg).not.toMatch(/<rect[^>]*#EFF6FF/)
+  })
+
+  // The canvas reads the same function, so this is the property that stops the two
+  // drifting apart again rather than a second copy of the numbers.
+  it('draws the export from the same geometry the canvas uses', () => {
+    for (const type of ['hexagon', 'pentagon', 'arrow', 'star']) {
+      const shape = { type, x: 0, y: 0, w: 200, h: 100 }
+      expect(documentToSvg(presetDoc(type))).toContain(`<polygon points="${presetPolygonPoints(shape)}"`)
+    }
   })
 })

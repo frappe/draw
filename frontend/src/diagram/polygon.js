@@ -3,10 +3,16 @@
 // buildPolygonShape() converts them to the stored shape on commit.
 //
 // STORAGE CONVENTION: a polygon stores its vertices NORMALISED to its bounding box
-// (each component 0..1), exactly like the fixed pentagon/hexagon presets in
-// ShapeView. Because the render scales those normals back onto x/y/w/h, move
-// (x/y), resize (w/h) and rotation all flow through the shared shape machinery with
-// no special-casing — a polygon behaves like any other block shape.
+// (each component 0..1), exactly like the fixed presets below. Because the render
+// scales those normals back onto x/y/w/h, move (x/y), resize (w/h) and rotation all
+// flow through the shared shape machinery with no special-casing — a polygon
+// behaves like any other block shape.
+//
+// The presets used to live in ShapeView, so only the canvas could draw them: the
+// export/thumbnail path had no branch for pentagon, hexagon, arrow or star and fell
+// through to a <rect>, which is why all four exported as plain rectangles (#468).
+// They live here now so one geometry feeds the canvas, PNG/PDF export, the saved
+// thumbnail, the home tiles and the minimap.
 
 // A closed polygon needs at least a triangle.
 export const MIN_POLYGON_VERTICES = 3
@@ -17,6 +23,19 @@ export const MIN_POLYGON_VERTICES = 3
 export const MAX_POLYGON_SIDES = 15
 // The default width a custom polygon is inserted at, in canvas units.
 export const POLYGON_INSERT_WIDTH = 160
+
+// Preset block shapes whose outline is fixed, normalised to the box like a stored
+// polygon's own points. `star` is generated rather than tabulated, so ask
+// isPresetPolygon() rather than reading this table to decide what a type is.
+export const PRESET_POLYGONS = {
+  pentagon: [[0.5, 0], [1, 0.38], [0.82, 1], [0.18, 1], [0, 0.38]],
+  hexagon: [[0.25, 0], [0.75, 0], [1, 0.5], [0.75, 1], [0.25, 1], [0, 0.5]],
+  arrow: [[0, 0.3], [0.62, 0.3], [0.62, 0.05], [1, 0.5], [0.62, 0.95], [0.62, 0.7], [0, 0.7]],
+}
+
+// Five points, and an inner radius 0.2 of the box against an outer 0.5.
+const STAR_ARMS = 5
+const STAR_INNER_RATIO = 0.2
 
 // Consecutive vertices closer than this (canvas units) collapse to one, so a
 // double-click's near-identical second press never leaves a zero-length edge.
@@ -93,6 +112,40 @@ export function polygonPointsString(shape) {
   const w = num(shape.w)
   const h = num(shape.h)
   return points.map((p) => `${x + num(p.x) * w},${y + num(p.y) * h}`).join(' ')
+}
+
+// Whether a shape type draws as one of the fixed preset outlines. Every renderer
+// asks this rather than listing the types, so adding a preset reaches all of them.
+export function isPresetPolygon(type) {
+  return type === 'star' || Boolean(PRESET_POLYGONS[type])
+}
+
+// Absolute SVG points string for a preset shape, or '' when the type has none.
+// Coerces the box the same way polygonPointsString does: the export interpolates
+// the result straight into markup for a possibly-shared document.
+export function presetPolygonPoints(shape) {
+  const x = num(shape?.x)
+  const y = num(shape?.y)
+  const w = num(shape?.w)
+  const h = num(shape?.h)
+  if (shape?.type === 'star') return starPoints(x, y, w, h)
+  const outline = PRESET_POLYGONS[shape?.type]
+  if (!outline) return ''
+  return outline.map(([nx, ny]) => `${x + nx * w},${y + ny * h}`).join(' ')
+}
+
+// Alternating outer and inner vertices around the box centre.
+function starPoints(x, y, w, h) {
+  const cx = x + w / 2
+  const cy = y + h / 2
+  const points = []
+  for (let i = 0; i < STAR_ARMS * 2; i += 1) {
+    const angle = ((-90 + i * (180 / STAR_ARMS)) * Math.PI) / 180
+    const rx = (i % 2 ? STAR_INNER_RATIO : 0.5) * w
+    const ry = (i % 2 ? STAR_INNER_RATIO : 0.5) * h
+    points.push(`${cx + rx * Math.cos(angle)},${cy + ry * Math.sin(angle)}`)
+  }
+  return points.join(' ')
 }
 
 function num(value) {
