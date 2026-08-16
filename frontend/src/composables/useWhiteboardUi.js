@@ -165,10 +165,12 @@ function attachSelection(api, state) {
   }
 
   // Merge `items` into the selection, de-duped by kind+id (marquee additive add).
-  api.addToSelection = (items) => {
+  // Takes the same keepShapes opt-out as setSelection, for the one caller that
+  // holds both kinds at once: a marquee catching ink AND shapes (#506).
+  api.addToSelection = (items, options) => {
     const next = [...state.selection]
     for (const item of items) if (!next.some((existing) => same(existing, item))) next.push(item)
-    setSelection(next)
+    setSelection(next, options)
   }
 }
 

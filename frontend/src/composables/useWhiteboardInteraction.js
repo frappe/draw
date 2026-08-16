@@ -412,10 +412,23 @@ export function startGroupMove(event, store, editorUi, ui) {
   event.stopPropagation()
   const items = ui.state.selection.map((item) => ({ ...item }))
   const model = store.state.whiteboard
+  // The mirror of the shape-drag side (#506): one box can now hold ink AND shapes,
+  // so grabbing the group by a sticky has to take the shapes with it, exactly as
+  // grabbing it by a shape takes the ink. Empty in every other case.
+  const shapeIds = (store.state.selection || []).filter((id) => store.shapeById(id))
   const startX = event.clientX
   const startY = event.clientY
   let lastDx = 0
   let lastDy = 0
+  const nudgeShapes = (dx, dy) => {
+    for (const id of shapeIds) {
+      const shape = store.shapeById(id)
+      if (shape) {
+        shape.x += dx
+        shape.y += dy
+      }
+    }
+  }
   const move = (moveEvent) => {
     // Any move while the pointer is down is a real drag (no separate threshold
     // here) — hide the floating selection toolbar for its duration (#248).
@@ -424,6 +437,7 @@ export function startGroupMove(event, store, editorUi, ui) {
     const dy = (moveEvent.clientY - startY) / zoom
     // Apply only the incremental step so preview position stays exact.
     for (const item of items) translateWhiteboardObject(model, item.kind, item.id, dx - lastDx, dy - lastDy)
+    nudgeShapes(dx - lastDx, dy - lastDy)
     lastDx = dx
     lastDy = dy
   }
@@ -434,8 +448,12 @@ export function startGroupMove(event, store, editorUi, ui) {
     if (!lastDx && !lastDy) return // a click, not a drag → keep the group selected
     // Undo the live preview, then commit the whole move once for clean undo.
     for (const item of items) translateWhiteboardObject(model, item.kind, item.id, -lastDx, -lastDy)
+    nudgeShapes(-lastDx, -lastDy)
+    // One commit for both halves, so a mixed drag takes one undo — not one that
+    // puts the ink back and leaves the shapes where they landed.
     store.updateWhiteboardModel('Move objects', (m) => {
       for (const item of items) translateWhiteboardObject(m, item.kind, item.id, lastDx, lastDy)
+      nudgeShapes(lastDx, lastDy)
     })
   }
   window.addEventListener('pointermove', move)

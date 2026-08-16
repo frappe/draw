@@ -5,6 +5,8 @@ import { rotatePoint, shapeCenter } from '@/diagram/geometry.js'
 import { clampCornerRadius, cornerRadiusOf } from '@/diagram/shapeGeometry.js'
 import { clampArrowShaft, clampArrowHead } from '@/diagram/blockArrow.js'
 import { useSmartGuides } from '@/composables/useSmartGuides.js'
+import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
+import { translateWhiteboardObject } from '@/diagram/whiteboardModel.js'
 
 const ROTATION_SNAP = [0, 30, 45, 60, 90]
 const NUDGE_SMALL = 1
@@ -98,11 +100,25 @@ function createMover(store) {
     // free-translated here — attached connectors follow their shapes' anchors.
     const shapeIds = ids.filter((id) => store.shapeById(id))
     const originals = snapshotShapes(store, shapeIds)
+    // One box now selects the whiteboard's ink, stickies, lines and tables along
+    // with the shapes (#506), so a drag has to carry them or half of what the user
+    // boxed stays behind. Empty in every other case: before that change these two
+    // selections cleared each other, so this is a new path rather than a changed one.
+    const objects = selectedWhiteboardObjects(store)
     let dragging = false
-    const apply = (point) => {
+    let painted = { x: 0, y: 0 } // the object delta currently showing on the model
+    const step = (point) => {
       const raw = { x: point.x - start.x, y: point.y - start.y }
-      const snapped = smartGuides.snapDelta(shapeIds, originals, raw)
-      return originals.map((o) => ({ id: o.id, x: o.x + snapped.x, y: o.y + snapped.y }))
+      const delta = smartGuides.snapDelta(shapeIds, originals, raw)
+      return { delta, finals: originals.map((o) => ({ id: o.id, x: o.x + delta.x, y: o.y + delta.y })) }
+    }
+    // Objects have no geometry snapshot to re-apply, so they are nudged by the
+    // difference from what is already painted — the same incremental trick
+    // startGroupMove uses, and what lets the preview be wound back exactly.
+    const paintObjects = (delta) => {
+      if (!objects.length) return
+      translateObjects(store, objects, delta.x - painted.x, delta.y - painted.y)
+      painted = delta
     }
     runDrag(
       toLogical,
@@ -115,14 +131,46 @@ function createMover(store) {
           // Only now is this a real move, not a click — let the floating
           // selection toolbars hide themselves for the rest of the gesture (#248).
         }
-        applyLive(store, apply(point))
+        const { delta, finals } = step(point)
+        applyLive(store, finals)
+        paintObjects(delta)
       },
       (event, point) => {
-        if (dragging) finishGesture(store, 'Move', originals, apply(point))
+        if (dragging) {
+          const { delta, finals } = step(point)
+          paintObjects({ x: 0, y: 0 }) // wind the preview back before committing
+          finishMove(store, originals, finals, objects, delta)
+        }
         smartGuides.clear()
       },
     )
   }
+}
+
+// The whiteboard objects travelling with a shape drag. Copied out of the live
+// selection so the gesture still ends correctly if the selection changes under it.
+function selectedWhiteboardObjects(store) {
+  if (!store.state.whiteboard) return []
+  return useWhiteboardUi().state.selection.map((item) => ({ kind: item.kind, id: item.id }))
+}
+
+function translateObjects(store, objects, dx, dy) {
+  const model = store.state.whiteboard
+  if (!model || (!dx && !dy)) return
+  for (const object of objects) translateWhiteboardObject(model, object.kind, object.id, dx, dy)
+}
+
+// End a move: wind back the preview, then commit the shapes AND anything from the
+// whiteboard that came with them as ONE undoable step, so a mixed drag takes one
+// undo rather than two — or worse, one that only puts half of it back.
+function finishMove(store, originals, finals, objects, delta) {
+  restoreShapes(store, originals)
+  const objectsMoved = Boolean(objects.length && (delta.x || delta.y))
+  if (!geometryChanged(originals, finals) && !objectsMoved) return
+  store.commit('Move', () => {
+    for (const final of finals) Object.assign(store.shapeById(final.id), final)
+    if (objectsMoved) translateObjects(store, objects, delta.x, delta.y)
+  })
 }
 
 // Apply a list of geometry patches directly to the live (reactive) shapes.
