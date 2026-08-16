@@ -48,7 +48,7 @@ function swap(nodeType) {
           :active="node.flowchart?.nodeType === type"
           @click="swap(type)"
         >
-          <template #icon><ShapeGlyph family="flowchart" :type="type" class="h-[18px] w-[18px]" /></template>
+          <template #icon><ShapeGlyph family="flowchart" :type="type" class="size-4" /></template>
         </ToolbarButton>
       </div>
     </template>

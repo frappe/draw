@@ -57,11 +57,18 @@ export const NON_DRAGGABLE_SHAPES = ['polygon']
 // A plain Line has no arrowheads; Arrow ends in one. The arrow connector's id is
 // namespaced so it never collides with the 'arrow' block-arrow SHAPE above —
 // both would otherwise key the same draw tool.
+//
+// Two of these moved off their Lucide icon in #457. Line carried `lucide-minus`, a
+// short centred bar that reads as a subtract sign; Lucide has no straight line with
+// endpoints, so it takes a drawn `glyph` instead — the one exception on this bar,
+// and the reason a tile may carry `glyph` in place of `icon`. Curved carried
+// `lucide-git-commit-horizontal`, whose middle dot says nothing about a connector;
+// `lucide-spline` is an arc between two endpoint dots, which is what the tool draws.
 export const LINES = [
-  { type: 'line', icon: 'lucide-minus', label: 'Line' },
+  { type: 'line', glyph: 'line', label: 'Line' },
   { type: 'connector-arrow', icon: 'lucide-arrow-right', label: 'Arrow' },
   { type: 'elbow', icon: 'lucide-corner-down-right', label: 'Elbow connector' },
-  { type: 'curved', icon: 'lucide-git-commit-horizontal', label: 'Curved connector' },
+  { type: 'curved', icon: 'lucide-spline', label: 'Curved connector' },
 ]
 
 // `surface` tools draw onto the whiteboard layer, so they only apply to the

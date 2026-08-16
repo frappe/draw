@@ -12,7 +12,7 @@ vi.mock('frappe-ui', () => ({
   createResource: () => ({ submit: () => {} }),
   call: () => Promise.resolve({}),
 }))
-const { SHAPES } = await import('@/composables/useInsertCatalog.js')
+const { SHAPES, LINES } = await import('@/composables/useInsertCatalog.js')
 
 // The insert cluster (#364). The "+" catalog's five sections are five toolbar
 // entries now, so the assertions moved off BottomPalette.vue with the controls.
@@ -199,5 +199,104 @@ describe('the shapes grid (#451)', () => {
     // draggable — there is no shape to drop until the count is known.
     const tile = groups.slice(groups.indexOf('label="Custom polygon"'))
     expect(tile.slice(0, tile.indexOf('/>'))).not.toContain('draggable')
+  })
+})
+
+// #456: a drawn glyph beside a Lucide icon has to be drawn to Lucide's spec, or it
+// reads as a second icon set. Two variables produced the same 50% overweight mark,
+// so both are pinned.
+describe('drawn glyphs weigh the same as the Lucide icons beside them (#456)', () => {
+  const glyph = read('../floating/ShapeGlyph.vue')
+
+  // frappe-ui rewrites every Lucide icon to 1.5 via normalizeStrokeWidth in
+  // tailwind/lucideIconsPlugin.js. Lucide's own stock 2 is the wrong number here.
+  it('strokes at 1.5, the width frappe-ui normalises Lucide to', () => {
+    expect(glyph).toContain('stroke-width="1.5"')
+    expect(glyph).not.toContain('stroke-width="2"')
+  })
+
+  // frappe-ui draws a size="sm" Button icon at size-4. An #icon slot is passed
+  // through unsized, so each call site has to ask for it — and every one of them
+  // used to override it to 18px, which scaled the mark up as well as the stroke.
+  it('renders every call site at size-4, never at a hand-picked pixel size', () => {
+    const callSites = [
+      './groups/InsertGroups.vue',
+      './groups/FlowchartNodeTypeGroup.vue',
+      '../canvas/FlowchartNodeTypePicker.vue',
+    ]
+    for (const file of callSites) {
+      const source = read(file)
+      const sized = [...source.matchAll(/<ShapeGlyph[^>]*class="([^"]*)"/g)]
+      // Count first: a glyph carrying no class at all would match nothing above
+      // and pass the loop silently, while rendering at whatever it inherits.
+      const total = (source.match(/<ShapeGlyph\b/g) || []).length
+      expect(sized, `${file} has a glyph with no class`).toHaveLength(total)
+      for (const [, cls] of sized) {
+        expect(cls, `${file} sizes a glyph by hand`).not.toMatch(/\[\d+px\]/)
+        expect(cls, `${file} does not render its glyph at size-4`).toMatch(/\bsize-4\b/)
+      }
+    }
+  })
+
+  // FIT is what makes the drawing fill the same 18 of 24 units as lucide-square
+  // (x=3 y=3 w=18 h=18). Shrinking the box without it would undersize the mark.
+  it('fills the same 18 of 24 units a Lucide icon does', () => {
+    expect(glyph).toContain('const FIT = 18')
+  })
+})
+
+// #457 / #458 / #459: three toolbar icons that either said the wrong thing or were
+// indistinguishable from the control at the other end of the same bar.
+describe('toolbar icons say what their control does', () => {
+  const groups = read('./groups/InsertGroups.vue')
+  const iconsDir = path.join(here, '../../../node_modules/lucide-static/icons')
+  const inPack = (icon) => existsSync(path.join(iconsDir, `${icon.replace('lucide-', '')}.svg`))
+
+  // A tile carries an `icon` from the pack or a drawn `glyph`, never both and
+  // never neither — either mistake renders a blank tile rather than an error.
+  it('gives every Lines tile exactly one mark, and a real one', () => {
+    for (const line of LINES) {
+      expect(Boolean(line.icon) !== Boolean(line.glyph), `${line.label} has no single mark`).toBe(true)
+      if (line.icon) expect(inPack(line.icon), `${line.icon} is not in the pack`).toBe(true)
+    }
+  })
+
+  it('draws Line as a line, not as a minus sign', () => {
+    const line = LINES.find((entry) => entry.type === 'line')
+    expect(line.glyph).toBe('line')
+    expect(line.icon).toBeUndefined()
+    // The bar's trigger and the tile it opens have to wear the same mark.
+    expect(groups).toContain('<ShapeGlyph family="line" class="size-4" />')
+    expect(groups).toContain(':family="connector.glyph"')
+  })
+
+  // spline is an arc between two endpoint dots, which is the tool. The dots are
+  // also the drawn Line glyph's, so straight and curved read as a pair.
+  it('gives the curved connector the arc-with-endpoints icon', () => {
+    const curved = LINES.find((entry) => entry.type === 'curved')
+    expect(curved.icon).toBe('lucide-spline')
+    expect(curved.icon).not.toBe('lucide-git-commit-horizontal')
+  })
+
+  // Both were a rounded square with interior rules, and they sit at opposite ends
+  // of the same bar.
+  it('keeps Guides distinct from Table, on an icon that means dotted grid', () => {
+    const guides = read('./groups/GuidesGroup.vue')
+    expect(guides).toContain('icon-left="lucide-grip"')
+    // Bound to the attribute, not the bare name: the comment above the control
+    // names the icon it replaced, and that is worth keeping.
+    expect(guides).not.toContain('icon-left="lucide-grid-2x2"')
+    expect(inPack('lucide-grip')).toBe(true)
+    // The icon it used to collide with is unchanged, so the pair is really apart.
+    expect(read('../../composables/useInsertCatalog.js')).toContain("icon: 'lucide-table'")
+  })
+
+  // git-branch still means "branch" on FlowchartNodeGroup's Branches control, so
+  // the Flowchart menu had to move off it rather than the other way round.
+  it('gives the Flowchart menu a flowchart icon, not the Branches one', () => {
+    expect(groups).toContain('label="Flowchart" icon="lucide-network"')
+    expect(inPack('lucide-network')).toBe(true)
+    expect(groups).not.toContain('icon="lucide-git-branch"')
+    expect(read('./groups/FlowchartNodeGroup.vue')).toContain('label="Branches" icon="lucide-git-branch"')
   })
 })

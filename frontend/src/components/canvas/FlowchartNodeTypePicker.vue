@@ -44,7 +44,7 @@ const options = NODE_TYPES.map((type) => ({
         @click="$emit('choose', option.type)"
       >
         <template #prefix>
-          <ShapeGlyph family="flowchart" :type="option.type" class="h-4 w-4 flex-none text-ink-gray-6" />
+          <ShapeGlyph family="flowchart" :type="option.type" class="size-4 flex-none text-ink-gray-6" />
         </template>
       </Button>
     </div>

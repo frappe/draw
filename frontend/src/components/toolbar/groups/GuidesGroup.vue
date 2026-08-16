@@ -34,7 +34,14 @@ function setGuides(value) {
 <template>
   <Popover v-if="showGuides" align="end">
     <template #trigger>
-      <ToolbarButton label="Guides" icon-left="lucide-grid-2x2" />
+      <!-- `lucide-grip` is a 3x3 dot grid despite its name (#458). The old
+           `lucide-grid-2x2` was a rounded square with interior rules, and so is
+           `lucide-table` at the other end of the same bar — at 16px the two were
+           not tellable apart. A dot grid shares no silhouette with it and is also
+           what this control actually toggles. "Grip" usually means a drag handle,
+           but the visible "Guides" label carries the meaning here, and no other
+           control in the app uses the icon. -->
+      <ToolbarButton label="Guides" icon-left="lucide-grip" />
     </template>
     <template #default>
       <div class="w-[180px] p-2">

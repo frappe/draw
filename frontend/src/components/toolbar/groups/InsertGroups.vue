@@ -79,7 +79,7 @@ function closeSides(toggle) {
           label="Custom polygon"
           @click="askingSides = true"
         >
-          <template #icon><ShapeGlyph family="polygon-n" class="h-[18px] w-[18px]" /></template>
+          <template #icon><ShapeGlyph family="polygon-n" class="size-4" /></template>
         </ToolbarButton>
       </div>
       <PolygonSidesPicker
@@ -90,8 +90,14 @@ function closeSides(toggle) {
     </template>
   </Popover>
 
+  <!-- The trigger wears the same drawn line glyph as the tile it opens (#457).
+       They have to move together, or the bar stops matching the menu. -->
   <Popover>
-    <template #trigger><ToolbarButton allows-blur label="Lines" icon="lucide-minus" /></template>
+    <template #trigger>
+      <ToolbarButton allows-blur label="Lines">
+        <template #icon><ShapeGlyph family="line" class="size-4" /></template>
+      </ToolbarButton>
+    </template>
     <template #default="{ toggle }">
       <div :class="grid">
         <ToolbarButton
@@ -105,7 +111,11 @@ function closeSides(toggle) {
           @click="arm(connector.type, toggle)"
           @dragstart="startTileDrag($event, connector.type)"
           @dragend="endTileDrag(toggle)"
-        />
+        >
+          <template v-if="connector.glyph" #icon>
+            <ShapeGlyph :family="connector.glyph" class="size-4" />
+          </template>
+        </ToolbarButton>
       </div>
     </template>
   </Popover>
@@ -139,11 +149,15 @@ function closeSides(toggle) {
       :active="isMindmapStarterArmed()"
       @click="insertMindmap()"
     >
-      <template #icon><ShapeGlyph family="mindmap" class="h-[18px] w-[18px]" /></template>
+      <template #icon><ShapeGlyph family="mindmap" class="size-4" /></template>
     </ToolbarButton>
 
     <Popover>
-      <template #trigger><ToolbarButton allows-blur label="Flowchart" icon="lucide-git-branch" /></template>
+      <!-- `lucide-network` — a parent box over two child boxes, which is what a
+           flowchart looks like and what its nodes are drawn as. `lucide-git-branch`
+           said nothing about a flowchart, and the Branches control next door still
+           wears it, so the two menus used to be indistinguishable (#459). -->
+      <template #trigger><ToolbarButton allows-blur label="Flowchart" icon="lucide-network" /></template>
       <template #default="{ toggle }">
         <div :class="grid">
           <ToolbarButton
@@ -154,7 +168,7 @@ function closeSides(toggle) {
             :active="isFlowchartStarterArmed(node.type)"
             @click="insertFlowchartNode(node.type, toggle)"
           >
-            <template #icon><ShapeGlyph family="flowchart" :type="node.type" class="h-[18px] w-[18px]" /></template>
+            <template #icon><ShapeGlyph family="flowchart" :type="node.type" class="size-4" /></template>
           </ToolbarButton>
         </div>
       </template>
