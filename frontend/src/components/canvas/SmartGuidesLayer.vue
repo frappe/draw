@@ -1,6 +1,13 @@
 <script setup>
-// Smart alignment guides: pink dashed lines + a small label pill during drag
-// (signature, spec §7.6). Guides come from the shared useSmartGuides instance
+// Smart alignment guides: pink dashed lines during a drag, and blue distance
+// measurements with a px badge (signature, spec §7.6).
+//
+// The pink line carries NO label (#471). It used to draw a small pill naming the
+// edge it had snapped to, but the line already shows what it is showing, and the
+// word only added something to read mid-drag. The BLUE number stays: it reports the
+// actual gap between two shapes, which a line on its own cannot.
+//
+// Guides come from the shared useSmartGuides instance
 // so no props need plumbing through DiagramCanvas; an explicit `guides` prop
 // still overrides for testing. Renders inside the canvas <g> (logical units).
 import { computed } from 'vue'
@@ -23,23 +30,9 @@ function measurePillW(label) {
   return label.length * 6 + 8
 }
 
-// Pill geometry per guide: width scales with label length; placed near the
-// line's near end. Sizes stay in logical units so they scale with zoom.
-const PILL_HEIGHT = 16
-const PILL_PADDING = 5
-const CHAR_WIDTH = 6
-
-function pillWidth(label) {
-  return label.length * CHAR_WIDTH + PILL_PADDING * 2
-}
-
-function pillX(guide) {
-  return Math.min(guide.x1, guide.x2)
-}
-
-function pillY(guide) {
-  return Math.min(guide.y1, guide.y2)
-}
+// The pink guide's own pill, and the four helpers that placed and sized it, are
+// gone with it (#471). `guide.label` is still produced upstream by the smart-guides
+// calculation; it is simply no longer drawn.
 </script>
 
 <template>
@@ -54,25 +47,6 @@ function pillY(guide) {
         stroke-width="1"
         stroke-dasharray="4 3"
       />
-      <g v-if="guide.label" :transform="`translate(${pillX(guide)} ${pillY(guide)})`">
-        <rect
-          :width="pillWidth(guide.label)"
-          :height="PILL_HEIGHT"
-          rx="8"
-          fill="#E34AA6"
-        />
-        <text
-          :x="pillWidth(guide.label) / 2"
-          :y="PILL_HEIGHT / 2"
-          fill="#FFFFFF"
-          font-size="9"
-          font-family="Inter, sans-serif"
-          text-anchor="middle"
-          dominant-baseline="central"
-        >
-          {{ guide.label }}
-        </text>
-      </g>
     </template>
 
     <!-- Live spacing measurements (spec 4.2): a blue distance line with end caps

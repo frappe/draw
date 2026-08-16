@@ -46,22 +46,27 @@ async function signOut() {
   }
 }
 
-// App menu, mirroring the Frappe Drive navbar dropdown: where you can go on top,
-// then what you can do to the app. Trash lives here now that the view switcher is
-// gone (#407) — it is the one view Home does not already contain.
+// The account menu: Trash, Settings, Log out. Trash lives here now that the view
+// switcher is gone (#407) — it is the one view Home does not already contain.
+//
+// ONE group, so there is no divider (#461). The divider was the boundary between
+// the two groups this used to have, not a separator anyone added, so collapsing
+// them removes it; there is nothing to delete.
+//
+// "Apps" is gone with them. The idea was to grow it into a side menu of Suite apps,
+// the way Frappe Mail does, and the mechanism was there — frappe-ui's Dropdown
+// nests through a `submenu:` array, and `frappe.apps.get_apps` returns every
+// installed app that declares add_to_apps_screen. The CONTENT was the problem: the
+// individual Suite apps are modules inside one `suite` app, not separate installs,
+// so a live list returns a single "Frappe Suite" row rather than the Writer /
+// Slides / Sheets list the reference shows. On this bench the whole menu would have
+// been two entries.
 const appMenu = computed(() => [
   {
-    group: 'Views',
+    group: 'Account',
     hideLabel: true,
     options: [
       { label: 'Trash', icon: 'lucide-trash-2', onClick: () => (view.value = 'trash') },
-    ],
-  },
-  {
-    group: 'App',
-    hideLabel: true,
-    options: [
-      { label: 'Apps', icon: 'lucide-layout-grid', onClick: () => (window.location.href = '/apps') },
       { label: 'Settings', icon: 'lucide-settings', onClick: () => (showSettings.value = true) },
       { label: 'Log out', icon: 'lucide-log-out', onClick: signOut },
     ],
