@@ -8,7 +8,7 @@
 // separate "options" disclosure to reach for. Board-wide settings and
 // the selected-object editor follow. All chrome is Frappe UI.
 import { computed, ref } from 'vue'
-import { Button, Dialog, Dropdown, Popover, Slider, TabButtons } from 'frappe-ui'
+import { Button, Dialog, Popover, Slider, TabButtons } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
@@ -96,62 +96,31 @@ const drawOpacityPercent = computed({
   },
 })
 
-// The biggest tip is wider than the swatch row, so the preview dot is capped —
-// the canvas cursor is what shows the true tip size. Shared by the eraser and
-// the Draw tool's size swatches.
-// The eraser menu (#462): two modes, then Clear all.
+// The eraser's options read as a MENU (#462): Eraser, Erase by object, Clear all.
 //
-// Clear all is an ACTION, not a third mode. The other two arm a tool and stay armed;
-// this one fires once and is destructive, so a tab would show it selected after the
-// canvas was already wiped. It sits in a group of its own below them, and destructive
-// controls take theme="red".
+// It stays a Popover, like every other option tool, rather than becoming a
+// Dropdown. frappe-ui's Dropdown is reka's MODAL menu and does not expose the
+// `modal` prop, so while it was open nothing else on screen responded — not the
+// canvas, not another tool, not even the eraser's own button. The toolbar's
+// one-click tool swap and the "arm and use" gesture both died with it.
 //
-// The tip sizes hang off Eraser as a side menu, because they belong to that mode
-// alone — "Erase by object" takes whole elements and has no tip.
-const eraserMenu = computed(() => [
-  {
-    group: 'Mode',
-    hideLabel: true,
-    // Eraser carries the sizes, so frappe-ui renders it as a SUBMENU TRIGGER — and a
-    // trigger opens its submenu instead of firing an onClick. Giving it one would be
-    // dead code that reads like it arms the tool. Picking a size is what arms ink
-    // mode, which is why every size row calls armEraser itself.
-    options: ERASER_MODES.map((mode) =>
-      mode.key === 'ink'
-        ? { label: mode.label, icon: mode.icon, submenu: eraserSizeMenu.value }
-        : { label: mode.label, icon: mode.icon, onClick: () => armEraser(mode.key) },
-    ),
-  },
-  {
-    group: 'Canvas',
-    hideLabel: true,
-    options: [
-      {
-        label: 'Clear all',
-        icon: 'lucide-trash-2',
-        theme: 'red',
-        onClick: () => (confirmingClearAll.value = true),
-      },
-    ],
-  },
-])
-
-const eraserSizeMenu = computed(() =>
-  ERASER_SIZES.map((size, index) => ({
-    label: ERASER_SIZE_LABELS[index],
-    icon: ERASER_SIZE_ICONS[index],
-    onClick: () => {
-      ui.state.eraserSize = size
-      armEraser('ink')
-    },
-  })),
-)
+// The tip sizes therefore open IN PLACE rather than as a true side menu, swapping
+// this panel's contents — the same trick the Shapes menu uses for its side-count
+// prompt, and for the same reason: a second Popover nested in this one would close
+// the outer on its own outside-press.
+const eraserSizesOpen = ref(false)
 
 // Picking a mode arms the eraser as well as setting it, so choosing one from the
 // menu does not leave the previous tool live under the pointer.
 function armEraser(mode) {
   ui.state.eraserMode = mode
   editorUi.setTool('eraser')
+  eraserSizesOpen.value = false
+}
+
+function pickEraserSize(size) {
+  ui.state.eraserSize = size
+  armEraser('ink')
 }
 
 // Clearing the canvas cannot be undone by pressing the same button again, so it
@@ -162,6 +131,9 @@ function clearAll() {
   confirmingClearAll.value = false
 }
 
+// The biggest tip is wider than the swatch row, so the preview dot is capped —
+// the canvas cursor is what shows the true tip size. Used by the Draw tool's
+// size swatches.
 function dotStyle(size) {
   const dot = Math.min(size, 18)
   return { width: `${dot}px`, height: `${dot}px` }
@@ -213,22 +185,6 @@ function insertTable({ rows, cols }, close) {
       </template>
     </Popover>
 
-    <!-- The eraser is the one tool whose options are a MENU rather than a panel
-         (#462): three entries, one of which opens a side menu of tip sizes. It gets
-         a Dropdown of its own instead of the shared options Popover, because
-         frappe-ui's nesting support lives on Dropdown — and a second Popover nested
-         inside the first would close the outer one on its own outside-press. -->
-    <Dropdown v-else-if="t.tool === 'eraser'" :options="eraserMenu">
-      <ToolbarButton
-        allows-blur
-        :data-testid="'wtool-' + t.tool"
-        :active="activeTool === t.tool"
-        :icon="t.icon"
-        :label="t.label"
-        @click="editorUi.setTool(t.tool)"
-      />
-    </Dropdown>
-
     <Popover v-else-if="OPTION_TOOLS.includes(t.tool)">
       <template #trigger>
         <ToolbarButton
@@ -260,6 +216,78 @@ function insertTable({ rows, cols }, close) {
 
           <div class="mb-1 text-sm font-semibold text-ink-gray-5">Opacity</div>
           <Slider v-model="drawOpacityPercent" :min="10" :max="100" :step="5" size="sm" />
+        </div>
+
+        <!-- Eraser (#462): three menu rows, and the tip sizes swapped in place. -->
+        <div v-else-if="t.tool === 'eraser'" class="w-52 p-1">
+          <template v-if="!eraserSizesOpen">
+            <!-- Eraser leads to the sizes; the chevron says so. Picking a size is
+                 what arms ink mode, so this row opens rather than arms. -->
+            <Button
+              class="!w-full !justify-start"
+              variant="ghost"
+              theme="gray"
+              :icon-left="ERASER_MODES[0].icon"
+              :label="ERASER_MODES[0].label"
+              @click="eraserSizesOpen = true"
+            >
+              {{ ERASER_MODES[0].label }}
+              <template #suffix>
+                <span class="lucide-chevron-right ml-auto size-4 text-ink-gray-5" aria-hidden="true" />
+              </template>
+            </Button>
+            <Button
+              class="!w-full !justify-start"
+              variant="ghost"
+              theme="gray"
+              :icon-left="ERASER_MODES[1].icon"
+              :label="ERASER_MODES[1].label"
+              @click="armEraser('object')"
+            >
+              {{ ERASER_MODES[1].label }}
+            </Button>
+            <!-- Clear all is an ACTION, not a third mode: the other two arm a tool
+                 and stay armed, this one fires once and is destructive. Separated
+                 from them, and red. -->
+            <div class="my-1 border-t border-outline-gray-1" />
+            <Button
+              class="!w-full !justify-start"
+              variant="ghost"
+              theme="red"
+              icon-left="lucide-trash-2"
+              label="Clear all"
+              @click="confirmingClearAll = true"
+            >
+              Clear all
+            </Button>
+          </template>
+
+          <template v-else>
+            <Button
+              class="!w-full !justify-start"
+              variant="ghost"
+              theme="gray"
+              icon-left="lucide-chevron-left"
+              label="Back to eraser modes"
+              @click="eraserSizesOpen = false"
+            >
+              {{ ERASER_MODES[0].label }}
+            </Button>
+            <div class="my-1 border-t border-outline-gray-1" />
+            <Button
+              v-for="(size, index) in ERASER_SIZES"
+              :key="size"
+              class="!w-full !justify-start"
+              variant="ghost"
+              theme="gray"
+              :icon-left="ERASER_SIZE_ICONS[index]"
+              :label="ERASER_SIZE_LABELS[index]"
+              :active="ui.state.eraserSize === size"
+              @click="pickEraserSize(size)"
+            >
+              {{ ERASER_SIZE_LABELS[index] }}
+            </Button>
+          </template>
         </div>
 
         <!-- Sticky: color. -->

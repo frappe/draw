@@ -228,24 +228,21 @@ test.describe('whiteboard', () => {
       .toBe('highlighter')
   })
 
-  // The eraser's options are a MENU now (#462), opened by the same click that picks
-  // the tool, and the menu sits over the canvas until a mode is chosen — so a drag
-  // straight after clicking the tool never reaches the board.
+  // The eraser's options read as a MENU since #462: Eraser, Erase by object, Clear
+  // all. A mode has to be picked before rubbing, and the plain eraser is reached
+  // through a tip SIZE — "Eraser" opens the three sizes in place, and picking one is
+  // what arms ink mode.
   //
-  // The plain eraser is armed by picking a tip SIZE. "Eraser" carries the three sizes
-  // as a submenu, and frappe-ui renders a submenu parent as a trigger that opens
-  // rather than an item that fires, so there is nothing to click on the parent
-  // itself. Hovering is what opens a submenu; a click on the trigger only toggles it.
+  // It is still a Popover, so it never blocks the canvas; picking a mode closes it.
   async function armEraser(page, mode) {
     await toolByIcon(page, 'eraser').click()
+    const menu = page.locator(POPOVER)
     if (mode === 'object') {
-      await page.getByRole('menuitem', { name: 'Erase by object' }).click()
+      await menu.getByText('Erase by object', { exact: true }).click()
     } else {
-      await page.getByRole('menuitem', { name: 'Eraser', exact: true }).hover()
-      await page.getByRole('menuitem', { name: 'Medium', exact: true }).click()
+      await menu.getByText('Eraser', { exact: true }).click()
+      await menu.getByText('Medium', { exact: true }).click()
     }
-    // Picking a mode closes the menu, which is what frees the canvas for the drag.
-    await expect(page.getByRole('menuitem', { name: 'Erase by object' })).toBeHidden()
     // If the tool were disarmed the assertions below would blame the eraser for a
     // gesture that never reached it. Toolbar controls carry active state on
     // aria-pressed rather than a class (#360).

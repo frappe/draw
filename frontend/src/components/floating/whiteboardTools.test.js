@@ -31,67 +31,71 @@ describe('visibleWhiteboardTools', () => {
   })
 })
 
-// #462: the eraser's options are a MENU now — Eraser, Erase by object, Clear all —
-// with the tip sizes hanging off Eraser as a side menu.
+// #462: the eraser's options read as a menu — Eraser, Erase by object, Clear all —
+// with the tip sizes behind the first entry.
 describe('the eraser menu (#462)', () => {
   const source = readFileSync(path.join(here, 'WhiteboardTools.vue'), 'utf8')
 
-  // frappe-ui's nesting support lives on Dropdown, and a second Popover nested in
-  // the shared options Popover would close the outer one on its own outside-press.
-  it('opens a Dropdown of its own, not the shared options popover', () => {
-    expect(source).toContain('<Dropdown v-else-if="t.tool === \'eraser\'"')
+  // It stays a Popover like every other option tool. frappe-ui's Dropdown is reka's
+  // MODAL menu and does not expose the `modal` prop, so while it was open nothing
+  // else on screen responded — not the canvas, not another tool, not even the
+  // eraser's own button. Both the one-click tool swap and "arm and use" died with it.
+  it('stays a Popover, so it cannot trap the toolbar behind it', () => {
+    expect(source).not.toContain('<Dropdown')
+    expect(source).not.toContain("Dropdown,")
+    expect(source).toContain("t.tool === 'eraser'")
   })
 
-  it('offers the two modes, with the sizes as a side menu off Eraser', () => {
+  it('offers the two modes and the sizes behind the first', () => {
     expect(source).toContain("{ key: 'ink', icon: 'lucide-eraser', label: 'Eraser' }")
     expect(source).toContain("{ key: 'object', icon: 'lucide-square-x', label: 'Erase by object' }")
     // Only the tip-based mode takes a size: erasing by object has no tip.
-    expect(source).toContain('submenu: eraserSizeMenu.value')
+    expect(source).toContain('eraserSizesOpen = true')
   })
 
-  // frappe-ui renders any option carrying a submenu as a SubTrigger, which opens the
-  // submenu instead of firing an onClick. An onClick there is dead code that reads
-  // like it arms the tool — picking a SIZE is what arms ink mode, so every size row
-  // has to call armEraser itself.
-  it('does not hang a dead click handler on the submenu parent', () => {
-    const inkOption = source.slice(source.indexOf('mode.key === \'ink\''), source.indexOf('const eraserSizeMenu'))
-    expect(inkOption).toContain('submenu: eraserSizeMenu.value')
-    expect(inkOption, 'a submenu trigger never fires its own onClick').not.toContain('onClick: () => armEraser(mode.key)\n        ? ')
-    const sizeMenu = source.slice(source.indexOf('const eraserSizeMenu'), source.indexOf('function armEraser'))
-    expect(sizeMenu, 'picking a size must arm the mode it belongs to').toContain("armEraser('ink')")
+  // Swapped in place rather than nested: a second Popover inside this one would
+  // close the outer on its own outside-press, the trap the Shapes menu already hit.
+  it('swaps the sizes in place instead of nesting a second popover', () => {
+    expect(source).toContain('const eraserSizesOpen = ref(false)')
+    const panel = source.slice(source.indexOf("t.tool === 'eraser'"), source.indexOf('Sticky: color'))
+    expect(panel).toContain('v-if="!eraserSizesOpen"')
+    expect(panel).toContain('v-else')
+    expect((panel.match(/<Popover/g) || []).length).toBe(0)
   })
 
-  // Named rows rather than three bare dots to compare.
   it('names the three sizes', () => {
     expect(source).toContain("const ERASER_SIZE_LABELS = ['Small', 'Medium', 'Large']")
   })
 
-  // The dots are Lucide icons of different weights now, which is what retires the
-  // hand-built swatch row this menu used to carry.
-  it('leaves no hand-built swatch in the eraser menu', () => {
-    const eraserBlock = source.slice(source.indexOf('const eraserMenu'), source.indexOf('function dotStyle'))
-    expect(eraserBlock).not.toContain('frappe-ui-exempt')
+  // The dots are Lucide icons of different weights now, which retires the hand-built
+  // swatch row this menu used to carry.
+  it('leaves no hand-built swatch in the eraser panel', () => {
+    const panel = source.slice(source.indexOf("t.tool === 'eraser'"), source.indexOf('Sticky: color'))
+    expect(panel).not.toContain('frappe-ui-exempt')
+    expect(panel).not.toContain('<button')
     expect(source).not.toContain('ERASER_MODE_TABS')
   })
 
   // Clear all is an ACTION, not a third mode: the other two arm a tool and stay
-  // armed, this one fires once. A tab would show it selected after the canvas was
-  // already wiped.
-  it('keeps Clear all out of the mode group, and marks it destructive', () => {
-    expect(source).toContain("label: 'Clear all'")
-    expect(source).toContain("theme: 'red'")
-    expect(source).toMatch(/group: 'Canvas'[\s\S]{0,200}Clear all/)
+  // armed, this one fires once. It is separated from them and red.
+  it('keeps Clear all apart from the modes, and marks it destructive', () => {
+    const panel = source.slice(source.indexOf("t.tool === 'eraser'"), source.indexOf('Sticky: color'))
+    expect(panel).toContain('label="Clear all"')
+    expect(panel).toMatch(/border-t[\s\S]{0,400}label="Clear all"/)
+    expect(panel).toMatch(/theme="red"[\s\S]{0,200}label="Clear all"/)
   })
 
   it('asks before wiping the canvas, and clears it in one store call', () => {
-    expect(source).toContain('confirmingClearAll.value = true')
+    expect(source).toContain('confirmingClearAll = true')
     expect(source).toContain('store.clearCanvas()')
     expect(source).toContain('title="Clear the canvas?"')
   })
 
-  // Picking a mode from the menu must arm the tool too, or the previous tool is
-  // still live under the pointer.
+  // Picking a mode or a size must arm the tool too, or the previously selected tool
+  // is still live under the pointer. Picking a size is what arms ink mode.
   it('arms the eraser when a mode or size is picked', () => {
     expect(source).toContain("editorUi.setTool('eraser')")
+    expect(source).toContain("armEraser('ink')")
+    expect(source).toContain("armEraser('object')")
   })
 })
