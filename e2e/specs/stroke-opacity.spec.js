@@ -30,12 +30,20 @@ async function drawStroke(page, heightFraction) {
 // Arm the pen (the click also opens its options) and drive the Opacity slider with
 // the keyboard — the thumb is a reka-ui `role="slider"`, so Home/End reach the ends
 // of the range without depending on where the track happens to be laid out.
+//
+// The panel is CLOSED again before returning, by clicking the already-armed tool:
+// re-arming is a no-op but the trigger still toggles its popover shut. Since #495
+// put the full Espresso grid in there the panel is tall enough to sit over the
+// canvas, so a stroke drawn with it open lands on the panel instead. armDraw in
+// legacy-types.spec.js closes it for the same reason.
 async function setPenOpacity(page, edge) {
   await page.getByTestId('wtool-pen').click()
   const thumb = page.getByRole('slider')
   await expect(thumb).toBeVisible()
   await thumb.focus()
   await page.keyboard.press(edge)
+  await page.getByTestId('wtool-pen').click()
+  await expect(page.locator('[data-slot="content"]')).toBeHidden()
 }
 
 test.describe('stroke opacity', () => {
