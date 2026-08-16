@@ -51,13 +51,29 @@ async function exportVia(page, label) {
   return pressExport(page, label)
 }
 
-// PNG carries a 1–4× scale strip (#104, now the dialog's "Size" row). `×` is the
-// same U+00D7 the button renders. There is no transparency checkbox to drive —
-// PNG transparency follows the canvas background (#226).
+// The scale is a Select on the Format row now (#455), not the 1–4× strip it was
+// when this spec was written. Only the CURRENT value is on screen, so the options
+// have to be opened before one can be clicked — `getByText('1×')` matched nothing
+// and waited until the test timed out.
+//
+// It is also the control that must stay enabled for a raster format: it is disabled
+// for SVG and PDF so the dialog keeps one height, and a disabled trigger would not
+// open here. `×` is the same U+00D7 the option renders.
+// Scoped to the dialog: the text toolbar behind it carries a font Select of its own
+// whenever a shape is selected, and an unscoped combobox lookup would race it.
+async function pickScale(page, scale) {
+  const trigger = page.getByRole('dialog').getByRole('combobox').first()
+  await trigger.waitFor({ state: 'visible' })
+  await trigger.click()
+  await pick(page, `${scale}×`)
+}
+
+// There is no transparency checkbox to drive — PNG transparency follows the canvas
+// background (#226).
 async function exportPng(page, scale) {
   await openExportDialog(page)
   await pick(page, 'PNG')
-  await pick(page, `${scale}×`)
+  await pickScale(page, scale)
   return pressExport(page, 'PNG')
 }
 
