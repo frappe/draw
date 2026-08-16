@@ -82,10 +82,6 @@ const handleSize = computed(() => HANDLE / zoom.value)
 const strokeWidth = computed(() => 1.5 / zoom.value)
 // One grey for the outline and everything hanging off it (#451 item 8).
 const handleColor = NEUTRAL_SELECT
-// On-screen gap between a shape and its selection outline, so the dashes clear
-// the shape's own border instead of hiding under it. Divided by zoom like every
-// other piece of chrome here, so the gap is constant on screen.
-const outlineGap = computed(() => 3 / zoom.value)
 
 // The corner-rounding handle (#451 items 6/7): a dot inside the top-left corner,
 // sitting where the corner arc currently starts, on a selected box shape. Dragging
@@ -169,18 +165,17 @@ function startRotate(event) {
          a solid line instead of dashes (#414) — it has no border of its own for
          the dashes to distinguish it from.
          The outline takes the shape's OWN corner radius (#451 item 8), so a
-         rounded box is not boxed in square dashes that cut across its corners,
-         and it stands off the box by a hair. Drawn ON the box, a 1.5px dashed
-         line disappears under the shape's own border — a default shape's border
-         is 2px — and the selection then reads only as handles. -->
+         rounded box is not boxed in square dashes that cut across its corners.
+         It sits TIGHT on the bounding box (#464) and the dashes are drawn over the
+         shape's own outline; selectionOutline() is what keeps them readable there. -->
     <rect
       v-for="shape in outlined"
       :key="shape.id"
-      :x="shape.x - outlineGap"
-      :y="shape.y - outlineGap"
-      :width="shape.w + outlineGap * 2"
-      :height="shape.h + outlineGap * 2"
-      :rx="cornerRadiusOf(shape) ? cornerRadiusOf(shape) + outlineGap : null"
+      :x="shape.x"
+      :y="shape.y"
+      :width="shape.w"
+      :height="shape.h"
+      :rx="cornerRadiusOf(shape) || null"
       :transform="
         shape.rotation
           ? `rotate(${shape.rotation} ${shape.x + shape.w / 2} ${shape.y + shape.h / 2})`

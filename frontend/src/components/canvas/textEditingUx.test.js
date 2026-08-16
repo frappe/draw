@@ -31,9 +31,22 @@ describe('a flowchart node edits inside its shape (#441 items 4/5/14)', () => {
   it('drops the inset blue ring and the extra padding for either node role', () => {
     // The ring drew a rectangle inside a diamond, which read as a bug.
     expect(editor).toContain("const padding = isNode.value ? '0' : '4px 6px'")
-    // A canvas text element drops the ring too (#414), so assert only the node
-    // half of the condition — the two rules share one line.
-    expect(editor).toMatch(/const ring = isNode\.value \|\| [\w.]+ \? null : EDIT_RING/)
+    // This used to pin the per-role condition that spared a node the ring. #467
+    // removed the ring from EVERY shape, so there is no condition left to assert —
+    // the stronger rule below covers the node case and then some.
+    expect(editor).not.toMatch(/const ring =/)
+  })
+
+  // #467: a block shape kept BOTH its dashed selection box and this ring, so typing
+  // into one showed two boxes at once. Nodes and canvas text had already opted out
+  // for their own reasons, which left the ring on the one case where it was worst.
+  it('gives no shape an edit ring, and leaves the connector label its own', () => {
+    const fallback = editor.indexOf('textStyleCss({ size: 12 }')
+    const shapeBranch = editor.slice(editor.indexOf('if (shape.value)'), fallback)
+    expect(shapeBranch, 'a shape is still drawn an editing ring').not.toContain('EDIT_RING')
+    // A connector label floats on the line with no box of its own, so nothing else
+    // would show where the words are going. It is the last thing that rings.
+    expect(editor).toContain("...EDIT_RING, padding: '2px 8px'")
   })
 
   it('sizes the node through the shape-aware measurement, not the DOM', () => {

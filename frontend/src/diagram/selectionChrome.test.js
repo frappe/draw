@@ -34,6 +34,32 @@ describe('selectionOutline', () => {
   it('is thinner for text than for a shape', () => {
     expect(selectionOutline(text).width).toBeLessThan(selectionOutline(rectangle).width)
   })
+
+  // #464: the outline is drawn ON the bounding box, so on a rectangle — and along a
+  // hexagon's flat top and bottom — the dash and the shape's border are exactly
+  // co-linear. A dash no wider than that border does not read as a dash: the border
+  // fills the gaps between the segments and the edge comes out one solid line. So
+  // the dash has to out-weigh whatever it is drawn over.
+  it('draws the dash wider than the border it covers', () => {
+    const bordered = { ...rectangle, border: { color: '#4F94FF', width: 1.5 } }
+    expect(selectionOutline(bordered).width).toBeGreaterThan(1.5)
+  })
+
+  // The rule is relative, not a fixed bump: a fixed width would hide the dashes
+  // again the moment a shape is given a heavier border.
+  it('keeps out-weighing the border as the border grows', () => {
+    for (const width of [1.5, 3, 4, 8]) {
+      const shape = { ...rectangle, border: { color: '#4F94FF', width } }
+      expect(selectionOutline(shape).width, `a ${width}px border swallows its dash`).toBeGreaterThan(width)
+    }
+  })
+
+  // Nothing to clear, so it keeps the thinnest line rather than paying for a border
+  // that is not there.
+  it('stays thin on a shape with no border', () => {
+    expect(selectionOutline(rectangle).width).toBe(1.5)
+    expect(selectionOutline({ ...rectangle, border: { color: 'none', width: 0 } }).width).toBe(1.5)
+  })
 })
 
 describe('hoverOutline', () => {

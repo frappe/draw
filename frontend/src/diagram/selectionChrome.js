@@ -20,13 +20,37 @@ export function isTextElement(shape) {
   return shape?.type === 'text'
 }
 
+// The thinnest a selection outline is ever drawn, and how far a dash must out-weigh
+// the border it is drawn over.
+const THIN_OUTLINE = 1.5
+const DASH_CLEARANCE = 0.75
+
 // The selection outline for one shape. `dashed` separates "this is a selection"
 // from "this is the object's own border" on a drawn shape; a text element has no
 // border of its own, so a thin solid line is unambiguous without shouting.
 export function selectionOutline(shape) {
   return isTextElement(shape)
     ? { color: NEUTRAL_SELECT, dashed: false, width: 1 }
-    : { color: NEUTRAL_SELECT, dashed: true, width: 1.5 }
+    : { color: NEUTRAL_SELECT, dashed: true, width: dashWidthOver(shape?.border?.width) }
+}
+
+// The outline is drawn ON the shape's bounding box (#464), so wherever an edge of
+// the box runs along an edge of the shape the two lines are exactly co-linear.
+//
+// A dash the SAME width as the border under it does not read as a dash. The dash
+// segments cover the border and the border fills the GAPS between them, so the edge
+// comes out one continuous line — which is why a selected hexagon looked like it had
+// no dashes along its flat top and bottom while the diagonal sides dashed correctly.
+// Paint order was never the cause: SelectionLayer already renders after ShapeView.
+// #451 read it as the dashes hiding UNDER the shape and stood the whole box off by
+// 3px, which cured the symptom by making the lines never meet.
+//
+// So the dash has to out-weigh whatever it sits on, and the rule is relative: a
+// fixed width would fail again the moment a shape is given a heavier border. A shape
+// with no border has nothing to clear and keeps the thinnest line.
+function dashWidthOver(borderWidth) {
+  const border = Number.isFinite(borderWidth) ? borderWidth : 0
+  return Math.max(THIN_OUTLINE, border + DASH_CLEARANCE)
 }
 
 // The hover halo. `margin` is the on-screen gap between the shape and the halo:

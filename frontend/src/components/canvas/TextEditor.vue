@@ -22,7 +22,6 @@ import {
   LINE_HEIGHT,
 } from '@/composables/useTextEditing.js'
 import { textWidth, lineCount } from '@/diagram/textMetrics.js'
-import { isTextElement } from '@/diagram/selectionChrome.js'
 import { RICH_EXTENSIONS, setActiveEditor, clearActiveEditor, contentToHtml } from '@/composables/useRichText.js'
 import { sanitizeRichText } from '@/utils/sanitizeHtml.js'
 import { mindmapNodeSize } from '@/diagram/mindmapNodeSize.js'
@@ -55,13 +54,14 @@ function resolve(endpoint) {
 }
 
 const isMindmapNode = computed(() => shape.value?.role === 'mindmap-node')
-// A canvas text element (#414): double-click, caret, type. No ring — see below.
-const isCanvasText = computed(() => isTextElement(shape.value))
 const isFlowchartNode = computed(() => shape.value?.role === 'flowchart-node')
 // Both node kinds are already a drawn box that sizes itself to its label, so both
 // edit "bare": no ring, no extra padding, measured rather than read off the DOM.
 const isNode = computed(() => isMindmapNode.value || isFlowchartNode.value)
 
+// A connector label is the last thing that still gets a ring while it is edited. It
+// floats on the line with no box of its own, and nothing else marks where the words
+// are going, so the ring is the only feedback there is. No SHAPE takes one (#467).
 const EDIT_RING = { boxShadow: 'inset 0 0 0 1.5px #006EDB', borderRadius: '4px' }
 // Room either side of the measured text, so the caret at the end of a line is not
 // flush against the edge of the box.
@@ -76,19 +76,17 @@ const fieldStyle = computed(() => {
     // narrower than the box was sized for (#427, and #441 item 14 for flowcharts —
     // where the frame also clears the shape's own geometry).
     const padding = isNode.value ? '0' : '4px 6px'
-    // No edit ring on a node either: the node is already a box, and a blue
-    // rectangle drawn just inside it is a second box saying the same thing — on a
-    // flowchart node it was a rectangle inside a diamond, which read as a bug
-    // rather than as feedback (#441 item 4). The caret and the live text are the
-    // feedback that editing is happening.
-    //
-    // A canvas text element gets none for the opposite reason (#414): there is no
-    // box at all, and drawing one around the words turns "type on the canvas" into
-    // "fill in this field". Double-click leaves a caret and nothing else.
-    const ring = isNode.value || isCanvasText.value ? null : EDIT_RING
+    // No shape gets an edit ring (#467). This file has arrived at the same answer
+    // three times from three directions: a node is already a box, so a rectangle
+    // drawn just inside it says nothing new — and inside a diamond it read as a bug
+    // (#441 item 4); a canvas text element has no box at all, and drawing one turns
+    // "type on the canvas" into "fill in this field" (#414); and a block shape kept
+    // both its dashed selection box AND the ring, so typing into one showed two
+    // boxes at once. The caret and the live text are the feedback that editing is
+    // happening. The dashed selection box stays, so the resize handles stay
+    // reachable while typing.
     return {
       ...textStyleCss(text.style, text.valign, text.align),
-      ...ring,
       ...nowrap,
       padding,
       height: '100%',
