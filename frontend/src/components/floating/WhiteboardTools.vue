@@ -8,7 +8,7 @@
 // separate "options" disclosure to reach for. Board-wide settings and
 // the selected-object editor follow. All chrome is Frappe UI.
 import { computed, ref } from 'vue'
-import { Button, Dialog, Popover, Slider, TabButtons } from 'frappe-ui'
+import { Button, Dialog, Popover, Slider, Tooltip, TooltipProvider } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
@@ -58,11 +58,14 @@ const ERASER_MODES = [
 const ERASER_SIZE_LABELS = ['Small', 'Medium', 'Large']
 const ERASER_SIZE_ICONS = ['lucide-dot', 'lucide-circle-small', 'lucide-circle']
 
-// The Draw tool's pen/highlighter sub-modes (#242). Icon-only (no `label`, just
-// `icon` + `tooltip`) so the switch reads as a compact segmented toggle rather
-// than a labeled tab bar — TabButtons hides the text and falls back to
-// the tooltip as the accessible name whenever an option carries `icon` instead
-// of `iconLeft`.
+// The Draw tool's pen/highlighter sub-modes (#242): two icon cells, the same
+// control the connector menu's rows use.
+//
+// It was a frappe-ui TabButtons, which hard-codes `:title` internally — the
+// unstyleable native browser tooltip, drawn by the OS wherever the pointer is and
+// about a second late (#497). Nothing a consumer passes can change that, so the
+// only way off it is off the component. This was the last one in the app.
+//
 // `icon` holds the COMPLETE lucide utility class. Tailwind's JIT only emits
 // classes it can read literally in the source, so building one with
 // `lucide-${name}` produces no CSS and the icon renders blank.
@@ -70,11 +73,6 @@ const DRAW_KINDS = [
   { key: 'pen', icon: 'lucide-pen-line', label: 'Pen' },
   { key: 'highlighter', icon: 'lucide-highlighter', label: 'Highlighter' },
 ]
-const DRAW_KIND_TABS = DRAW_KINDS.map((kind) => ({
-  value: kind.key,
-  icon: kind.icon,
-  tooltip: kind.label,
-}))
 
 const activeTool = computed(() => editorUi.state.tool)
 const visibleTools = computed(() => visibleWhiteboardTools(props.exclude))
@@ -217,7 +215,24 @@ function insertTable({ rows, cols }, close) {
         <!-- Draw (#242): pen/highlighter sub-mode picker, shared color,
              and a size + opacity pair that belongs to whichever ink is active. -->
         <div v-if="t.tool === 'pen'" class="p-2">
-          <TabButtons v-model="ui.state.drawKind" class="mb-2" size="sm" :options="DRAW_KIND_TABS" />
+          <!-- Its own provider: this popover's content is teleported out of the
+               toolbar's, so without one the tooltips would match the bar's in
+               looks but each wait out its own delay. -->
+          <TooltipProvider>
+            <div class="mb-2 flex gap-1">
+              <Tooltip v-for="kind in DRAW_KINDS" :key="kind.key" :text="kind.label">
+                <button
+                  class="flex h-7 flex-1 items-center justify-center rounded-md"
+                  :class="ui.state.drawKind === kind.key ? 'bg-surface-gray-3 text-ink-gray-9' : 'text-ink-gray-7 hover:bg-surface-gray-2'"
+                  :aria-label="kind.label"
+                  :aria-pressed="ui.state.drawKind === kind.key"
+                  @click="ui.state.drawKind = kind.key"
+                >
+                  <span class="h-4 w-4" aria-hidden="true" :class="kind.icon" />
+                </button>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
 
           <div class="mb-1 text-sm font-semibold text-ink-gray-5">Color</div>
           <!-- The full Espresso grid, the same one every other picker opens (#495,

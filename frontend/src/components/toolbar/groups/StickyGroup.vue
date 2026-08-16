@@ -1,10 +1,8 @@
 <script setup>
-// Controls for a selected sticky note (#363): colour and delete on the bar, with
-// strikethrough (#419) and duplicate behind a "More" entry. Single-selection only,
-// matching the bar it replaces — a multi-selection gets the generic whiteboard
-// group instead.
+// Controls for a selected sticky note (#363): colour, strikethrough and delete,
+// all on the bar. Single-selection only, matching the bar it replaces — a
+// multi-selection gets the generic whiteboard group instead.
 import { computed } from 'vue'
-import { Button, Popover } from 'frappe-ui'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { stickyNoteById } from '@/diagram/whiteboardModel.js'
@@ -27,19 +25,8 @@ function setColor(color) {
   store.updateStickyNote(note.value.id, { color })
 }
 
-function toggleStrike(close) {
+function toggleStrike() {
   store.updateStickyNote(note.value.id, { strike: !note.value.strike })
-  close?.()
-}
-
-function duplicate(close) {
-  const current = note.value
-  const id = store.addStickyNote(current.x + 16, current.y + 16, {
-    color: current.color,
-    text: current.text,
-  })
-  ui.selectSticky(id)
-  close?.()
 }
 
 function removeSticky() {
@@ -63,43 +50,20 @@ function removeSticky() {
     </ToolbarButton>
 
     <ToolbarSeparator />
-    <!-- Strikethrough is behind "More" rather than on the bar (#419), and Duplicate
-         joined it (Vibhav, 13 Aug 2026). Both are things you do once to a note
-         rather than while working on one, and each was holding a permanent slot
-         next to the colours, which are what people actually reach for. Two entries
-         also make the menu worth opening — one was a lid on an almost empty box.
-         The trigger stays pressed while the note is struck through, so that state
-         is still readable without opening it. -->
-    <Popover>
-      <template #trigger>
-        <ToolbarButton
-          label="More sticky note actions"
-          icon="lucide-ellipsis"
-          :active="Boolean(note.strike)"
-        />
-      </template>
-      <!-- Closes on pick, like the table size picker: these are one-shot actions,
-           and a panel left open sits over the rest of the group. -->
-      <template #default="{ toggle }">
-        <div class="w-44 p-1">
-          <Button
-            variant="ghost"
-            class="w-full justify-start"
-            icon-left="lucide-strikethrough"
-            label="Strikethrough"
-            :aria-pressed="Boolean(note.strike)"
-            @click="toggleStrike(toggle)"
-          />
-          <Button
-            variant="ghost"
-            class="w-full justify-start"
-            icon-left="lucide-copy"
-            label="Duplicate"
-            @click="duplicate(toggle)"
-          />
-        </div>
-      </template>
-    </Popover>
+    <!-- Strikethrough sits on the bar, like every other text formatting control
+         (#500). It was behind a "More" entry with Duplicate (#419, and Vibhav
+         13 Aug 2026) — that pairing is deliberately reversed: copy and paste
+         already covers duplicating a note, and with Duplicate gone the menu held
+         one item, which is a lid on an empty box.
+         The note's `strike` is still a single boolean over the whole note, not a
+         text mark. Giving sticky text real per-range formatting is a model change,
+         filed separately; this moves the control and nothing else. -->
+    <ToolbarButton
+      label="Strikethrough"
+      icon="lucide-strikethrough"
+      :active="Boolean(note.strike)"
+      @click="toggleStrike"
+    />
 
     <ToolbarSeparator />
     <ToolbarButton label="Delete" icon="lucide-trash-2" theme="red" @click="removeSticky" />
