@@ -17,7 +17,7 @@
 import { ref } from 'vue'
 import { useTextEditing } from '@/composables/useTextEditing.js'
 import { useEdgeAutoPan } from '@/composables/useEdgeAutoPan.js'
-import { CONNECTOR_SPECS, CONNECTOR_TYPES } from '@/diagram/connectorSpecs.js'
+import { CONNECTOR_SPECS, CONNECTOR_TYPES, FALLBACK_CONNECTOR } from '@/diagram/connectorSpecs.js'
 
 export const DATA_TRANSFER_KEY = 'application/x-frappe-draw-tool'
 
@@ -226,7 +226,7 @@ function commitShape(store, type, start, end, square) {
 }
 
 function commitConnector(store, drawType, start, end) {
-  const spec = CONNECTOR_SPECS[drawType] || CONNECTOR_SPECS.straight
+  const spec = CONNECTOR_SPECS[drawType] || FALLBACK_CONNECTOR
   store.select(
     store.addConnector({ type: spec.type, arrowheads: { ...spec.arrowheads }, from: { ...start }, to: { ...end } }),
   )

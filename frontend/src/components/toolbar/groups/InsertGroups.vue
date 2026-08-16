@@ -53,10 +53,12 @@ const GRID = 'grid gap-1 p-2'
 // Parallelogram joined the eight of #451 item 3 — so five columns fill two rows
 // exactly with no gap at the end, where four would have left a half-empty third row.
 const shapesGrid = `${GRID} grid-cols-5`
-// Lines and the flowchart nodes keep four across, which fills their rows. They are
-// named separately rather than sharing one constant: the two menus hold different
-// numbers of tiles, so a column count that suits both is a coincidence, not a rule.
-const linesGrid = `${GRID} grid-cols-4`
+// Three across for the six connector tiles (#499), which lands the matrix on the
+// grid: one geometry per column, the three lines above the three arrows. Four would
+// have given a ragged 4 + 2 that reads as no arrangement at all. This is what the
+// per-menu constants #489 introduced were for.
+const linesGrid = `${GRID} grid-cols-3`
+// The flowchart's eleven nodes keep four across, which fills their rows.
 const flowchartGrid = `${GRID} grid-cols-4`
 
 // The side-count prompt opens inside the Shapes menu, replacing the tile that
@@ -112,12 +114,13 @@ function closeSides(toggle) {
     </template>
   </Popover>
 
-  <!-- The trigger wears the same drawn line glyph as the tile it opens (#457).
-       They have to move together, or the bar stops matching the menu. -->
+  <!-- The trigger wears the plain straight line — the first tile of the six it
+       opens (#457, #499). They have to move together, or the bar stops matching the
+       menu. -->
   <Popover>
     <template #trigger>
       <ToolbarButton allows-blur label="Lines">
-        <template #icon><ShapeGlyph family="line" class="size-4" /></template>
+        <template #icon><ShapeGlyph family="connector" type="line-straight" class="size-4" /></template>
       </ToolbarButton>
     </template>
     <template #default="{ toggle }">

@@ -91,7 +91,7 @@ describe('draw preview', () => {
   })
 
   it('previews a connector as a line, with no shape type', () => {
-    const creation = useShapeCreation({}, fakeDrawUi('connector-arrow'))
+    const creation = useShapeCreation({}, fakeDrawUi('arrow-straight'))
     creation.onCanvasPointerDown(fakePointerEvent(10, 10))
     creation.onCanvasPointerMove(fakePointerEvent(50, 30))
     expect(creation.preview.value).toMatchObject({ line: true, x1: 10, y1: 10, x2: 50, y2: 30 })
@@ -108,7 +108,7 @@ describe('draw preview', () => {
 
   // Pressing without moving must not flash a box ghost for a connector tool.
   it('starts a connector drag as a zero-length line, never a box', () => {
-    const creation = useShapeCreation({}, fakeDrawUi('elbow'))
+    const creation = useShapeCreation({}, fakeDrawUi('arrow-elbow'))
     creation.onCanvasPointerDown(fakePointerEvent(10, 10))
     expect(creation.preview.value).toMatchObject({ line: true, x1: 10, y1: 10, x2: 10, y2: 10 })
   })
@@ -153,7 +153,7 @@ describe('draw preview with Shift held', () => {
   // The constraint is a box rule; connectors carry no box, so a held Shift must
   // leave the line free to point anywhere (the endpoint stays the raw pointer).
   it('leaves a connector line unconstrained under Shift', () => {
-    const creation = useShapeCreation({}, fakeDrawUi('connector-arrow'))
+    const creation = useShapeCreation({}, fakeDrawUi('arrow-straight'))
     creation.onCanvasPointerDown(fakePointerEvent(10, 10))
     creation.onCanvasPointerMove(fakePointerEvent(90, 20, true))
     expect(creation.preview.value).toMatchObject({ line: true, x1: 10, y1: 10, x2: 90, y2: 20 })
@@ -231,14 +231,18 @@ describe('isConnectorType', () => {
   it('separates connectors from shapes, which the drop path branches on', () => {
     expect(isConnectorType('rect')).toBe(false)
     // A connector drops as a two-endpoint line, not a boxed shape.
-    expect(isConnectorType('line')).toBe(true)
+    expect(isConnectorType('line-straight')).toBe(true)
   })
 
   // The palette lists a block-arrow SHAPE and an arrow CONNECTOR; the connector
-  // is 'connector-arrow' precisely so 'arrow' stays a shape here.
+  // says both axes ('arrow-straight'), so the bare 'arrow' stays a block shape (#499).
   it('treats the block arrow as a shape and the arrow connector as a connector', () => {
     expect(isConnectorType('arrow')).toBe(false)
-    expect(isConnectorType('connector-arrow')).toBe(true)
+    expect(isConnectorType('arrow-straight')).toBe(true)
+    // Every one of the six, so a tool added to the menu without a spec is caught.
+    for (const type of ['line-straight', 'line-elbow', 'line-curved', 'arrow-elbow', 'arrow-curved']) {
+      expect(isConnectorType(type), `${type} is not wired as a connector`).toBe(true)
+    }
   })
 })
 

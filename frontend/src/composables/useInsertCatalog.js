@@ -61,21 +61,24 @@ export const SHAPES = [
 ]
 export const NON_DRAGGABLE_SHAPES = ['polygon']
 
-// A plain Line has no arrowheads; Arrow ends in one. The arrow connector's id is
-// namespaced so it never collides with the 'arrow' block-arrow SHAPE above —
-// both would otherwise key the same draw tool.
+// Three geometries x two endings (#499): a line and an arrow for each of
+// straight, elbowed and curved. The menu used to hold four, named along neither
+// axis — "Line", "Arrow", "Elbow connector", "Curved connector" — where the last
+// two silently meant elbowed ARROW and curved ARROW, and their plain-line variants
+// did not exist. Reading down a column now gives one geometry; reading across a row
+// gives lines then arrows.
 //
-// Two of these moved off their Lucide icon in #457. Line carried `lucide-minus`, a
-// short centred bar that reads as a subtract sign; Lucide has no straight line with
-// endpoints, so it takes a drawn `glyph` instead — the one exception on this bar,
-// and the reason a tile may carry `glyph` in place of `icon`. Curved carried
-// `lucide-git-commit-horizontal`, whose middle dot says nothing about a connector;
-// `lucide-spline` is an arc between two endpoint dots, which is what the tool draws.
+// Every tile draws its own glyph. Lucide has no set that says "this geometry, with
+// or without a head" as a family, and mixing its `corner-down-right` and `spline`
+// with two drawn ones is what made the old four read as unrelated pictures rather
+// than as a matrix.
 export const LINES = [
-  { type: 'line', glyph: 'line', label: 'Line' },
-  { type: 'connector-arrow', icon: 'lucide-arrow-right', label: 'Arrow' },
-  { type: 'elbow', icon: 'lucide-corner-down-right', label: 'Elbow connector' },
-  { type: 'curved', icon: 'lucide-spline', label: 'Curved connector' },
+  { type: 'line-straight', glyph: 'connector', label: 'Straight line' },
+  { type: 'line-elbow', glyph: 'connector', label: 'Elbowed line' },
+  { type: 'line-curved', glyph: 'connector', label: 'Curved line' },
+  { type: 'arrow-straight', glyph: 'connector', label: 'Straight arrow' },
+  { type: 'arrow-elbow', glyph: 'connector', label: 'Elbowed arrow' },
+  { type: 'arrow-curved', glyph: 'connector', label: 'Curved arrow' },
 ]
 
 // `surface` tools draw onto the whiteboard layer, so they only apply to the

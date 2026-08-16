@@ -277,21 +277,42 @@ describe('toolbar icons say what their control does', () => {
     }
   })
 
-  it('draws Line as a line, not as a minus sign', () => {
-    const line = LINES.find((entry) => entry.type === 'line')
-    expect(line.glyph).toBe('line')
-    expect(line.icon).toBeUndefined()
-    // The bar's trigger and the tile it opens have to wear the same mark.
-    expect(groups).toContain('<ShapeGlyph family="line" class="size-4" />')
+  // #499: six tiles as three geometries x two endings. They all draw, because
+  // Lucide has no family that says "this geometry, with or without a head" — and
+  // mixing its corner-down-right and spline with two drawn ones is what made the
+  // old four read as unrelated pictures rather than as a matrix.
+  it('offers a line and an arrow for each of the three geometries', () => {
+    expect(LINES.map((entry) => entry.type)).toEqual([
+      'line-straight', 'line-elbow', 'line-curved',
+      'arrow-straight', 'arrow-elbow', 'arrow-curved',
+    ])
+  })
+
+  it('names both axes on every tile, so no label hides its ending', () => {
+    // "Curved connector" meant curved ARROW and never said so; its plain-line
+    // variant did not exist at all.
+    for (const entry of LINES) {
+      expect(entry.label, `${entry.type} does not say its geometry`).toMatch(
+        /Straight|Elbowed|Curved/,
+      )
+      expect(entry.label, `${entry.type} does not say its ending`).toMatch(/line|arrow/)
+    }
+  })
+
+  it('draws every connector tile from one glyph family', () => {
+    for (const entry of LINES) {
+      expect(entry.glyph).toBe('connector')
+      expect(entry.icon).toBeUndefined()
+    }
+    // The bar's trigger and the first tile it opens have to wear the same mark.
+    expect(groups).toContain('<ShapeGlyph family="connector" type="line-straight" class="size-4" />')
     expect(groups).toContain(':family="connector.glyph"')
   })
 
-  // spline is an arc between two endpoint dots, which is the tool. The dots are
-  // also the drawn Line glyph's, so straight and curved read as a pair.
-  it('gives the curved connector the arc-with-endpoints icon', () => {
-    const curved = LINES.find((entry) => entry.type === 'curved')
-    expect(curved.icon).toBe('lucide-spline')
-    expect(curved.icon).not.toBe('lucide-git-commit-horizontal')
+  it('lays the six out three across, so the matrix lands on the grid', () => {
+    // One geometry per column, the three lines above the three arrows. Four
+    // columns would give a ragged 4 + 2 that reads as no arrangement at all.
+    expect(groups).toContain('const linesGrid = `${GRID} grid-cols-3`')
   })
 
   // Both were a rounded square with interior rules, and they sit at opposite ends

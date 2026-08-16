@@ -178,6 +178,21 @@ Every shape has **8 key points** (4 mid-edges + 4 corners), disambiguated by con
 ### 5.3 Connectors
 **Types:** straight, curved, elbow. Any line convertible to an arrow (single/double head).
 
+**The Lines menu is that matrix, made explicit (#499):** six tools, one per
+geometry per ending — `line-straight`, `line-elbow`, `line-curved`,
+`arrow-straight`, `arrow-elbow`, `arrow-curved`. Laid out three across, so a column
+is a geometry and the three lines sit above the three arrows.
+
+The ids name both axes because the previous four did not: `elbow` and `curved`
+meant elbowed ARROW and curved ARROW, and their plain-line variants did not exist.
+They are tool ids only — a document stores the geometry (`straight` / `elbow` /
+`curved`) and its arrowheads, never the tool that drew it — so the naming carries no
+migration.
+
+All six snap to the same eight perimeter anchors. There is no shape-CENTRE anchor
+and none was added (Vibhav, 16 Aug 2026): a connector ending at a centre is hidden
+by the shape it ends in.
+
 **Drawing between shapes:** click connector tile → draw mode → press near a shape (start snaps to nearest anchor) → drag → release near another shape (end snaps to its anchor). **Unattached connectors allowed** (endpoints on empty canvas).
 
 **Editing:** selecting a connector shows draggable endpoints to re-attach or detach. Curved connectors show a **midpoint control handle**. Elbow connectors use a simple 3-segment route in v1 — **no auto-routing around shapes**.

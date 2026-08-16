@@ -20,7 +20,7 @@ import { nodeShape } from '@/diagram/flowchartShapes.js'
 import { presetPolygonPoints } from '@/diagram/polygon.js'
 
 const props = defineProps({
-  // 'flowchart' | 'preset' | 'mindmap' | 'polygon-n' | 'line' | 'endpoint' | 'corner'
+  // 'flowchart' | 'preset' | 'mindmap' | 'polygon-n' | 'connector' | 'endpoint' | 'corner'
   family: { type: String, default: 'flowchart' },
   type: { type: String, default: '' },
 })
@@ -37,6 +37,29 @@ const presetPoints = computed(() =>
     ? presetPolygonPoints({ type: props.type, x: (BOX - FIT) / 2, y: (BOX - FIT) / 2, w: FIT, h: FIT })
     : '',
 )
+
+// The connector tiles (#499). `type` is the armed tool id, which says both axes:
+// `line-` / `arrow-` for the ending, and the geometry after it. The three paths run
+// between the same endpoints so the row differs only in what it is choosing.
+//
+// The head is the marker's own 1:1 triangle, rotated onto the 45-degree approach —
+// stated as a path rather than a transform so it stays readable next to the others.
+const CONNECTOR_PATHS = {
+  straight: 'M6.41 17.59 L17.59 6.41',
+  elbow: 'M5 17 V9 Q5 5 9 5 H17',
+  curved: 'M6 18 C6 10 10 6 18 6',
+}
+const CONNECTOR_HEADS = {
+  straight: 'M13.6 7.6 L20 4 L16.4 10.4 Z',
+  elbow: 'M14.5 1.8 L21 5 L14.5 8.2 Z',
+  curved: 'M14.4 2.4 L21 5 L18.4 11.6 Z',
+}
+const connector = computed(() => {
+  if (props.family !== 'connector') return null
+  const [ending, geometry] = String(props.type).split('-')
+  const shape = CONNECTOR_PATHS[geometry] ? geometry : 'straight'
+  return { arrow: ending === 'arrow', path: CONNECTOR_PATHS[shape], head: CONNECTOR_HEADS[shape] }
+})
 
 // Flowchart: the real node geometry at its natural aspect, scaled to fit + centred.
 const flow = computed(() => {
@@ -95,15 +118,19 @@ const flow = computed(() => {
       </text>
     </template>
 
-    <!-- Line (#457): a diagonal segment between two endpoint dots. `lucide-minus`
-         read as a subtract sign, and Lucide ships no straight line with endpoints.
-         The dots are lucide-spline's own (r=2 at 5,19 and 19,5) and the segment
-         stops at their edges the way spline's arc does, so the straight tile and
-         the curved one — which now wears spline — read as a pair. -->
-    <template v-else-if="family === 'line'">
+    <!-- The six connector tiles as ONE family (#499): three geometries, each drawn
+         plain and with a head, so the menu reads as a matrix rather than as six
+         unrelated pictures. Lucide has no such family — `minus` reads as a subtract
+         sign (#457) and `corner-down-right` / `spline` say nothing about the ending.
+         Every glyph runs bottom-left to top-right between the same two points, so
+         only the thing being chosen differs. A line keeps the tail dot it starts
+         from; an arrow trades the head dot for the filled triangle ConnectorMarker
+         actually draws (#490), which is the whole distinction the row makes. -->
+    <template v-else-if="family === 'connector'">
       <circle cx="5" cy="19" r="2" />
-      <circle cx="19" cy="5" r="2" />
-      <path d="M6.41 17.59 L17.59 6.41" />
+      <circle v-if="!connector.arrow" cx="19" cy="5" r="2" />
+      <path :d="connector.path" />
+      <path v-if="connector.arrow" :d="connector.head" fill="currentColor" stroke="none" />
     </template>
 
     <!-- Mind map (#255): a single parent node on the left with three curved

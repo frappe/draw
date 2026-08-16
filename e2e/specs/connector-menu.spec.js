@@ -16,7 +16,8 @@ const connectors = (doc) => doc.connectors || []
 // Draw an arrow across empty canvas and leave it selected.
 async function drawConnector(page) {
   const menu = await openInsertMenu(page, 'Lines')
-  await menu.getByRole('button', { name: 'Arrow', exact: true }).click()
+  // The tiles say both axes since #499 — "Arrow" alone no longer names one.
+  await menu.getByRole('button', { name: 'Straight arrow', exact: true }).click()
   await dragOnCanvas(page, { x: 180, y: 180 }, { x: 420, y: 300 })
 }
 
@@ -93,4 +94,41 @@ test.describe('the connector edit menu', () => {
       })
       .toBe('#0289F7')
   })
+})
+
+// #499: the menu is a matrix now — a line and an arrow for each of straight,
+// elbowed and curved. Two of the six are genuinely NEW (an elbowed line and a
+// curved line had no tool at all), so these draw each one and read what reached the
+// document: the geometry and whether it ended in a head.
+test.describe('the six connector tools (#499)', () => {
+  const drawn = async (diagram, name) => (await diagram.saved(name)).connectors[0]
+
+  for (const [tile, type, head] of [
+    ['Straight line', 'straight', 'none'],
+    ['Elbowed line', 'elbow', 'none'],
+    ['Curved line', 'curved', 'none'],
+    ['Straight arrow', 'straight', 'arrow'],
+    ['Elbowed arrow', 'elbow', 'arrow'],
+    ['Curved arrow', 'curved', 'arrow'],
+  ]) {
+    test(`${tile} draws a ${type} ending in ${head}`, async ({ page, diagram }) => {
+      const name = await diagram.open('unified', { empty: true })
+
+      const menu = await openInsertMenu(page, 'Lines')
+      await menu.getByRole('button', { name: tile, exact: true }).click()
+      await dragOnCanvas(page, { x: 180, y: 180 }, { x: 420, y: 300 })
+
+      await expect
+        .poll(async () => (await diagram.saved(name)).connectors?.length, {
+          message: `${tile} saved no connector`,
+          timeout: 20_000,
+        })
+        .toBe(1)
+
+      const connector = await drawn(diagram, name)
+      expect(connector.type, `${tile} drew the wrong geometry`).toBe(type)
+      expect(connector.arrowheads.end, `${tile} drew the wrong ending`).toBe(head)
+      expect(connector.arrowheads.start, 'no tool starts with a head').toBe('none')
+    })
+  }
 })
