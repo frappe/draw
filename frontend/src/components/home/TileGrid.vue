@@ -11,7 +11,7 @@
 // a Home without it could never have had any. The doctypes and their API are left
 // in place, dormant, the way the folder doctype was (#115).
 import { computed, reactive, ref, watch } from 'vue'
-import { call, useList, dialog, Dialog, Button, Divider, Dropdown, TabButtons, TextInput } from 'frappe-ui'
+import { call, useList, dialog, Dialog, Button, Divider, Dropdown, Tooltip, TooltipProvider, TextInput } from 'frappe-ui'
 import DiagramCollection from './DiagramCollection.vue'
 import SelectAllCheckbox from './SelectAllCheckbox.vue'
 import { useOptimisticTrash } from '@/composables/useOptimisticTrash.js'
@@ -89,6 +89,12 @@ const pinLimitReached = computed(() => pinnedTotal.value >= MAX_PINNED)
 // reads it as thumbnails having stopped working (#221).
 const view = ref(readLayout())
 watch(view, writeLayout)
+// `icon` holds the COMPLETE lucide utility class: Tailwind's JIT only emits classes
+// it can read literally, so one built as `lucide-${name}` renders blank.
+const VIEW_OPTIONS = [
+  { value: 'tile', label: 'Tile view', icon: 'lucide-grid-2x2' },
+  { value: 'list', label: 'List view', icon: 'lucide-list' },
+]
 const query = ref('')
 const sortKey = ref(DEFAULT_SORT)
 // Direction for the sortable list-view column headers (#302). 'smart' ignores it
@@ -331,14 +337,26 @@ const collectionHandlers = {
 
       <!-- Outside both branches: the view toggle is about the page, not about what
            is selected, so it stays put when the bar turns into the bulk bar. -->
-      <TabButtons
-        v-model="view"
-        size="sm"
-        :options="[
-          { value: 'tile', label: 'Tile view', icon: 'lucide-grid-2x2' },
-          { value: 'list', label: 'List view', icon: 'lucide-list' },
-        ]"
-      />
+      <!-- Two icon cells rather than TabButtons (#497). TabButtons sets a native
+           `title` on any option it renders icon-only — and an option carrying
+           `icon` IS icon-only — which is the flat grey OS tooltip, drawn wherever
+           the pointer is and about a second late. Nothing a consumer passes turns
+           it off. Same control the canvas tools use, so both surfaces match. -->
+      <TooltipProvider>
+        <div class="flex gap-1">
+          <Tooltip v-for="option in VIEW_OPTIONS" :key="option.value" :text="option.label">
+            <button
+              class="flex h-7 w-7 items-center justify-center rounded-md"
+              :class="view === option.value ? 'bg-surface-gray-3 text-ink-gray-9' : 'text-ink-gray-7 hover:bg-surface-gray-2'"
+              :aria-label="option.label"
+              :aria-pressed="view === option.value"
+              @click="view = option.value"
+            >
+              <span class="h-4 w-4" aria-hidden="true" :class="option.icon" />
+            </button>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
 
       <!-- The one primary action on the page, at the end of the row holding the
            controls it belongs with (#449 item 12). It steps aside for the bulk bar,

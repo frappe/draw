@@ -42,3 +42,21 @@ describe('the canvas annotation tools use the app’s own tooltip (#497)', () =>
     expect(template).toContain(':aria-label="kind.label"')
   })
 })
+
+// Home's view toggle had the same defect and was not in the report — its options
+// carry `icon`, which TabButtons renders icon-only, so it took a native title by
+// the same rule. Fixed on Vibhav's call (16 Aug 2026) so both surfaces match.
+describe('Home’s view toggle is on the same tooltip (#497)', () => {
+  const source = read('components/home/TileGrid.vue')
+  const template = source.slice(source.indexOf('<template>'))
+
+  it('builds the tile/list toggle without TabButtons', () => {
+    expect(source).not.toContain('<TabButtons')
+    expect(template).toContain('<TooltipProvider>')
+  })
+
+  it('keeps it icon-only, and still named for assistive tech', () => {
+    expect(template).toContain(':aria-label="option.label"')
+    expect(template).toContain(':aria-pressed="view === option.value"')
+  })
+})
