@@ -439,3 +439,36 @@ describe('an insert menu is as wide as its tiles (#489)', () => {
     expect(source).toContain(':class="flowchartGrid"')
   })
 })
+
+// #505 asked for flowchart tiles that look like Lucide icons and like the node they
+// drop. They ALREADY come from the renderer's own nodeShape — the issue's premise
+// that they are hand-drawn is wrong — and #456 fixed the stroke. Two real defects
+// remained, both from how the geometry was fitted into the box.
+describe('the flowchart tiles fill their box like an icon (#505)', () => {
+  const src = read('../floating/ShapeGlyph.vue')
+
+  it('compresses the aspect instead of preserving the node’s letterbox', () => {
+    // A 160x72 Process fitted at its natural aspect came out 18x8 in a 24 box — a
+    // flat bar, which is what stopped the set sitting beside real Lucide icons.
+    expect(src).toContain('MAX_GLYPH_ASPECT')
+    expect(src).not.toContain('const scale = FIT / Math.max(meta.w, meta.h)')
+  })
+
+  it('measures the geometry at full size and scales it, so radii stay proportional', () => {
+    // Terminal's radius is h/2 and Process's is a constant. Rebuilt at 18x8 the
+    // constant one was nearly a stadium too, so the menu's first two tiles were the
+    // same picture twice.
+    expect(src).toContain('nodeShape(props.type, meta.w, meta.h)')
+    expect(src).toContain('scale(${flow.sx} ${flow.sy})')
+  })
+
+  it('keeps the stroke at the weight the svg sets, despite the scale', () => {
+    // The group is scaled by about 0.1; without this the outline is a hairline.
+    expect(src).toContain('vector-effect="non-scaling-stroke"')
+  })
+
+  it('still draws every tile from the renderer’s own geometry', () => {
+    // The thing NOT to change: the tile cannot show a shape the node does not have.
+    expect(src).toContain("import { nodeShape } from '@/diagram/flowchartShapes.js'")
+  })
+})

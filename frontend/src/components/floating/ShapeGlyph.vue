@@ -61,14 +61,33 @@ const connector = computed(() => {
   return { arrow: ending === 'arrow', path: CONNECTOR_PATHS[shape], head: CONNECTOR_HEADS[shape] }
 })
 
-// Flowchart: the real node geometry at its natural aspect, scaled to fit + centred.
+// A Lucide icon fills its box; a flowchart node is a letterbox. Fitting a node at
+// its natural aspect made every tile a flat bar — a 160x72 Process came out 18x8 in
+// a 24 box — which is what stopped the set sitting beside real Lucide icons (#505).
+// So the aspect is COMPRESSED toward square rather than preserved. The silhouette is
+// still each node's own; it is drawn at icon proportions instead of document ones.
+const MAX_GLYPH_ASPECT = 1.6
+
+// The geometry is measured at the node's FULL size and scaled by the transform,
+// never rebuilt at glyph size. That matters for the radii: a terminator's is h/2 and
+// a process's is a constant, so evaluating them at 18x8 made the constant one nearly
+// a stadium too — Terminal and Process, the first two tiles in the menu, came out as
+// the same picture twice. Scaled from full size they keep their real proportions.
 const flow = computed(() => {
   if (props.family !== 'flowchart') return null
   const meta = NODE_TYPE_META[props.type] || NODE_TYPE_META.process
-  const scale = FIT / Math.max(meta.w, meta.h)
-  const w = meta.w * scale
-  const h = meta.h * scale
-  return { w, h, tx: (BOX - w) / 2, ty: (BOX - h) / 2, shape: nodeShape(props.type, w, h) }
+  const natural = meta.w / meta.h
+  const aspect = Math.min(Math.max(natural, 1 / MAX_GLYPH_ASPECT), MAX_GLYPH_ASPECT)
+  const w = aspect >= 1 ? FIT : FIT * aspect
+  const h = aspect >= 1 ? FIT / aspect : FIT
+  return {
+    sx: w / meta.w,
+    sy: h / meta.h,
+    tx: (BOX - w) / 2,
+    ty: (BOX - h) / 2,
+    meta,
+    shape: nodeShape(props.type, meta.w, meta.h),
+  }
 })
 </script>
 
@@ -82,17 +101,32 @@ const flow = computed(() => {
     stroke-linecap="round"
   >
     <!-- Flowchart node: reuse the on-canvas shape geometry. -->
-    <g v-if="family === 'flowchart' && flow" :transform="`translate(${flow.tx} ${flow.ty})`">
-      <rect v-if="flow.shape.kind === 'rect'" x="0" y="0" :width="flow.w" :height="flow.h" :rx="flow.shape.rx" />
+    <!-- vector-effect keeps the stroke at the 1.5 the <svg> sets: the group is
+         scaled by about 0.1, which would otherwise draw a hairline. -->
+    <g
+      v-if="family === 'flowchart' && flow"
+      :transform="`translate(${flow.tx} ${flow.ty}) scale(${flow.sx} ${flow.sy})`"
+      vector-effect="non-scaling-stroke"
+    >
+      <rect
+        v-if="flow.shape.kind === 'rect'"
+        x="0"
+        y="0"
+        :width="flow.meta.w"
+        :height="flow.meta.h"
+        :rx="flow.shape.rx"
+        vector-effect="non-scaling-stroke"
+      />
       <ellipse
         v-else-if="flow.shape.kind === 'ellipse'"
-        :cx="flow.w / 2"
-        :cy="flow.h / 2"
-        :rx="flow.w / 2"
-        :ry="flow.h / 2"
+        :cx="flow.meta.w / 2"
+        :cy="flow.meta.h / 2"
+        :rx="flow.meta.w / 2"
+        :ry="flow.meta.h / 2"
+        vector-effect="non-scaling-stroke"
       />
-      <polygon v-else-if="flow.shape.kind === 'polygon'" :points="flow.shape.points" />
-      <path v-else-if="flow.shape.kind === 'path'" :d="flow.shape.d" />
+      <polygon v-else-if="flow.shape.kind === 'polygon'" :points="flow.shape.points" vector-effect="non-scaling-stroke" />
+      <path v-else-if="flow.shape.kind === 'path'" :d="flow.shape.d" vector-effect="non-scaling-stroke" />
     </g>
 
     <!-- Preset block shape (#470): the real outline, not a likeness of it. -->
