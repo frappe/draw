@@ -10,10 +10,6 @@ import { curveRadius } from './mindmapNodeStyle.js'
 export const SHARP_CORNER_RADIUS = 0
 export const ROUNDED_CORNER_RADIUS = 20
 
-// The roundedness a shape can be set to from the toolbar (#411). The type default
-// is one of them, so opening the picker never shifts a shape that was left alone.
-export const CORNER_RADIUS_OPTIONS = [0, 4, 12, 20, 32]
-
 // Box shapes: the ones whose geometry is a rectangle, and so the only ones a
 // corner radius means anything for. An ellipse or a triangle has no corners to
 // round.

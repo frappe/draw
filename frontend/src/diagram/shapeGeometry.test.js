@@ -5,7 +5,6 @@ import {
   maxCornerRadius,
   clampCornerRadius,
   ROUNDED_CORNER_RADIUS,
-  CORNER_RADIUS_OPTIONS,
   cornerRadiusOf,
 } from './shapeGeometry.js'
 import { curveRadius } from './mindmapNodeStyle.js'
@@ -49,13 +48,9 @@ describe('a per-shape corner radius', () => {
     expect(shapeCornerRadius('rounded', -8)).toBe(ROUNDED_CORNER_RADIUS)
   })
 
-  it('offers presets covering square through pill, both defaults among them', () => {
-    // 0 joined the list with #451: a plain rectangle is sharp by default now, so
-    // the picker has to be able to put a rounded one back to square.
-    expect(CORNER_RADIUS_OPTIONS).toContain(SHARP_CORNER_RADIUS)
-    expect(CORNER_RADIUS_OPTIONS).toContain(ROUNDED_CORNER_RADIUS)
-    expect(CORNER_RADIUS_OPTIONS.every((radius) => Number.isFinite(radius) && radius >= 0)).toBe(true)
-  })
+  // The stepped presets this used to check are gone with the toolbar control that
+  // offered them (#465). Roundedness is dragged, so the range that matters is the
+  // continuous one clampCornerRadius enforces, which is covered below.
 })
 
 // #427 item 3: one helper decides the radius a shape is DRAWN with, so a hover or

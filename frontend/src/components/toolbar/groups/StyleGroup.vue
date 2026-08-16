@@ -9,7 +9,6 @@ import { useBlockSelection } from '@/composables/useBlockSelection.js'
 import { isMindmapShape } from '@/diagram/freeFloating.js'
 import { hasFill, hasBorder } from '@/diagram/mindmapNodeStyle.js'
 import { inkFor } from '@/diagram/espressoPalette.js'
-import { CORNER_RADIUS_OPTIONS, supportsCornerRounding, shapeCornerRadius } from '@/diagram/shapeGeometry.js'
 import EspressoSwatchGrid from '@/components/palette-right/EspressoSwatchGrid.vue'
 import FillBorderSection from '@/components/palette-right/FillBorderSection.vue'
 import TransparencySection from '@/components/palette-right/TransparencySection.vue'
@@ -19,6 +18,23 @@ const { store, shapes, shapeIds } = useBlockSelection()
 
 const primaryFill = computed(() => shapes.value[0]?.fill || '#ffffff')
 const primaryBorder = computed(() => shapes.value[0]?.border?.color || '#171717')
+
+// Whether the Fill button can paint its swatch with the real fill (#473).
+//
+// The swatch is a SOLID disc now, not a white disc inside a grey ring — which was
+// built the same way as the Border swatch and differed only in line weight, so
+// Fill read as a second border control.
+//
+// Three cases collapse to "no": a missing fill, the literal 'none' sentinel, and a
+// real white. White has to join them because a white disc on a white toolbar is an
+// invisible button, and the hairline that would rescue it is the ring again. The
+// cost is that the button can no longer tell white from no fill, which is accepted
+// — the picker it opens still shows exactly which one is set.
+const WHITES = ['#fff', '#ffffff', 'white']
+const hasVisibleFill = computed(() => {
+  const fill = String(shapes.value[0]?.fill ?? '').trim().toLowerCase()
+  return Boolean(fill) && fill !== 'none' && !WHITES.includes(fill)
+})
 
 const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
 
@@ -60,28 +76,14 @@ function setNodeCurve(value) {
   if (shapeIds.value.length) store.updateShapes(shapeIds.value, { mindmap: { curve: value } })
 }
 
-// A box shape picks its own roundedness from the presets (#411), and drags the
-// corner dot for anything between them (#451). Every box shape qualifies now, not
-// only the rounded rectangle: a plain rectangle is sharp by default and needs a
-// way back. It shares the Corners popover with a node's branch curve — the
-// selection is one or the other, never both, so the two controls can't collide.
-const isRoundedBoxSelection = computed(
-  () => shapes.value.length > 0 && shapes.value.every(supportsCornerRounding),
-)
-const boxCornerRadius = computed(() =>
-  shapeCornerRadius(shapes.value[0]?.type, shapes.value[0]?.cornerRadius),
-)
-function setBoxCornerRadius(radius) {
-  if (shapeIds.value.length) store.updateShapes(shapeIds.value, { cornerRadius: radius })
-}
-
-// The swatch previews the shape at a quarter of its size, radius included: on a
-// smaller box, border-radius clamps to half the height and 12 / 20 / 32 would all
-// render as the same pill, making three of the four presets indistinguishable.
-const PREVIEW_SCALE = 0.25
-function previewRadiusStyle(radius) {
-  return { borderRadius: `${radius * PREVIEW_SCALE}px` }
-}
+// A box shape's roundedness is dragged, not picked (#465). The fixed steps that
+// used to live here were added by #411 and kept when #451 added the corner handle,
+// which left two controls setting one value and cost a slot on a bar already at its
+// width limit. The handle in SelectionLayer is the only way to round a box now, so
+// Corners is a mind-map control again.
+//
+// It does mean rounding has no keyboard or precise-entry route at all. Acceptable
+// for a visual property that is judged by eye, and it matches how resizing works.
 </script>
 
 <template>
@@ -91,7 +93,14 @@ function previewRadiusStyle(radius) {
     <template #trigger>
       <ToolbarButton label="Fill">
         <template #icon>
-          <span class="h-4 w-4 rounded-full border border-outline-gray-4" :style="{ background: primaryFill }" />
+          <!-- Solid disc, no outline: the outline is what made this read as a
+               border control (#473). An unfilled — or white — shape shows a grey
+               disc rather than an empty one, so the button is never invisible. -->
+          <span
+            class="size-4 rounded-full"
+            :class="hasVisibleFill ? null : 'bg-surface-gray-4'"
+            :style="hasVisibleFill ? { background: primaryFill } : null"
+          />
         </template>
       </ToolbarButton>
     </template>
@@ -119,35 +128,20 @@ function previewRadiusStyle(radius) {
     </template>
   </Popover>
 
-  <!-- One Corners entry, two controls: a node's branch curve, or a rounded
-       rectangle's own roundedness (#411). -->
-  <Popover v-if="isNodeSelection || isRoundedBoxSelection">
+  <!-- Corners is a mind-map node's branch curve, and nothing else (#465). A box
+       shape is rounded by dragging the handle in its top-left corner. -->
+  <Popover v-if="isNodeSelection">
     <template #trigger>
       <ToolbarButton label="Corners" icon="lucide-spline" />
     </template>
     <template #default>
       <div class="p-2">
         <TabButtons
-          v-if="isNodeSelection"
           size="sm"
           :model-value="nodeCurve"
           :options="CURVE_OPTIONS"
           @update:model-value="setNodeCurve"
         />
-        <div v-else class="flex items-center gap-1.5">
-          <!-- frappe-ui-exempt: the swatch IS a scaled preview of the literal corner radius, which no Button variant can draw --><button
-            v-for="radius in CORNER_RADIUS_OPTIONS"
-            :key="radius"
-            type="button"
-            :aria-label="`Corner radius ${radius}`"
-            :aria-pressed="boxCornerRadius === radius"
-            class="flex h-9 w-14 items-center justify-center rounded-md"
-            :class="boxCornerRadius === radius ? 'bg-surface-gray-3' : 'bg-surface-gray-1 hover:bg-surface-gray-2'"
-            @click="setBoxCornerRadius(radius)"
-          >
-            <span class="block h-6 w-11 border-[1.5px] border-outline-gray-4" :style="previewRadiusStyle(radius)" />
-          </button>
-        </div>
       </div>
     </template>
   </Popover>
