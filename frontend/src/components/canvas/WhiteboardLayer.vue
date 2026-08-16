@@ -18,7 +18,14 @@ import { isUnifiedDocument } from '@/diagram/schema.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useWhiteboardInteraction } from '@/composables/useWhiteboardInteraction.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
-import { trailSegments, LASER_COLOR, LASER_HEAD_RADIUS, LASER_FADE_MS } from '@/diagram/laser.js'
+import {
+  trailOutline,
+  trailOpacity,
+  LASER_COLOR,
+  LASER_HEAD_RADIUS,
+  LASER_GLOW_SCALE,
+  LASER_WIDTH,
+} from '@/diagram/laser.js'
 import { roughenSegment } from '@/diagram/sketch.js'
 import { pointsToPath, smoothPath } from '@/diagram/svgPath.js'
 import { whiteboardObjectsInZOrder, isWhiteboardEmpty } from '@/diagram/whiteboardModel.js'
@@ -101,31 +108,29 @@ const hintCenter = computed(() => ({
   y: (store.state.canvas.height || 720) / 2,
 }))
 
-// Laser trail rendered as a tapering, self-fading line behind the pointer (spec
-// C5, #253). Only non-empty while actively drawing: hovering keeps the trail at a
-// single point (interaction layer replaces rather than accumulates), so
-// trailSegments() naturally has nothing to draw between one point and itself.
-// Reading ui.laserClock makes this re-run on every animation frame the composable
-// ticks, so the trail keeps fading after the pointer stops.
-const laserSegments = computed(() => {
+// Laser trail rendered as ONE tapering, self-fading ribbon behind the pointer
+// (spec C5, #253; continuous rather than per-segment since #450). Only non-empty
+// while actively drawing: hovering keeps the trail at a single point (interaction
+// layer replaces rather than accumulates), so trailOutline() has no direction to
+// offset along and returns nothing. Reading ui.laserClock makes this re-run on
+// every animation frame the composable ticks, so the trail keeps fading after the
+// pointer stops.
+const laserRibbon = computed(() => {
   const now = ui.laserClock.value || performance.now()
-  return trailSegments(ui.laserTrail.value, now).map((segment, index) => ({
-    key: index,
-    d: pointsToPath([segment.from, segment.to]),
-    opacity: segment.opacity,
-    width: segment.width,
-  }))
+  const outline = trailOutline(ui.laserTrail.value, now)
+  if (!outline.length) return null
+  return { d: pointsToPath(outline, true), opacity: trailOpacity(ui.laserTrail.value, now) }
 })
 
-// The laser dot: the newest trail point, fading on the laserClock so a resting
-// pointer dims out instead of blinking off. Reading ui.laserClock makes this
-// re-run on every animation frame the composable ticks.
+// The laser dot: the newest trail point, fading on the same clock so a resting
+// pointer dims out instead of blinking off. It also rounds the head of the ribbon,
+// which is cut square by the taper.
 const laserHead = computed(() => {
   const points = ui.laserTrail.value
   if (!points.length) return null
   const now = ui.laserClock.value || performance.now()
   const point = points[points.length - 1]
-  return { x: point.x, y: point.y, opacity: Math.max(0, 1 - (now - point.at) / LASER_FADE_MS) }
+  return { x: point.x, y: point.y, opacity: trailOpacity(points, now) }
 })
 </script>
 
@@ -218,19 +223,29 @@ const laserHead = computed(() => {
 
     <!-- Laser pointer: a fading trail while actively drawing, plus the head dot
          (#253). Transient — never persisted or exported. Takes no pointer events
-         so it can't eat the moves under it. -->
+         so it can't eat the moves under it.
+         Two paths over one outline (#450): a wide translucent stroke spreads the
+         halo outwards for the neon look, then the core fills it. Same `d`, so
+         they cannot drift apart, and no filter re-runs each frame. -->
     <g style="pointer-events: none">
-      <path
-        v-for="segment in laserSegments"
-        :key="segment.key"
-        :d="segment.d"
-        fill="none"
-        :stroke="LASER_COLOR"
-        :stroke-width="segment.width"
-        :stroke-opacity="segment.opacity * 0.8"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
+      <template v-if="laserRibbon">
+        <path
+          :d="laserRibbon.d"
+          :fill="LASER_COLOR"
+          :fill-opacity="laserRibbon.opacity * 0.25"
+          :stroke="LASER_COLOR"
+          :stroke-width="LASER_WIDTH * LASER_GLOW_SCALE"
+          :stroke-opacity="laserRibbon.opacity * 0.12"
+          stroke-linejoin="round"
+        />
+        <path
+          data-testid="laser-trail"
+          :d="laserRibbon.d"
+          :fill="LASER_COLOR"
+          :fill-opacity="laserRibbon.opacity * 0.9"
+          stroke="none"
+        />
+      </template>
       <circle
         v-if="laserHead"
         data-testid="laser-dot"
