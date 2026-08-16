@@ -1,10 +1,10 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 
 // frappe-ui's source only resolves through its vite plugin; documentToSvg itself is
 // pure, so stub the module boundary.
 vi.mock('frappe-ui', () => ({ createResource: () => ({ submit: () => {} }) }))
 
-const { documentToSvg, isDocumentEmpty, safeColor } = await import('./useThumbnail.js')
+const { documentToSvg, inlinedImages, isDocumentEmpty, safeColor } = await import('./useThumbnail.js')
 const { ROUNDED_CORNER_RADIUS, SHARP_CORNER_RADIUS } = await import('@/diagram/shapeGeometry.js')
 const { HIGHLIGHTER_OPACITY } = await import('@/diagram/whiteboardColors.js')
 const { presetPolygonPoints } = await import('@/diagram/polygon.js')
@@ -603,5 +603,155 @@ describe('documentToSvg — preset polygon shapes (#468)', () => {
       const shape = { type, x: 0, y: 0, w: 200, h: 100 }
       expect(documentToSvg(presetDoc(type))).toContain(`<polygon points="${presetPolygonPoints(shape)}"`)
     }
+  })
+})
+
+// #518: an inserted image was missing from the minimap — and therefore from the
+// export and the saved thumbnail too, since all three read this one function. It
+// had no `image` branch, so it fell through to the <rect> at the end carrying its
+// own fill and border, which for an image are 'none' and zero: nothing to see.
+describe('documentToSvg — inserted images (#518)', () => {
+  const SRC = '/files/photo.png'
+  function imageDoc(src = SRC) {
+    return {
+      schemaVersion: 2,
+      diagramType: 'block',
+      themePreset: 'ocean',
+      canvas: { width: 1280, height: 720, background: 'none' },
+      sections: [],
+      connectors: [],
+      shapes: [
+        {
+          id: 's1', type: 'image', src, x: 40, y: 60, w: 200, h: 100,
+          rotation: 0, opacity: 1, zIndex: 1,
+          fill: 'none', border: { color: 'none', width: 0 },
+          text: { content: '', style: {} },
+        },
+      ],
+      mindmap: null, flowchart: null, whiteboard: null,
+    }
+  }
+
+  it('draws the image at its own box, matching the canvas aspect rule', () => {
+    const svg = documentToSvg(imageDoc())
+    expect(svg).toContain(`<image href="${SRC}"`)
+    expect(svg).toContain('x="40" y="60" width="200" height="100"')
+    // ShapeView uses the same rule; a different one would crop or stretch the
+    // export relative to what was on screen.
+    expect(svg).toContain('preserveAspectRatio="xMidYMid meet"')
+  })
+
+  it('swaps in inlined bytes when the caller supplies them', () => {
+    const dataUri = 'data:image/png;base64,AAAA'
+    const svg = documentToSvg(imageDoc(), { images: { [SRC]: dataUri } })
+    expect(svg).toContain(`<image href="${dataUri}"`)
+    expect(svg).not.toContain(SRC)
+  })
+
+  it('does not write through to the caller’s document', () => {
+    // parseDiagramDocument returns the object it was given, which on the export
+    // path is the live store document — inlining must not reach it.
+    const doc = imageDoc()
+    documentToSvg(doc, { images: { [SRC]: 'data:image/png;base64,AAAA' } })
+    expect(doc.shapes[0].src).toBe(SRC)
+  })
+
+  it('draws nothing for a src that is not same-origin or inline', () => {
+    // safeImageSrc's rule: an external host in a shared diagram would phone home
+    // on every open. Better to omit the image than to fetch from it.
+    for (const bad of ['https://evil.example/x.png', 'javascript:alert(1)', '//evil.example/x.png']) {
+      expect(documentToSvg(imageDoc(bad))).not.toContain('<image')
+    }
+  })
+
+  it('keeps a crafted src inside its attribute', () => {
+    const crafted = '/files/a" onload="alert(1)'
+    const svg = documentToSvg(imageDoc(crafted))
+    expect(svg).not.toContain('onload="alert(1)"')
+    expect(svg).toContain('&quot;')
+  })
+
+  // The point of the issue: images were the SECOND type to fall through the same
+  // default. This is the guard that stops there being a third.
+  it('gives every shape type in the catalogue an element of its own', () => {
+    const types = [
+      'rectangle', 'rounded', 'ellipse', 'triangle', 'diamond',
+      'hexagon', 'pentagon', 'arrow', 'star', 'image',
+    ]
+    for (const type of types) {
+      const doc = imageDoc()
+      Object.assign(doc.shapes[0], { type, fill: '#EFF6FF', border: { color: '#4F94FF', width: 2 } })
+      const svg = documentToSvg(doc)
+      const isPlainBox = type === 'rectangle' || type === 'rounded'
+      if (isPlainBox) expect(svg, `${type} should be a rect`).toMatch(/<rect[^>]*#EFF6FF/)
+      else expect(svg, `${type} fell through to a bare rectangle`).not.toMatch(/<rect[^>]*#EFF6FF/)
+    }
+  })
+})
+
+// The other half of #518: a file_url is right on screen and wrong in a file. A
+// downloaded SVG holding a site path renders only for someone logged into that
+// site, and the raster path is worse — rasterize draws the markup through an
+// <img>, where an SVG runs in the browser's restricted mode and fetches no
+// external reference at all, so a url would have produced a blank box.
+describe('inlinedImages (#518)', () => {
+  function docWith(...srcs) {
+    return {
+      schemaVersion: 2,
+      diagramType: 'block',
+      themePreset: 'ocean',
+      canvas: { width: 1280, height: 720, background: 'none' },
+      sections: [],
+      connectors: [],
+      shapes: srcs.map((src, i) => ({
+        id: `s${i}`, type: 'image', src, x: 0, y: 0, w: 10, h: 10,
+        rotation: 0, opacity: 1, zIndex: 1,
+        fill: 'none', border: { color: 'none', width: 0 }, text: { content: '', style: {} },
+      })),
+      mindmap: null, flowchart: null, whiteboard: null,
+    }
+  }
+
+  // A stand-in for the browser pair the real one uses.
+  function stubLoading({ ok = true } = {}) {
+    const fetched = []
+    vi.stubGlobal('fetch', (url) => {
+      fetched.push(url)
+      return Promise.resolve({ ok, blob: () => Promise.resolve({ url }) })
+    })
+    vi.stubGlobal('FileReader', class {
+      readAsDataURL(blob) {
+        this.result = `data:image/png;base64,${blob.url}`
+        queueMicrotask(() => this.onload())
+      }
+    })
+    return fetched
+  }
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('is null for a document with no images, so nothing is fetched', async () => {
+    const fetched = stubLoading()
+    expect(await inlinedImages(docWith())).toBeNull()
+    expect(fetched).toHaveLength(0)
+  })
+
+  it('maps each src to its bytes, fetching a repeated one only once', async () => {
+    const fetched = stubLoading()
+    const images = await inlinedImages(docWith('/files/a.png', '/files/b.png', '/files/a.png'))
+    expect(Object.keys(images).sort()).toEqual(['/files/a.png', '/files/b.png'])
+    expect(images['/files/a.png']).toBe('data:image/png;base64,/files/a.png')
+    expect(fetched).toHaveLength(2)
+  })
+
+  it('skips an src that is already inline, and one it would refuse to draw', async () => {
+    const fetched = stubLoading()
+    await inlinedImages(docWith('data:image/png;base64,AAAA', 'https://evil.example/x.png'))
+    expect(fetched).toHaveLength(0)
+  })
+
+  // An image whose file was deleted must not take the whole export down with it.
+  it('leaves a failed fetch out of the map rather than throwing', async () => {
+    stubLoading({ ok: false })
+    expect(await inlinedImages(docWith('/files/gone.png'))).toBeNull()
   })
 })

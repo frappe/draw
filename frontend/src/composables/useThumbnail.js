@@ -33,6 +33,7 @@ import { pointsToPath, smoothPath } from '@/diagram/svgPath.js'
 import { polygonPointsString, isPresetPolygon, presetPolygonPoints } from '@/diagram/polygon.js'
 import { shapeCornerRadius, SHARP_CORNER_RADIUS } from '@/diagram/shapeGeometry.js'
 import { contrastInk, strokeOpacity } from '@/diagram/whiteboardColors.js'
+import { safeImageSrc } from '@/utils/safeUrl.js'
 
 const THROTTLE_MS = 30000
 
@@ -58,6 +59,11 @@ function shapeBody(s) {
   // Whimsical mind-map text node (#125): no box — the centred label (shapeText)
   // carries it, matching the on-canvas look. Shaped nodes fall through to a rect.
   if (s.role === 'mindmap-node' && s.mindmap?.shaped === false) return ''
+  // An inserted image (#518). This branch did not exist, so an image fell through
+  // to the <rect> below carrying its own fill and border — which for an image are
+  // 'none' and zero — and so appeared in none of the four surfaces this function
+  // feeds. The same gap #468 left for the preset polygons.
+  if (s.type === 'image') return imageBody(s)
   const { x, y, w, h } = box(s)
   const stroke = `stroke="${safeColor(s.border?.color)}" stroke-width="${num(s.border?.width)}"`
   const fill = `fill="${safeColor(s.fill)}" fill-opacity="${num(s.opacity, 1)}"`
@@ -93,6 +99,23 @@ function shapeBody(s) {
   // unguarded, so the line audits on its own.
   const rx = num(shapeCornerRadius(s.type, s.cornerRadius), SHARP_CORNER_RADIUS)
   return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" ${fill} ${stroke}/>`
+}
+
+// An image shape, matching ShapeView's own <image> element down to the aspect rule.
+//
+// The href is the one persisted value in this file that is neither a colour nor a
+// number, so it takes the same treatment: safeImageSrc allows only a same-origin
+// path or an inline data: image — never an external host, which in a shared diagram
+// would phone home on every open — and the quote escape keeps it inside its
+// attribute. An src that fails the check draws nothing rather than a broken box.
+function imageBody(s) {
+  const href = safeImageSrc(s.src)
+  if (!href) return ''
+  const { x, y, w, h } = box(s)
+  return (
+    `<image href="${escapeAttr(href)}" x="${x}" y="${y}" width="${w}" height="${h}"` +
+    ` opacity="${num(s.opacity, 1)}" preserveAspectRatio="xMidYMid meet"/>`
+  )
 }
 
 // nodeShape geometry is local to the node box (0,0 at top-left), so the glyph is
@@ -151,6 +174,13 @@ function escapeText(value) {
   return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
+// escapeText leaves quotes alone, which is fine for a text node and not for an
+// attribute value. Only the image href needs this — every other persisted value
+// reaching an attribute here is a colour or a number.
+function escapeAttr(value) {
+  return escapeText(value).replace(/"/g, '&quot;')
+}
+
 // Colours come out of the persisted document, and this markup is injected into the
 // DOM to preview a diagram — including diagrams SHARED by someone else. escapeText is
 // for text nodes and does not neutralise quotes, so a crafted colour could close the
@@ -176,7 +206,7 @@ export function num(value, fallback = 0) {
 // every type renders the same geometry its on-canvas Layer draws, and frames the
 // type's content bounding box (not the bounded canvas rect) so nothing is clipped.
 export function documentToSvg(rawDocument, options = {}) {
-  const doc = parseDiagramDocument(rawDocument)
+  const doc = withInlinedImages(parseDiagramDocument(rawDocument), options.images)
   const vars = themeVarStyle(doc.themePreset || 'ocean')
   const styleAttr = Object.entries(vars)
     .map(([key, value]) => `${key}:${value}`)
@@ -192,6 +222,73 @@ export function documentToSvg(rawDocument, options = {}) {
     ` preserveAspectRatio="${options.fit || 'xMidYMid meet'}" style="${styleAttr}">` +
     `${body}</svg>`
   )
+}
+
+// --- inlined images (#518) ---------------------------------------------------
+//
+// An inserted image is stored as a `file_url`, which is the right thing on screen
+// and the wrong thing in a file. A downloaded SVG carrying a site path only renders
+// for someone logged into that site, and the PNG path is worse than that: rasterize
+// draws the markup through an <img>, and an SVG loaded that way runs in the
+// browser's restricted mode, where external references are not fetched at all. So a
+// url would have produced a blank rectangle in every downloaded file.
+//
+// The bytes are therefore inlined for the surfaces that leave the browser, and left
+// as urls for the ones that stay in the DOM (the minimap, the home tiles, the export
+// dialog's preview), where a same-origin path resolves and costs nothing.
+
+// `doc` with each image shape's src replaced by its inlined data URI. Copies rather
+// than writing through: parseDiagramDocument returns the caller's own object, which
+// for the export path is the live store document.
+function withInlinedImages(doc, images) {
+  if (!images || !doc.shapes?.length) return doc
+  return {
+    ...doc,
+    shapes: doc.shapes.map((shape) =>
+      shape.type === 'image' && images[shape.src] ? { ...shape, src: images[shape.src] } : shape,
+    ),
+  }
+}
+
+// Fetch every image in `rawDocument` and return `{ [src]: dataUri }` for the ones
+// that came back. Keyed by the RAW src so withInlinedImages can look one up without
+// re-deriving the sanitised form.
+//
+// An image that fails to load is simply absent from the map, so the export still
+// happens — with that one image missing, exactly as it is today — rather than the
+// whole download failing on one deleted file.
+export async function inlinedImages(rawDocument) {
+  const doc = parseDiagramDocument(rawDocument)
+  const wanted = new Map()
+  for (const shape of doc.shapes || []) {
+    if (shape.type !== 'image' || wanted.has(shape.src)) continue
+    const safe = safeImageSrc(shape.src)
+    // An src that is already inline needs no fetch, and one that fails the check
+    // will not be drawn anyway.
+    if (safe && !safe.startsWith('data:')) wanted.set(shape.src, safe)
+  }
+  if (!wanted.size) return null
+  const loaded = await Promise.all(
+    [...wanted].map(async ([raw, safe]) => [raw, await dataUriFor(safe)]),
+  )
+  const images = Object.fromEntries(loaded.filter(([, uri]) => uri))
+  return Object.keys(images).length ? images : null
+}
+
+function dataUriFor(url) {
+  return fetch(url)
+    .then((response) => (response.ok ? response.blob() : null))
+    .then((blob) => (blob ? blobToDataUri(blob) : null))
+    .catch(() => null)
+}
+
+function blobToDataUri(blob) {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => resolve(null)
+    reader.readAsDataURL(blob)
+  })
 }
 
 // Every per-type viewBox is built from the document's own coordinates (canvas size,
@@ -620,7 +717,10 @@ export function useThumbnail(store, diagramResource) {
       saver.submit({ name, thumbnail: '' })
       return null
     }
-    const dataUrl = await rasterize(documentToSvg(document))
+    // The raster path goes through an <img>, which will not fetch an image the
+    // markup only points at, so any inserted image has to travel as bytes (#518).
+    const images = await inlinedImages(document)
+    const dataUrl = await rasterize(documentToSvg(document, { images }))
     if (dataUrl) saver.submit({ name, thumbnail: dataUrl })
     return dataUrl
   }

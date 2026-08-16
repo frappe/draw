@@ -6,7 +6,7 @@
 // jspdf dependency when present, else falls back to a print window.
 
 import { toast } from 'frappe-ui'
-import { documentToSvg, safeColor, num } from '@/composables/useThumbnail.js'
+import { documentToSvg, inlinedImages, safeColor, num } from '@/composables/useThumbnail.js'
 import { axisAlignedBBox, maxOf, minOf } from '@/diagram/geometry.js'
 import { outlineMarkdown } from '@/diagram/convert.js'
 
@@ -106,7 +106,8 @@ async function exportSelection(store, format, scale, name, bg) {
     return
   }
   const viewBox = `${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}`
-  let markup = withExplicitSize(documentToSvg(filtered, { viewBox }), bounds.w, bounds.h)
+  const images = await inlinedImages(filtered)
+  let markup = withExplicitSize(documentToSvg(filtered, { viewBox, images }), bounds.w, bounds.h)
   if (format === 'svg') {
     downloadBlob(new Blob([markup], { type: 'image/svg+xml' }), `${name}-selection.svg`)
     return
@@ -118,9 +119,9 @@ async function exportSelection(store, format, scale, name, bg) {
 
 // Print = canvas content only (spec §4.4): open the export SVG in a clean print
 // window so chrome (toolbar + palettes) is never included.
-function printDiagram(store) {
+async function printDiagram(store) {
   const { width, height } = canvasSize(store)
-  exportPdfWithPrintWindow(buildSvg(store), width, height)
+  exportPdfWithPrintWindow(await buildSvg(store), width, height)
 }
 
 // Run an export, surfacing failures as a retry-able toast (spec §11.5).
@@ -141,10 +142,14 @@ function canvasSize(store) {
 // viewBox over the canvas bounds (grid excluded); we add explicit width/height so
 // the SVG has deterministic intrinsic dimensions when rasterized. Optionally
 // paints a background rect (for JPEG, or a user-chosen canvas background).
-function buildSvg(store, background) {
+async function buildSvg(store, background) {
   const document = store.getDocument()
   const { width, height } = canvasSize(store)
-  let markup = withExplicitSize(documentToSvg(document), width, height)
+  // An export leaves the browser, so an inserted image travels as bytes rather
+  // than as the site path it is stored under (#518) — a file_url renders only for
+  // someone with access to the site, and the raster path cannot fetch one at all.
+  const images = await inlinedImages(document)
+  let markup = withExplicitSize(documentToSvg(document, { images }), width, height)
   // background: undefined → use the canvas background; 'transparent' → force no
   // backdrop; a hex string → force that fill (e.g. white for JPEG/clipboard).
   const fill = background === 'transparent' ? null : background || document.canvas.background
@@ -171,7 +176,7 @@ function insertBackgroundRect(markup, fill, { x = 0, y = 0, width, height }) {
 }
 
 async function exportSvgFile(store, name) {
-  const markup = buildSvg(store)
+  const markup = await buildSvg(store)
   downloadBlob(new Blob([markup], { type: 'image/svg+xml' }), `${name}.svg`)
 }
 
@@ -185,7 +190,7 @@ async function exportOutlineFile(store, name) {
 // `bg` overrides the backdrop (undefined → canvas bg; 'transparent'; or a hex).
 async function exportRaster(store, format, scale, name, bg) {
   const background = bg ?? (format === 'jpeg' ? JPEG_FALLBACK_BACKGROUND : undefined)
-  const markup = buildSvg(store, background)
+  const markup = await buildSvg(store, background)
   const { width, height } = canvasSize(store)
   const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png'
   const dataUrl = await rasterizeSvg(markup, width * scale, height * scale, mime)
@@ -200,7 +205,7 @@ async function copyImage(store) {
     throw new Error('Clipboard image copy is not supported in this browser')
   }
   const { width, height } = canvasSize(store)
-  const markup = buildSvg(store, '#FFFFFF')
+  const markup = await buildSvg(store, '#FFFFFF')
   const blob = await rasterizeSvgToBlob(markup, width * 2, height * 2, 'image/png')
   await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
   toast.success('Copied image to clipboard')
@@ -259,11 +264,11 @@ async function exportPdfFile(store, name) {
     await exportPdfWithJsPdf(store, jsPdf, width, height, name)
     return
   }
-  exportPdfWithPrintWindow(buildSvg(store), width, height)
+  exportPdfWithPrintWindow(await buildSvg(store), width, height)
 }
 
 async function exportPdfWithJsPdf(store, jsPdf, width, height, name) {
-  const markup = buildSvg(store)
+  const markup = await buildSvg(store)
   const dataUrl = await rasterizeSvg(markup, width * 2, height * 2, 'image/png')
   const orientation = width >= height ? 'landscape' : 'portrait'
   const pdf = new jsPdf({ orientation, unit: 'px', format: [width, height] })
