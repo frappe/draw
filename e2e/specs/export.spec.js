@@ -61,11 +61,19 @@ async function exportVia(page, label) {
 // open here. `×` is the same U+00D7 the option renders.
 // Scoped to the dialog: the text toolbar behind it carries a font Select of its own
 // whenever a shape is selected, and an unscoped combobox lookup would race it.
+//
+// The option is taken by ROLE, not by text. frappe-ui's trigger renders a hidden
+// `select-trigger-sizer` span holding the current value, so getByText('2×') matches
+// that sizer as well as the real option — and picking the scale that is ALREADY
+// selected then waited forever for an element that is never visible. Only the "2×"
+// case failed, which is exactly the default.
 async function pickScale(page, scale) {
   const trigger = page.getByRole('dialog').getByRole('combobox').first()
   await trigger.waitFor({ state: 'visible' })
   await trigger.click()
-  await pick(page, `${scale}×`)
+  const option = page.getByRole('option', { name: `${scale}×`, exact: true })
+  await option.waitFor({ state: 'visible' })
+  await option.click()
 }
 
 // There is no transparency checkbox to drive — PNG transparency follows the canvas
