@@ -17,6 +17,7 @@ import {
   flattenSubmodels,
   FLOWCHART_FALLBACK_TYPE,
 } from '@/diagram/freeFloating.js'
+import { createWhiteboard } from '@/diagram/whiteboardModel.js'
 import { mindmapModelFromShapes, flowchartModelFromShapes } from '@/diagram/freeFloatingGraph.js'
 import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild, flowchartLayoutPatches, mindmapLayoutPatches } from '@/diagram/freeFloatingOps.js'
 import { mindmapSizeForShape } from '@/diagram/mindmapNodeSize.js'
@@ -925,6 +926,36 @@ function stackedObjects(state) {
 }
 
 function attachShapeMutations(store, state, history) {
+  // Empty the whole canvas, whatever it holds (#462). Block shapes and their
+  // connectors, sections, whiteboard ink, sticky notes, lines and tables, and the
+  // legacy mind-map / flowchart sub-models all go.
+  //
+  // ONE commit, so undo brings the whole canvas back in a single step rather than
+  // unpicking it object by object. That is the whole reason this lives in the store
+  // instead of the menu calling four removers in a row.
+  //
+  // The sub-models are RESET, not set to null. A legacy single-type document keeps
+  // its type, so a cleared mind map is an empty mind map — set to null, its own
+  // toolbar and layer would have no model to read. On a unified document they are
+  // already null and its mind-map and flowchart nodes are free-floating SHAPES,
+  // which the first line covers.
+  store.clearCanvas = () =>
+    history.commit('Clear all', () => {
+      state.shapes = []
+      state.connectors = []
+      state.sections = []
+      state.selection = []
+      if (state.whiteboard) {
+        state.whiteboard = createWhiteboard(state.whiteboard.sketchStyle)
+      }
+      if (state.mindmap) {
+        state.mindmap = { ...state.mindmap, nodes: [], rootId: null, crosslinks: [] }
+      }
+      if (state.flowchart) {
+        state.flowchart = { ...state.flowchart, nodes: [], edges: [] }
+      }
+    })
+
   store.addShape = (partial) => {
     const shape = createShape({ zIndex: nextZIndex(state), ...partial }, state.themePreset)
     history.commit('Add shape', () => state.shapes.push(shape))
@@ -1098,6 +1129,7 @@ function attachSelection(store, state) {
     takeSelection()
   }
   store.clearSelection = () => (state.selection = [])
+
   store.selectAll = () => {
     // Locked / hidden shapes are set aside: Select All skips them so a bulk
     // nudge or delete can't reach them (spec 7.4).
