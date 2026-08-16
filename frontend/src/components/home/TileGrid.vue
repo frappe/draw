@@ -269,7 +269,7 @@ const collectionHandlers = {
   <div>
     <!-- Toolbar: a Find bar + sort, or a bulk-action bar when diagrams are
          selected; the view toggle sits at the far right. -->
-    <div class="mb-5 flex h-9 items-center gap-2">
+    <div class="mb-5 flex h-9 items-center gap-2 px-3">
       <!-- In list view the master checkbox lives in the table header (left of
            Name); in tile view there's no header row, so it sits here. -->
       <!-- Spacing lives on the wrapper: frappe-ui's Checkbox has no
@@ -387,10 +387,10 @@ const collectionHandlers = {
 
     <!-- A titled Pinned group (when anything is pinned), then the rest. -->
     <template v-if="hasPinnedSection">
-      <!-- frappe-ui-exempt: text-2xs group label, matching the list-view column header above --><div class="mb-2 text-2xs font-semibold text-ink-gray-5">Pinned</div>
+      <!-- frappe-ui-exempt: text-2xs group label, matching the list-view column header above --><div class="mb-2 px-3 text-2xs font-semibold text-ink-gray-5">Pinned</div>
       <DiagramCollection :diagrams="pinned" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />
       <Divider class="my-3" />
-      <!-- frappe-ui-exempt: text-2xs group label, matching the list-view column header above --><div class="mb-2 text-2xs font-semibold text-ink-gray-5">Diagrams</div>
+      <!-- frappe-ui-exempt: text-2xs group label, matching the list-view column header above --><div class="mb-2 px-3 text-2xs font-semibold text-ink-gray-5">Diagrams</div>
     </template>
 
     <DiagramCollection v-if="files.length" :diagrams="files" :view="view" :selected="selected" :pin-limit-reached="pinLimitReached" v-on="collectionHandlers" />

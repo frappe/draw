@@ -134,6 +134,7 @@ const TIME_UNITS = [
        button so the row is keyboard-reachable. Columns align with TileGrid's header. -->
   <div
     v-if="view === 'list'"
+    data-diagram-row
     class="group flex cursor-pointer items-center gap-3 border-b border-outline-gray-1 px-3 py-2 transition-colors"
     :class="selected ? 'bg-surface-gray-3' : 'hover:bg-surface-gray-2'"
     @click="emit('open', diagram.name)"
@@ -188,6 +189,7 @@ const TIME_UNITS = [
   <!-- GRID TILE -->
   <div
     v-else
+    data-diagram-row
     class="group relative overflow-hidden rounded-xl border text-left transition-shadow"
     :class="selected ? 'border-outline-blue-3 ring-1 ring-outline-blue-2' : 'border-outline-gray-1'"  >
     <Checkbox
