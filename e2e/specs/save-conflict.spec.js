@@ -53,8 +53,14 @@ test('a conflicting save tells the user to reload instead of only "Save failed"'
   // A frozen editor goes on accepting edits, so the warning has to come with a way
   // to act on it (#504): reload, and a download first so the reload does not throw
   // the work away.
-  await expect(page.getByRole('button', { name: 'Reload' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Download a copy' })).toBeVisible()
+  // Scoped to the indicator itself: "Reload" is a common enough button name that an
+  // unscoped lookup is ambiguous the moment anything else on the page offers one.
+  const indicator = page.getByRole('status').filter({ hasText: 'changed elsewhere' })
+  // One indicator, not two — asserted rather than assumed, because the unscoped
+  // lookup that preceded this found two matching buttons and the reason mattered.
+  await expect(indicator).toHaveCount(1)
+  await expect(indicator.getByRole('button', { name: 'Reload' })).toBeVisible()
+  await expect(indicator.getByRole('button', { name: 'Download a copy' })).toBeVisible()
 
   // The 417 is the expected outcome of this spec, so it must not count as a failure.
   const unexpected = errors.failures.filter((f) => !f.startsWith('417'))
