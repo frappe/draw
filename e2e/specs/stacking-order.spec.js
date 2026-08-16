@@ -61,13 +61,18 @@ function inkZ(doc) {
 // Popover that stays open after an action is clicked (several arranges in a row
 // is the point of it), and its trigger TOGGLES — so opening unconditionally
 // would shut an already-open menu and then wait forever for it to appear.
+// Located by ACCESSIBLE NAME, not by visible text: the tiles are icon-only since
+// #472, so the label survives as the button's aria-label and nothing renders the
+// word. getByText found nothing and the click timed out. This locator is also the
+// stronger assertion — it fails if the accessible name is ever dropped, which is
+// what taking the words off the screen put at risk.
 async function arrange(page, action) {
   const menu = page.locator(POPOVER)
   if (!(await menu.isVisible())) {
     await buttonByIcon(page, 'layers').click()
     await menu.waitFor({ state: 'visible' })
   }
-  await menu.getByText(action, { exact: true }).click()
+  await menu.getByRole('button', { name: action, exact: true }).click()
 }
 
 test.describe('stacking order across shapes and ink', () => {
