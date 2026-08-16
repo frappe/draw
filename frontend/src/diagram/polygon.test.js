@@ -14,6 +14,7 @@ import {
   presetPolygonPoints,
   PRESET_POLYGONS,
 } from './polygon.js'
+import { SKEW_RATIO } from './flowchartShapes.js'
 
 // A right triangle whose extent is a neat 100x80 box at (10,20), so the normalised
 // values are exact fractions.
@@ -264,5 +265,38 @@ describe('preset polygons (#468)', () => {
     const points = presetPolygonPoints({ x: '0" onload="alert(1)', y: 0, w: 200, h: 100, type: 'hexagon' })
     expect(points).not.toMatch(/\son[a-z]+\s*=/i)
     expect(points).not.toContain('alert(1)')
+  })
+})
+
+// #470: two shapes Custom Polygon cannot produce, because neither is regular.
+describe('trapezoid and parallelogram (#470)', () => {
+  const box = { x: 0, y: 0, w: 200, h: 100 }
+
+  it('are presets, so every renderer draws them without a branch of its own', () => {
+    expect(isPresetPolygon('trapezoid')).toBe(true)
+    expect(isPresetPolygon('parallelogram')).toBe(true)
+  })
+
+  // Narrow side up is the convention. Both top vertices sit inside both bottom ones.
+  it('stands the trapezoid on its long edge', () => {
+    expect(presetPolygonPoints({ ...box, type: 'trapezoid' })).toBe('40,0 160,0 200,100 0,100')
+  })
+
+  // Equal and opposite offsets: the top edge shifts right by exactly what the
+  // bottom edge gives up, which is what makes the opposite sides parallel.
+  it('slants the parallelogram evenly, so its opposite sides stay parallel', () => {
+    const points = presetPolygonPoints({ ...box, type: 'parallelogram' })
+      .split(' ')
+      .map((pair) => pair.split(',').map(Number))
+    const [topLeft, topRight, bottomRight, bottomLeft] = points
+    expect(topLeft[0] - bottomLeft[0]).toBeCloseTo(topRight[0] - bottomRight[0], 6)
+    expect(topLeft[0]).toBeGreaterThan(0)
+  })
+
+  // The flowchart Input/Output node is the same shape. Reading one constant is what
+  // stops the two slants drifting apart.
+  it('takes its slant from the flowchart node that already had one', () => {
+    const [topLeft] = presetPolygonPoints({ ...box, type: 'parallelogram' }).split(' ')
+    expect(topLeft).toBe(`${SKEW_RATIO * box.w},0`)
   })
 })

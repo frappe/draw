@@ -11,7 +11,9 @@
 // where an 18px skew on an 18px-wide shape collapsed the parallelogram onto its
 // own diagonal — the picker offered Input / Output as a bare slash. The fraction
 // only binds below ~100px, so every on-canvas node is pixel-identical to before.
-const SKEW_RATIO = 0.18
+// Exported because the Parallelogram BLOCK shape (#470) takes the same slant. The
+// angle is stated once here; only the px cap below is a flowchart-node concern.
+export const SKEW_RATIO = 0.18
 const SKEW_MAX = 18
 export const BAR_RATIO = 0.12
 export const BAR_MAX = 10

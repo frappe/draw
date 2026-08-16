@@ -36,8 +36,13 @@ import { regularPolygon, POLYGON_INSERT_WIDTH } from '@/diagram/polygon.js'
 // `square-round-corner` keeps it distinct from the rounded rectangle below, which
 // is the pair that actually has to be told apart.
 //
-// Seven tiles here plus the custom polygon, which the menu renders itself (it asks
-// for a side count first), make the 4 × 2 grid (#451 item 3).
+// Nine tiles here plus the custom polygon, which the menu renders itself (it asks
+// for a side count first), make a 5 × 2 grid (#470). It was 4 × 2 at eight tiles;
+// Trapezoid and Parallelogram take it to ten, and five across keeps both rows full
+// rather than leaving two blanks in a third row.
+//
+// Lucide has neither shape, so those two carry a drawn `glyph` instead of an
+// `icon` — generated from the outline they insert rather than drawn by hand.
 export const SHAPES = [
   // "Quadrilateral", not "Rectangle — hold Shift for a square" (#451 item 4): the
   // Shift hint belongs in the shortcuts sheet, not in a tooltip on every hover.
@@ -51,6 +56,8 @@ export const SHAPES = [
   // polygon, whose glyph is the same outline marked "n".
   { type: 'polygon', icon: 'lucide-pentagon', label: 'Polygon' },
   { type: 'arrow', icon: 'lucide-arrow-big-right', label: 'Block arrow' },
+  { type: 'trapezoid', glyph: 'preset', label: 'Trapezoid' },
+  { type: 'parallelogram', glyph: 'preset', label: 'Parallelogram' },
 ]
 export const NON_DRAGGABLE_SHAPES = ['polygon']
 

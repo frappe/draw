@@ -17,15 +17,26 @@
 import { computed } from 'vue'
 import { NODE_TYPE_META } from '@/diagram/flowchartModel.js'
 import { nodeShape } from '@/diagram/flowchartShapes.js'
+import { presetPolygonPoints } from '@/diagram/polygon.js'
 
 const props = defineProps({
-  // 'flowchart' | 'mindmap' | 'polygon-n' | 'line'
+  // 'flowchart' | 'preset' | 'mindmap' | 'polygon-n' | 'line'
   family: { type: String, default: 'flowchart' },
   type: { type: String, default: '' },
 })
 
 const BOX = 24
 const FIT = 18 // longest side of the shape inside the 24×24 box
+
+// A preset block shape Lucide has no icon for — trapezoid, parallelogram (#470).
+// Not drawn by hand: it reads the same normalised outline the canvas and the export
+// render from, scaled into the box a Lucide icon fills, so the tile cannot show a
+// different shape from the one it inserts.
+const presetPoints = computed(() =>
+  props.family === 'preset'
+    ? presetPolygonPoints({ type: props.type, x: (BOX - FIT) / 2, y: (BOX - FIT) / 2, w: FIT, h: FIT })
+    : '',
+)
 
 // Flowchart: the real node geometry at its natural aspect, scaled to fit + centred.
 const flow = computed(() => {
@@ -60,6 +71,9 @@ const flow = computed(() => {
       <polygon v-else-if="flow.shape.kind === 'polygon'" :points="flow.shape.points" />
       <path v-else-if="flow.shape.kind === 'path'" :d="flow.shape.d" />
     </g>
+
+    <!-- Preset block shape (#470): the real outline, not a likeness of it. -->
+    <polygon v-else-if="family === 'preset'" :points="presetPoints" />
 
     <!-- Custom polygon (#451 item 2): the polygon outline with an "n" in the top
          right corner, saying the side count is the thing you choose. Lucide has a

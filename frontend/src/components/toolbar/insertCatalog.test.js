@@ -126,8 +126,13 @@ describe('the Parent Node glyph (#255)', () => {
 describe('the Shapes tiles (#425)', () => {
   const iconsDir = path.join(here, '../../../node_modules/lucide-static/icons')
 
-  it('gives every shape a Lucide icon that exists in the pack', () => {
+  // Every tile carries a Lucide `icon` or a drawn `glyph`, never both and never
+  // neither — either mistake is a blank tile rather than an error. Trapezoid and
+  // Parallelogram take the glyph route because Lucide has no such icon (#470).
+  it('gives every shape a Lucide icon that exists in the pack, or a drawn glyph', () => {
     for (const shape of SHAPES) {
+      expect(Boolean(shape.icon) !== Boolean(shape.glyph), `${shape.label} has no single mark`).toBe(true)
+      if (!shape.icon) continue
       expect(shape.icon, `${shape.label} has no icon`).toMatch(/^lucide-[a-z0-9-]+$/)
       const name = shape.icon.replace('lucide-', '')
       expect(
@@ -175,9 +180,20 @@ describe('the Shapes tiles (#425)', () => {
 describe('the shapes grid (#451)', () => {
   const groups = read('./groups/InsertGroups.vue')
 
-  it('lays the menu out four across, so eight tiles fill two full rows', () => {
+  // #470 took it from eight tiles to ten. Five across keeps both rows full; four
+  // would have left a third row half empty, which is what the 4 x 2 grid existed
+  // to avoid.
+  it('lays the menu out five across, so ten tiles fill two full rows', () => {
+    expect(groups).toContain('grid-cols-5')
+    expect(SHAPES).toHaveLength(9) // + the custom polygon the menu renders itself
+    expect((SHAPES.length + 1) % 5, 'the last row would have a gap in it').toBe(0)
+  })
+
+  // The Lines menu and the flowchart node grid still hold four each, so they keep
+  // the narrower grid — the two must not be collapsed into one constant.
+  it('leaves the four-across grid for the menus that hold four', () => {
     expect(groups).toContain('grid-cols-4')
-    expect(SHAPES).toHaveLength(7) // + the custom polygon the menu renders itself
+    expect(groups).toContain(':class="shapesGrid"')
   })
 
   it('gives the polygon tile a polygon glyph, not the pen tool', () => {
@@ -298,5 +314,35 @@ describe('toolbar icons say what their control does', () => {
     expect(inPack('lucide-network')).toBe(true)
     expect(groups).not.toContain('icon="lucide-git-branch"')
     expect(read('./groups/FlowchartNodeGroup.vue')).toContain('label="Branches" icon="lucide-git-branch"')
+  })
+})
+
+// #470: Lucide has no trapezoid and no parallelogram, so these two tiles draw their
+// own mark. It is generated from the outline they insert rather than drawn by hand,
+// which is the only thing that keeps a tile honest about what it places.
+describe('the shapes Lucide cannot stand in for (#470)', () => {
+  const groups = read('./groups/InsertGroups.vue')
+  const glyph = read('../floating/ShapeGlyph.vue')
+
+  it('gives both new tiles a drawn glyph rather than a missing icon', () => {
+    for (const type of ['trapezoid', 'parallelogram']) {
+      const tile = SHAPES.find((shape) => shape.type === type)
+      expect(tile, `${type} has no tile`).toBeTruthy()
+      expect(tile.glyph).toBe('preset')
+      expect(tile.icon).toBeUndefined()
+    }
+  })
+
+  it('renders the tile glyph from the shape geometry, not a hand-drawn likeness', () => {
+    expect(glyph).toContain('presetPolygonPoints(')
+    expect(groups).toContain(':family="shape.glyph"')
+    expect(groups).toContain(':type="shape.type"')
+  })
+
+  // Both are drawn into the same 18-of-24 box a Lucide icon fills, so they sit at
+  // the weight and size of the tiles beside them (#456).
+  it('fits the preset glyph to the Lucide box', () => {
+    expect(glyph).toContain('x: (BOX - FIT) / 2')
+    expect(glyph).toContain('w: FIT, h: FIT')
   })
 })

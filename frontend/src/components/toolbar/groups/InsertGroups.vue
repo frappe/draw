@@ -39,8 +39,11 @@ const {
   endTileDrag,
 } = useInsertCatalog()
 
-// Four across (#451 item 3). The Shapes menu holds eight tiles, so four columns
-// fill two rows exactly with no gap at the end; Lines has four and fills one row.
+// Five across (#470). The Shapes menu holds ten tiles now — Trapezoid and
+// Parallelogram joined the eight of #451 item 3 — so five columns fill two rows
+// exactly with no gap at the end, where four would have left a half-empty third row.
+const shapesGrid = 'grid w-[204px] grid-cols-5 gap-1 p-2'
+// Lines and the flowchart nodes keep four across, which fills their rows.
 const grid = 'grid w-[164px] grid-cols-4 gap-1 p-2'
 
 // The side-count prompt opens inside the Shapes menu, replacing the tile that
@@ -57,7 +60,7 @@ function closeSides(toggle) {
   <Popover>
     <template #trigger><ToolbarButton allows-blur label="Shapes" icon="lucide-shapes" /></template>
     <template #default="{ toggle }">
-      <div :class="grid">
+      <div :class="shapesGrid">
         <ToolbarButton
           allows-blur
           v-for="shape in SHAPES"
@@ -69,8 +72,14 @@ function closeSides(toggle) {
           @click="arm(shape.type, toggle)"
           @dragstart="startTileDrag($event, shape.type)"
           @dragend="endTileDrag(toggle)"
-        />
-        <!-- The eighth tile asks for a side count before it inserts anything, so
+        >
+          <!-- Trapezoid and Parallelogram have no Lucide icon, so they draw their
+               own outline (#470). Same mechanism the Lines menu uses. -->
+          <template v-if="shape.glyph" #icon>
+            <ShapeGlyph :family="shape.glyph" :type="shape.type" class="size-4" />
+          </template>
+        </ToolbarButton>
+        <!-- The last tile asks for a side count before it inserts anything, so
              it swaps this menu's contents rather than arming a tool. It is not
              draggable: there is no shape to drop until the count is known. -->
         <ToolbarButton

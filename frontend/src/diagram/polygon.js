@@ -14,6 +14,8 @@
 // They live here now so one geometry feeds the canvas, PNG/PDF export, the saved
 // thumbnail, the home tiles and the minimap.
 
+import { SKEW_RATIO } from './flowchartShapes.js'
+
 // A closed polygon needs at least a triangle.
 export const MIN_POLYGON_VERTICES = 3
 
@@ -27,10 +29,22 @@ export const POLYGON_INSERT_WIDTH = 160
 // Preset block shapes whose outline is fixed, normalised to the box like a stored
 // polygon's own points. `star` is generated rather than tabulated, so ask
 // isPresetPolygon() rather than reading this table to decide what a type is.
+// How far the top edge of a trapezoid is inset at each end. 0.2 leaves the top
+// three-fifths of the base, which reads as a trapezoid rather than as a triangle
+// with its tip cut off.
+const TRAPEZOID_INSET = 0.2
+
 export const PRESET_POLYGONS = {
   pentagon: [[0.5, 0], [1, 0.38], [0.82, 1], [0.18, 1], [0, 0.38]],
   hexagon: [[0.25, 0], [0.75, 0], [1, 0.5], [0.75, 1], [0.25, 1], [0, 0.5]],
   arrow: [[0, 0.3], [0.62, 0.3], [0.62, 0.05], [1, 0.5], [0.62, 0.95], [0.62, 0.7], [0, 0.7]],
+  // Narrow side up, the usual convention (#470).
+  trapezoid: [[TRAPEZOID_INSET, 0], [1 - TRAPEZOID_INSET, 0], [1, 1], [0, 1]],
+  // The slant is the flowchart Input/Output node's, read from its own constant so
+  // the two cannot drift apart. Only the RATIO carries over: that node also caps
+  // the skew at 18px, which keeps a very wide node from shearing into a slash, but
+  // a block shape is resized by hand and should hold its proportions as it grows.
+  parallelogram: [[SKEW_RATIO, 0], [1, 0], [1 - SKEW_RATIO, 1], [0, 1]],
 }
 
 // Five points, and an inner radius 0.2 of the box against an outer 0.5.
