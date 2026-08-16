@@ -131,11 +131,27 @@ function clearAll() {
   confirmingClearAll.value = false
 }
 
-// The biggest tip is wider than the swatch row, so the preview dot is capped —
-// the canvas cursor is what shows the true tip size. Used by the Draw tool's
-// size swatches.
-function dotStyle(size) {
-  const dot = Math.min(size, 18)
+// The size preview dot, SCALED across the row's own range rather than clamped to
+// it (#498).
+//
+// It used to be `Math.min(size, 18)`, which collapsed the highlighter's 18 and 26
+// into the same 18px dot — two options drawn identically, told apart only by the
+// selected background — and drew the pen's 2 as a 2px speck. The clamp existed for
+// a real reason (a 26px dot does not fit a 28px cell), but capping the top instead
+// of mapping the range is what made two sizes one control twice.
+//
+// The scale is per ROW, so the three options are as distinct as the cell allows.
+// That means pen and highlighter draw the same three dots for different real
+// widths — acceptable, because the toggle above the row already says which ink is
+// in play, and this control's job is to separate ITS three sizes.
+const DOT_MIN = 4
+const DOT_MAX = 18
+
+function dotStyle(size, sizes) {
+  const smallest = Math.min(...sizes)
+  const largest = Math.max(...sizes)
+  const position = largest === smallest ? 1 : (size - smallest) / (largest - smallest)
+  const dot = Math.round(DOT_MIN + position * (DOT_MAX - DOT_MIN))
   return { width: `${dot}px`, height: `${dot}px` }
 }
 
@@ -210,7 +226,7 @@ function insertTable({ rows, cols }, close) {
           <div class="mb-1 text-sm font-semibold text-ink-gray-5">Size</div>
           <div class="mb-2 flex gap-2">
             <!-- frappe-ui-exempt: swatch renders a literal size-preview dot --><button v-for="w in activeDrawWidths" :key="w" :aria-label="`Size ${w}`" :aria-pressed="ui.state[activeDrawWidthKey] === w" class="flex h-7 flex-1 items-center justify-center rounded-md" :class="ui.state[activeDrawWidthKey] === w ? 'bg-surface-gray-3' : 'bg-surface-gray-1 hover:bg-surface-gray-2'" @click="ui.state[activeDrawWidthKey] = w">
-              <span class="rounded-full bg-surface-gray-10" :style="dotStyle(w)" />
+              <span class="rounded-full bg-surface-gray-10" :style="dotStyle(w, activeDrawWidths)" />
             </button>
           </div>
 
