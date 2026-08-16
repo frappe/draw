@@ -578,7 +578,7 @@ describe('documentToSvg — preset polygon shapes (#468)', () => {
     const expected = {
       hexagon: '50,0 150,0 200,50 150,100 50,100 0,50',
       pentagon: '100,0 200,38 164,100 36,100 0,38',
-      arrow: '0,30 124,30 124,5 200,50 124,95 124,70 0,70',
+      arrow: '0,30 124,30 124,0 200,50 124,100 124,70 0,70',
     }
     for (const [type, points] of Object.entries(expected)) {
       const svg = documentToSvg(presetDoc(type))

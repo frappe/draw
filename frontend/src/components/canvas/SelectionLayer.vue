@@ -13,6 +13,7 @@ import { shapeCenter, unionBounds } from '@/diagram/geometry.js'
 import { ROLE } from '@/diagram/freeFloating.js'
 import { isTextElement, selectionOutline, NEUTRAL_SELECT } from '@/diagram/selectionChrome.js'
 import { cornerRadiusOf, supportsCornerRounding, maxCornerRadius } from '@/diagram/shapeGeometry.js'
+import { arrowProportions } from '@/diagram/blockArrow.js'
 
 const HANDLE = 12
 const ROTATION_ARM = 28
@@ -103,6 +104,43 @@ function startRound(event) {
   if (!single.value) return
   event.stopPropagation()
   transform.startCornerRadius({ toLogical: converterFrom(event), id: single.value.id })
+}
+
+// The block arrow's two adjustment handles (#469), the same kind of control as the
+// corner dot: they set a stored proportion rather than the shape's size.
+//
+// Both sit INSIDE the shape by the same inset the rounding handle uses, so neither
+// can land under one of the eight resize handles, which sit exactly on the box. The
+// shaft handle would otherwise share the left edge with the mid-left resize handle,
+// and the head handle the top edge with the mid-top one.
+const arrowHandles = computed(() => {
+  const shape = single.value
+  if (shape?.type !== 'arrow') return null
+  const { shaft, head } = arrowProportions(shape)
+  if (shape.w < MIN_ROUNDING_INSET * 3 || shape.h < MIN_ROUNDING_INSET * 3) return null
+  return {
+    shaft: { x: shape.x + MIN_ROUNDING_INSET, y: shape.y + shaft * shape.h },
+    head: { x: shape.x + head * shape.w, y: shape.y + MIN_ROUNDING_INSET },
+  }
+})
+
+function startArrowShaft(event) {
+  if (!single.value) return
+  event.stopPropagation()
+  transform.startArrowShaft({ toLogical: converterFrom(event), id: single.value.id })
+}
+
+function startArrowHead(event) {
+  if (!single.value) return
+  event.stopPropagation()
+  transform.startArrowHead({ toLogical: converterFrom(event), id: single.value.id })
+}
+
+// A diamond, so an adjustment handle never reads as a resize handle: those are
+// squares on the box, these are diamonds inside it. Matches Google Slides.
+function diamond(point, radius) {
+  const { x, y } = point
+  return `${x},${y - radius} ${x + radius},${y} ${x},${y + radius} ${x - radius},${y}`
 }
 
 // Rotate the handle group with a single shape so handles track its orientation.
@@ -218,6 +256,30 @@ function startRotate(event) {
         style="cursor: nwse-resize"
         @pointerdown="startRound"
       />
+
+      <!-- Block arrow adjustment handles (#469): shaft thickness on the left,
+           head length at the shoulder. Diamonds, so they never read as one of the
+           square resize handles on the box. -->
+      <template v-if="arrowHandles">
+        <polygon
+          data-testid="arrow-shaft-handle"
+          :points="diamond(arrowHandles.shaft, 5 / zoom)"
+          fill="#FFFFFF"
+          :stroke="handleColor"
+          :stroke-width="strokeWidth"
+          style="cursor: ns-resize"
+          @pointerdown="startArrowShaft"
+        />
+        <polygon
+          data-testid="arrow-head-handle"
+          :points="diamond(arrowHandles.head, 5 / zoom)"
+          fill="#FFFFFF"
+          :stroke="handleColor"
+          :stroke-width="strokeWidth"
+          style="cursor: ew-resize"
+          @pointerdown="startArrowHead"
+        />
+      </template>
       <line
         :x1="box.x + box.w / 2"
         :y1="box.y"

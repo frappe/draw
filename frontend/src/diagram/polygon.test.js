@@ -245,8 +245,10 @@ describe('preset polygons (#468)', () => {
       .toBe('50,0 150,0 200,50 150,100 50,100 0,50')
     expect(presetPolygonPoints({ ...box, type: 'pentagon' }))
       .toBe('100,0 200,38 164,100 36,100 0,38')
+    // The head runs 0 to 100, the full box height. It used to run 5 to 95, leaving
+    // the shape a gap at the top and bottom of its own bounding box (#466).
     expect(presetPolygonPoints({ ...box, type: 'arrow' }))
-      .toBe('0,30 124,30 124,5 200,50 124,95 124,70 0,70')
+      .toBe('0,30 124,30 124,0 200,50 124,100 124,70 0,70')
   })
 
   it('generates a five-pointed star, first point straight up', () => {

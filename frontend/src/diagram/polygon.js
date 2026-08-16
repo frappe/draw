@@ -15,6 +15,7 @@
 // thumbnail, the home tiles and the minimap.
 
 import { SKEW_RATIO } from './flowchartShapes.js'
+import { arrowOutline } from './blockArrow.js'
 
 // A closed polygon needs at least a triangle.
 export const MIN_POLYGON_VERTICES = 3
@@ -34,10 +35,15 @@ export const POLYGON_INSERT_WIDTH = 160
 // with its tip cut off.
 const TRAPEZOID_INSET = 0.2
 
+// An entry is either a fixed table of normalised points, or a function of the shape
+// for the two that are not fixed — the star is generated, and the arrow's
+// proportions are adjustable per shape (#469). Everything reads them through
+// presetPolygonPoints, so neither is a special case at the call site.
 export const PRESET_POLYGONS = {
   pentagon: [[0.5, 0], [1, 0.38], [0.82, 1], [0.18, 1], [0, 0.38]],
   hexagon: [[0.25, 0], [0.75, 0], [1, 0.5], [0.75, 1], [0.25, 1], [0, 0.5]],
-  arrow: [[0, 0.3], [0.62, 0.3], [0.62, 0.05], [1, 0.5], [0.62, 0.95], [0.62, 0.7], [0, 0.7]],
+  arrow: arrowOutline,
+  star: starOutline,
   // Narrow side up, the usual convention (#470).
   trapezoid: [[TRAPEZOID_INSET, 0], [1 - TRAPEZOID_INSET, 0], [1, 1], [0, 1]],
   // The slant is the flowchart Input/Output node's, read from its own constant so
@@ -128,38 +134,35 @@ export function polygonPointsString(shape) {
   return points.map((p) => `${x + num(p.x) * w},${y + num(p.y) * h}`).join(' ')
 }
 
-// Whether a shape type draws as one of the fixed preset outlines. Every renderer
-// asks this rather than listing the types, so adding a preset reaches all of them.
+// Whether a shape type draws as one of the preset outlines. Every renderer asks
+// this rather than listing the types, so adding a preset reaches all of them.
 export function isPresetPolygon(type) {
-  return type === 'star' || Boolean(PRESET_POLYGONS[type])
+  return Boolean(PRESET_POLYGONS[type])
 }
 
 // Absolute SVG points string for a preset shape, or '' when the type has none.
 // Coerces the box the same way polygonPointsString does: the export interpolates
 // the result straight into markup for a possibly-shared document.
 export function presetPolygonPoints(shape) {
+  const outline = PRESET_POLYGONS[shape?.type]
+  if (!outline) return ''
+  const points = typeof outline === 'function' ? outline(shape) : outline
   const x = num(shape?.x)
   const y = num(shape?.y)
   const w = num(shape?.w)
   const h = num(shape?.h)
-  if (shape?.type === 'star') return starPoints(x, y, w, h)
-  const outline = PRESET_POLYGONS[shape?.type]
-  if (!outline) return ''
-  return outline.map(([nx, ny]) => `${x + nx * w},${y + ny * h}`).join(' ')
+  return points.map(([nx, ny]) => `${x + num(nx) * w},${y + num(ny) * h}`).join(' ')
 }
 
-// Alternating outer and inner vertices around the box centre.
-function starPoints(x, y, w, h) {
-  const cx = x + w / 2
-  const cy = y + h / 2
+// Alternating outer and inner vertices around the box centre, normalised.
+function starOutline() {
   const points = []
   for (let i = 0; i < STAR_ARMS * 2; i += 1) {
     const angle = ((-90 + i * (180 / STAR_ARMS)) * Math.PI) / 180
-    const rx = (i % 2 ? STAR_INNER_RATIO : 0.5) * w
-    const ry = (i % 2 ? STAR_INNER_RATIO : 0.5) * h
-    points.push(`${cx + rx * Math.cos(angle)},${cy + ry * Math.sin(angle)}`)
+    const radius = i % 2 ? STAR_INNER_RATIO : 0.5
+    points.push([0.5 + radius * Math.cos(angle), 0.5 + radius * Math.sin(angle)])
   }
-  return points.join(' ')
+  return points
 }
 
 function num(value) {

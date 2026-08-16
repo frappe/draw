@@ -3,6 +3,7 @@
 // history step on release. Arrow-key nudging is a discrete history step each.
 import { rotatePoint, shapeCenter } from '@/diagram/geometry.js'
 import { clampCornerRadius, cornerRadiusOf } from '@/diagram/shapeGeometry.js'
+import { clampArrowShaft, clampArrowHead } from '@/diagram/blockArrow.js'
 import { useSmartGuides } from '@/composables/useSmartGuides.js'
 
 const ROTATION_SNAP = [0, 30, 45, 60, 90]
@@ -19,11 +20,25 @@ export function useShapeTransform(store) {
   const rotate = createRotator(store)
   const round = createCornerRounder(store)
   const nudge = createNudger(store)
+  const arrowShaft = createArrowAdjuster(store, {
+    key: 'arrowShaft',
+    label: 'Arrow thickness',
+    fraction: (shape, point) => (point.y - shape.y) / (shape.h || 1),
+    clamp: clampArrowShaft,
+  })
+  const arrowHead = createArrowAdjuster(store, {
+    key: 'arrowHead',
+    label: 'Arrow head',
+    fraction: (shape, point) => (point.x - shape.x) / (shape.w || 1),
+    clamp: clampArrowHead,
+  })
   return {
     startMove: move,
     startResize: resize,
     startRotate: rotate,
     startCornerRadius: round,
+    startArrowShaft: arrowShaft,
+    startArrowHead: arrowHead,
     nudge,
   }
 }
@@ -190,6 +205,28 @@ function createCornerRounder(store) {
 // handle running away from the cursor.
 function radiusFromCorner(corner, point) {
   return (Math.max(0, point.x - corner.x) + Math.max(0, point.y - corner.y)) / 2
+}
+
+// The block arrow's two adjustment handles (#469). Each sets one stored proportion
+// and nothing else — the shape's box does not move, which is what separates these
+// from a resize. Built on the same gesture as the corner rounder, per the issue.
+//
+// Each is a fraction of the box, so the pointer maps straight onto it: the shaft
+// handle reads the pointer's height in the box, the head handle its distance along.
+// Both clamp on the way in, so a drag past the limit parks the handle at the limit
+// rather than letting the outline fold through itself.
+function createArrowAdjuster(store, { key, label, fraction, clamp }) {
+  return ({ toLogical, id }) => {
+    const shape = store.shapeById(id)
+    if (!shape) return
+    const original = { id, [key]: shape[key] }
+    const apply = (point) => [{ id, [key]: clamp(fraction(shape, point)) }]
+    runDrag(
+      toLogical,
+      (event, point) => applyLive(store, apply(point)),
+      (event, point) => finishGesture(store, label, [original], apply(point)),
+    )
+  }
 }
 
 // Rotate one shape around its center; Shift snaps to the fixed-angle family.
