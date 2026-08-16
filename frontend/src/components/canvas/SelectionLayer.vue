@@ -11,7 +11,7 @@ import { useShapeTransform } from '@/composables/useShapeTransform.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
 import { shapeCenter, unionBounds } from '@/diagram/geometry.js'
 import { ROLE } from '@/diagram/freeFloating.js'
-import { isTextElement, selectionOutline, NEUTRAL_SELECT } from '@/diagram/selectionChrome.js'
+import { isTextElement, selectionOutline, handleCenter, NEUTRAL_SELECT } from '@/diagram/selectionChrome.js'
 import { cornerRadiusOf, supportsCornerRounding, maxCornerRadius } from '@/diagram/shapeGeometry.js'
 import { arrowProportions } from '@/diagram/blockArrow.js'
 
@@ -110,9 +110,10 @@ function startRound(event) {
 // corner dot: they set a stored proportion rather than the shape's size.
 //
 // Both sit INSIDE the shape by the same inset the rounding handle uses, so neither
-// can land under one of the eight resize handles, which sit exactly on the box. The
-// shaft handle would otherwise share the left edge with the mid-left resize handle,
-// and the head handle the top edge with the mid-top one.
+// can land under one of the eight resize handles. The shaft handle would otherwise
+// share the left edge with the mid-left resize handle, and the head handle the top
+// edge with the mid-top one. The resize handles moved fully outside the box in #517,
+// which only widens that clearance.
 const arrowHandles = computed(() => {
   const shape = single.value
   if (shape?.type !== 'arrow') return null
@@ -162,9 +163,10 @@ function unionBox(shapes) {
   return unionBounds(shapes.map(boxOf))
 }
 
+// Handles sit just OUTSIDE the outline rather than on it (#517) — the rule and the
+// reason are in selectionChrome, with the rest of the selection language.
 function handlePosition(name) {
-  const [fx, fy] = HANDLE_FACTORS[name]
-  return { x: box.value.x + box.value.w * fx, y: box.value.y + box.value.h * fy }
+  return handleCenter(box.value, HANDLE_FACTORS[name], handleSize.value)
 }
 
 const rotationKnob = computed(() => ({

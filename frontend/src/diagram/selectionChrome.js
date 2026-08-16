@@ -20,6 +20,30 @@ export function isTextElement(shape) {
   return shape?.type === 'text'
 }
 
+// Where each resize handle's CENTRE sits, given the box it surrounds and the
+// handle's on-canvas size. `factor` is the handle's position on the box as a
+// fraction per axis — [0,0] top-left, [0.5,1] bottom-middle, and so on.
+//
+// The centre is pushed OUTWARD along its own normal by half the handle, so the
+// handle's inner edge is tangent to the outline rather than sitting on top of it
+// (#517). Centred on the box, an opaque handle masked its own width of the dashed
+// line in eight places — and at a corner it covered the corner point itself, so the
+// two dashed edges stopped short and never met. The box read as four brackets
+// instead of a closed rectangle, and #464 removing the outline's stand-off left the
+// handles covering that much more of it.
+//
+// Outward rather than painting the outline over the handles: dashes running across
+// a control read as damage to the control. It also takes the inner half of every
+// handle off the shape, where it was competing with the shape's own drag.
+export function handleCenter(box, factor, size) {
+  const [fx, fy] = factor
+  const push = size / 2
+  return {
+    x: box.x + box.w * fx + (fx - 0.5) * 2 * push,
+    y: box.y + box.h * fy + (fy - 0.5) * 2 * push,
+  }
+}
+
 // The thinnest a selection outline is ever drawn, and how far a dash must out-weigh
 // the border it is drawn over.
 const THIN_OUTLINE = 1.5

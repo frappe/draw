@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  handleCenter,
   hoverOutline,
   isTextElement,
   selectionOutline,
@@ -82,5 +83,62 @@ describe('isTextElement', () => {
     expect(isTextElement(text)).toBe(true)
     expect(isTextElement(rectangle)).toBe(false)
     expect(isTextElement(null)).toBe(false)
+  })
+})
+
+// #517: the dashed outline was broken at every resize handle. Each opaque 12px
+// square sat centred ON the box, masking its own width of the line in eight places
+// — and at a corner it covered the corner point itself, so the two edges never met
+// and the box read as four brackets instead of a closed rectangle.
+describe('handleCenter', () => {
+  const BOX = { x: 100, y: 50, w: 200, h: 120 }
+  const SIZE = 12
+  const FACTORS = {
+    'top-left': [0, 0], top: [0.5, 0], 'top-right': [1, 0], right: [1, 0.5],
+    'bottom-right': [1, 1], bottom: [0.5, 1], 'bottom-left': [0, 1], left: [0, 0.5],
+  }
+  // The handle's own square, from its centre.
+  const rectOf = (name) => {
+    const { x, y } = handleCenter(BOX, FACTORS[name], SIZE)
+    return { left: x - SIZE / 2, right: x + SIZE / 2, top: y - SIZE / 2, bottom: y + SIZE / 2 }
+  }
+
+  it('puts every handle wholly outside the box it surrounds', () => {
+    for (const name of Object.keys(FACTORS)) {
+      const rect = rectOf(name)
+      // At least one edge of the handle must clear the box entirely; a mid-edge
+      // handle straddles the other axis, which is correct.
+      const clears =
+        rect.right <= BOX.x ||
+        rect.left >= BOX.x + BOX.w ||
+        rect.bottom <= BOX.y ||
+        rect.top >= BOX.y + BOX.h
+      expect(clears, `${name} still covers part of the outline`).toBe(true)
+    }
+  })
+
+  it('leaves the handle touching the outline, not floating off it', () => {
+    // Tangent: the corner handle's inner corner is exactly the box's corner.
+    const topLeft = rectOf('top-left')
+    expect(topLeft.right).toBe(BOX.x)
+    expect(topLeft.bottom).toBe(BOX.y)
+  })
+
+  it('pushes each handle along its own normal, not diagonally for all', () => {
+    // A mid-edge handle moves on ONE axis only, so it stays centred on its edge.
+    const top = handleCenter(BOX, FACTORS.top, SIZE)
+    expect(top.x).toBe(BOX.x + BOX.w / 2)
+    expect(top.y).toBe(BOX.y - SIZE / 2)
+
+    const right = handleCenter(BOX, FACTORS.right, SIZE)
+    expect(right.x).toBe(BOX.x + BOX.w + SIZE / 2)
+    expect(right.y).toBe(BOX.y + BOX.h / 2)
+  })
+
+  it('scales the push with the handle, so it holds at any zoom', () => {
+    // handleSize is HANDLE / zoom, so a zoomed-out canvas hands in a bigger size.
+    const zoomedOut = handleCenter(BOX, FACTORS['top-left'], 24)
+    expect(zoomedOut.x).toBe(BOX.x - 12)
+    expect(zoomedOut.y).toBe(BOX.y - 12)
   })
 })
