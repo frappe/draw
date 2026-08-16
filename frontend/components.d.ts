@@ -19,8 +19,6 @@ declare module 'vue' {
     BlockActionsGroup: typeof import('./src/components/toolbar/groups/BlockActionsGroup.vue')['default']
     CanvasToolbar: typeof import('./src/components/toolbar/CanvasToolbar.vue')['default']
     CollaboratorCursors: typeof import('./src/components/canvas/CollaboratorCursors.vue')['default']
-    CollectionChips: typeof import('./src/components/home/CollectionChips.vue')['default']
-    CollectionPicker: typeof import('./src/components/home/CollectionPicker.vue')['default']
     ColorPicker: typeof import('./src/components/palette-right/ColorPicker.vue')['default']
     ColorPickerBody: typeof import('./src/components/palette-right/ColorPickerBody.vue')['default']
     CommentBody: typeof import('./src/components/comments/CommentBody.vue')['default']

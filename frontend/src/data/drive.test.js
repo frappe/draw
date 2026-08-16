@@ -6,28 +6,11 @@ const call = vi.fn()
 vi.mock('frappe-ui', () => ({ call: (...args) => call(...args) }))
 
 const {
-  shouldShowInstallDriveBanner,
   getDriveAvailability,
   listDriveFolders,
   moveToDriveFolder,
   getDiagramDrivePath,
 } = await import('./drive.js')
-
-describe('shouldShowInstallDriveBanner', () => {
-  it('stays hidden while the status is still loading / unknown', () => {
-    // A null status must NOT flash the banner for users who do have Drive.
-    expect(shouldShowInstallDriveBanner(null)).toBe(false)
-    expect(shouldShowInstallDriveBanner(undefined)).toBe(false)
-  })
-
-  it('shows only once Drive is confirmed absent', () => {
-    expect(shouldShowInstallDriveBanner({ installed: false, ready: false })).toBe(true)
-  })
-
-  it('stays hidden when Drive is available', () => {
-    expect(shouldShowInstallDriveBanner({ installed: true, ready: true })).toBe(false)
-  })
-})
 
 describe('getDriveAvailability', () => {
   it('returns the backend status from is_available', async () => {

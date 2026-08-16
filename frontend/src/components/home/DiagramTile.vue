@@ -5,7 +5,7 @@
 // right. Both carry the title, created + edited times, a selection checkbox,
 // and a ⋯ menu (Pin/Unpin · Rename · Duplicate · Delete).
 import { computed, ref, watch } from 'vue'
-import { Checkbox, Dropdown, toast } from 'frappe-ui'
+import { Button, Checkbox, Dropdown, toast } from 'frappe-ui'
 import { documentToSvg, isDocumentEmpty } from '@/composables/useThumbnail.js'
 import PinIcon from './PinIcon.vue'
 
@@ -21,7 +21,7 @@ const props = defineProps({
 // once from an explicit emit in the same handler — so a toggling listener ran an
 // even number of times and selection never took. Setting a value is idempotent,
 // which makes the duplicate harmless.
-const emit = defineEmits(['open', 'select', 'toggle-pin', 'rename', 'duplicate', 'delete', 'show-info', 'collect'])
+const emit = defineEmits(['open', 'select', 'toggle-pin', 'rename', 'duplicate', 'delete', 'show-info'])
 
 // A non-empty diagram ALWAYS shows a preview: the saved raster thumbnail when we
 // have one (cheap), otherwise a live SVG rendered from the document. Only a truly
@@ -85,8 +85,6 @@ const menuItems = computed(() => [
     icon: 'pin',
     onClick: togglePin,
   },
-  // Collections are labels, so this ADDS to one rather than moving the diagram (#217).
-  { label: 'Add to collection', icon: 'lucide-library-big', onClick: () => emit('collect', props.diagram) },
   { label: 'Copy link', icon: 'link', onClick: copyLink },
   { label: 'Show info', icon: 'file-text', onClick: () => emit('show-info', props.diagram) },
   { label: 'Rename', icon: 'edit-2', onClick: () => emit('rename', props.diagram) },
@@ -136,7 +134,7 @@ const TIME_UNITS = [
        button so the row is keyboard-reachable. Columns align with TileGrid's header. -->
   <div
     v-if="view === 'list'"
-    class="group flex cursor-pointer items-center gap-3 border-b border-outline-gray-1 px-3 py-1.5"
+    class="group flex cursor-pointer items-center gap-3 border-b border-outline-gray-1 px-3 py-2 transition-colors"
     :class="selected ? 'bg-surface-gray-3' : 'hover:bg-surface-gray-2'"
     @click="emit('open', diagram.name)"
   >
@@ -150,32 +148,40 @@ const TIME_UNITS = [
       @update:model-value="(wanted) => emit('select', diagram.name, wanted)"
     />
 
-    <!-- One-click star (Gmail-style pin). -->
-    <button
-      class="flex h-6 w-6 flex-none items-center justify-center rounded hover:bg-surface-gray-3 disabled:cursor-not-allowed disabled:opacity-40"
-      :title="pinTitle"
-      :aria-label="pinTitle"
+    <!-- One-click star (Gmail-style pin), as a frappe-ui Button so its hover,
+         focus ring and disabled treatment come from the design system (#449 item
+         11). The glyph stays PinIcon: a lucide class renders as a MASK, which
+         cannot be filled, and a filled pin is the whole point (#412). -->
+    <Button
+      variant="ghost"
+      size="sm"
+      class="flex-none"
+      :label="pinTitle"
+      :tooltip="pinTitle"
       :disabled="pinBlocked"
       @click.stop="togglePin"
     >
-      <PinIcon :pinned="isPinned" :class="isPinned ? 'text-ink-gray-8' : 'text-ink-gray-4 hover:text-ink-gray-6'" />
-    </button>
+      <template #icon>
+        <PinIcon :pinned="isPinned" :class="isPinned ? 'text-ink-gray-8' : 'text-ink-gray-4'" />
+      </template>
+    </Button>
 
-    <button class="min-w-0 flex-1 truncate text-left text-sm font-medium text-ink-gray-9" @click.stop="emit('open', diagram.name)">
+    <button class="min-w-0 flex-1 truncate text-left text-sm font-semibold text-ink-gray-9" @click.stop="emit('open', diagram.name)">
       {{ diagram.title }}
     </button>
-    <span class="hidden w-28 flex-none truncate text-2xs text-ink-gray-5 lg:block">{{ ownerLabel }}</span>
-    <span class="hidden w-28 flex-none text-2xs text-ink-gray-5 md:block">{{ createdLabel }}</span>
-    <span class="hidden w-28 flex-none text-2xs text-ink-gray-5 sm:block">{{ editedLabel }}</span>
+    <span class="hidden w-28 flex-none truncate text-xs text-ink-gray-6 lg:block">{{ ownerLabel }}</span>
+    <span class="hidden w-28 flex-none text-xs text-ink-gray-6 md:block">{{ createdLabel }}</span>
+    <span class="hidden w-28 flex-none text-xs text-ink-gray-6 sm:block">{{ editedLabel }}</span>
 
     <Dropdown :options="menuItems" placement="bottom-end">
-      <button
-        :aria-label="`More actions for ${diagram.title}`"
-        class="flex h-7 w-7 flex-none items-center justify-center rounded-md text-ink-gray-5 hover:bg-surface-gray-3"
+      <Button
+        variant="ghost"
+        size="sm"
+        icon="lucide-ellipsis"
+        class="flex-none"
+        :label="`More actions for ${diagram.title}`"
         @click.stop
-      >
-        <span class="lucide-ellipsis h-4 w-4" aria-hidden="true" />
-      </button>
+      />
     </Dropdown>
   </div>
 
@@ -194,7 +200,10 @@ const TIME_UNITS = [
       @update:model-value="(wanted) => emit('select', diagram.name, wanted)"
     />
 
-    <!-- One-click star (Gmail-style pin): always shown when pinned, on hover otherwise. -->
+    <!-- One-click star (Gmail-style pin): always shown when pinned, on hover
+         otherwise. frappe-ui-exempt: this one floats over the thumbnail and needs a
+         translucent scrim behind it to stay legible on any drawing, which a ghost
+         Button has no variant for. -->
     <button
       class="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-md bg-surface-base/80 shadow-sm backdrop-blur transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
       :class="isPinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
@@ -234,13 +243,14 @@ const TIME_UNITS = [
       </button>
 
       <Dropdown :options="menuItems" placement="bottom-end">
-        <button
-          :aria-label="`More actions for ${diagram.title}`"
-          class="flex h-[26px] w-[26px] items-center justify-center rounded-md text-ink-gray-5 opacity-0 hover:bg-surface-gray-2 group-hover:opacity-100"
+        <Button
+          variant="ghost"
+          size="sm"
+          icon="lucide-ellipsis"
+          class="flex-none opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
+          :label="`More actions for ${diagram.title}`"
           @click.stop
-        >
-          <span class="lucide-ellipsis h-4 w-4" aria-hidden="true" />
-        </button>
+        />
       </Dropdown>
     </div>
   </div>

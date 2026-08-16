@@ -16,13 +16,9 @@ export async function getDriveAvailability() {
   }
 }
 
-// Show the "Install Drive to track your files" banner ONLY once we've confirmed
-// Drive is not available. While the status is still loading (null) or unknown, stay
-// hidden so the banner never flashes for users who do have Drive. (Product note:
-// shown until Suite is integrated; removed then.)
-export function shouldShowInstallDriveBanner(status) {
-  return status != null && status.installed === false
-}
+// The "Install Drive to track your files" banner is gone from Home (#449 item 2),
+// and its predicate went with it. `getDriveAvailability` above is still live: the
+// editor's overflow menu asks before offering "Move to Drive".
 
 // List the sub-folders of a Drive folder (pass null for the owner's Home) plus the
 // Home-down-to-here breadcrumb, for the "Move to folder" dialog (#105). Returns

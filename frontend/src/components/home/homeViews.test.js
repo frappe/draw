@@ -10,6 +10,11 @@ import {
   readLayout,
   writeLayout,
   EMPTY_HOME,
+  searchDiagrams,
+  sortDiagrams,
+  defaultDirection,
+  SORTS,
+  DEFAULT_SORT,
   NO_MATCHES,
   emptyStateFor,
 } from './homeViews.js'
@@ -234,8 +239,11 @@ describe('list rows carry no type glyph (#218)', () => {
     // The header aligns column-for-column with the rows, so a leftover spacer
     // would shift every heading one lane right of its column.
     expect(tileGrid).not.toContain('<span class="w-8 flex-none" />')
-    // The pin lane stays — the rows still have a pin button.
-    expect(tileGrid).toContain('<span class="w-6 flex-none" />')
+    // The pin lane stays — the rows still have a pin button. It is w-7 since #449
+    // item 11 made that button a frappe-ui Button, which is 28px at size sm; the
+    // lane and the control it holds have to be the same width or the headings sit
+    // off their columns.
+    expect(tileGrid).toContain('<span class="w-7 flex-none" />')
   })
 
   it('keeps the tile view showing previews, not a glyph', () => {
@@ -282,5 +290,89 @@ describe('Home fetches documents only where a preview needs one (#223)', () => {
     // save_thumbnail clears the thumbnail when the diagram is emptied, so a raster
     // now means real content and the old emptiness gate is unnecessary.
     expect(diagramTile).toMatch(/thumbnailUrl = computed\(\s*\(\)\s*=>\s*\n?\s*thumbnailFailed\.value \? null/)
+  })
+})
+
+// #449 items 4/5. Both rules are pure functions over rows, so what the toolbar
+// promises can be pinned without mounting the grid: the search narrows the list
+// and clearing it restores every row, the sort actually reorders, and the two
+// compose.
+const LIBRARY = [
+  { name: 'a', title: 'Quarterly roadmap', modified: '2026-08-14 10:00:00', creation: '2026-08-01 09:00:00' },
+  { name: 'b', title: 'onboarding flow', modified: '2026-08-15 08:00:00', creation: '2026-07-02 09:00:00', is_pinned: 1 },
+  { name: 'c', title: 'Billing states', modified: '2026-08-10 12:00:00', creation: '2026-08-09 09:00:00' },
+]
+const titles = (rows) => rows.map((row) => row.title)
+
+describe('searchDiagrams', () => {
+  it('keeps only the diagrams whose name contains the query', () => {
+    expect(titles(searchDiagrams(LIBRARY, 'flow'))).toEqual(['onboarding flow'])
+  })
+
+  it('ignores case and surrounding spaces', () => {
+    expect(titles(searchDiagrams(LIBRARY, '  ROADMAP '))).toEqual(['Quarterly roadmap'])
+  })
+
+  it('restores the whole list when the query is cleared', () => {
+    expect(searchDiagrams(LIBRARY, '')).toHaveLength(LIBRARY.length)
+    expect(searchDiagrams(LIBRARY, '   ')).toHaveLength(LIBRARY.length)
+  })
+
+  it('returns nothing when nothing matches, so the empty state can speak', () => {
+    expect(searchDiagrams(LIBRARY, 'zzz')).toEqual([])
+  })
+
+  it('survives a row with no title', () => {
+    expect(searchDiagrams([{ name: 'x' }], 'a')).toEqual([])
+  })
+})
+
+describe('sortDiagrams', () => {
+  it('orders by name A to Z, and Z to A the other way', () => {
+    expect(titles(sortDiagrams(LIBRARY, 'title', 'asc'))).toEqual([
+      'Billing states',
+      'onboarding flow',
+      'Quarterly roadmap',
+    ])
+    expect(titles(sortDiagrams(LIBRARY, 'title', 'desc'))[0]).toBe('Quarterly roadmap')
+  })
+
+  it('orders by last edited and by created, newest first', () => {
+    expect(titles(sortDiagrams(LIBRARY, 'modified', 'desc'))[0]).toBe('onboarding flow')
+    expect(titles(sortDiagrams(LIBRARY, 'creation', 'desc'))[0]).toBe('Billing states')
+  })
+
+  it('puts pinned first under Smart, then most recently edited', () => {
+    expect(titles(sortDiagrams(LIBRARY, 'smart'))[0]).toBe('onboarding flow')
+  })
+
+  it('never sorts the caller\'s array in place', () => {
+    const rows = [...LIBRARY]
+    sortDiagrams(rows, 'title', 'asc')
+    expect(titles(rows)).toEqual(titles(LIBRARY))
+  })
+
+  it('works on the result of a search, so the two controls compose', () => {
+    const found = searchDiagrams(LIBRARY, 'o')
+    expect(titles(sortDiagrams(found, 'title', 'asc'))).toEqual([
+      'onboarding flow',
+      'Quarterly roadmap',
+    ])
+  })
+})
+
+describe('the sort options the toolbar offers', () => {
+  it('defaults to a key it actually offers', () => {
+    expect(SORTS.some((option) => option.key === DEFAULT_SORT)).toBe(true)
+  })
+
+  it('reads names A to Z and everything else newest first', () => {
+    expect(defaultDirection('title')).toBe('asc')
+    expect(defaultDirection('modified')).toBe('desc')
+    expect(defaultDirection('creation')).toBe('desc')
+  })
+
+  it('names every option, so the bar can show which one is on', () => {
+    expect(SORTS.every((option) => option.key && option.label)).toBe(true)
   })
 })

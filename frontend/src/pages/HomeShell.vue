@@ -5,7 +5,7 @@
 // (#115): diagrams are one flat, pinnable list.
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Alert, Breadcrumbs, Button, Dropdown, toast } from 'frappe-ui'
+import { Breadcrumbs, Button, Dropdown, toast } from 'frappe-ui'
 import { errorMessage } from '@/utils/errorText.js'
 import Logomark from '@/components/Logomark.vue'
 import SettingsDialog from '@/components/home/SettingsDialog.vue'
@@ -14,23 +14,13 @@ import EmptyState from '@/components/home/EmptyState.vue'
 import TrashView from '@/components/home/TrashView.vue'
 import { diagrams, createDiagram } from '@/data/diagrams.js'
 import { logout } from '@/data/session.js'
-import { getDriveAvailability, shouldShowInstallDriveBanner } from '@/data/drive.js'
 
 const router = useRouter()
 // The whole library is Home; Trash is the one place apart from it (#407).
 const view = ref('home')
 
-// Nudge users without Frappe Drive to install it (so their diagrams are tracked
-// as files). Hidden until we've confirmed Drive is absent, and after a dismiss.
-const driveStatus = ref(null)
-const bannerDismissed = ref(false)
-const showInstallDriveBanner = computed(
-  () => !bannerDismissed.value && shouldShowInstallDriveBanner(driveStatus.value),
-)
-
-onMounted(async () => {
+onMounted(() => {
   diagrams.fetch()
-  driveStatus.value = await getDriveAvailability()
 })
 
 const list = computed(() => diagrams.data || [])
@@ -112,52 +102,42 @@ function open(name) {
   <div class="flex h-screen flex-col">
     <!-- Top bar: app identity + menu, and nothing else (#407). Home is the whole
          library, so it needs no navigation of its own; the trail appears only in
-         Trash, to lead back. No sidebar — the gallery gets the full width. -->
-    <header
-      class="flex flex-none items-center gap-4 border-b border-outline-gray-1 bg-surface-base px-9 py-2"
-    >
-      <Dropdown :options="appMenu">
-        <Button variant="ghost" theme="gray" size="md" :label="`Frappe Draw — ${fullName}`">
-          <template #prefix><Logomark :size="22" /></template>
-          <span class="text-base font-medium text-ink-gray-8">Frappe Draw</span>
-          <template #suffix>
-            <span class="lucide-chevron-down size-4 text-ink-gray-5" aria-hidden="true" />
-          </template>
-        </Button>
-      </Dropdown>
+         Trash, to lead back. No sidebar — the gallery gets the full width.
+         The rule spans the window, but its contents sit in the same container as
+         the list below, so the app name starts on the page's own left edge
+         (#449 item 9). -->
+    <header class="flex-none border-b border-outline-gray-1 bg-surface-base">
+      <div class="mx-auto flex w-full max-w-6xl items-center gap-4 px-6 py-2 sm:px-8">
+        <Dropdown :options="appMenu">
+          <Button variant="ghost" theme="gray" size="md" :label="`Frappe Draw — ${fullName}`">
+            <template #prefix><Logomark :size="22" /></template>
+            <span class="text-base font-medium text-ink-gray-8">Frappe Draw</span>
+            <template #suffix>
+              <span class="lucide-chevron-down size-4 text-ink-gray-5" aria-hidden="true" />
+            </template>
+          </Button>
+        </Dropdown>
 
-      <Breadcrumbs v-if="inTrash" :items="breadcrumbs" />
+        <Breadcrumbs v-if="inTrash" :items="breadcrumbs" />
+      </div>
     </header>
 
-    <main class="min-h-0 flex-1 overflow-y-auto px-9 py-7">
-      <TrashView v-if="inTrash" />
+    <!-- One page container, so the toolbar, the column headers and every row share
+         the same left and right edge (#449 items 8/9). The width is capped and
+         centred, the way Gameplan does it: a library list stretched across a wide
+         monitor puts the name and its dates a screen apart. -->
+    <main class="min-h-0 flex-1 overflow-y-auto">
+      <div class="mx-auto w-full max-w-6xl px-6 py-6 sm:px-8">
+        <TrashView v-if="inTrash" />
 
-      <template v-else>
-        <div class="mb-6 flex items-center justify-between">
-          <!-- frappe-ui-exempt: page title, the H1 of the gallery — the type scale governs body and control text, not the page heading --><div class="text-3xl font-bold text-ink-gray-9">Home</div>
-          <Button variant="solid" :loading="isCreating" @click="create">
-            <template #prefix><span class="lucide-plus h-4 w-4" aria-hidden="true" /></template>
-            Create
-          </Button>
-        </div>
-
-        <Alert
-          v-if="showInstallDriveBanner"
-          class="mb-6"
-          theme="yellow"
-          title="Install Drive to track your files"
-          description="Your diagrams save to Draw. Add Frappe Drive to keep them alongside the rest of your files."
-          dismissible
-          @dismiss="bannerDismissed = true"
-        >
-          <template #icon>
-            <span class="lucide-hard-drive size-5 shrink-0" aria-hidden="true" />
-          </template>
-        </Alert>
-
-        <EmptyState v-if="isEmpty" @create="create" />
-        <TileGrid v-else @create="create" @open="open" />
-      </template>
+        <!-- No page heading (#449 item 1): the list is the page, and the app menu
+             above already says where you are. No Drive card either — the nudge went
+             with it. -->
+        <template v-else>
+          <EmptyState v-if="isEmpty" @create="create" />
+          <TileGrid v-else :creating="isCreating" @create="create" @open="open" />
+        </template>
+      </div>
     </main>
 
     <SettingsDialog v-model:open="showSettings" />

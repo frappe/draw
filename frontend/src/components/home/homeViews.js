@@ -35,6 +35,58 @@ export function emptyStateFor(hasActiveFilter = false) {
   return hasActiveFilter ? NO_MATCHES : EMPTY_HOME
 }
 
+// --- search + sort (#449 items 4/5) -----------------------------------------
+// Both rules live here, as plain functions over rows, so the grid only holds the
+// query string and the chosen key — and so a test can prove that searching and
+// sorting agree with each other without mounting anything.
+
+// A row matches when its title contains the query, case- and space-insensitively.
+// An empty query matches everything, which is what makes clearing the box restore
+// the whole list.
+export function matchesQuery(diagram, query) {
+  const wanted = (query || '').trim().toLowerCase()
+  if (!wanted) return true
+  return (diagram.title || '').toLowerCase().includes(wanted)
+}
+
+export function searchDiagrams(rows, query) {
+  return rows.filter((diagram) => matchesQuery(diagram, query))
+}
+
+export const SORTS = [
+  { key: 'smart', label: 'Smart' },
+  { key: 'modified', label: 'Last edited' },
+  { key: 'creation', label: 'Date created' },
+  { key: 'title', label: 'Name (A–Z)' },
+]
+export const DEFAULT_SORT = 'modified'
+
+// Names read A→Z; every other key is newest-first.
+export function defaultDirection(key) {
+  return key === 'title' ? 'asc' : 'desc'
+}
+
+// Sorted copy, never in place: the caller's array is a computed over the fetched
+// rows, and sorting it where it lies mutates that cache.
+export function sortDiagrams(rows, key, direction) {
+  return [...rows].sort(comparator(key, direction))
+}
+
+function comparator(key, direction) {
+  // Smart: surface what you'd likely want next — pinned first, then most recently
+  // edited. (Without open-frequency data this is the best local heuristic; I6.)
+  if (key === 'smart') {
+    return (a, b) => (isPinned(b) ? 1 : 0) - (isPinned(a) ? 1 : 0) || timestamp(b.modified) - timestamp(a.modified)
+  }
+  const sign = direction === 'asc' ? 1 : -1
+  if (key === 'title') return (a, b) => sign * (a.title || '').localeCompare(b.title || '')
+  return (a, b) => sign * (timestamp(a[key]) - timestamp(b[key]))
+}
+
+function timestamp(value) {
+  return value ? new Date(value.replace(' ', 'T')).getTime() : 0
+}
+
 // Pin state is a single doc flag (is_pinned). The predicate splits the shelf in
 // two — the "Pinned" group and the "everything else" group — so it lives here once
 // rather than inline twice.
