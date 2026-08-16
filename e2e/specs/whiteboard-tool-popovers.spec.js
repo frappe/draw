@@ -52,6 +52,14 @@ test.describe('whiteboard option-tool popovers', () => {
     await expect(wtool(page, 'pen')).toHaveAttribute('aria-pressed', 'false')
     await expect(wtool(page, 'eraser')).toHaveAttribute('aria-pressed', 'true')
 
+    // The eraser is the ONE exception to the one-click switch this test is about.
+    // Its options are a menu (#462), and a menu is modal — the toolbar behind it is
+    // not clickable until it closes, so leaving the eraser takes two clicks: shut the
+    // menu on its own trigger, then pick the next tool. Every other option tool still
+    // swaps in one click, which is what the rest of this test guards.
+    await wtool(page, 'eraser').click()
+    await expect(page.getByRole('menuitem', { name: 'Erase by object' })).toBeHidden()
+
     await wtool(page, 'line').click()
     await expect(page.locator(POPOVER).getByText('Start', { exact: true })).toBeVisible()
     await expect(page.getByRole('menuitem', { name: 'Erase by object' })).toBeHidden()
