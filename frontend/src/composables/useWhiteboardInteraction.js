@@ -119,10 +119,10 @@ function beginLine(context, ui, lining) {
 
 // Drop a fixed-grid table with its top-left near the click, then select it.
 function placeTable(context, store, editorUi, ui) {
+  // No pen colour: a table is not ink, so it starts at the model default (#507).
   const id = store.addTable(context.point.x, context.point.y, {
     rows: ui.state.tableRows,
     cols: ui.state.tableCols,
-    color: ui.state.penColor,
   })
   editorUi.setTool('select')
   ui.selectTable(id)

@@ -176,3 +176,52 @@ test.describe('opening a table cell by double-click (#353, #354)', () => {
     expect((await diagram.saved(name)).shapes.length, 'an empty text element was left behind').toBe(before)
   })
 })
+
+// #507: "the table is really looking bad… the cursor comes at the top, then the
+// text is vertically centred, text is red by default." Three defects in one
+// component, which is what happens when the editor is styled independently of the
+// renderer it commits to. These read COMPUTED STYLE rather than the document,
+// because that is where the mismatch lived — the model was right the whole time.
+test.describe('a table cell is typed in the same type it commits to (#507)', () => {
+  // The committed <text> for a cell, and the editor open over it.
+  const committed = (page) => page.locator('svg text').filter({ hasText: 'CELL-TEXT' }).first()
+  const editorEl = (page) => page.locator('[role="textbox"][contenteditable]')
+
+  test('the editor draws in the table’s colour, not a chrome grey', async ({ page, diagram }) => {
+    await diagram.open('whiteboard', { table: true })
+    const committedFill = await committed(page).evaluate((node) => getComputedStyle(node).fill)
+
+    await openCell(page)
+    const editorColor = await editorEl(page).evaluate((node) => getComputedStyle(node).color)
+
+    // Same colour in both states, so committing changes nothing about the text.
+    expect(editorColor, 'the cell changes colour when it commits').toBe(committedFill)
+  })
+
+  test('the editor uses the size the committed text is drawn at', async ({ page, diagram }) => {
+    await diagram.open('whiteboard', { table: true })
+    const committedSize = await committed(page).evaluate((node) => getComputedStyle(node).fontSize)
+
+    await openCell(page)
+    const editorSize = await editorEl(page).evaluate((node) => getComputedStyle(node).fontSize)
+
+    expect(editorSize).toBe(committedSize)
+  })
+
+  test('the caret sits centred in an EMPTY cell, not at the top', async ({ page, diagram }) => {
+    await diagram.open('whiteboard', { table: true })
+    await openCell(page)
+    // Empty the cell: with no text node there is no flex item, which is exactly
+    // the state where the caret used to fall to the top of the box.
+    await page.keyboard.press('Shift+Home')
+    await page.keyboard.press('Backspace')
+
+    const box = await editorEl(page).evaluate((node) => {
+      const style = getComputedStyle(node)
+      return { line: parseFloat(style.lineHeight), height: node.getBoundingClientRect().height }
+    })
+    // One line box filling the cell is what centres the caret whether or not
+    // anything has been typed.
+    expect(Math.abs(box.line - box.height), 'the line box does not fill the cell').toBeLessThan(2)
+  })
+})

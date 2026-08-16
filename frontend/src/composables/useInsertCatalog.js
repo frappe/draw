@@ -162,7 +162,11 @@ export function useInsertCatalog() {
   // keyboard-armed quick-place uses the same one (#134).
   function insertTable({ rows, cols }, close) {
     const origin = tableInsertOrigin(viewport.visibleRect(), rows, cols)
-    const id = store.addTable(origin.x, origin.y, { rows, cols, color: whiteboardUi.state.penColor })
+    // No pen colour: a table is not ink (#507). Both insert paths used to hand it
+    // the Draw tool's current colour, so drawing in red and then inserting a table
+    // gave a table whose text was red. It starts at the model default and is
+    // recoloured deliberately, like any other object.
+    const id = store.addTable(origin.x, origin.y, { rows, cols })
     if (id) {
       editorUi.setTool('select')
       whiteboardUi.selectTable(id)

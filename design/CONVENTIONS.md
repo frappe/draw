@@ -23,6 +23,16 @@ contract that lets independently-built features integrate. Also read:
 5. **Right palette = the GRID layout only.** Ignore the prototype's List/Compact variants
    and its bottom-left "Prototype review" panel — they are NOT product.
 6. **Brand violet `#6846E3`** only for the logomark + avatar. Chrome stays neutral gray.
+7. **An inline editor is styled from the same source as the thing it commits to.**
+   Type set twice drifts, and the drift is only visible for the moment the editor is
+   open — which is why it survives review. `#496` (a connector label typed
+   left-aligned, committed centred) and `#507` (a table cell typed near-black,
+   committed in the table colour) were the same habit in two components.
+   The specific trap with frappe-ui inputs: `TextInput` sets `inheritAttrs: false`
+   and routes your `class` to its **wrapper**, filtering `class`/`style` out of the
+   attrs it gives the real `<input>`. So `class="text-center"` styles a div and does
+   nothing to the text. Reach the element with a variant — `[&_input]:text-center` —
+   or read the value the renderer uses and set it as an inline style.
 
 ## App / paths
 - App root: `apps/draw/draw/` (Python module "Frappe Draw")

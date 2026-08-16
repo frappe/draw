@@ -211,6 +211,26 @@ watch(
 const inputAlignClass = computed(
   () => ({ left: 'text-left', center: 'text-center', right: 'text-right' })[props.table.align] || 'text-left',
 )
+
+// The editor and the committed <text> read their type from HERE, not each from
+// their own place (#507). They used to be stated twice — `font-size="14"` on the
+// SVG text against `text-sm` on the editor, and `table.color` against
+// `text-ink-gray-9` — so a cell was typed in near-black and committed in the
+// table's colour. The sizes agreed by coincidence; the colours did not agree at all.
+const CELL_FONT_SIZE = 14
+
+// Vertical centring for a contenteditable, done with line-height rather than
+// `items-center` (#507). An EMPTY cell has no text node, so a flex box has no item
+// to centre and the caret dropped to the top of the box — then jumped to the middle
+// as soon as the first character created one. A full-height line box centres the
+// caret whether or not anything has been typed. Cells are single-line
+// (`whitespace-nowrap`), so one line box is the whole content.
+const editorStyle = computed(() => ({
+  fontSize: `${CELL_FONT_SIZE}px`,
+  lineHeight: editBox.value ? `${editBox.value.h}px` : undefined,
+  color: props.table.color,
+  fontFamily: 'Inter, sans-serif',
+}))
 // Published on the shared UI store so the cell's B / I / U control — which has to
 // render from the HTML tree, see TableCellToolbar — can act on this editor's
 // current text selection.
@@ -317,7 +337,7 @@ watch(range, refreshActiveMarks)
       :y="cell.ty"
       :text-anchor="cell.anchor"
       dominant-baseline="central"
-      font-size="14"
+      :font-size="CELL_FONT_SIZE"
       :fill="table.color"
       style="font-family: Inter, sans-serif; pointer-events: none"
     ><tspan
@@ -341,8 +361,9 @@ watch(range, refreshActiveMarks)
         contenteditable="true"
         role="textbox"
         aria-label="Cell text"
-        class="flex h-full w-full items-center overflow-x-auto whitespace-nowrap border-0 bg-transparent px-3 text-sm text-ink-gray-9 outline-none"
+        class="h-full w-full overflow-x-auto whitespace-nowrap border-0 bg-transparent px-3 outline-none"
         :class="[inputAlignClass, table.hasHeader && editingCell.row === 0 ? 'font-semibold' : '']"
+        :style="editorStyle"
         @pointerdown.stop
         @keydown="onEditorKeydown"
         @keyup="refreshActiveMarks"

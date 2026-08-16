@@ -302,12 +302,19 @@ const LABEL_EDITOR_H = 28
       :width="editorWidth"
       :height="LABEL_EDITOR_H"
     >
+      <!-- The `[&_input]` variant is what reaches the real element; a bare
+           `text-center` does not (#496). TextInput sets inheritAttrs: false and
+           routes the consumer's class to its WRAPPER, then builds the input's own
+           attrs by filtering class and style out — so the centring landed on a div,
+           and an <input> sets its own text-align regardless. The committed label is
+           drawn text-anchor="middle", so the text sat left while being typed and
+           jumped to centre the moment it committed. -->
       <TextInput
         ref="labelField"
         size="sm"
         variant="outline"
         placeholder="Label"
-        class="w-full text-center"
+        class="w-full [&_input]:text-center"
         :model-value="connector.label"
         @keydown.enter.prevent="commitLabel($event.target.value)"
         @keydown.escape.prevent="editingLabel = false"
