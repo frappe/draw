@@ -18,7 +18,7 @@ import {
   FLOWCHART_FALLBACK_TYPE,
 } from '@/diagram/freeFloating.js'
 import { createWhiteboard } from '@/diagram/whiteboardModel.js'
-import { mindmapModelFromShapes, flowchartModelFromShapes } from '@/diagram/freeFloatingGraph.js'
+import { mindmapModelFromShapes, flowchartModelFromShapes, mindmapComponentIds } from '@/diagram/freeFloatingGraph.js'
 import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild, flowchartLayoutPatches, mindmapLayoutPatches } from '@/diagram/freeFloatingOps.js'
 import { mindmapSizeForShape } from '@/diagram/mindmapNodeSize.js'
 import { flowchartSizeForShape } from '@/diagram/flowchartNodeSize.js'
@@ -254,6 +254,49 @@ function attachMindMap(store, state, history) {
   const reflowTree = (memberId) =>
     applyMindmapPatches(mindmapLayoutPatches(state.shapes, state.connectors, memberId))
 
+  // Re-flow every DISTINCT tree the given nodes belong to, once each. reflowTree
+  // settles a whole tree from any one member, so handing it N members of the same
+  // tree is N identical re-flows; the component set of a tree already settled is what
+  // makes it one. Must run inside the caller's commit().
+  const reflowTreesOf = (memberIds) => {
+    const settled = new Set()
+    for (const memberId of memberIds || []) {
+      if (settled.has(memberId)) continue
+      const members = mindmapComponentIds(state.shapes, memberId)
+      if (!members.size) continue
+      for (const id of members) settled.add(id)
+      reflowTree(memberId)
+    }
+  }
+
+  // The nodes that stay behind when `ids` go: each departing mind-map node's parent,
+  // where the parent is not itself on the way out. Read BEFORE the removal — a node
+  // that is already gone can no longer name the tree it was in. A removed ROOT
+  // contributes nothing, which is right: its whole tree left with it, so there is
+  // nothing to close up.
+  const survivorsOfRemoval = (ids) => {
+    const removed = new Set(ids || [])
+    const anchors = []
+    for (const shape of state.shapes) {
+      if (shape.role !== ROLE.mindmapNode || !removed.has(shape.id)) continue
+      const parentId = shape.mindmap?.parentId
+      if (parentId && !removed.has(parentId)) anchors.push(parentId)
+    }
+    return anchors
+  }
+
+  // Remove shapes and let any mind map they came from close back up (#513). Adding a
+  // node shoves its siblings aside and re-flows (#273); deleting one has to be that
+  // move in reverse, or a tree goes on holding space for nodes that are not in it.
+  // Every delete path routes through here, so it does not matter whether a node left
+  // by the mind-map Delete key or by a plain shape delete. Must run inside the
+  // caller's commit(), so the delete and the settle are one undo step.
+  store.removeShapesAndSettle = (ids) => {
+    const anchors = survivorsOfRemoval(ids)
+    removeShapesInternal(state, ids)
+    reflowTreesOf(anchors)
+  }
+
   // Densely renumber one parent's child shapes 0..n-1 by their current order (both
   // sides together — each side's relative order is preserved as a subsequence of the
   // global sort), keeping the order tags clean integers after a fractional insert.
@@ -383,7 +426,7 @@ function attachMindMap(store, state, history) {
       applyPatch(shape, mindmapSizeForShape(shape))
       fitted.push(id)
     }
-    for (const id of fitted) reflowTree(id)
+    reflowTreesOf(fitted)
   }
 
   // Resize a node to its label WHILE the label is being typed. It carries the same
@@ -454,12 +497,7 @@ function attachMindMap(store, state, history) {
     const remove = new Set()
     for (const id of ids || []) for (const sid of subtreeIds(model, id)) remove.add(sid)
     if (!remove.size) return
-    history.commit('Delete', () => {
-      state.shapes = state.shapes.filter((s) => !remove.has(s.id))
-      state.connectors = state.connectors.filter(
-        (c) => !remove.has(c.from?.shapeId) && !remove.has(c.to?.shapeId),
-      )
-    })
+    history.commit('Delete', () => store.removeShapesAndSettle([...remove]))
   }
   // Templates/Insert (canvas unification): drop a starter mind map on the canvas.
   // Free-floating #122: this now creates a ROLE-TAGGED root SHAPE via the migration
@@ -804,7 +842,7 @@ function attachWhiteboard(store, state, history) {
     const connectorIds = ids.filter((id) => store.connectorById(id))
     history.commit('Delete', () => {
       removeWhiteboardObjectsInto(items)
-      if (shapeIds.length) removeShapesInternal(state, shapeIds)
+      if (shapeIds.length) store.removeShapesAndSettle(shapeIds)
       if (connectorIds.length) removeConnectorsInternal(state, connectorIds)
     })
   }
@@ -983,7 +1021,7 @@ function attachShapeMutations(store, state, history) {
       }
     })
   store.removeShapes = (ids) =>
-    history.commit('Delete shapes', () => removeShapesInternal(state, ids))
+    history.commit('Delete shapes', () => store.removeShapesAndSettle(ids))
   store.removeConnectors = (ids) =>
     history.commit('Delete connectors', () => removeConnectorsInternal(state, ids))
   store.removeSelectionOrIds = (ids) => removeMixed(store, state, history, ids || state.selection)
@@ -1027,7 +1065,7 @@ function removeMixed(store, state, history, ids) {
   const shapeIds = ids.filter((id) => store.shapeById(id))
   const connectorIds = ids.filter((id) => store.connectorById(id))
   history.commit('Delete', () => {
-    if (shapeIds.length) removeShapesInternal(state, shapeIds)
+    if (shapeIds.length) store.removeShapesAndSettle(shapeIds)
     if (connectorIds.length) removeConnectorsInternal(state, connectorIds)
   })
 }

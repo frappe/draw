@@ -379,3 +379,67 @@ describe('store.moveMindmapNode (#427)', () => {
     expect(store.shapeById(ids[0]).mindmap.parentId).toBe(before)
   })
 })
+
+// #513: adding a node shoves its siblings aside and re-flows (#273); deleting one
+// has to be that move in reverse. It was not — the delete paths dropped the shapes
+// and stopped, so the survivors kept the spacing of a tree they were no longer in.
+describe('deleting a mind-map node settles the tree (#513)', () => {
+  // The remaining child of three moves back toward the root's own centre line: with
+  // one child left, a balanced layout puts it level with its parent.
+  const distanceFromRoot = (store, rootId, id) =>
+    Math.abs(centreY(store, id) - centreY(store, rootId))
+
+  it('closes the gap the deleted siblings leave behind', () => {
+    const { store, rootId, ids } = migratedMindmapStoreWith(['right', 'right', 'right'])
+    const before = distanceFromRoot(store, rootId, ids[2])
+    expect(before).toBeGreaterThan(0) // it starts pushed down by its two siblings
+    store.deleteMindmapSubtrees([ids[0], ids[1]])
+    expect(distanceFromRoot(store, rootId, ids[2])).toBeLessThan(before)
+  })
+
+  it('settles a plain shape delete too, not only the mind-map Delete key', () => {
+    const { store, rootId, ids } = migratedMindmapStoreWith(['right', 'right', 'right'])
+    const before = distanceFromRoot(store, rootId, ids[2])
+    store.removeShapes([ids[0], ids[1]])
+    expect(distanceFromRoot(store, rootId, ids[2])).toBeLessThan(before)
+  })
+
+  it('is one undo step covering the delete and the settle', () => {
+    const { store, ids } = migratedMindmapStoreWith(['right', 'right', 'right'])
+    const survivor = store.shapeById(ids[2])
+    const before = { x: survivor.x, y: survivor.y }
+    store.deleteMindmapSubtrees([ids[0]])
+    store.undo()
+    expect(store.state.shapes.filter((s) => s.role === ROLE.mindmapNode)).toHaveLength(4)
+    expect([store.shapeById(ids[2]).x, store.shapeById(ids[2]).y]).toEqual([before.x, before.y])
+  })
+
+  it('drops the deleted nodes from the selection', () => {
+    const { store, ids } = migratedMindmapStoreWith(['right', 'right'])
+    store.select(ids)
+    store.deleteMindmapSubtrees([ids[0]])
+    expect(store.state.selection).not.toContain(ids[0])
+  })
+
+  // A map can hold several independent trees (#48). Settling the tree that lost a
+  // node must not disturb one that did not.
+  it('leaves an independent second tree exactly where it was', () => {
+    const { store, ids } = migratedMindmapStoreWith(['right', 'right', 'right'])
+    store.insertMindmapStarter(null, { x: 4000, y: 4000 })
+    const otherRootId = store.state.selection[0]
+    const otherRoot = store.shapeById(otherRootId)
+    expect(otherRoot.role).toBe(ROLE.mindmapNode)
+    const before = { x: otherRoot.x, y: otherRoot.y }
+
+    store.deleteMindmapSubtrees([ids[0]])
+
+    const after = store.shapeById(otherRootId)
+    expect([after.x, after.y]).toEqual([before.x, before.y])
+  })
+
+  it('deleting a whole tree by its root leaves nothing to settle', () => {
+    const { store, rootId } = migratedMindmapStoreWith(['right', 'right'])
+    store.deleteMindmapSubtrees([rootId])
+    expect(store.state.shapes.filter((s) => s.role === ROLE.mindmapNode)).toHaveLength(0)
+  })
+})
