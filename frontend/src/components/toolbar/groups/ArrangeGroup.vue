@@ -23,7 +23,7 @@ import ToolbarButton from '../ToolbarButton.vue'
   <Popover>
     <template #trigger><ToolbarButton label="Arrange" icon="lucide-layers" /></template>
     <template #default>
-      <div class="max-h-[70vh] w-[300px] overflow-y-auto">
+      <div class="max-h-[70vh] w-[200px] overflow-y-auto">
         <ArrangeSection />
         <AlignSection />
         <DistributeSizeSection />

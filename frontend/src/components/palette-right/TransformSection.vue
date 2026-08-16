@@ -48,7 +48,7 @@ function selectionCenter() {
     <!-- Rotation is done with the on-canvas rotation handle now (D10), so the
          rotate-left/right buttons are gone. Swap lives in Distribute & size (a
          positional op) to avoid duplicating it here; Transform is just flips. -->
-    <div class="grid grid-cols-2 gap-1.5">
+    <div class="grid grid-cols-4 gap-1.5">
       <ActionTile icon="lucide-flip-horizontal-2" label="Flip H" @click="flip('x')" />
       <ActionTile icon="lucide-flip-vertical-2" label="Flip V" @click="flip('y')" />
     </div>

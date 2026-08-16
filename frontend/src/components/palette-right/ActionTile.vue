@@ -1,12 +1,19 @@
 <script setup>
 // One-click action tile for the Align / Arrange / Distribute / Transform
-// sections. A frappe-ui Button with the icon before the label.
+// sections. Icon only, with the label carried as the tooltip and the accessible
+// name (#472).
 //
-// The label used to be printed under the icon at 9px, which is off the type
-// scale. Rather than shrink the text to fit the tile, the tile grew to fit the
-// text: `size="md"` is frappe-ui's 32px control, whose label is text-base (14px),
-// and the sections lay these out two-per-row so a label like "Remove gaps" fits
-// without truncating (#294).
+// This reverses two earlier decisions on purpose. #294 stopped printing the label
+// under the icon at 9px, which is off the type scale, and grew the tile to fit
+// readable text instead; #267 then laid the tiles two-per-row because "Backward"
+// and "To front" truncate in a three-column tile. With the words gone both
+// constraints lift, so the grid tightens from two columns to four and the menu
+// drops from 300px to 200px.
+//
+// `icon` rather than `icon-left`: frappe-ui renders an icon-only button from it and
+// demotes `label` to the aria-label, so the accessible name survives the words
+// coming off. The tooltip was already there on every tile, which is what made this
+// safe to do at all.
 import { Button } from 'frappe-ui'
 
 defineProps({
@@ -22,11 +29,11 @@ defineEmits(['click'])
 
 <template>
   <Button
-    class="!w-full !justify-start"
+    class="!w-full"
     size="md"
     theme="gray"
     :variant="active ? 'subtle' : 'outline'"
-    :icon-left="icon"
+    :icon="icon"
     :tooltip="label"
     :label="label"
     @click="$emit('click')"

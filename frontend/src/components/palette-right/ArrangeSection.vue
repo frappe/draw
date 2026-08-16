@@ -21,7 +21,7 @@ const canUngroup = computed(() => shapes.value.some((shape) => shape.groupId))
   <PaletteSection v-if="hasShapes" label="Arrange">
     <!-- Two per row (#267), which is also what the now-visible 14px tile labels
          need — "Backward" / "To front" would truncate in a 3-column tile. -->
-    <div class="grid grid-cols-2 gap-1.5">
+    <div class="grid grid-cols-4 gap-1.5">
       <ActionTile icon="lucide-chevrons-up" label="To front" @click="store.bringToFront(shapeIds)" />
       <ActionTile icon="lucide-chevron-up" label="Forward" @click="store.bringForward(shapeIds)" />
       <ActionTile icon="lucide-chevron-down" label="Backward" @click="store.sendBackward(shapeIds)" />

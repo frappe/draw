@@ -20,14 +20,20 @@ const visible = computed(() => canMatch.value)
 
 <template>
   <PaletteSection v-if="visible" label="Distribute & size">
-    <div class="grid grid-cols-2 gap-1.5">
-      <ActionTile v-if="canDistribute" icon="lucide-columns-2" label="Dist. H" @click="dist.distributeHorizontal()" />
-      <ActionTile v-if="canDistribute" icon="lucide-rows-2" label="Dist. V" @click="dist.distributeVertical()" />
+    <div class="grid grid-cols-4 gap-1.5">
+      <!-- Distribute draws evenly spaced boxes rather than table columns (#472). -->
+      <ActionTile v-if="canDistribute" icon="lucide-align-horizontal-distribute-center" label="Dist. H" @click="dist.distributeHorizontal()" />
+      <ActionTile v-if="canDistribute" icon="lucide-align-vertical-distribute-center" label="Dist. V" @click="dist.distributeVertical()" />
       <ActionTile v-if="canDistribute" icon="lucide-minimize-2" label="Remove gaps" @click="dist.removeGaps()" />
-      <ActionTile icon="lucide-move-horizontal" label="Width" @click="dist.matchWidth()" />
-      <ActionTile icon="lucide-move-vertical" label="Height" @click="dist.matchHeight()" />
-      <ActionTile icon="lucide-maximize" label="Same size" @click="dist.matchSize()" />
-      <ActionTile icon="lucide-grid-2x2" label="Grid" @click="dist.arrangeGrid()" />
+      <!-- Width, Height and Same size were three near-identical arrow glyphs for
+           three different operations, which no label was left to tell apart. Width
+           and Height are deliberately a pair now; Same size is not one of them. -->
+      <ActionTile icon="lucide-unfold-horizontal" label="Width" @click="dist.matchWidth()" />
+      <ActionTile icon="lucide-unfold-vertical" label="Height" @click="dist.matchHeight()" />
+      <ActionTile icon="lucide-proportions" label="Same size" @click="dist.matchSize()" />
+      <!-- `lucide-grid-2x2` is the icon Guides wore until #458 moved it off, and it
+           still stands for mind-map layout in MapLayoutGroup. -->
+      <ActionTile icon="lucide-layout-grid" label="Grid" @click="dist.arrangeGrid()" />
       <ActionTile v-if="canSwap" icon="lucide-repeat" label="Swap" @click="dist.swapPositions()" />
     </div>
   </PaletteSection>
