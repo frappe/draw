@@ -15,11 +15,28 @@ import ToolbarButton from '../ToolbarButton.vue'
 
 const { store, shapes, shapeIds, editing } = useBlockSelection()
 
+// Espresso defines exactly two typefaces (design/colors_and_type.css): the Inter
+// sans stack and a mono stack. Those two now match it character for character (#475).
+//
+// Inter used to be `value: ''`, which inherited whatever the canvas happened to be
+// set in rather than naming a stack. Mono was Espresso's list minus 'JetBrains Mono'.
+//
+// Serif and Handwritten have no Espresso equivalent and stay as canvas-only extras —
+// CLAUDE.md cardinal rule 2 makes the SVG canvas the explicit exception to chrome
+// tokens, so the canvas is allowed a look of its own.
+//
+// "Rounded" is gone. Its stack asked for Nunito, which was never loaded anywhere in
+// the app — no @font-face, no import — so it fell back to Segoe UI on Windows and
+// plain system-ui on macOS and had never once rendered as anything rounded. An
+// option that does nothing is worse than one fewer option, and shipping a webfont to
+// rescue it was not worth the download.
+const ESPRESSO_SANS = "'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif"
+const ESPRESSO_MONO = "ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, monospace"
+
 const FONTS = [
-  { label: 'Inter', value: '' },
+  { label: 'Inter', value: ESPRESSO_SANS },
   { label: 'Serif', value: 'Georgia, "Times New Roman", serif' },
-  { label: 'Mono', value: 'ui-monospace, "SF Mono", Menlo, monospace' },
-  { label: 'Rounded', value: '"Nunito", "Segoe UI", system-ui, sans-serif' },
+  { label: 'Mono', value: ESPRESSO_MONO },
   { label: 'Handwritten', value: "'Bradley Hand', 'Chalkboard SE', 'Comic Sans MS', 'Segoe Print', cursive" },
 ]
 const MARKS = [
@@ -37,7 +54,10 @@ const ALIGNMENTS = [
 const textRef = computed(() => shapes.value[0])
 const textStyle = computed(() => textRef.value?.text?.style || {})
 const textAlign = computed(() => textRef.value?.text?.align || 'center')
-const font = computed(() => textStyle.value.font || '')
+// An unset font IS Inter, so it resolves to Inter's stack. Left as '', it would
+// match no option now that Inter names a real one, and the Select would show blank
+// on every shape that has never had a font chosen — which is most of them.
+const font = computed(() => textStyle.value.font || ESPRESSO_SANS)
 const fontSize = computed(() => textStyle.value.size ?? 16)
 const autoFit = computed(() => Boolean(textRef.value?.text?.autoFit))
 const currentTextColor = computed(() => textStyle.value.color || '#171717')

@@ -38,11 +38,17 @@ function isSelected(value) {
       >
         <span class="lucide-slash size-3.5 text-ink-gray-5" aria-hidden="true" />
       </button>
+      <!-- A stronger outline than the hairline every other swatch wears (#474). A
+           white square on a white panel behind `outline-gray-2` was invisible — it
+           read as a gap in the row rather than as the colour you can pick. This is
+           the opposite treatment from the Fill BUTTON, where white resolves to grey:
+           there the swatch reports the current value and can afford to merge, here
+           it is a target that has to be seen and aimed at. -->
       <button
         v-for="(hex, name) in NEUTRALS"
         :key="name"
         type="button"
-        class="size-5 rounded border border-outline-gray-2"
+        class="size-5 rounded border border-outline-gray-4"
         :class="isSelected(hex) ? 'ring-2 ring-outline-gray-4' : ''"
         :style="mode === 'border' ? { borderColor: hex, borderWidth: '3px', background: '#ffffff' } : { background: hex }"
         :title="name"
