@@ -121,20 +121,51 @@ describe('one left-aligned run', () => {
   // The fixed prefix in order, then everything contextual after it. Growing off
   // the END is what keeps a control from moving under the pointer when the
   // selection changes — the complaint that retired the eight floating bars.
-  it('puts every fixed group ahead of every contextual one', () => {
+  //
+  // #460 reordered the prefix into Navigation then Creation. Zoom and Guides used
+  // to close it, which put them AT the growth point: selecting something pushed
+  // the contextual run in beside them and left Guides sitting mid-bar. Leading with
+  // them puts them before the growth point, where nothing can move them.
+  it('reads Navigation, then Creation, then Editing', () => {
     const at = (tag) => {
       const index = template.indexOf(tag)
       expect(index, `${tag} is missing from the bar`).toBeGreaterThan(-1)
       return index
     }
-    const fixed = ['<PointerGroup', '<InsertGroups', '<ZoomGroup', '<GuidesGroup']
-    for (let i = 1; i < fixed.length; i += 1) {
-      expect(at(fixed[i]), `${fixed[i]} must follow ${fixed[i - 1]}`).toBeGreaterThan(at(fixed[i - 1]))
+    const navigation = ['<PointerGroup', '<ZoomGroup', '<GuidesGroup']
+    for (let i = 1; i < navigation.length; i += 1) {
+      expect(at(navigation[i]), `${navigation[i]} must follow ${navigation[i - 1]}`).toBeGreaterThan(
+        at(navigation[i - 1]),
+      )
+    }
+    // Creation follows all of navigation. The eraser lives in WhiteboardTools and
+    // stays here rather than moving to Editing: it is a persistent mode with no
+    // selection behind it, so in Editing it would vanish whenever nothing was
+    // selected.
+    for (const creation of ['<InsertGroups', '<WhiteboardTools']) {
+      expect(at(creation), `${creation} must follow Navigation`).toBeGreaterThan(at('<GuidesGroup'))
     }
     const contextual = ['<LineGroup', '<StyleGroup', '<TextGroup', '<ArrangeGroup', '<BlockActionsGroup']
     for (const group of contextual) {
-      expect(at(group), `${group} must come after the fixed prefix`).toBeGreaterThan(at('<GuidesGroup'))
+      expect(at(group), `${group} must come after the fixed prefix`).toBeGreaterThan(at('<InsertGroups'))
     }
+  })
+
+  // Reordering must not add or remove a separator: the bar is at its width limit,
+  // and a hairline is 9px of it. Two sections, so two separators before the
+  // contextual run — one of which travels with the creation block, because a legacy
+  // mind map or flowchart has no creation tools and would show a stray hairline.
+  it('costs the bar no extra width to say it in three parts', () => {
+    // Up to where the contextual run begins — each contextual group brings its own
+    // separator, which is not what this is counting.
+    const contextualStart = template.indexOf('v-if="connectorSelected"')
+    const prefix = template.slice(0, contextualStart)
+    expect((prefix.match(/<ToolbarSeparator/g) || []).length).toBe(1)
+    const creationBlock = template.slice(
+      template.indexOf('v-if="isCreateCanvas || showsAnnotationTools"'),
+      contextualStart,
+    )
+    expect(creationBlock, 'the separator must travel with the creation block').toContain('<ToolbarSeparator')
   })
 
   // Flex items shrink by default. Without this a bar with one control too many

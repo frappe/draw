@@ -108,30 +108,41 @@ const flowchartSelected = computed(
     class="flex h-10 flex-none items-center gap-1 overflow-x-auto border-b border-outline-gray-1 bg-surface-base px-3"
   >
     <TooltipProvider>
-      <!-- The fixed prefix: everything that is always here, in an order that
-           never changes. Undo/redo stay keyboard-only (⌘Z / ⇧⌘Z) — no button. -->
+      <!-- NAVIGATION: everything that moves you around the diagram or changes how
+           you see it, without writing anything to it (#460). Select / Hand / Laser,
+           then zoom, then guides.
+           Undo/redo stay keyboard-only (⌘Z / ⇧⌘Z) — no button.
+           The laser is not navigation, but it leaves nothing on the canvas, so it
+           belongs with the pointers rather than with the tools that write to the
+           document — the reasoning already recorded at PointerGroup.vue:6-10.
+           Guides hides itself on a whiteboard (GuidesGroup.vue:19), so this section
+           carries two controls there and three everywhere else. -->
       <PointerGroup />
-      <ToolbarSeparator />
-      <!-- Wrapped so the separator goes with them. A legacy mind map or flowchart
-           has neither, and an unconditional separator left two hairlines side by
-           side with nothing between. -->
-      <template v-if="isCreateCanvas || showsAnnotationTools">
-        <InsertGroups v-if="isCreateCanvas" />
-        <WhiteboardTools v-if="showsAnnotationTools" :exclude="annotationExclude" />
-        <ToolbarSeparator />
-      </template>
-      <!-- View, then guides. Both act on the whole diagram rather than on the
-           selection, so they close the fixed part rather than sitting with the
-           contextual groups. -->
       <ZoomGroup />
       <GuidesGroup />
 
-      <!-- Everything below follows the selection, and it grows off the END of
-           the fixed prefix rather than out of its middle. That is the whole
-           point of the arrangement: no control the user is reaching for moves
-           sideways when the selection changes, which is what the eight floating
-           bars did on every click. The cost is that Guides sits mid-bar while
-           something is selected. -->
+      <!-- CREATION: the tools that put something on the canvas. Wrapped with its
+           leading separator so the two go together — a legacy mind map or flowchart
+           has neither, and an unconditional separator would leave two hairlines side
+           by side with nothing between.
+           The eraser stays here beside Draw. It reads like editing, but Editing
+           below is the contextual run that only appears with a selection, and the
+           eraser is a persistent mode with no selection behind it — it would vanish
+           whenever nothing was selected. -->
+      <template v-if="isCreateCanvas || showsAnnotationTools">
+        <ToolbarSeparator />
+        <InsertGroups v-if="isCreateCanvas" />
+        <WhiteboardTools v-if="showsAnnotationTools" :exclude="annotationExclude" />
+      </template>
+
+      <!-- EDITING: everything below follows the selection, and it grows off the END
+           of the fixed prefix rather than out of its middle. That is the whole point
+           of the arrangement: no control the user is reaching for moves sideways when
+           the selection changes, which is what the eight floating bars did on every
+           click.
+           Moving Zoom and Guides to the front is what removes the cost this comment
+           used to record — they sat at the growth point, so a selection pushed them
+           mid-bar. They now land before it and never move. -->
       <template v-if="connectorSelected">
         <ToolbarSeparator />
         <LineGroup :connector="connector" />
