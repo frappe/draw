@@ -9,7 +9,7 @@
 // not a file format, but it is the same "produce this diagram elsewhere" job.
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { Button, Dialog, TabButtons } from 'frappe-ui'
+import { Button, Dialog, Select, TabButtons } from 'frappe-ui'
 import { useExport } from '@/composables/useExport.js'
 import { documentToSvg } from '@/composables/useThumbnail.js'
 import { loadDiagram } from '@/data/diagrams.js'
@@ -46,6 +46,9 @@ const sizeLabel = computed(() => outputSizeLabel(store.state.canvas, format.valu
 // the format name is the identity here, and the glyph only decorates it.
 const formatOptions = EXPORT_FORMATS.map((f) => ({ value: f.value, label: f.label, iconLeft: f.icon }))
 const scaleOptions = EXPORT_SCALES.map((s) => ({ value: s, label: `${s}×` }))
+// The scale a vector format would use if it used one. It stays selected while the
+// control is disabled, so switching PNG -> SVG -> PNG comes back to the same scale
+// rather than resetting it.
 
 // Rendered from the same builder as the export itself, so the preview cannot drift
 // from the file. Only while the dialog is open — it is not cheap on a big diagram.
@@ -94,18 +97,35 @@ async function print() {
           <span v-else class="text-sm italic text-ink-gray-4">Nothing to export yet</span>
         </div>
 
+        <!-- The dialog keeps ONE height whatever the format is (#455). It is
+             vertically centred, so anything that leaves the layout moves every
+             remaining control up the screen, under the pointer that just clicked. -->
         <div>
           <p class="mb-1.5 text-sm font-medium text-ink-gray-7">Format</p>
-          <TabButtons v-model="format" class="w-full" size="sm" :options="formatOptions" />
-          <p class="mt-1.5 text-xs text-ink-gray-5">{{ current.hint }}</p>
+          <div class="flex items-center gap-2">
+            <TabButtons v-model="format" class="flex-1" size="sm" :options="formatOptions" />
+            <!-- The scale rides on the Format row rather than in a Size block of its
+                 own, and is DISABLED for a vector format rather than hidden — the
+                 hidden block is what took ~44px out of the dialog. A fixed width
+                 too: the Select sizes its trigger to the current value, so 1x and
+                 4x would nudge the formats sideways. -->
+            <Select
+              class="w-16 shrink-0"
+              size="sm"
+              :model-value="scale"
+              :options="scaleOptions"
+              :disabled="!showsScale"
+              @update:model-value="scale = Number($event)"
+            />
+          </div>
+          <!-- Hint and size share one row, and it reserves two lines. JPEG's hint
+               wraps to two at this width while PNG's and SVG's do not, so an
+               unreserved hint is a second height variable behind the same bug. -->
+          <div class="mt-1.5 flex min-h-8 items-start justify-between gap-3 text-xs text-ink-gray-5">
+            <p>{{ current.hint }}</p>
+            <p class="shrink-0 tabular-nums">{{ sizeLabel }}</p>
+          </div>
         </div>
-
-        <div v-if="showsScale">
-          <p class="mb-1.5 text-sm font-medium text-ink-gray-7">Size</p>
-          <TabButtons v-model="scale" class="w-full" size="sm" :options="scaleOptions" />
-        </div>
-
-        <p class="text-xs text-ink-gray-5">{{ sizeLabel }}</p>
       </div>
     </template>
 

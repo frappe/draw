@@ -69,8 +69,13 @@ export function outputSize(canvas, formatValue, scale) {
   }
 }
 
+// A vector format reports NOTHING rather than "Vector — scales to any size" (#455).
+// It sits beside the format hint, which already says "Vector. Stays sharp at any
+// size." — two lines of the same sentence, where for a raster the two are
+// complementary: a hint plus the real pixel size. The readout is empty here, not
+// removed from the layout; the row it shares with the hint keeps its height.
 export function outputSizeLabel(canvas, formatValue, scale) {
   const size = outputSize(canvas, formatValue, scale)
-  if (!size) return 'Vector — scales to any size'
+  if (!size) return ''
   return `${size.width} × ${size.height} px`
 }

@@ -59,9 +59,13 @@ describe('the size the dialog reports (#225)', () => {
     expect(outputSizeLabel(CANVAS, 'jpeg', 2)).toBe('2560 × 1440 px')
   })
 
-  it('reports no pixel size for a vector format', () => {
+  // The readout used to say "Vector — scales to any size", which is the format hint
+  // beside it said twice ("Vector. Stays sharp at any size."). For a raster the two
+  // are complementary — a hint plus the real pixel size — and for a vector the
+  // readout has nothing of its own to report (#455).
+  it('reports nothing at all for a vector format', () => {
     expect(outputSize(CANVAS, 'svg', 4)).toBeNull()
-    expect(outputSizeLabel(CANVAS, 'pdf', 2)).toBe('Vector — scales to any size')
+    expect(outputSizeLabel(CANVAS, 'pdf', 2)).toBe('')
   })
 
   it('ignores a scale that is not on the list', () => {
@@ -86,8 +90,31 @@ describe('the dialog wires that model up (#225)', () => {
     expect(dialog).toContain('EXPORT_SCALES.map')
   })
 
-  it('hides the scale picker for a vector format', () => {
-    expect(dialog).toContain('v-if="showsScale"')
+  // #455: it used to be `v-if="showsScale"` on a whole Size block. Hiding it took
+  // ~44px out of a vertically centred dialog, so picking SVG moved every remaining
+  // control up the screen — under the pointer that had just clicked. It is disabled
+  // rather than hidden now, and it rides on the Format row.
+  it('disables the scale picker for a vector format instead of removing it', () => {
+    expect(dialog).toContain(':disabled="!showsScale"')
+    expect(dialog).not.toContain('v-if="showsScale"')
+  })
+
+  // The two things that made the dialog change height, both bound so a later edit
+  // has to mean it: the scale control and the hint.
+  it('holds one height whatever the format is', () => {
+    // JPEG's hint wraps to two lines at this width while PNG's and SVG's do not.
+    expect(dialog).toContain('min-h-8')
+    // The size readout shares the hint's row, so an empty one costs no height.
+    expect(dialog).toMatch(/{{ current\.hint }}[\s\S]{0,200}{{ sizeLabel }}/)
+    // No Size block left to take its own height with it.
+    expect(dialog).not.toContain('>Size<')
+  })
+
+  // A Frappe UI Select, not a hand-rolled control, and a fixed width — it sizes its
+  // trigger to the current value, so 1x and 4x would nudge the formats sideways.
+  it('uses a Select for the scale, at a fixed width', () => {
+    expect(dialog).toContain('<Select')
+    expect(dialog).toContain('w-16 shrink-0')
   })
 
   it('previews through the same builder the export uses', () => {
