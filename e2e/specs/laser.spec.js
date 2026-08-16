@@ -10,7 +10,10 @@ import { armPointerMode, surfaceBox } from '../helpers/editor.js'
 
 const LASER_DOT = '[data-testid="laser-dot"]'
 const SURFACE_ROOT = '[role="application"]'
-const TRAIL = `${SURFACE_ROOT} path[stroke="#E03636"]`
+// The trail is ONE filled path since #450, addressed by its test id. The old
+// selector took every red-stroked path, which was the run of per-segment lines
+// that issue removed.
+const TRAIL = `${SURFACE_ROOT} [data-testid="laser-trail"]`
 
 async function sweep(page, steps = 12) {
   const box = await surfaceBox(page)
@@ -52,16 +55,27 @@ test.describe('laser pointer', () => {
     await page.mouse.move(box.x + 200, box.y + box.height / 2)
     await page.mouse.down()
 
-    // Sweep and read inside ONE poll, same reasoning as the hover case. More than
-    // one segment IS the trail, and the oldest segment being fainter than the
-    // newest is the fade.
+    // Sweep and read inside ONE poll, same reasoning as the hover case. The trail
+    // is one filled ribbon: it exists, it is visible, and its outline carries far
+    // more points than the pointer reported, which is the resampling that keeps a
+    // fast flick continuous (#450).
     await expect.poll(async () => {
       await sweep(page)
-      const opacities = await page.locator(TRAIL).evaluateAll((nodes) =>
-        nodes.map((node) => Number(node.getAttribute('stroke-opacity'))),
+      const trail = await page.locator(TRAIL).evaluateAll((nodes) =>
+        nodes.map((node) => ({
+          opacity: Number(node.getAttribute('fill-opacity')),
+          vertices: (node.getAttribute('d') || '').split(/[ML]/).length,
+        })),
       )
-      return opacities.length > 1 && opacities[0] < opacities[opacities.length - 1]
+      return trail.length === 1 && trail[0].opacity > 0 && trail[0].vertices > 20
     }, { message: 'dragging the laser left no fading trail behind the pointer' }).toBe(true)
+
+    // The beading #450 fixed was one stroked segment per captured point, each at its
+    // own opacity. One shape is the fix, so pin the count.
+    expect(
+      await page.locator(`${SURFACE_ROOT} path[stroke-linecap="round"][stroke="#E03636"]`).count(),
+      'the trail is drawn as per-segment lines again',
+    ).toBe(0)
 
     await page.mouse.up()
 
