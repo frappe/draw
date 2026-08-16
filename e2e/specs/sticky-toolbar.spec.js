@@ -18,13 +18,10 @@ test.describe('sticky note toolbar (#356)', () => {
   // sticky are both reachable.
   const bar = (page) => page.locator('[data-canvas-toolbar]')
 
-  // Strikethrough (#419) and Duplicate both live behind the "More" entry, and
-  // frappe-ui portals a Popover's body out of its trigger's subtree — so neither is
-  // inside the bar, and both have to be reached through the portalled panel.
-  async function moreAction(page, name) {
-    await bar(page).getByRole('button', { name: 'More sticky note actions' }).click()
-    return page.locator('[data-slot="content"]').getByRole('button', { name })
-  }
+  // The one control ONLY the sticky group renders: its paper-colour swatches.
+  // Strikethrough is on the bar since #500, but the block text group has a
+  // Strikethrough too, so that name no longer identifies this group.
+  const stickyOnly = (page) => bar(page).locator('button[aria-label^="Colour #"]')
 
   async function selectSticky(page) {
     const sticky = page.getByText('note', { exact: true }).first()
@@ -38,34 +35,40 @@ test.describe('sticky note toolbar (#356)', () => {
     await selectSticky(page)
 
     // The zero-size fault this guards is about the GROUP being laid out, so it
-    // measures the entry that is on the bar now rather than the moved control.
-    const entry = bar(page).getByRole('button', { name: 'More sticky note actions' })
+    // measures a control the group itself renders. The "More" entry it used to
+    // measure is gone: #500 put strikethrough on the bar and dropped the menu.
+    const entry = stickyOnly(page).first()
     await expect(entry).toBeVisible()
     const box = await entry.boundingBox()
     expect(box?.width, 'the toolbar rendered with no width').toBeGreaterThan(0)
     expect(box?.height, 'the toolbar rendered with no height').toBeGreaterThan(0)
   })
 
-  test('strikethrough, duplicate and delete all work from it', async ({ page, diagram }) => {
+  // Duplicate is gone with the menu (#500) — copy and paste covers it — so this
+  // covers what is left: strikethrough straight from the bar, then delete.
+  test('strikethrough and delete both work from the bar', async ({ page, diagram }) => {
     const name = await diagram.open('whiteboard', {})
     const stickies = async () => (await diagram.saved(name)).whiteboard.stickyNotes
 
     await selectSticky(page)
-    await (await moreAction(page, 'Strikethrough')).click()
+    await bar(page).getByRole('button', { name: 'Strikethrough' }).click()
     await expect
       .poll(async () => (await stickies())[0].strike, { message: 'strikethrough did not persist', timeout: 20_000 })
       .toBe(true)
 
-    await (await moreAction(page, 'Duplicate')).click()
-    await expect
-      .poll(async () => (await stickies()).length, { message: 'duplicate did not persist', timeout: 20_000 })
-      .toBe(2)
-
-    // Duplicating selects the copy, so Delete removes that one and leaves the original.
     await bar(page).getByRole('button', { name: 'Delete' }).click()
     await expect
       .poll(async () => (await stickies()).length, { message: 'delete did not persist', timeout: 20_000 })
-      .toBe(1)
+      .toBe(0)
+  })
+
+  test('offers no Duplicate, and no menu that used to hold it (#500)', async ({ page, diagram }) => {
+    await diagram.open('whiteboard', {})
+    await selectSticky(page)
+    await expect(stickyOnly(page).first()).toBeVisible()
+
+    await expect(bar(page).getByRole('button', { name: 'Duplicate' })).toHaveCount(0)
+    await expect(bar(page).getByRole('button', { name: 'More sticky note actions' })).toHaveCount(0)
   })
 
   test('recolouring from the swatches persists', async ({ page, diagram }) => {
@@ -73,7 +76,7 @@ test.describe('sticky note toolbar (#356)', () => {
     const before = (await diagram.saved(name)).whiteboard.stickyNotes[0].color
 
     await selectSticky(page)
-    const swatches = bar(page).locator('button[aria-label^="Colour"]')
+    const swatches = stickyOnly(page)
     await expect(swatches.first()).toBeVisible()
     const target = await swatches.nth(3).getAttribute('aria-label')
     await swatches.nth(3).click()
