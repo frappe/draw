@@ -46,4 +46,20 @@ describe('charsPerLine', () => {
     expect(charsPerLine(4, 10)).toBe(1)
     expect(charsPerLine(0, 10)).toBe(1)
   })
+
+  // #509: callers multiply a character count by charWidth to get a box, then come
+  // back here to divide it out again. A fractional charWidth used to lose a
+  // character to floating point, which grew the node a line and then took it back.
+  it('recovers the character count a width was multiplied from', () => {
+    for (const charWidth of [8.5, 8.5 * (16 / 14), 8.5 * (17 / 14), 6.4, 6.4 * (14 / 12)]) {
+      for (let chars = 1; chars <= 80; chars += 1) {
+        expect(charsPerLine(chars * charWidth, charWidth)).toBe(chars)
+      }
+    }
+  })
+
+  it('still floors a width that genuinely falls short of a column', () => {
+    const charWidth = 8.5 * (16 / 14)
+    expect(charsPerLine(15 * charWidth - 0.5, charWidth)).toBe(14)
+  })
 })

@@ -63,8 +63,17 @@ function splitLongWord(word, perLine) {
 // Characters that fit across a box `textWidth` px wide at `charWidth` px each.
 // At least one, so a box narrower than a single character still wraps instead of
 // dividing by zero.
+//
+// The tolerance is what makes the round trip survive (#509). Every caller sizes a
+// box by MULTIPLYING a character count by charWidth, then asks here to divide it
+// back — and that does not come home exactly once charWidth is a scaled font's
+// fraction. 15 characters at 9.714285714285714px divide back to 14.999999999999998,
+// which floors to 14, so the box wrapped a word that fits and grew a line; the next
+// character landed on an exact division and collapsed it again.
+const ROUND_TRIP_TOLERANCE = 1e-9
+
 export function charsPerLine(textWidth, charWidth) {
-  return Math.max(1, Math.floor(textWidth / charWidth))
+  return Math.max(1, Math.floor(textWidth / charWidth + ROUND_TRIP_TOLERANCE))
 }
 
 // --- measured metrics, for text that does NOT wrap ---------------------------

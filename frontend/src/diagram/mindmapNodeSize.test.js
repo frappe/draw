@@ -8,6 +8,7 @@ import {
   NODE_MIN_WIDTH,
   NODE_MAX_WIDTH,
   LINE_HEIGHT,
+  NODE_FONT_SIZE,
 } from './mindmapNodeSize.js'
 
 // This module is the contract that stops text escaping a node (#427 item 5) and
@@ -87,6 +88,30 @@ describe('mindmapSizeForShape', () => {
 
   it('survives a shape with no text block', () => {
     expect(mindmapSizeForShape({})).toEqual(mindmapNodeSize({ text: '', isRoot: true }))
+  })
+
+  // #509: the box grew a line at 15 characters and collapsed again at 16, on both
+  // sizes the product actually uses. It is swept rather than point-tested because a
+  // single length is exactly what the original tests checked and passed.
+  it.each([
+    ['a node', { fontSize: NODE_FONT_SIZE }],
+    ['the root', { isRoot: true }],
+    ['the calibrated base', {}],
+  ])('never shrinks %s as its label grows', (_label, options) => {
+    let previous = 0
+    for (let chars = 1; chars <= 60; chars += 1) {
+      const { h } = mindmapNodeSize({ text: 'a'.repeat(chars), ...options })
+      expect(h).toBeGreaterThanOrEqual(previous)
+      previous = h
+    }
+  })
+
+  it('keeps a label that fits on one line on one line', () => {
+    // The width cap is what wraps text; below it the box is one line by construction.
+    const oneLine = mindmapNodeSize({ text: 'a', fontSize: NODE_FONT_SIZE }).h
+    for (let chars = 1; chars <= 20; chars += 1) {
+      expect(mindmapNodeSize({ text: 'a'.repeat(chars), fontSize: NODE_FONT_SIZE }).h).toBe(oneLine)
+    }
   })
 })
 
