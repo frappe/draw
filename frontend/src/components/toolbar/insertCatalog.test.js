@@ -346,3 +346,41 @@ describe('the shapes Lucide cannot stand in for (#470)', () => {
     expect(glyph).toContain('w: FIT, h: FIT')
   })
 })
+
+// #490 / #493: two glyph families Lucide cannot supply. The endpoint arrow has to
+// be FILLED, because ConnectorMarker draws `M0,0 L10,5 L0,10 z` — a closed
+// triangle — and Lucide is stroked outlines throughout.
+describe('the connector glyphs (#490, #493)', () => {
+  const src = read('../floating/ShapeGlyph.vue')
+  const branch = (family) => {
+    const block = src.slice(src.indexOf(`family === '${family}'`))
+    return block.slice(0, block.indexOf('</template>'))
+  }
+
+  it('fills the arrowhead rather than stroking it', () => {
+    const endpoint = branch('endpoint')
+    expect(endpoint).toContain('fill="currentColor"')
+    // A stroke on the head would round its point off against the caps the svg
+    // sets, so the triangle would not come to a point.
+    expect(endpoint).toContain('stroke="none"')
+    expect(endpoint).toContain('Z') // closed, like the marker's own path
+  })
+
+  it('draws the same L-bend twice for the corner pair, rounded and square', () => {
+    const corner = branch('corner')
+    expect((corner.match(/<path /g) || []).length).toBe(2)
+    // The rounded one is the only path with a curve in it.
+    expect(corner).toContain('Q')
+    expect(corner).toContain("type === 'sharp'")
+  })
+
+  it('keeps both new families inside the house 24-box', () => {
+    // #456: 24 viewBox, stroke-width 1.5, round caps — set once on the <svg>, so
+    // a new family inherits them by not overriding them.
+    expect(src).toContain('const BOX = 24')
+    for (const family of ['endpoint', 'corner']) {
+      expect(branch(family)).not.toContain('viewBox')
+      expect(branch(family)).not.toContain('stroke-width')
+    }
+  })
+})

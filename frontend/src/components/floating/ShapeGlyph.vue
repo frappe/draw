@@ -20,7 +20,7 @@ import { nodeShape } from '@/diagram/flowchartShapes.js'
 import { presetPolygonPoints } from '@/diagram/polygon.js'
 
 const props = defineProps({
-  // 'flowchart' | 'preset' | 'mindmap' | 'polygon-n' | 'line'
+  // 'flowchart' | 'preset' | 'mindmap' | 'polygon-n' | 'line' | 'endpoint' | 'corner'
   family: { type: String, default: 'flowchart' },
   type: { type: String, default: '' },
 })
@@ -113,6 +113,26 @@ const flow = computed(() => {
       <path d="M9 12 C13 12 14 5 20 5" />
       <path d="M9 12 H20" />
       <path d="M9 12 C13 12 14 19 20 19" />
+    </template>
+
+    <!-- Connector endpoint (#490): a shaft ending in a SOLID triangle, because that
+         is what ConnectorMarker draws (`M0,0 L10,5 L0,10 z`). Lucide is stroked
+         outlines throughout, so `lucide-arrow-right` — a shaft with two open
+         diagonals — showed an open arrowhead the renderer never produces, and read
+         as the "crooked arrow" in the report.
+         The head keeps the marker's square 1:1 proportions, and is fill-only: a
+         stroke on it would round the point off against the caps set above. -->
+    <template v-else-if="family === 'endpoint'">
+      <path d="M4 12 H12" />
+      <path d="M12 8 L20 12 L12 16 Z" fill="currentColor" stroke="none" />
+    </template>
+
+    <!-- Elbow corner (#493): the same L-bend drawn twice, once rounded and once
+         square, so the pair is read by the corner alone rather than by two
+         differently-shaped figures. Lucide ships no such pair. -->
+    <template v-else-if="family === 'corner'">
+      <path v-if="type === 'sharp'" d="M6 6 V18 H18" />
+      <path v-else d="M6 6 V12 Q6 18 12 18 H18" />
     </template>
   </svg>
 </template>
