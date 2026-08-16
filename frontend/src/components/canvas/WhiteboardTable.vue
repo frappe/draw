@@ -32,6 +32,8 @@ import {
   mergeCovering,
   tableCellAt,
   tableCellRuns,
+  tableCellStyle,
+  TABLE_FONT_SIZE,
 } from '@/diagram/whiteboardModel.js'
 import { resolveMark } from '@/diagram/richText.js'
 import { useTableCellFormat } from '@/composables/useTableCellFormat.js'
@@ -69,9 +71,9 @@ const headerBand = computed(() =>
     : null,
 )
 
-// Horizontal text placement within a cell box, per the table's align setting.
-function textLayout(box) {
-  const align = props.table.align || 'left'
+// Horizontal text placement within a cell box, per that CELL's alignment — its own
+// where it has one, else the table's (#508).
+function textLayout(box, align) {
   if (align === 'center') return { x: box.x + box.w / 2, anchor: 'middle' }
   if (align === 'right') return { x: box.x + box.w - 12, anchor: 'end' }
   return { x: box.x + 12, anchor: 'start' }
@@ -86,7 +88,8 @@ const cellNodes = computed(() => {
     for (let col = 0; col < cols.value; col += 1) {
       if (isCoveredCell(props.table, row, col)) continue
       const box = cellSpanBox(props.table, row, col)
-      const layout = textLayout(box)
+      const style = tableCellStyle(props.table, row, col)
+      const layout = textLayout(box, style.align)
       const header = props.table.hasHeader && row === 0
       out.push({
         row,
@@ -98,12 +101,19 @@ const cellNodes = computed(() => {
           text: run.text,
           weight: resolveMark(run, 'bold', header) ? 600 : 400,
           style: resolveMark(run, 'italic') ? 'italic' : null,
-          decoration: resolveMark(run, 'underline') ? 'underline' : null,
+          // Both decorations in one attribute so they combine (#508); SVG has the
+          // same single text-decoration property CSS does.
+          decoration: [
+            resolveMark(run, 'underline') ? 'underline' : null,
+            resolveMark(run, 'strike') ? 'line-through' : null,
+          ].filter(Boolean).join(' ') || null,
         })),
         header,
         tx: layout.x,
         ty: box.y + box.h / 2,
         anchor: layout.anchor,
+        color: style.color,
+        size: style.size,
       })
     }
   }
@@ -208,16 +218,18 @@ watch(
 
 // Inline editor: mounts when editingCell targets this table. Edits are held in
 // the editor element and committed on Enter or click-away; Escape cancels.
-const inputAlignClass = computed(
-  () => ({ left: 'text-left', center: 'text-center', right: 'text-right' })[props.table.align] || 'text-left',
-)
 
-// The editor and the committed <text> read their type from HERE, not each from
-// their own place (#507). They used to be stated twice — `font-size="14"` on the
-// SVG text against `text-sm` on the editor, and `table.color` against
-// `text-ink-gray-9` — so a cell was typed in near-black and committed in the
-// table's colour. The sizes agreed by coincidence; the colours did not agree at all.
-const CELL_FONT_SIZE = 14
+
+// The editor and the committed <text> read their type from ONE place (#507), and
+// that place is now the model (#508): a cell can carry its own colour, alignment and
+// size, falling back to the table's. They used to be stated twice — `font-size="14"`
+// against `text-sm`, and `table.color` against `text-ink-gray-9` — so a cell was
+// typed in near-black and committed in the table's colour.
+const editingStyle = computed(() =>
+  editingCell.value
+    ? tableCellStyle(props.table, editingCell.value.row, editingCell.value.col)
+    : null,
+)
 
 // Vertical centring for a contenteditable, done with line-height rather than
 // `items-center` (#507). An EMPTY cell has no text node, so a flex box has no item
@@ -226,9 +238,10 @@ const CELL_FONT_SIZE = 14
 // caret whether or not anything has been typed. Cells are single-line
 // (`whitespace-nowrap`), so one line box is the whole content.
 const editorStyle = computed(() => ({
-  fontSize: `${CELL_FONT_SIZE}px`,
+  fontSize: `${editingStyle.value?.size || TABLE_FONT_SIZE}px`,
   lineHeight: editBox.value ? `${editBox.value.h}px` : undefined,
-  color: props.table.color,
+  color: editingStyle.value?.color,
+  textAlign: editingStyle.value?.align,
   fontFamily: 'Inter, sans-serif',
 }))
 // Published on the shared UI store so the cell's B / I / U control — which has to
@@ -337,8 +350,8 @@ watch(range, refreshActiveMarks)
       :y="cell.ty"
       :text-anchor="cell.anchor"
       dominant-baseline="central"
-      :font-size="CELL_FONT_SIZE"
-      :fill="table.color"
+      :font-size="cell.size"
+      :fill="cell.color"
       style="font-family: Inter, sans-serif; pointer-events: none"
     ><tspan
         v-for="(span, index) in cell.spans"
@@ -362,7 +375,7 @@ watch(range, refreshActiveMarks)
         role="textbox"
         aria-label="Cell text"
         class="h-full w-full overflow-x-auto whitespace-nowrap border-0 bg-transparent px-3 outline-none"
-        :class="[inputAlignClass, table.hasHeader && editingCell.row === 0 ? 'font-semibold' : '']"
+        :class="table.hasHeader && editingCell.row === 0 ? 'font-semibold' : ''"
         :style="editorStyle"
         @pointerdown.stop
         @keydown="onEditorKeydown"

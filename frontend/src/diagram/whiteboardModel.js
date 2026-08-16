@@ -63,6 +63,12 @@ export function makeLine(x1, y1, x2, y2, partial = {}) {
 export const TABLE_CELL_W = 120
 export const TABLE_CELL_H = 40
 
+// The size a cell's text is drawn at unless the cell says otherwise (#508). It
+// lives here rather than in the component so the renderer, the editor and the
+// export all read one number — they used to state it twice and agree by luck
+// (#507).
+export const TABLE_FONT_SIZE = 14
+
 // A simple fixed grid table. `cells` maps "row,col" → text. `rows`/`cols` are
 // required: every creation path supplies an explicit size (the size picker, or
 // the armed-tool default) — there is no built-in 3×3 fallback anymore (#134).
@@ -91,6 +97,11 @@ export function makeTable(x, y, partial = {}) {
     // the text split into marked runs. Only cells that carry formatting appear
     // here; `cells` stays the plain-text source of truth (#344, see richText).
     cellRuns: partial.cellRuns,
+    // Per-cell overrides of the table's own colour / alignment / font size (#508),
+    // same "row,col" keys as `cells`. Sparse: only a cell that has been given one
+    // appears, so a table nobody has restyled adds nothing to the document, and the
+    // table-level values stay the default every other cell follows.
+    cellStyles: partial.cellStyles,
     zIndex: partial.zIndex || 0,
   }
 }
@@ -192,6 +203,35 @@ export function setTableCellRuns(table, row, col, runs) {
   const text = runsToText(clean)
   table.cells = withKey(table.cells, key, text || null)
   table.cellRuns = withKey(table.cellRuns, key, hasFormatting(clean) ? clean : null)
+}
+
+// The colour / alignment / font size ONE cell is drawn with: its own override where
+// it has one, else the table's value (#508). The single read path for the canvas and
+// the export, so a cell cannot be exported in a style it is not shown in.
+export function tableCellStyle(table, row, col) {
+  const own = (table.cellStyles || {})[`${row},${col}`] || {}
+  return {
+    color: own.color || table.color || '#171717',
+    align: own.align || table.align || 'left',
+    size: own.size || TABLE_FONT_SIZE,
+  }
+}
+
+// Set or clear one cell's overrides. A value equal to the table's own is stored as
+// an override anyway: "left, like the table" and "left, whatever the table becomes"
+// are different intentions, and only the second should follow a later table change.
+// Passing null for a key drops it, which is how a cell goes back to following.
+export function setTableCellStyle(table, row, col, patch) {
+  const key = `${row},${col}`
+  const next = { ...((table.cellStyles || {})[key] || {}) }
+  for (const [field, value] of Object.entries(patch)) {
+    if (value === null) delete next[field]
+    else next[field] = value
+  }
+  const styles = withKey(table.cellStyles, key, Object.keys(next).length ? next : null)
+  // Absent beats empty, the same rule withKey applies per key: a table restyled and
+  // then put back should leave nothing behind in the saved document.
+  table.cellStyles = Object.keys(styles).length ? styles : undefined
 }
 
 // A cell's content as runs, whether it was stored plain or formatted. The one

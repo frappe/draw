@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  MARKS,
   toRuns,
   runsToText,
   hasFormatting,
@@ -217,5 +218,36 @@ describe('runsEqual', () => {
 
   it('treats a legacy string and its run form as equal', () => {
     expect(runsEqual('hello', [{ text: 'hello' }])).toBe(true)
+  })
+})
+
+// #508: a table cell offers the same four marks a text box does. Strikethrough was
+// the one missing, and it is a MARK rather than a per-object flag because part of a
+// cell can be struck through — which is the whole reason cells hold runs at all.
+describe('strikethrough as the fourth mark (#508)', () => {
+  it('is one of the marks the run model carries', () => {
+    expect(MARKS).toContain('strike')
+    expect(MARKS).toHaveLength(4)
+  })
+
+  it('applies to part of a cell, leaving the rest alone', () => {
+    const runs = applyMark([{ text: 'done and pending' }], 0, 4, 'strike', true)
+    expect(runs[0]).toMatchObject({ text: 'done', strike: true })
+    expect(runs.map((run) => run.text).join('')).toBe('done and pending')
+    expect(runs[runs.length - 1].strike).toBeUndefined()
+  })
+
+  it('combines with the other marks rather than replacing them', () => {
+    let runs = applyMark([{ text: 'both' }], 0, 4, 'bold', true)
+    runs = applyMark(runs, 0, 4, 'strike', true)
+    expect(runs[0]).toMatchObject({ bold: true, strike: true })
+  })
+
+  it('reports its own state, so the toolbar button can light up', () => {
+    const runs = applyMark([{ text: 'gone' }], 0, 4, 'strike', true)
+    expect(markState(runs, 0, 4, 'strike')).toBe(true)
+    // undefined, not false: a mark nobody has set is UNSET, which is how a header
+    // cell can inherit bold and still be explicitly un-bolded.
+    expect(markState(runs, 0, 4, 'underline')).toBeUndefined()
   })
 })

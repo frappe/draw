@@ -25,17 +25,23 @@ const read = (rel) =>
 describe('the table cell editor matches the cell it commits to (#507)', () => {
   const source = read('WhiteboardTable.vue')
 
-  it('sets the editor’s colour from the table, not from a chrome token', () => {
+  // The property has not changed — the editor and the committed text read ONE
+  // source — but #508 moved that source into the model, where a cell can override
+  // the table. So these assert the same thing against its new home.
+  it('sets the editor’s colour from the same place the cell is drawn from', () => {
     // A cell was typed in near-black and committed in the table's colour.
     expect(source).not.toContain('text-ink-gray-9')
-    expect(source).toContain('color: props.table.color')
+    expect(source).toContain('tableCellStyle(')
+    expect(source).toContain('color: editingStyle.value?.color')
   })
 
   it('takes one font size for both the editor and the committed text', () => {
     // They agreed at 14 by coincidence — font-size="14" against text-sm — not by
-    // construction, so either could move on its own.
-    expect(source).toContain('const CELL_FONT_SIZE = 14')
-    expect(source).toContain(':font-size="CELL_FONT_SIZE"')
+    // construction, so either could move on its own. Both now read the cell's size,
+    // which falls back to the model's TABLE_FONT_SIZE.
+    expect(source).toContain('TABLE_FONT_SIZE')
+    expect(source).toContain(':font-size="cell.size"')
+    expect(source).toContain('fontSize: `${editingStyle.value?.size')
     expect(source).not.toContain('text-sm')
   })
 

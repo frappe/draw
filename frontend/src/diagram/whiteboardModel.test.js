@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
+  tableCellStyle,
+  setTableCellStyle,
+  TABLE_FONT_SIZE,
   createWhiteboard,
   addStroke,
   removeStroke,
@@ -288,5 +291,57 @@ describe('table cell formatting (#344)', () => {
 
   it('treats a missing cell as no runs', () => {
     expect(tableCellRuns(table(), 1, 0)).toEqual([])
+  })
+})
+
+// #508: a table cell gets the same text options a text box has. Colour and
+// alignment used to live on the TABLE only, so "this cell in red" was impossible.
+// Vibhav's call (16 Aug 2026): per cell, with the table's value as the default an
+// untouched cell follows — not per cell only, which would mean restyling a whole
+// table cell by cell.
+describe('per-cell text style (#508)', () => {
+  const table = () => makeTable(0, 0, { rows: 2, cols: 2, color: '#171717', align: 'left' })
+
+  it('falls back to the table for a cell that has no style of its own', () => {
+    const style = tableCellStyle(table(), 0, 0)
+    expect(style).toEqual({ color: '#171717', align: 'left', size: TABLE_FONT_SIZE })
+  })
+
+  it('follows the table when the table changes, for an untouched cell', () => {
+    const model = table()
+    model.color = '#E03636'
+    expect(tableCellStyle(model, 0, 0).color).toBe('#E03636')
+  })
+
+  it('lets one cell override without touching its neighbours', () => {
+    const model = table()
+    setTableCellStyle(model, 0, 0, { color: '#E03636', align: 'center' })
+    expect(tableCellStyle(model, 0, 0)).toMatchObject({ color: '#E03636', align: 'center' })
+    expect(tableCellStyle(model, 0, 1)).toMatchObject({ color: '#171717', align: 'left' })
+  })
+
+  it('keeps an override when the table changes under it', () => {
+    // The point of an override: "red" means red, not "red until the table moves".
+    const model = table()
+    setTableCellStyle(model, 1, 1, { color: '#E03636' })
+    model.color = '#0289F7'
+    expect(tableCellStyle(model, 1, 1).color).toBe('#E03636')
+  })
+
+  it('clears one field with null, sending that cell back to following', () => {
+    const model = table()
+    setTableCellStyle(model, 0, 0, { color: '#E03636', size: 20 })
+    setTableCellStyle(model, 0, 0, { color: null })
+    expect(tableCellStyle(model, 0, 0).color).toBe('#171717')
+    expect(tableCellStyle(model, 0, 0).size).toBe(20)
+  })
+
+  it('stores nothing for a table nobody has restyled', () => {
+    // Sparse, so an untouched table adds no weight to the saved document.
+    const model = table()
+    expect(model.cellStyles).toBeUndefined()
+    setTableCellStyle(model, 0, 0, { color: '#E03636' })
+    setTableCellStyle(model, 0, 0, { color: null })
+    expect(model.cellStyles).toBeUndefined()
   })
 })

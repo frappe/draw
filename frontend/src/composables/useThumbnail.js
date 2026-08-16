@@ -653,7 +653,13 @@ function whiteboardTable(table) {
 function runAttributes(run, header) {
   let out = ` font-weight="${resolveMark(run, 'bold', header) ? 600 : 400}"`
   if (resolveMark(run, 'italic')) out += ' font-style="italic"'
-  if (resolveMark(run, 'underline')) out += ' text-decoration="underline"'
+  // Underline and strike combine in one attribute (#508), so a cell that is both
+  // exports as both rather than as whichever was checked first.
+  const decoration = [
+    resolveMark(run, 'underline') ? 'underline' : null,
+    resolveMark(run, 'strike') ? 'line-through' : null,
+  ].filter(Boolean).join(' ')
+  if (decoration) out += ` text-decoration="${decoration}"`
   return out
 }
 

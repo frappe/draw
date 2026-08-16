@@ -225,3 +225,61 @@ test.describe('a table cell is typed in the same type it commits to (#507)', () 
     expect(Math.abs(box.line - box.height), 'the line box does not fill the cell').toBeLessThan(2)
   })
 })
+
+// #508: a cell gets the same text options a text box has. Colour and alignment used
+// to live on the TABLE only, so "this cell in red" was impossible — they are per
+// cell now, with the table's value as the default an untouched cell follows.
+test.describe('per-cell text options (#508)', () => {
+  const table = async (diagram, name) => (await diagram.saved(name)).whiteboard.tables[0]
+
+  test('strikethrough persists as a run, like the other three marks', async ({ page, diagram }) => {
+    const name = await diagram.open('whiteboard', { table: true })
+
+    await openCell(page)
+    await selectAllInCell(page)
+    await page.getByRole('button', { name: 'Strikethrough' }).click()
+    await page.keyboard.press('Escape')
+
+    await expect
+      .poll(async () => (await table(diagram, name)).cellRuns?.['0,0']?.[0]?.strike, {
+        message: 'strikethrough never reached the saved cell',
+        timeout: 20_000,
+      })
+      .toBe(true)
+    // The plain text is untouched by a mark, which is the runs model's contract.
+    expect((await table(diagram, name)).cells['0,0']).toBe('CELL-TEXT')
+  })
+
+  test('a colour picked for one cell lands on that cell, not the table', async ({ page, diagram }) => {
+    const name = await diagram.open('whiteboard', { table: true })
+    const before = (await table(diagram, name)).color
+
+    await openCell(page)
+    await page.getByRole('button', { name: 'Cell text colour' }).click()
+    await page.getByRole('button', { name: 'blue 500', exact: true }).click()
+
+    await expect
+      .poll(async () => (await table(diagram, name)).cellStyles?.['0,0']?.color, {
+        message: 'the cell colour never reached the document',
+        timeout: 20_000,
+      })
+      .toBe('#0289F7')
+    // The table's own colour is the default other cells still follow.
+    expect((await table(diagram, name)).color).toBe(before)
+  })
+
+  test('alignment is per cell too', async ({ page, diagram }) => {
+    const name = await diagram.open('whiteboard', { table: true })
+
+    await openCell(page)
+    await page.getByRole('button', { name: 'Align center' }).click()
+
+    await expect
+      .poll(async () => (await table(diagram, name)).cellStyles?.['0,0']?.align, {
+        message: 'the cell alignment never reached the document',
+        timeout: 20_000,
+      })
+      .toBe('center')
+    expect((await table(diagram, name)).align, 'the table itself moved').not.toBe('center')
+  })
+})

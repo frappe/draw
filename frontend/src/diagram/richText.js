@@ -11,7 +11,10 @@
 // "inherit", which is what lets a header-row cell bold itself by default while
 // still allowing one cell to be explicitly un-bolded (#344 header rule).
 
-export const MARKS = ['bold', 'italic', 'underline']
+// `strike` joined the three in #508, so a table cell offers the same four marks
+// a text box does. It is a mark rather than a per-object flag on purpose: part of a
+// cell can be struck through, which is the whole reason cells hold runs.
+export const MARKS = ['bold', 'italic', 'underline', 'strike']
 
 // Any stored cell value — a plain string, an array of runs, or junk from an
 // untrusted document — as a clean run list. Malformed runs are dropped rather

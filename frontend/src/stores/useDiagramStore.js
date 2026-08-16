@@ -53,6 +53,7 @@ import {
   tableById,
   setTableCell,
   setTableCellRuns,
+  setTableCellStyle,
   mergeTableCells,
   unmergeTableCell,
   whiteboardObjectsInZOrder,
@@ -888,6 +889,15 @@ function attachWhiteboardTables(store, state, history) {
     history.commit('Edit cell', () => {
       const table = tableById(state.whiteboard || {}, id)
       if (table) setTableCell(table, row, col, text)
+    })
+  // Give one cell (or a range of them) its own colour / alignment / size, or clear
+  // an override with null so the cell follows the table again (#508). One commit for
+  // the whole range, so restyling a selection takes one undo.
+  store.setTableCellStyle = (id, cells, patch) =>
+    history.commit('Cell style', () => {
+      const table = tableById(state.whiteboard || {}, id)
+      if (!table) return
+      for (const { row, col } of cells) setTableCellStyle(table, row, col, patch)
     })
   store.setTableCellRuns = (id, row, col, runs) =>
     history.commit('Edit cell', () => {

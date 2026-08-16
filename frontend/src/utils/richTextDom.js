@@ -9,7 +9,10 @@
 
 import { MARKS, normalizeRuns, toRuns } from '@/diagram/richText.js'
 
-const TAG_MARKS = { B: 'bold', STRONG: 'bold', I: 'italic', EM: 'italic', U: 'underline' }
+const TAG_MARKS = {
+  B: 'bold', STRONG: 'bold', I: 'italic', EM: 'italic', U: 'underline',
+  S: 'strike', STRIKE: 'strike', DEL: 'strike',
+}
 
 // Replace the editor's contents with `runs`, one span each.
 export function runsToDom(root, runs) {
@@ -58,13 +61,26 @@ function runSpan(doc, run) {
   }
   span.style.fontWeight = styleFor(run.bold, '600', '400')
   span.style.fontStyle = styleFor(run.italic, 'italic', 'normal')
-  span.style.textDecoration = styleFor(run.underline, 'underline', 'none')
+  // One CSS property carries both decorations, so they combine rather than one
+  // silently winning: a run can be underlined AND struck through.
+  span.style.textDecoration = decorationFor(run)
   return span
 }
 
 function styleFor(value, on, off) {
   if (value === undefined) return ''
   return value ? on : off
+}
+
+// The text-decoration for a run: underline, line-through, both, or nothing. Left
+// empty when NEITHER mark is set, so the span keeps inheriting rather than
+// declaring "none" over an ancestor that meant to decorate it.
+export function decorationFor(run) {
+  const parts = []
+  if (run.underline) parts.push('underline')
+  if (run.strike) parts.push('line-through')
+  if (parts.length) return parts.join(' ')
+  return run.underline === undefined && run.strike === undefined ? '' : 'none'
 }
 
 function collectRuns(node, inherited, out) {
