@@ -112,12 +112,15 @@ const eraserMenu = computed(() => [
   {
     group: 'Mode',
     hideLabel: true,
-    options: ERASER_MODES.map((mode) => ({
-      label: mode.label,
-      icon: mode.icon,
-      onClick: () => armEraser(mode.key),
-      ...(mode.key === 'ink' ? { submenu: eraserSizeMenu.value } : {}),
-    })),
+    // Eraser carries the sizes, so frappe-ui renders it as a SUBMENU TRIGGER — and a
+    // trigger opens its submenu instead of firing an onClick. Giving it one would be
+    // dead code that reads like it arms the tool. Picking a size is what arms ink
+    // mode, which is why every size row calls armEraser itself.
+    options: ERASER_MODES.map((mode) =>
+      mode.key === 'ink'
+        ? { label: mode.label, icon: mode.icon, submenu: eraserSizeMenu.value }
+        : { label: mode.label, icon: mode.icon, onClick: () => armEraser(mode.key) },
+    ),
   },
   {
     group: 'Canvas',

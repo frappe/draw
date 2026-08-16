@@ -46,7 +46,19 @@ describe('the eraser menu (#462)', () => {
     expect(source).toContain("{ key: 'ink', icon: 'lucide-eraser', label: 'Eraser' }")
     expect(source).toContain("{ key: 'object', icon: 'lucide-square-x', label: 'Erase by object' }")
     // Only the tip-based mode takes a size: erasing by object has no tip.
-    expect(source).toContain("...(mode.key === 'ink' ? { submenu: eraserSizeMenu.value } : {})")
+    expect(source).toContain('submenu: eraserSizeMenu.value')
+  })
+
+  // frappe-ui renders any option carrying a submenu as a SubTrigger, which opens the
+  // submenu instead of firing an onClick. An onClick there is dead code that reads
+  // like it arms the tool — picking a SIZE is what arms ink mode, so every size row
+  // has to call armEraser itself.
+  it('does not hang a dead click handler on the submenu parent', () => {
+    const inkOption = source.slice(source.indexOf('mode.key === \'ink\''), source.indexOf('const eraserSizeMenu'))
+    expect(inkOption).toContain('submenu: eraserSizeMenu.value')
+    expect(inkOption, 'a submenu trigger never fires its own onClick').not.toContain('onClick: () => armEraser(mode.key)\n        ? ')
+    const sizeMenu = source.slice(source.indexOf('const eraserSizeMenu'), source.indexOf('function armEraser'))
+    expect(sizeMenu, 'picking a size must arm the mode it belongs to').toContain("armEraser('ink')")
   })
 
   // Named rows rather than three bare dots to compare.

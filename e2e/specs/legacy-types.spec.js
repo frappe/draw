@@ -228,6 +228,30 @@ test.describe('whiteboard', () => {
       .toBe('highlighter')
   })
 
+  // The eraser's options are a MENU now (#462), opened by the same click that picks
+  // the tool, and the menu sits over the canvas until a mode is chosen — so a drag
+  // straight after clicking the tool never reaches the board.
+  //
+  // The plain eraser is armed by picking a tip SIZE. "Eraser" carries the three sizes
+  // as a submenu, and frappe-ui renders a submenu parent as a trigger that opens
+  // rather than an item that fires, so there is nothing to click on the parent
+  // itself. Hovering is what opens a submenu; a click on the trigger only toggles it.
+  async function armEraser(page, mode) {
+    await toolByIcon(page, 'eraser').click()
+    if (mode === 'object') {
+      await page.getByRole('menuitem', { name: 'Erase by object' }).click()
+    } else {
+      await page.getByRole('menuitem', { name: 'Eraser', exact: true }).hover()
+      await page.getByRole('menuitem', { name: 'Medium', exact: true }).click()
+    }
+    // Picking a mode closes the menu, which is what frees the canvas for the drag.
+    await expect(page.getByRole('menuitem', { name: 'Erase by object' })).toBeHidden()
+    // If the tool were disarmed the assertions below would blame the eraser for a
+    // gesture that never reached it. Toolbar controls carry active state on
+    // aria-pressed rather than a class (#360).
+    await expect(toolByIcon(page, 'eraser')).toHaveAttribute('aria-pressed', 'true')
+  }
+
   test('the eraser removes ink from a stroke', async ({ page, diagram }) => {
     const name = await diagram.open('whiteboard') // seeded with one zigzag stroke
     // Total ink LENGTH is the only metric that behaves here. Neither stroke count nor
@@ -251,7 +275,7 @@ test.describe('whiteboard', () => {
     const strokePath = page.locator(`${SURFACE} path[stroke-linecap]`).first()
     const box = await strokePath.boundingBox()
 
-    await toolByIcon(page, 'eraser').click()
+    await armEraser(page, 'ink')
     await page.mouse.move(box.x + 2, box.y + box.height / 2)
     await page.mouse.down()
     for (let i = 1; i <= 30; i += 1) {
@@ -273,27 +297,12 @@ test.describe('whiteboard', () => {
     const strokePath = page.locator(`${SURFACE} path[stroke-linecap]`).first()
     const box = await strokePath.boundingBox()
 
-    await toolByIcon(page, 'eraser').click()
-    // Arming the eraser opens its options popover directly (#241), so switch it into
-    // object mode straight from there — no separate 'sliders' click. The mode buttons
-    // deliberately leave the popover open (like the pen's colour and width), so it is
-    // dismissed by toggling the tool below. NOT with Escape: Escape is universal and
-    // resets the tool to select before any per-mode handling, so it disarms the eraser
-    // and the drag below silently becomes a marquee.
-    // TabButtons renders each mode through reka-ui's RadioGroupItem, so the tab is a
-    // <button role="radio"> — getByRole('button') no longer reaches it.
-    const objectMode = page.locator(POPOVER).getByRole('radio', { name: 'Erase by object' })
-    await objectMode.waitFor({ state: 'visible' })
-    await objectMode.click()
-    // Dismiss by clicking the eraser tool itself: an outside click closes the popover,
-    // and re-arming the already-active tool is a no-op (#241), so it doesn't reopen.
-    await toolByIcon(page, 'eraser').click()
-    await expect(objectMode).toBeHidden()
-    // Guard the precondition: if the tool were disarmed, the assertion below would
-    // blame the eraser for a gesture that never reached it. Toolbar controls carry
-    // their active state on aria-pressed rather than a variant class (#360), which
-    // is both the rendered state and the one a screen reader reads.
-    await expect(toolByIcon(page, 'eraser')).toHaveAttribute('aria-pressed', 'true')
+    // Object mode is one entry on the eraser's menu (#462). Picking it closes the
+    // menu and leaves the tool armed, so there is no popover left to dismiss — which
+    // is what the old "click the tool again" step was for. Never Escape: it is
+    // universal and resets the tool to select before any per-mode handling, so it
+    // would disarm the eraser and the drag below would silently become a marquee.
+    await armEraser(page, 'object')
 
     await page.mouse.move(box.x + 2, box.y + box.height / 2)
     await page.mouse.down()
