@@ -9,6 +9,7 @@
 import { computed } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { activeEditor } from '@/composables/useRichText.js'
+import { canHoldText } from '@/diagram/shapeText.js'
 
 // One instance per store, the same way useSmartGuides memoises. Five groups read
 // this, and `shapes` resolves every selected id against the shape list, so five
@@ -38,6 +39,18 @@ function createBlockSelection(store) {
   // (#259): the shape-level controls hide, because you are editing the label,
   // not the shape.
   const editing = computed(() => Boolean(activeEditor.value))
+  // The selected shapes a label can actually be put on (#519). An image cannot, so
+  // font, size, the marks, alignment and text colour have nothing to act on and are
+  // not offered — they used to appear reading "Inter" and "16" for a shape with
+  // neither. A MIXED selection keeps them: styling an image and a rectangle together
+  // should still style the rectangle's label, and the controls simply pass the image
+  // by, which is less surprising than the whole group vanishing because one image
+  // joined the selection.
+  const textShapes = computed(() => shapes.value.filter(canHoldText))
+  const hasText = computed(() => textShapes.value.length > 0)
 
-  return { store, selection, shapes, shapeIds, count, hasShapes, connector, multi, editing }
+  return {
+    store, selection, shapes, shapeIds, count, hasShapes, connector, multi, editing,
+    textShapes, hasText,
+  }
 }

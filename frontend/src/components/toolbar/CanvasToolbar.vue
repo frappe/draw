@@ -52,7 +52,7 @@ import WhiteboardTools from '@/components/floating/WhiteboardTools.vue'
 import ToolbarSeparator from './ToolbarSeparator.vue'
 
 const { chromeType } = useSelectionContext()
-const { connector, hasShapes, count, editing, shapes } = useBlockSelection()
+const { connector, hasShapes, count, editing, shapes, hasText } = useBlockSelection()
 const mindmap = useMindmapSelection()
 const store = useDiagramStore()
 const modeStrategy = useModeStrategy()
@@ -157,11 +157,18 @@ const flowchartSelected = computed(
                below (which reads the legacy sub-model) never sees it (#410). -->
           <FlowchartNodeTypeGroup :shapes="shapes" />
           <StyleGroup />
-          <ToolbarSeparator />
         </template>
 
-        <!-- Shown while editing too: this IS the text-only menu then (#259). -->
-        <TextGroup />
+        <!-- Shown while editing too: this IS the text-only menu then (#259) — and
+             a shape being edited holds text by definition, so the gate below is
+             satisfied on that path without a second condition.
+             The leading separator travels WITH the group (#519): an image offers
+             no text controls, and a separator left behind would put two hairlines
+             side by side with nothing between them. -->
+        <template v-if="hasText">
+          <ToolbarSeparator v-if="!editing" />
+          <TextGroup />
+        </template>
 
         <template v-if="!editing">
           <ToolbarSeparator />

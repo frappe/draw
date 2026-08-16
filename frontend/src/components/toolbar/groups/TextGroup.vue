@@ -13,7 +13,12 @@ import { richCommands, isMarkActive } from '@/composables/useRichText.js'
 import EspressoSwatchGrid from '@/components/palette-right/EspressoSwatchGrid.vue'
 import ToolbarButton from '../ToolbarButton.vue'
 
-const { store, shapes, shapeIds, editing } = useBlockSelection()
+// textShapes, not every selected shape (#519): a mixed selection of an image and a
+// rectangle reads and writes the rectangle's label, and passes the image by. Reading
+// shapes[0] meant an image first in the selection reported a font and a size it had
+// no way to carry.
+const { store, textShapes, editing } = useBlockSelection()
+const textIds = computed(() => textShapes.value.map((shape) => shape.id))
 
 // Espresso defines exactly two typefaces (design/colors_and_type.css): the Inter
 // sans stack and a mono stack. Those two now match it character for character (#475).
@@ -51,7 +56,7 @@ const ALIGNMENTS = [
   { value: 'right', label: 'Align right', icon: 'lucide-text-align-end' },
 ]
 
-const textRef = computed(() => shapes.value[0])
+const textRef = computed(() => textShapes.value[0])
 const textStyle = computed(() => textRef.value?.text?.style || {})
 const textAlign = computed(() => textRef.value?.text?.align || 'center')
 // An unset font IS Inter, so it resolves to Inter's stack. Left as '', it would
@@ -63,7 +68,7 @@ const autoFit = computed(() => Boolean(textRef.value?.text?.autoFit))
 const currentTextColor = computed(() => textStyle.value.color || '#171717')
 
 function updateTextStyle(patch) {
-  if (shapeIds.value.length) store.updateShapes(shapeIds.value, { text: { style: patch } })
+  if (textIds.value.length) store.updateShapes(textIds.value, { text: { style: patch } })
 }
 
 function markText(name) {
@@ -80,7 +85,7 @@ function markActive(name) {
 
 function setTextAlign(value) {
   if (editing.value) richCommands.setAlign(value)
-  else if (shapeIds.value.length) store.updateShapes(shapeIds.value, { text: { align: value } })
+  else if (textIds.value.length) store.updateShapes(textIds.value, { text: { align: value } })
 }
 
 function alignActive(value) {
@@ -105,7 +110,7 @@ function setFont(value) {
 }
 
 function toggleAutoFit() {
-  if (shapeIds.value.length) store.updateShapes(shapeIds.value, { text: { autoFit: !autoFit.value } })
+  if (textIds.value.length) store.updateShapes(textIds.value, { text: { autoFit: !autoFit.value } })
 }
 
 // Recolours the caret selection live while editing, else sets the shape's base

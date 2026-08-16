@@ -344,3 +344,38 @@ describe('the zoom control', () => {
     expect(group).toContain('else editorUi.setZoomPercent(percent)')
   })
 })
+
+// #519: an image selection showed the whole text group — font, size, marks,
+// alignment, colour — none of which apply to it. Gated on the SELECTION rather
+// than inside TextGroup, so the separator either side goes with it; gating inside
+// would have left two hairlines with nothing between them.
+describe('the text group is offered only to shapes that can hold text (#519)', () => {
+  const toolbar = templateOf(read('CanvasToolbar.vue'))
+  const group = read('groups/TextGroup.vue')
+
+  it('wraps TextGroup in the hasText gate, with its leading separator inside', () => {
+    expect(toolbar).toContain('<template v-if="hasText">')
+    const gate = toolbar.slice(toolbar.indexOf('<template v-if="hasText">'))
+    const body = gate.slice(0, gate.indexOf('</template>'))
+    expect(body).toContain('<TextGroup />')
+    // The separator travels with the group. It stays conditional on !editing,
+    // because the text-only menu (#259) carries no separators at all.
+    expect(body).toContain('<ToolbarSeparator v-if="!editing" />')
+  })
+
+  it('leaves exactly one separator between Style and Arrange when the group is gone', () => {
+    // StyleGroup must NOT be followed by its own trailing separator any more —
+    // that one moved inside the gate. Arrange keeps its leading one, so an image
+    // selection reads Style | Arrange rather than Style || Arrange.
+    const style = toolbar.slice(toolbar.indexOf('<StyleGroup />'))
+    const afterStyle = style.slice(0, style.indexOf('<template v-if="hasText">'))
+    expect(afterStyle).not.toContain('<ToolbarSeparator />')
+  })
+
+  it('reads and writes the text-bearing shapes, not every selected shape', () => {
+    // A mixed image + rectangle selection must report the rectangle's font, and
+    // write to the rectangle alone.
+    expect(group).toContain('textShapes')
+    expect(group).not.toContain('shapeIds')
+  })
+})
