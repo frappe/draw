@@ -59,8 +59,33 @@ export function useKeyboard(store, editorUi) {
 // across all types; non-modifier keys are first offered to the active type's
 // per-mode handler (mindmap navigation, flowchart letters, whiteboard numbers),
 // then fall back to the shared block shortcuts only for the block type.
+// A dialog or a toolbar menu that reka has open. Both render their content with
+// role="dialog" and data-state="open" (DialogContentImpl / PopoverContentImpl); a
+// TRIGGER carries data-state without the role, so it never matches here, and a
+// closed layer is either unmounted or data-state="closed".
+const OPEN_OVERLAY = '[role="dialog"][data-state="open"]'
+
+// Whether something is open over the canvas and owns the keyboard (#463).
+//
+// This handler binds to WINDOW when the editor mounts, and reka's DismissableLayer
+// binds to window too, so the two run in registration order and the editor — mounted
+// long before any dialog opens — always goes first. It used to call preventDefault()
+// on Escape unconditionally; reka then saw `defaultPrevented` and declined to
+// dismiss, so Escape could not close Export, Share or Show info. It was being spent
+// deselecting the canvas behind them.
+//
+// The guard stands the whole handler down rather than special-casing Escape, because
+// Escape was not the only key leaking through: with a shape selected behind an open
+// dialog, Delete still removed it and `?` still opened the shortcuts sheet on top.
+// Exported for the test: this is a DOM predicate, and the alternative is asserting
+// it by reading the source, which would not catch a selector that matches nothing.
+export function overlayOwnsTheKeyboard() {
+  return typeof document !== 'undefined' && document.querySelector(OPEN_OVERLAY) !== null
+}
+
 function handleKeydown(event, store, editorUi, clipboard, transform) {
   if (isEditingText(event.target)) return
+  if (overlayOwnsTheKeyboard()) return
   const modifier = event.metaKey || event.ctrlKey
   if (modifier) {
     if (handleModifierKey(event, store, clipboard, editorUi)) event.preventDefault()
