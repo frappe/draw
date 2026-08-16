@@ -12,7 +12,6 @@ import { TEXT_EDITOR, exitTextEdit } from '../helpers/editor.js'
 
 const NEUTRAL_SELECT = '#525252'
 const NEUTRAL_HOVER = '#C7C7C7'
-const SELECT_BLUE = '#006EDB'
 
 const outlines = (page) => page.locator('[data-selection-layer] rect')
 const hoverHalo = (page) => page.locator('[data-hover-outline] rect')
@@ -50,8 +49,10 @@ test.describe('canvas text selection chrome (#414)', () => {
     )
   })
 
-  test('keeps the blue dashes on a drawn shape', async ({ page, diagram }) => {
-    // The neutral treatment is for text only — this is the control.
+  test('keeps the DASHES, in the same grey, on a drawn shape', async ({ page, diagram }) => {
+    // #451 item 8 took the blue away from shapes too, so the colour is no longer
+    // what separates a shape from text — the dashes are. A drawn shape has a
+    // border of its own, and a solid grey line around it would not read as chrome.
     await diagram.open('unified', {})
 
     const shape = page.locator('[data-shape-id="s1"]')
@@ -59,7 +60,7 @@ test.describe('canvas text selection chrome (#414)', () => {
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
 
     const outline = outlines(page).first()
-    await expect(outline).toHaveAttribute('stroke', SELECT_BLUE)
+    await expect(outline).toHaveAttribute('stroke', NEUTRAL_SELECT)
     await expect(outline).toHaveAttribute('stroke-dasharray', /.+/)
   })
 

@@ -41,6 +41,10 @@ const groups = computed(() => [
     items: [
       { text: 'Double-click', label: 'Add text / edit' },
       { text: 'Click a shape, drag', label: 'Move' },
+      // The Shapes menu has no Square tile (#397) and its Quadrilateral tooltip
+      // is now just the name (#451 item 4), so this sheet is where the trick is
+      // written down.
+      { text: '⇧ drag', label: 'Draw a square or a circle' },
       { combo: '?', label: 'This shortcuts sheet' },
     ],
   },

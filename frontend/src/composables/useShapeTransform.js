@@ -2,6 +2,7 @@
 // Live mutations give 60fps feedback; the whole gesture is wrapped in a single
 // history step on release. Arrow-key nudging is a discrete history step each.
 import { rotatePoint, shapeCenter } from '@/diagram/geometry.js'
+import { clampCornerRadius, cornerRadiusOf } from '@/diagram/shapeGeometry.js'
 import { useSmartGuides } from '@/composables/useSmartGuides.js'
 
 const ROTATION_SNAP = [0, 30, 45, 60, 90]
@@ -16,8 +17,15 @@ export function useShapeTransform(store) {
   const move = createMover(store)
   const resize = createResizer(store)
   const rotate = createRotator(store)
+  const round = createCornerRounder(store)
   const nudge = createNudger(store)
-  return { startMove: move, startResize: resize, startRotate: rotate, nudge }
+  return {
+    startMove: move,
+    startResize: resize,
+    startRotate: rotate,
+    startCornerRadius: round,
+    nudge,
+  }
 }
 
 // Snapshot the geometry of the shapes a gesture will touch.
@@ -153,6 +161,35 @@ function releaseTextFit(store, id) {
   const shape = store.shapeById(id)
   if (!shape?.text?.fitWidth) return null
   return { text: { ...shape.text, fitWidth: false } }
+}
+
+// Drag the corner dot to open or close a box shape's corner radius (#451 item 6).
+// The radius follows the pointer's distance from the corner along the diagonal, so
+// dragging inwards rounds and dragging back to the corner squares it off again.
+// One history step per gesture, like every other transform here.
+function createCornerRounder(store) {
+  return ({ toLogical, id }) => {
+    const shape = store.shapeById(id)
+    if (!shape) return
+    const original = { id, cornerRadius: cornerRadiusOf(shape) }
+    const corner = { x: shape.x, y: shape.y }
+    const apply = (point) => [
+      { id, cornerRadius: clampCornerRadius(shape, radiusFromCorner(corner, point)) },
+    ]
+    runDrag(
+      toLogical,
+      (event, point) => applyLive(store, apply(point)),
+      (event, point) => finishGesture(store, 'Round corners', [original], apply(point)),
+    )
+  }
+}
+
+// Distance from the corner to the pointer, measured along the 45° diagonal: the
+// mean of the two axis distances. Using the straight-line distance instead would
+// make the radius grow when the pointer slid along one edge, which reads as the
+// handle running away from the cursor.
+function radiusFromCorner(corner, point) {
+  return (Math.max(0, point.x - corner.x) + Math.max(0, point.y - corner.y)) / 2
 }
 
 // Rotate one shape around its center; Shift snaps to the fixed-angle family.

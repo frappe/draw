@@ -243,10 +243,11 @@ describe('the shape tiles the grid dropped (#397)', () => {
     expect(view).toContain("shape.type === 'diamond'")
   })
 
-  // The tooltip is the only place the Shift trick is written down now that the
-  // Square tile is not there to hint at it.
+  // The Shift trick has to stay written down somewhere now that the Square tile is
+  // gone (#397) AND the tooltip that carried it is just the shape's name (#451
+  // item 4). The shortcuts sheet is that somewhere.
   it('says where the square went', () => {
-    expect(read('groups/InsertGroups.vue')).toContain("'Rectangle — hold Shift for a square'")
+    expect(read('../ShortcutsDialog.vue')).toContain('Draw a square or a circle')
     expect(read('../../composables/useShapeCreation.js')).toContain('drag.square = event.shiftKey')
   })
 })

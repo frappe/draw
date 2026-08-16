@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   shapeCornerRadius,
   SHARP_CORNER_RADIUS,
+  maxCornerRadius,
+  clampCornerRadius,
   ROUNDED_CORNER_RADIUS,
   CORNER_RADIUS_OPTIONS,
   cornerRadiusOf,
@@ -47,9 +49,12 @@ describe('a per-shape corner radius', () => {
     expect(shapeCornerRadius('rounded', -8)).toBe(ROUNDED_CORNER_RADIUS)
   })
 
-  it('offers four presets, the current default among them', () => {
-    expect(CORNER_RADIUS_OPTIONS).toHaveLength(4)
+  it('offers presets covering square through pill, both defaults among them', () => {
+    // 0 joined the list with #451: a plain rectangle is sharp by default now, so
+    // the picker has to be able to put a rounded one back to square.
+    expect(CORNER_RADIUS_OPTIONS).toContain(SHARP_CORNER_RADIUS)
     expect(CORNER_RADIUS_OPTIONS).toContain(ROUNDED_CORNER_RADIUS)
+    expect(CORNER_RADIUS_OPTIONS.every((radius) => Number.isFinite(radius) && radius >= 0)).toBe(true)
   })
 })
 
@@ -71,5 +76,35 @@ describe('cornerRadiusOf', () => {
     expect(cornerRadiusOf({ type: 'rounded' })).toBe(ROUNDED_CORNER_RADIUS)
     expect(cornerRadiusOf({ type: 'rect' })).toBe(SHARP_CORNER_RADIUS)
     expect(cornerRadiusOf({ type: 'rounded', cornerRadius: 4 })).toBe(4)
+  })
+})
+
+// #451 items 5/6/7. The drag handle writes through these, so they are what stops a
+// radius the box cannot draw from reaching the document.
+describe('the limits a dragged radius is held to', () => {
+  const box = { type: 'rectangle', w: 200, h: 120 }
+
+  it('stops at half the shorter side, where the corner arcs meet', () => {
+    expect(maxCornerRadius(box)).toBe(60)
+    expect(maxCornerRadius({ w: 40, h: 400 })).toBe(20)
+  })
+
+  it('clamps a radius into that range and rounds it to whole units', () => {
+    expect(clampCornerRadius(box, 24.4)).toBe(24)
+    expect(clampCornerRadius(box, 500)).toBe(60)
+    expect(clampCornerRadius(box, -10)).toBe(0)
+  })
+
+  it('treats a missing or unusable radius as square', () => {
+    expect(clampCornerRadius(box, undefined)).toBe(0)
+    expect(clampCornerRadius(box, NaN)).toBe(0)
+    expect(maxCornerRadius(undefined)).toBe(0)
+  })
+
+  // A plain rectangle draws sharp now, which is the whole point of item 5: the two
+  // rectangle tiles have to be tellable apart.
+  it('keeps the two rectangle tiles visibly different', () => {
+    expect(SHARP_CORNER_RADIUS).toBe(0)
+    expect(ROUNDED_CORNER_RADIUS).toBeGreaterThan(12)
   })
 })

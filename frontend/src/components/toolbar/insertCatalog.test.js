@@ -153,7 +153,10 @@ describe('the Shapes tiles (#425)', () => {
     const tile = groups.slice(from, groups.indexOf('</Popover>', from))
     expect(tile).toContain(':icon="shape.icon"')
     expect(tile).toContain(':label="shape.label"')
-    expect(tile, 'slot content would put a text label in the icon-only grid').not.toContain('<template')
+    // A #icon slot is fine — the custom polygon tile draws its glyph that way
+    // (#451). A DEFAULT slot is what would put words in an icon-only grid.
+    expect(tile, 'slot content would put a text label in the icon-only grid').not.toContain('<template #default')
+    expect(tile, 'an unnamed slot is the default slot').not.toContain('<template>')
   })
 
   // ShapeGlyph now covers only what Lucide cannot: the flowchart node geometry and
@@ -164,5 +167,37 @@ describe('the Shapes tiles (#425)', () => {
     expect(glyph).not.toContain("family === 'block'")
     expect(glyph).toContain("family === 'flowchart'")
     expect(glyph).toContain("family === 'mindmap'")
+  })
+})
+
+// #451: the Shapes menu is eight tiles in a 4 x 2 grid, and the eighth asks for a
+// side count before it inserts anything.
+describe('the shapes grid (#451)', () => {
+  const groups = read('./groups/InsertGroups.vue')
+
+  it('lays the menu out four across, so eight tiles fill two full rows', () => {
+    expect(groups).toContain('grid-cols-4')
+    expect(SHAPES).toHaveLength(7) // + the custom polygon the menu renders itself
+  })
+
+  it('gives the polygon tile a polygon glyph, not the pen tool', () => {
+    const polygon = SHAPES.find((shape) => shape.type === 'polygon')
+    expect(polygon.icon).toBe('lucide-pentagon')
+    expect(polygon.icon).not.toBe('lucide-pen-tool')
+  })
+
+  it('names the rectangle tile Quadrilateral, with no description hanging off it', () => {
+    const rectangle = SHAPES.find((shape) => shape.type === 'rectangle')
+    expect(rectangle.label).toBe('Quadrilateral')
+    expect(groups).not.toContain('hold Shift for a square')
+  })
+
+  it('offers the custom polygon behind a side-count prompt', () => {
+    expect(groups).toContain('label="Custom polygon"')
+    expect(groups).toContain('PolygonSidesPicker')
+    // It inserts on submit rather than arming a draw tool, so it must not be
+    // draggable — there is no shape to drop until the count is known.
+    const tile = groups.slice(groups.indexOf('label="Custom polygon"'))
+    expect(tile.slice(0, tile.indexOf('/>'))).not.toContain('draggable')
   })
 })

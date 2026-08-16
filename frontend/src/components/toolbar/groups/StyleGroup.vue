@@ -9,7 +9,7 @@ import { useBlockSelection } from '@/composables/useBlockSelection.js'
 import { isMindmapShape } from '@/diagram/freeFloating.js'
 import { hasFill, hasBorder } from '@/diagram/mindmapNodeStyle.js'
 import { inkFor } from '@/diagram/espressoPalette.js'
-import { CORNER_RADIUS_OPTIONS, isRoundedBoxShape, shapeCornerRadius } from '@/diagram/shapeGeometry.js'
+import { CORNER_RADIUS_OPTIONS, supportsCornerRounding, shapeCornerRadius } from '@/diagram/shapeGeometry.js'
 import EspressoSwatchGrid from '@/components/palette-right/EspressoSwatchGrid.vue'
 import FillBorderSection from '@/components/palette-right/FillBorderSection.vue'
 import TransparencySection from '@/components/palette-right/TransparencySection.vue'
@@ -60,11 +60,13 @@ function setNodeCurve(value) {
   if (shapeIds.value.length) store.updateShapes(shapeIds.value, { mindmap: { curve: value } })
 }
 
-// A plain rounded rectangle picks its own roundedness from four presets (#411). It
-// shares the Corners popover with a node's branch curve — the selection is one or
-// the other, never both, so the two controls can't collide.
+// A box shape picks its own roundedness from the presets (#411), and drags the
+// corner dot for anything between them (#451). Every box shape qualifies now, not
+// only the rounded rectangle: a plain rectangle is sharp by default and needs a
+// way back. It shares the Corners popover with a node's branch curve — the
+// selection is one or the other, never both, so the two controls can't collide.
 const isRoundedBoxSelection = computed(
-  () => shapes.value.length > 0 && shapes.value.every(isRoundedBoxShape),
+  () => shapes.value.length > 0 && shapes.value.every(supportsCornerRounding),
 )
 const boxCornerRadius = computed(() =>
   shapeCornerRadius(shapes.value[0]?.type, shapes.value[0]?.cornerRadius),

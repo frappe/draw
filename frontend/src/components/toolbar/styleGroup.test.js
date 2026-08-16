@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { CORNER_RADIUS_OPTIONS, isRoundedBoxShape } from '@/diagram/shapeGeometry.js'
+import { CORNER_RADIUS_OPTIONS, supportsCornerRounding } from '@/diagram/shapeGeometry.js'
 
 // This repo keeps unit tests browser-free (node env, no @vue/test-utils), so the
 // markup contract is asserted by source inspection, the way canvasToolbar.test.js
@@ -46,20 +46,29 @@ describe('the Corners popover', () => {
 
 describe('which shapes the roundedness picker claims', () => {
   it('takes a plain rounded rectangle', () => {
-    expect(isRoundedBoxShape({ type: 'rounded' })).toBe(true)
+    expect(supportsCornerRounding({ type: 'rounded' })).toBe(true)
+  })
+
+  // #451 items 5/6/7: a plain rectangle is SHARP by default and rounds by dragging
+  // its corner dot, so it has to be claimed too — otherwise there is no way back
+  // from square, and the handle and the picker would disagree about the same shape.
+  it('takes the box shapes that are sharp by default', () => {
+    expect(supportsCornerRounding({ type: 'rectangle' })).toBe(true)
+    expect(supportsCornerRounding({ type: 'square' })).toBe(true)
   })
 
   // A node is type 'rounded' too, and its corners come from the curve tabs in the
   // same popover — claiming it would put both controls on one selection.
   it('leaves a mind-map or flowchart node to its own control', () => {
-    expect(isRoundedBoxShape({ type: 'rounded', role: 'mindmap-node' })).toBe(false)
-    expect(isRoundedBoxShape({ type: 'rounded', role: 'flowchart-node' })).toBe(false)
+    expect(supportsCornerRounding({ type: 'rounded', role: 'mindmap-node' })).toBe(false)
+    expect(supportsCornerRounding({ type: 'rounded', role: 'flowchart-node' })).toBe(false)
+    expect(supportsCornerRounding({ type: 'rectangle', role: 'mindmap-node' })).toBe(false)
   })
 
-  it('leaves every other shape type alone', () => {
-    expect(isRoundedBoxShape({ type: 'rectangle' })).toBe(false)
-    expect(isRoundedBoxShape({ type: 'ellipse' })).toBe(false)
-    expect(isRoundedBoxShape(undefined)).toBe(false)
+  it('leaves shapes with no corners alone', () => {
+    expect(supportsCornerRounding({ type: 'ellipse' })).toBe(false)
+    expect(supportsCornerRounding({ type: 'triangle' })).toBe(false)
+    expect(supportsCornerRounding(undefined)).toBe(false)
   })
 })
 

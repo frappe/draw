@@ -15,6 +15,7 @@ import { startPaletteDrag } from '@/composables/useShapeCreation.js'
 import { isUnifiedDocument } from '@/diagram/schema.js'
 import { NODE_TYPES, NODE_TYPE_META } from '@/diagram/flowchartModel.js'
 import { tableInsertOrigin } from '@/components/floating/tableSizePicker.js'
+import { regularPolygon, POLYGON_INSERT_WIDTH } from '@/diagram/polygon.js'
 
 // Curated set (#131). The polygon is placed vertex by vertex, so its tile arms a
 // multi-click tool and — unlike every other shape — cannot be dragged onto the
@@ -34,15 +35,21 @@ import { tableInsertOrigin } from '@/components/floating/tableSizePicker.js'
 // stands for the rectangle the tile inserts, exactly as Frappe Slides does it.
 // `square-round-corner` keeps it distinct from the rounded rectangle below, which
 // is the pair that actually has to be told apart.
+//
+// Seven tiles here plus the custom polygon, which the menu renders itself (it asks
+// for a side count first), make the 4 × 2 grid (#451 item 3).
 export const SHAPES = [
-  { type: 'rectangle', icon: 'lucide-square', label: 'Rectangle' },
+  // "Quadrilateral", not "Rectangle — hold Shift for a square" (#451 item 4): the
+  // Shift hint belongs in the shortcuts sheet, not in a tooltip on every hover.
+  { type: 'rectangle', icon: 'lucide-square', label: 'Quadrilateral' },
   { type: 'rounded', icon: 'lucide-square-round-corner', label: 'Rounded rectangle' },
   { type: 'ellipse', icon: 'lucide-circle', label: 'Ellipse' },
   { type: 'triangle', icon: 'lucide-triangle', label: 'Triangle' },
   { type: 'hexagon', icon: 'lucide-hexagon', label: 'Hexagon' },
-  // The polygon is placed vertex by vertex, so its tile says "draw your own path"
-  // rather than naming a fixed shape — a pentagon glyph would promise a pentagon.
-  { type: 'polygon', icon: 'lucide-pen-tool', label: 'Polygon' },
+  // A polygon glyph, not the pen tool #431 gave it (#451 item 1). The tile draws a
+  // polygon, so it should look like one — and it now sits beside the custom
+  // polygon, whose glyph is the same outline marked "n".
+  { type: 'polygon', icon: 'lucide-pentagon', label: 'Polygon' },
   { type: 'arrow', icon: 'lucide-arrow-big-right', label: 'Block arrow' },
 ]
 export const NON_DRAGGABLE_SHAPES = ['polygon']
@@ -107,6 +114,31 @@ export function useInsertCatalog() {
     return editorUi.state.tool === tool.key
   }
 
+  // Insert an n-sided polygon centred in view (#451 item 2). It inserts on submit
+  // rather than arming a draw tool, like the table size picker: the side count is
+  // already the whole answer, and a drag would let the user stretch the sides
+  // unequal straight after asking for equal ones. The box takes the polygon's own
+  // aspect for the same reason.
+  function insertRegularPolygon(sides, close) {
+    const { points, aspect } = regularPolygon(sides)
+    const width = POLYGON_INSERT_WIDTH
+    const height = width / aspect
+    const center = viewport.centerPoint()
+    const id = store.addShape({
+      type: 'polygon',
+      points,
+      x: center.x - width / 2,
+      y: center.y - height / 2,
+      w: width,
+      h: height,
+    })
+    if (id) {
+      editorUi.setTool('select')
+      store.select(id)
+    }
+    close?.()
+  }
+
   // Drop the table centred in view, select it, and remember the size so the
   // keyboard-armed quick-place uses the same one (#134).
   function insertTable({ rows, cols }, close) {
@@ -159,6 +191,7 @@ export function useInsertCatalog() {
     runCreateTool,
     isCreateToolActive,
     insertTable,
+    insertRegularPolygon,
     insertMindmap,
     insertFlowchartNode,
     isMindmapStarterArmed,

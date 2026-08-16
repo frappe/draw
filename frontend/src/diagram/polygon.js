@@ -11,6 +11,13 @@
 // A closed polygon needs at least a triangle.
 export const MIN_POLYGON_VERTICES = 3
 
+// Most sides a custom polygon may be given (#451). Past this the outline is not
+// tellable from a circle at the sizes shapes are drawn at, so the extra vertices
+// only cost file size.
+export const MAX_POLYGON_SIDES = 15
+// The default width a custom polygon is inserted at, in canvas units.
+export const POLYGON_INSERT_WIDTH = 160
+
 // Consecutive vertices closer than this (canvas units) collapse to one, so a
 // double-click's near-identical second press never leaves a zero-length edge.
 const DEDUPE_EPSILON = 1
@@ -26,6 +33,50 @@ export function buildPolygonShape(rawPoints, epsilon = DEDUPE_EPSILON) {
   const bbox = polygonBBox(points)
   const normals = points.map((p) => ({ x: (p.x - bbox.x) / bbox.w, y: (p.y - bbox.y) / bbox.h }))
   return { type: 'polygon', x: bbox.x, y: bbox.y, w: bbox.w, h: bbox.h, points: normals }
+}
+
+// An equiangular polygon with `sides` equal sides (#451), as the stored `points`
+// plus the `aspect` (width / height) of its true outline.
+//
+// The caller MUST size the box to that aspect. Points are normalised to their own
+// bounding box, exactly like a hand-drawn polygon, and the renderer scales them
+// back onto w/h — so a pentagon dropped into a square box would be stretched and
+// its sides would no longer be equal. Sizing to the aspect is what keeps the
+// promise the tile makes.
+//
+// The first vertex points straight up, so three sides read as a triangle standing
+// on its base and five as a textbook pentagon.
+export function regularPolygon(sides) {
+  const count = clampPolygonSides(sides)
+  // Radius 100 rather than 1: polygonBBox floors its w/h at 1 canvas unit, which
+  // would distort the normalisation of a unit-sized outline.
+  const vertices = []
+  for (let i = 0; i < count; i += 1) {
+    const angle = ((-90 + (360 / count) * i) * Math.PI) / 180
+    vertices.push({ x: 100 * Math.cos(angle), y: 100 * Math.sin(angle) })
+  }
+  const box = polygonBBox(vertices)
+  return {
+    points: vertices.map((p) => ({ x: (p.x - box.x) / box.w, y: (p.y - box.y) / box.h })),
+    aspect: box.w / box.h,
+  }
+}
+
+// A side count the polygon builder can use: a whole number, at least a triangle,
+// no more than MAX_POLYGON_SIDES. The count reaches this from a text input, so
+// anything unreadable falls back to the smallest polygon rather than throwing.
+export function clampPolygonSides(sides) {
+  const count = Math.round(Number(sides))
+  if (!Number.isFinite(count)) return MIN_POLYGON_VERTICES
+  return Math.min(Math.max(count, MIN_POLYGON_VERTICES), MAX_POLYGON_SIDES)
+}
+
+// Whether a typed side count is one the user is allowed to submit. Separate from
+// clampPolygonSides on purpose: the input disables its button on a bad value
+// instead of silently accepting a different polygon than the one asked for.
+export function isValidPolygonSides(sides) {
+  const count = Number(sides)
+  return Number.isInteger(count) && count >= MIN_POLYGON_VERTICES && count <= MAX_POLYGON_SIDES
 }
 
 // Absolute SVG points string ("x,y x,y …") for a stored polygon — its normalised

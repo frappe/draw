@@ -5,7 +5,6 @@ import {
   selectionOutline,
   NEUTRAL_HOVER,
   NEUTRAL_SELECT,
-  SELECT_BLUE,
 } from './selectionChrome.js'
 
 // #414: a text element wore the same bright blue dashed box as a drawn shape, with
@@ -21,8 +20,15 @@ describe('selectionOutline', () => {
     expect(selectionOutline(text)).toEqual({ color: NEUTRAL_SELECT, dashed: false, width: 1 })
   })
 
-  it('leaves every other shape on the blue dashes', () => {
-    expect(selectionOutline(rectangle)).toEqual({ color: SELECT_BLUE, dashed: true, width: 1.5 })
+  // #451 item 8: one selection language for the canvas. A drawn shape keeps the
+  // DASHES, which is what separates chrome from the shape's own border, but wears
+  // the same grey as a node and a text element.
+  it('draws every other shape in the same grey, dashed', () => {
+    expect(selectionOutline(rectangle)).toEqual({ color: NEUTRAL_SELECT, dashed: true, width: 1.5 })
+  })
+
+  it('uses one colour for text and shapes alike', () => {
+    expect(selectionOutline(rectangle).color).toBe(selectionOutline(text).color)
   })
 
   it('is thinner for text than for a shape', () => {
@@ -40,8 +46,8 @@ describe('hoverOutline', () => {
     )
   })
 
-  it('keeps the blue halo on other shapes', () => {
-    expect(hoverOutline(rectangle).color).toBe(SELECT_BLUE)
+  it('hovers every shape in the same neutral grey', () => {
+    expect(hoverOutline(rectangle).color).toBe(NEUTRAL_HOVER)
   })
 })
 

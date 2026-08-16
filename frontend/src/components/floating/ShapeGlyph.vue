@@ -15,7 +15,8 @@ import { NODE_TYPE_META } from '@/diagram/flowchartModel.js'
 import { nodeShape } from '@/diagram/flowchartShapes.js'
 
 const props = defineProps({
-  family: { type: String, default: 'flowchart' }, // 'flowchart' | 'mindmap'
+  // 'flowchart' | 'mindmap' | 'polygon-n'
+  family: { type: String, default: 'flowchart' },
   type: { type: String, default: '' },
 })
 
@@ -55,6 +56,26 @@ const flow = computed(() => {
       <polygon v-else-if="flow.shape.kind === 'polygon'" :points="flow.shape.points" />
       <path v-else-if="flow.shape.kind === 'path'" :d="flow.shape.d" />
     </g>
+
+    <!-- Custom polygon (#451 item 2): the polygon outline with an "n" in the top
+         right corner, saying the side count is the thing you choose. Lucide has a
+         pentagon but nothing marked, so this one is drawn. The outline sits low
+         and left to leave the marker its corner. -->
+    <template v-else-if="family === 'polygon-n'">
+      <polygon points="9,3.5 16.5,9 13.6,18 4.4,18 1.5,9" />
+      <text
+        x="24"
+        y="8"
+        text-anchor="end"
+        font-size="11"
+        font-weight="600"
+        font-family="Inter, sans-serif"
+        fill="currentColor"
+        stroke="none"
+      >
+        n
+      </text>
+    </template>
 
     <!-- Mind map (#255): a single parent node on the left with three curved
          connectors branching off to the right — the "Parent Node" glyph. -->

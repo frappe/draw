@@ -72,6 +72,7 @@ declare module 'vue' {
     PaletteSection: typeof import('./src/components/palette-right/PaletteSection.vue')['default']
     PinIcon: typeof import('./src/components/home/PinIcon.vue')['default']
     PointerGroup: typeof import('./src/components/toolbar/groups/PointerGroup.vue')['default']
+    PolygonSidesPicker: typeof import('./src/components/floating/PolygonSidesPicker.vue')['default']
     PresenceAvatars: typeof import('./src/components/toolbar/PresenceAvatars.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

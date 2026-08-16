@@ -160,13 +160,14 @@ export async function armShapeFromCatalog(page, index = 0) {
   await expect(menu).toBeHidden()
 }
 
-// Arm the Polygon tool (#139). Polygon is the one shape that cannot be dragged,
-// which makes it the menu's only non-draggable tile — a stabler hook than a grid
-// index. Clicking arms the multi-click draw tool; place vertices with clickCanvas
-// and finish with Enter.
+// Arm the free-draw Polygon tool (#139). Addressed by its exact accessible name:
+// it used to be the menu's only non-draggable tile, but the custom polygon (#451)
+// cannot be dragged either, so "non-draggable" no longer identifies it. Clicking
+// arms the multi-click draw tool; place vertices with clickCanvas and finish with
+// Enter.
 export async function armPolygonFromCatalog(page) {
   const menu = await openInsertMenu(page, 'Shapes')
-  await menu.locator('button[draggable="false"]').first().click()
+  await menu.getByRole('button', { name: 'Polygon', exact: true }).click()
   await expect(menu).toBeHidden()
 }
 

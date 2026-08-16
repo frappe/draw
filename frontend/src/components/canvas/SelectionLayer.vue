@@ -11,7 +11,8 @@ import { useShapeTransform } from '@/composables/useShapeTransform.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
 import { shapeCenter, unionBounds } from '@/diagram/geometry.js'
 import { ROLE } from '@/diagram/freeFloating.js'
-import { isTextElement, selectionOutline, SELECT_BLUE } from '@/diagram/selectionChrome.js'
+import { isTextElement, selectionOutline, NEUTRAL_SELECT } from '@/diagram/selectionChrome.js'
+import { cornerRadiusOf, supportsCornerRounding, maxCornerRadius } from '@/diagram/shapeGeometry.js'
 
 const HANDLE = 12
 const ROTATION_ARM = 28
@@ -79,11 +80,30 @@ const isGroup = computed(() => {
 const zoom = computed(() => editorUi.viewport.state.zoom || 1)
 const handleSize = computed(() => HANDLE / zoom.value)
 const strokeWidth = computed(() => 1.5 / zoom.value)
-// The handles follow the outline they belong to, so a selected text element is one
-// grey treatment rather than a grey box wearing blue furniture.
-const handleColor = computed(() =>
-  single.value && isTextElement(single.value) ? selectionOutline(single.value).color : SELECT_BLUE,
-)
+// One grey for the outline and everything hanging off it (#451 item 8).
+const handleColor = NEUTRAL_SELECT
+
+// The corner-rounding handle (#451 items 6/7): a dot inside the top-left corner,
+// sitting where the corner arc currently starts, on a selected box shape. Dragging
+// it along the diagonal opens and closes the radius, the way Frappe Slides does it.
+//
+// It is offset by at least a handle's width so it never lands under the top-left
+// resize handle, where the two would fight for the same pointer press.
+const MIN_ROUNDING_INSET = 14
+const roundingHandle = computed(() => {
+  const shape = single.value
+  if (!shape || !supportsCornerRounding(shape)) return null
+  const limit = maxCornerRadius(shape)
+  if (limit < MIN_ROUNDING_INSET) return null
+  const inset = Math.min(Math.max(cornerRadiusOf(shape), MIN_ROUNDING_INSET), limit)
+  return { x: shape.x + inset, y: shape.y + inset }
+})
+
+function startRound(event) {
+  if (!single.value) return
+  event.stopPropagation()
+  transform.startCornerRadius({ toLogical: converterFrom(event), id: single.value.id })
+}
 
 // Rotate the handle group with a single shape so handles track its orientation.
 const groupTransform = computed(() => {
@@ -142,8 +162,13 @@ function startRotate(event) {
     <!-- Per-shape outline so every selected shape reads as selected. Two
          exceptions: a mind-map node answers selection by drawing its OWN border
          heavier (#427), so it is not outlined here at all, and a text element gets
-         a quiet solid grey line instead of the blue dashes (#414) — it has no
-         border of its own for the dashes to distinguish it from. -->
+         a solid line instead of dashes (#414) — it has no border of its own for
+         the dashes to distinguish it from.
+         The outline takes the shape's OWN corner radius (#451 item 8), so a
+         rounded box is not boxed in square dashes that cut across its corners.
+         `|| null` because rx="0" and no rx are the same thing, and the attribute
+         is noise on the shapes that have no corners. -->
+
     <rect
       v-for="shape in outlined"
       :key="shape.id"
@@ -151,6 +176,7 @@ function startRotate(event) {
       :y="shape.y"
       :width="shape.w"
       :height="shape.h"
+      :rx="cornerRadiusOf(shape) || null"
       :transform="
         shape.rotation
           ? `rotate(${shape.rotation} ${shape.x + shape.w / 2} ${shape.y + shape.h / 2})`
@@ -172,13 +198,27 @@ function startRotate(event) {
       :width="box.w + 12 / zoom"
       :height="box.h + 12 / zoom"
       fill="none"
-      stroke="#006EDB"
+      :stroke="NEUTRAL_SELECT"
       :stroke-width="strokeWidth"
     />
 
     <!-- Handles + rotation handle: single selection only, rotating with it. Skipped
          for mind-map / flowchart nodes, which show a plain border instead (#261/#262). -->
     <g v-if="single && !singleIsNode" :transform="groupTransform">
+      <!-- Corner-rounding handle (#451). Drawn before the resize handles so a
+           press near the corner still reaches the resize handle on top. -->
+      <circle
+        v-if="roundingHandle"
+        data-testid="corner-rounding-handle"
+        :cx="roundingHandle.x"
+        :cy="roundingHandle.y"
+        :r="5 / zoom"
+        fill="#FFFFFF"
+        :stroke="handleColor"
+        :stroke-width="strokeWidth"
+        style="cursor: nwse-resize"
+        @pointerdown="startRound"
+      />
       <line
         :x1="box.x + box.w / 2"
         :y1="box.y"
