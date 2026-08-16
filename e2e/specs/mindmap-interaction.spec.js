@@ -5,6 +5,7 @@ import {
   mindmapAddHandles,
   exitTextEdit,
   boxInWindow,
+  TEXT_EDITOR,
 } from '../helpers/editor.js'
 
 // #427: the mind map has to work as a brainstorming surface — reach for a "+" and
@@ -65,6 +66,57 @@ test.describe('mind map interaction (#427)', () => {
         timeout: 20_000,
       })
       .toBe(5) // Root + Branch A/B/C, plus the one just added
+  })
+
+  // #514 + #510: clicking "+" says "a node goes here", so the caret goes into it and
+  // the name is the only thing left to give. While it is being named it must not be
+  // asking for a child of its own — a "+" beside a nameless node was the complaint.
+  test('a node added from "+" opens for typing, and offers no "+" until it is named', async ({ page, diagram }) => {
+    const name = await diagram.open('unified', { framesInView: true })
+
+    await hoverNode(page, ffNode(page, 'Branch A'), 'Branch A')
+    const handle = mindmapAddHandles(page).first()
+    await expect(handle).toBeVisible()
+    const target = await handle.boundingBox()
+    await page.mouse.click(target.x + target.width / 2, target.y + target.height / 2)
+
+    // The caret is already in the new node: no double-click, no second gesture.
+    await expect(page.locator(TEXT_EDITOR), 'the new node did not open for typing').toBeVisible()
+    await expect(mindmapAddHandles(page), 'a nameless node was already offering a "+"').toHaveCount(0)
+
+    // Typing lands in that node, and the name reaches the document.
+    await page.keyboard.type('Named on the spot')
+    await exitTextEdit(page)
+    await expect
+      .poll(async () => nodes(await diagram.saved(name)).map((s) => s.text?.content), {
+        message: 'the typed name never reached the saved document',
+        timeout: 20_000,
+      })
+      .toContain('Named on the spot')
+  })
+
+  // #515 + #516: only one node may offer its "+" at a time. Hover wins outright, so
+  // a node still selected from a previous action does not keep a column up beside it
+  // — nor leave one showing with the pointer right across the canvas.
+  test('only the hovered node offers its "+", and none does over empty canvas', async ({ page, diagram }) => {
+    await diagram.open('unified', { framesInView: true })
+
+    // Select Branch A by clicking it, then hover a different node.
+    const a = await boxInWindow(page, ffNode(page, 'Branch A'), 'Branch A')
+    await page.mouse.click(a.x + a.width / 2, a.y + a.height / 2)
+    await hoverNode(page, ffNode(page, 'Branch B'), 'Branch B')
+
+    // One node's column, not two. Each handle draws a hit circle and a mark, so the
+    // marks are counted rather than every circle.
+    const marks = page.locator('[data-mindmap-hover-handles] circle[r="7"]')
+    const hovered = await marks.count()
+    expect(hovered, 'the hovered node offered no "+"').toBeGreaterThan(0)
+
+    // Pointer off every node, with Branch A still selected: the selection is the
+    // non-pointer route to adding a child, so its column is what remains — and only
+    // its column.
+    await page.mouse.move(a.x - 260, a.y - 260, { steps: 8 })
+    await expect(marks, 'more than one node kept its "+" up').toHaveCount(hovered)
   })
 
   // Hovering the fork between two branches is how you say "another child, here".

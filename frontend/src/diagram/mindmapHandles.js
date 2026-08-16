@@ -20,7 +20,7 @@
 
 import { isMindmapShape } from './freeFloating.js'
 import { mindmapModelFromShapes } from './freeFloatingGraph.js'
-import { gapHandlePoints, ADD_R, ADD_OFFSET, GAP, HANDLE_INSET } from './mindmapHandleSlots.js'
+import { gapHandlePoints, ADD_R, ADD_HIT_R, ADD_OFFSET, GAP, HANDLE_INSET } from './mindmapHandleSlots.js'
 // --- geometry constants ------------------------------------------------------
 // The mark is small and quiet; the TARGET is large (#427 items 1 and 7). They are
 // separate numbers on purpose — an affordance that competes with the branches for
@@ -29,8 +29,7 @@ import { gapHandlePoints, ADD_R, ADD_OFFSET, GAP, HANDLE_INSET } from './mindmap
 //
 // The sizes the "+" placement itself reasons about live in mindmapHandleSlots and
 // are re-exported here, so a caller still has one module to import from.
-export { ADD_R, ADD_OFFSET, GAP, HANDLE_INSET }
-export const ADD_HIT_R = 15 // invisible hit radius around that circle
+export { ADD_R, ADD_HIT_R, ADD_OFFSET, GAP, HANDLE_INSET }
 export const GLYPH = 3.5 // half-length of the white "+" strokes inside a circle
 // The hover region reaches this far past the branch edge, so sliding the pointer
 // off the node onto a "+" keeps the handles alive. Derived from the HIT radius,
@@ -196,10 +195,41 @@ function computeHandles(nodeId, ctx) {
 // only while it is HOVERED (#265) — not on selection, so the gap column appears just
 // as the pointer reaches the node. Kept pure and per-node so the component's target
 // set is a plain filter over this predicate.
-export function shouldShowHandles({ hovered = false, soleSelected = false, selectTool = false } = {}) {
+export function shouldShowHandles({
+  hovered = false,
+  soleSelected = false,
+  selectTool = false,
+  editing = false,
+} = {}) {
+  // A node being named is not asking for a child yet (#510). Same argument as the
+  // drag suppression: the node already has the user's attention for one thing, and
+  // a "+" beside a nameless node asks for the next one before this one exists.
+  // Handles return on commit, so Escape or clicking away brings them straight back.
+  if (editing) return false
   // #261: a node shows its add-node CTAs while hovered OR while it is the sole
   // selection — so selecting a node (not only hovering it) surfaces the affordance.
+  // Which node gets to ask is the caller's decision (#515/#516): this stays a pure
+  // per-node test, and only one node is ever put to it.
   return Boolean(selectTool && (hovered || soleSelected))
+}
+
+// The ONE node that may offer its handles, or null — hover wins outright, and the
+// sole selection only gets to ask when the pointer is over no node at all.
+//
+// #261 let hover and selection both qualify, evaluated per node, so two nodes drew
+// their marks at once whenever the pointer sat on one while another was still
+// selected from having just been added (#515) — and a selected node kept its "+" up
+// with the pointer right across the canvas (#516). Narrowed rather than dropped: the
+// selection route is the only way to add a child without a pointer, which is what
+// keyboard and touch depend on.
+//
+// `hovered` travels with the id because the caller has to tell shouldShowHandles
+// WHICH half of the rule let this node through.
+export function handleOwnerOf({ hoveredId = null, selection = [], boxes = {} } = {}) {
+  if (hoveredId && boxes[hoveredId]) return { id: hoveredId, hovered: true }
+  const sole = selection.length === 1 ? selection[0] : null
+  if (sole && boxes[sole]) return { id: sole, hovered: false }
+  return null
 }
 
 // The topmost migrated mind-map node (by zIndex) whose box is under `point`, or
@@ -215,13 +245,20 @@ export function nodeAtPoint(point, shapes) {
 
 // The handle of `nodeId` under `point`, or null. The target is the hit radius, so
 // a click lands without pixel-perfect aim (#427 item 1).
+//
+// Nearest wins, not first-in-list (#511). Spacing now keeps two targets from
+// overlapping in a laid-out tree, but the dense-map fallback in mindmapHandleSlots
+// places each slot in the roomiest spot it can reach rather than a separated one, so
+// two targets can still meet there. List order would send such a click to whichever
+// handle came first instead of the one aimed at. Matches how slotAtPoint breaks ties.
 export function handleAtPoint(point, nodeId, ctx) {
+  let best = null
   for (const handle of handlesForNode(nodeId, ctx)) {
-    const dx = point.x - handle.cx
-    const dy = point.y - handle.cy
-    if (dx * dx + dy * dy <= ADD_HIT_R * ADD_HIT_R) return handle
+    const distance = Math.hypot(point.x - handle.cx, point.y - handle.cy)
+    if (distance > ADD_HIT_R) continue
+    if (!best || distance < best.distance) best = { handle, distance }
   }
-  return null
+  return best?.handle || null
 }
 
 // Which node owns the hover after the pointer moves to `point` (#427 item 1).

@@ -9,6 +9,7 @@ import {
   childCount,
   handlesForNode,
   shouldShowHandles,
+  handleOwnerOf,
   nodeAtPoint,
   hoverRegionOf,
   pointInBox,
@@ -70,6 +71,13 @@ describe('geometry constants', () => {
   // only trade those against each other, so they are separate numbers now.
   it('gives the "+" a target larger than the mark it draws', () => {
     expect(ADD_HIT_R).toBeGreaterThan(ADD_R)
+  })
+
+  // #511: the "+" was hard to hit. Only the invisible target moves — raising the
+  // drawn radius is the trade the two-number split was introduced to end.
+  it('keeps the drawn mark small while the target is comfortable', () => {
+    expect(ADD_R).toBe(7)
+    expect(ADD_HIT_R).toBe(20)
   })
 })
 
@@ -252,6 +260,50 @@ describe('shouldShowHandles', () => {
     expect(shouldShowHandles({ selectTool: false, soleSelected: true })).toBe(false)
     expect(shouldShowHandles()).toBe(false)
   })
+
+  // #510: a node being named is not asking for a child yet. Beats both halves of
+  // the rule — a new child is selected AND sits under the pointer that added it.
+  it('shows nothing while the node is being named (#510)', () => {
+    expect(shouldShowHandles({ selectTool: true, hovered: true, editing: true })).toBe(false)
+    expect(shouldShowHandles({ selectTool: true, soleSelected: true, editing: true })).toBe(false)
+  })
+
+  it('brings the handles back once the name is committed', () => {
+    expect(shouldShowHandles({ selectTool: true, hovered: true, editing: false })).toBe(true)
+  })
+})
+
+// #515/#516: which node gets to ask. The predicate above is per-node and both its
+// halves could pass on DIFFERENT nodes at once, so the single winner is picked here.
+describe('handleOwnerOf', () => {
+  const boxes = { a: { x: 0, y: 0, w: 10, h: 10 }, b: { x: 20, y: 0, w: 10, h: 10 } }
+
+  it('gives the handles to the hovered node', () => {
+    expect(handleOwnerOf({ hoveredId: 'a', selection: [], boxes })).toEqual({ id: 'a', hovered: true })
+  })
+
+  // The screenshot in #515: the pointer on one node, another still selected from
+  // having just been added, and both drawing their marks.
+  it('lets hover beat a different node being selected', () => {
+    expect(handleOwnerOf({ hoveredId: 'a', selection: ['b'], boxes })).toEqual({ id: 'a', hovered: true })
+  })
+
+  // #516: the pointer nowhere near, yet the selected node kept its "+" up.
+  it('falls back to the sole selection only when nothing is hovered', () => {
+    expect(handleOwnerOf({ hoveredId: null, selection: ['b'], boxes })).toEqual({ id: 'b', hovered: false })
+  })
+
+  it('offers nothing for a multi-selection or an empty one', () => {
+    expect(handleOwnerOf({ hoveredId: null, selection: ['a', 'b'], boxes })).toBeNull()
+    expect(handleOwnerOf({ hoveredId: null, selection: [], boxes })).toBeNull()
+    expect(handleOwnerOf()).toBeNull()
+  })
+
+  // A selected shape that is not a mind-map node has no boxes entry, so it cannot
+  // claim a column of "+" marks it would have nowhere to put.
+  it('ignores a selection that is not a mind-map node', () => {
+    expect(handleOwnerOf({ hoveredId: null, selection: ['sticky'], boxes })).toBeNull()
+  })
 })
 
 describe('nodeAtPoint', () => {
@@ -351,6 +403,38 @@ describe('handleAtPoint', () => {
   it('is null for a node that offers no handles', () => {
     const ctx = buildContext(sampleTree())
     expect(handleAtPoint({ x: 0, y: 0 }, 'nope', ctx)).toBeNull()
+  })
+
+  // #511: the target grew, so a click must land on the handle it was aimed at
+  // whatever order the handles come in.
+  it('answers with the handle under the point, at any position in the list', () => {
+    const ctx = buildContext(nodeWithChildren(5))
+    for (const handle of handlesForNode('p', ctx)) {
+      expect(handleAtPoint({ x: handle.cx, y: handle.cy }, 'p', ctx)?.key).toBe(handle.key)
+    }
+  })
+})
+
+// The other half of #511: a bigger target is only usable if two of them do not sit
+// on top of each other. The minimum separation placement enforces is derived from
+// the HIT radius now rather than the drawn one, so it can no longer let a
+// neighbour's target reach this handle's own mark. In a laid-out tree the child
+// spacing keeps the marks further apart than that floor anyway — this pins that,
+// so a future change to the layout or to either radius cannot quietly bring back
+// targets a user has to aim between.
+describe('handle spacing', () => {
+  it('never places two targets close enough to overlap, even in a packed tree', () => {
+    for (const pitch of [44, 48, 60]) {
+      for (const count of [2, 5, 9]) {
+        const shapes = [mmNode('root', null, 0, 100, 120, 44), mmNode('p', 'root', 300, 100, 140, 40)]
+        for (let i = 0; i < count; i += 1) shapes.push(mmNode(`c${i}`, 'p', 600, 60 + i * pitch, 140, 40))
+        const handles = handlesForNode('p', buildContext(shapes))
+        for (let i = 1; i < handles.length; i += 1) {
+          const gap = Math.hypot(handles[i].cx - handles[i - 1].cx, handles[i].cy - handles[i - 1].cy)
+          expect(gap).toBeGreaterThanOrEqual(ADD_HIT_R * 2)
+        }
+      }
+    }
   })
 })
 

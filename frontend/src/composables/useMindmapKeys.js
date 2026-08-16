@@ -12,13 +12,14 @@ import { isRoot, rootNodes } from '@/diagram/mindmapModel.js'
 import { deleteNodes, promoteNode, reorderNode, unlinkNodes } from '@/diagram/mindmapOperations.js'
 import { selectedNodeId, selectNode, beginEdit, mindmapUi } from '@/stores/mindmapUi.js'
 import { isMindmapShape } from '@/diagram/freeFloating.js'
+import { useTextEditing } from '@/composables/useTextEditing.js'
 
 const ARROW_DIRECTIONS = {
   ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
 }
 
 // Returns true when it consumed the key (the dispatcher then preventDefaults).
-export function mindmapKeydown(event, store) {
+export function mindmapKeydown(event, store, editorUi) {
   const model = store.state.mindmap
   if (mindmapUi.editingId !== null) return false
   // Free-floating (#122): if the selection is migrated mind-map SHAPES, the growth
@@ -26,7 +27,7 @@ export function mindmapKeydown(event, store) {
   const freeIds = (store.state.selection || []).filter((sid) =>
     isMindmapShape(store.state.shapes?.find((s) => s.id === sid)),
   )
-  if (freeIds.length) return freeFloatingMindmapKey(event, store, freeIds)
+  if (freeIds.length) return freeFloatingMindmapKey(event, store, editorUi, freeIds)
   if (!model) return false
   const id = selectedNodeId(store)
   if (event.key === 'Tab') return handleTab(store, id, event)
@@ -138,14 +139,14 @@ function enterEdit(store, id) {
 
 // A migrated free-floating node (free-floating #122) is a block shape, so only the
 // growth keys have a mind-map meaning here (Tab=child, Enter=sibling, Delete=remove
-// the subtree). The new node is selected, not put into the mind-map inline editor
-// (it has none) — text edit is via double-click (the block editor). Other keys are
-// consumed as a no-op: while a node owns the keyboard the block handler is
-// suppressed anyway (useKeyboard line ~133), so arrow-nudging a node is not wanted.
-function freeFloatingMindmapKey(event, store, ids) {
+// the subtree). Other keys are consumed as a no-op: while a node owns the keyboard
+// the block handler is suppressed anyway (useKeyboard line ~133), so arrow-nudging a
+// node is not wanted.
+function freeFloatingMindmapKey(event, store, editorUi, ids) {
   const id = ids.length === 1 ? ids[0] : null
-  if (event.key === 'Tab' && !event.shiftKey && id) return select(store, store.addChildNode(id))
-  if (event.key === 'Enter' && id) return select(store, store.addSiblingNode(id))
+  const name = (newId) => nameNewNode(store, editorUi, newId)
+  if (event.key === 'Tab' && !event.shiftKey && id) return name(store.addChildNode(id))
+  if (event.key === 'Enter' && id) return name(store.addSiblingNode(id))
   if (event.key === 'Delete' || event.key === 'Backspace') {
     store.deleteMindmapSubtrees(ids)
     selectNode(store, null)
@@ -154,8 +155,16 @@ function freeFloatingMindmapKey(event, store, ids) {
   return true
 }
 
-function select(store, id) {
-  if (id) selectNode(store, id)
+// A node the user just asked for is unnamed by definition, so the caret goes into it
+// (#514) — the same treatment a dropped starter and a "+" click already get. A
+// migrated node uses the shared block text editor rather than the sub-model's inline
+// one, which is why this is beginTextEdit and not beginEdit. selectNode still runs
+// first: beginTextEdit selects the shape, but only selectNode drops a selected
+// cross-link, and leaving one behind would give Delete two plausible targets.
+function nameNewNode(store, editorUi, id) {
+  if (!id) return true
+  selectNode(store, id)
+  useTextEditing(store, editorUi).beginTextEdit(id, { selectAll: true })
   return true
 }
 

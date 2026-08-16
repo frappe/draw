@@ -33,16 +33,21 @@ import {
   GLYPH,
   buildContext,
   handlesForNode,
+  handleOwnerOf,
   shouldShowHandles,
   nextHoverTarget,
   slotAtPoint,
 } from '@/diagram/mindmapHandles.js'
 import { NODE_GRAY } from '@/diagram/espressoPalette.js'
 import { useMindmapNodeDrag } from '@/composables/useMindmapNodeDrag.js'
+import { useTextEditing } from '@/composables/useTextEditing.js'
 
 const store = useDiagramStore()
 const editorUi = useEditorUi()
 const drag = useMindmapNodeDrag()
+// The shared editing session: read to suppress a node's handles while it is being
+// named, and called to open the editor on a node this overlay just added.
+const editing = useTextEditing()
 
 const layer = ref(null)
 let svg = null
@@ -131,31 +136,46 @@ onBeforeUnmount(() => {
   surface.removeEventListener('pointerleave', onPointerLeave)
 })
 
-// The nodes that should show handles right now: the hovered one AND the sole
-// selection (#261 — a selected node surfaces its add CTAs), deduped via the pure
-// predicate.
+// The one node that may offer its handles — hover, or the sole selection when the
+// pointer is over no node at all (#515/#516). The rule is in mindmapHandles.
+const handleOwner = computed(() =>
+  handleOwnerOf({
+    hoveredId: hoveredId.value,
+    selection: store.state.selection || [],
+    boxes: ctx.value.boxes,
+  }),
+)
+
+// The mind-map node being named, if any. Its handles are suppressed until it commits.
+const editingNodeId = computed(() => {
+  const id = editing?.editingShapeId?.value
+  return id && ctx.value.boxes[id] ? id : null
+})
+
 const targetIds = computed(() => {
   // A drag is already showing where the node will land; a column of "+" marks
   // under the ghost would just be competing for the same attention (#427).
   if (drag.state.active) return []
-  const selection = store.state.selection || []
-  const sole = selection.length === 1 ? selection[0] : null
-  return Object.keys(ctx.value.boxes).filter((id) =>
-    shouldShowHandles({
-      hovered: hoveredId.value === id,
-      soleSelected: sole === id,
-      selectTool: selectTool.value,
-    }),
-  )
+  const owner = handleOwner.value
+  if (!owner) return []
+  const visible = shouldShowHandles({
+    hovered: owner.hovered,
+    soleSelected: !owner.hovered,
+    selectTool: selectTool.value,
+    editing: Boolean(editingNodeId.value),
+  })
+  return visible ? [owner.id] : []
 })
 
-// Every "+" to draw: the whole column for a hovered or selected node, plus the one
-// slot the pointer is sitting in when no node owns the hover. A drag suppresses
-// both — targetIds is empty then, and a ghost already shows where the node lands.
+// Every "+" to draw: the whole column for the node that owns the hover, plus the one
+// slot the pointer is sitting in when no node does. A drag or an open node editor
+// suppresses both — the same argument in each case, that something else already has
+// the user's attention (#427, #510).
 const handles = computed(() => {
   const list = targetIds.value.flatMap((id) => handlesForNode(id, ctx.value))
   const slot = hoveredSlot.value
-  if (!drag.state.active && slot && !list.some((handle) => handle.key === slot.key)) list.push(slot)
+  const quiet = drag.state.active || editingNodeId.value
+  if (!quiet && slot && !list.some((handle) => handle.key === slot.key)) list.push(slot)
   return list
 })
 
@@ -182,10 +202,13 @@ function stubPath(handle) {
 }
 
 // Insert a child at the clicked gap through the existing store op, which opens the
-// ordinal slot, re-flows the tree, and selects the new node so its own handles
-// appear (ready to keep adding) — all as one undoable unit.
+// ordinal slot, re-flows the tree and selects the new node — all as one undoable
+// unit — then put the caret in it (#514). Clicking "+" says "a node goes here", and
+// the only thing left to say about it is its name, so asking for a second gesture to
+// start typing was asking for one nobody meant to withhold.
 function add(handle) {
-  store.addChildNodeAt(handle.nodeId, handle.side, handle.index)
+  const id = store.addChildNodeAt(handle.nodeId, handle.side, handle.index)
+  if (id) editing?.beginTextEdit(id, { selectAll: true })
 }
 </script>
 

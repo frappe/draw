@@ -17,7 +17,12 @@
 import { branchControlPoints } from './mindmapLayout.js'
 
 // The mark is small and quiet; the TARGET around it is large (#427 items 1 and 7).
+// Both live here, next to the placement that has to respect them — the drawn radius
+// decides what a "+" looks like, the hit radius decides what the spacing below has
+// to keep clear. mindmapHandles.js re-exports them, so callers still have one module
+// to import from.
 export const ADD_R = 7 // drawn "+" circle radius
+export const ADD_HIT_R = 20 // invisible hit radius around that circle (#511)
 export const ADD_OFFSET = 28 // gap from the node edge to a childless node's "+"
 // Vertical breathing room for the two extreme gap handles: the "above the first
 // child" "+" clears the top branch by this much, the "below the last child" one
@@ -37,7 +42,14 @@ const BRANCH_CLEARANCE = ADD_R + 6
 const BOX_CLEARANCE = ADD_R + 2
 // Two "+" marks this close would read as one control, so a slot prefers any other
 // position it can reach over crowding its neighbour.
-const HANDLE_SEPARATION = ADD_R * 2 + 6
+//
+// Derived from the HIT radius, not the drawn one (#511): the old `ADD_R * 2 + 6`
+// described the marks alone, so two handles at the minimum separation already had
+// their targets overlapping, and raising the target widened the overlap. At this
+// distance a neighbour's target stops short of this handle's own mark, so clicking
+// a mark always lands on the handle it belongs to. Inside the remaining overlap
+// handleAtPoint picks the nearer of the two.
+const HANDLE_SEPARATION = ADD_HIT_R + ADD_R
 
 const COLUMNS = 8 // candidate x positions across the corridor, child column first
 // Fallback positions INSIDE the child column, past the point where every branch has

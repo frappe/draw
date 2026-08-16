@@ -34,9 +34,11 @@ import { isFlowchartShape } from './freeFloating.js'
 // drawn circle inside a much larger invisible hit circle. The flowchart "+" used to
 // be a solid 11px disc — big enough to read as a node in its own right, and dark
 // enough to pull the eye off the chart — with its hit area no bigger than the ink.
-// Drawing less while targeting more is the whole trick: 7px of ink, 15px of target.
+// Drawing less while targeting more is the whole trick: 7px of ink, 20px of target
+// (the target grew in #511 — the "+" was reported hard to hit, and these two
+// overlays share one number so that a fix to either is a fix to both).
 export const ADD_R = 7 // drawn "+" circle radius
-export const ADD_HIT_R = 15 // invisible hit radius around that circle
+export const ADD_HIT_R = 20 // invisible hit radius around that circle
 export const ADD_OFFSET = 28 // gap from the node's exit edge to the "+" centre
 export const GLYPH = 3.5 // half-length of the "+" strokes inside a circle
 // The hover region reaches this far below the node, so sliding the pointer off the
@@ -191,14 +193,17 @@ export function shouldShowHandles({ hovered = false, soleSelected = false, selec
 }
 
 // The handle of `nodeId` under `point`, or null. Measured against the HIT radius,
-// which is much wider than the drawn mark.
+// which is much wider than the drawn mark — so nearest wins rather than first in
+// list order, or a point inside two targets goes to whichever happened to be built
+// first instead of the one being aimed at (#511, same change as the mind map's).
 export function handleAtPoint(point, nodeId, ctx) {
+  let best = null
   for (const handle of handlesForNode(nodeId, ctx)) {
-    const dx = point.x - handle.cx
-    const dy = point.y - handle.cy
-    if (dx * dx + dy * dy <= ADD_HIT_R * ADD_HIT_R) return handle
+    const distance = Math.hypot(point.x - handle.cx, point.y - handle.cy)
+    if (distance > ADD_HIT_R) continue
+    if (!best || distance < best.distance) best = { handle, distance }
   }
-  return null
+  return best?.handle || null
 }
 
 // Which node owns the hover after the pointer moves to `point` — the flowchart
