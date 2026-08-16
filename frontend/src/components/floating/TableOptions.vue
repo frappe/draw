@@ -5,7 +5,7 @@
 // adjusted with add/remove row & column steppers instead. Pure: emits a patch.
 import { ref, computed } from 'vue'
 import { Button, Checkbox } from 'frappe-ui'
-import { CHALK_COLORS } from '@/diagram/whiteboardColors.js'
+import EspressoSwatchGrid from '@/components/palette-right/EspressoSwatchGrid.vue'
 
 const props = defineProps({
   rows: { type: Number, default: 3 },
@@ -117,17 +117,13 @@ function step(field, delta) {
     </template>
 
     <div class="mb-1 text-xs font-semibold text-ink-gray-5">Color</div>
-    <div class="grid grid-cols-8 gap-1.5">
-      <button
-        v-for="swatch in CHALK_COLORS"
-        :key="swatch"
-        :aria-label="`Colour ${swatch}`"
-        :aria-pressed="color === swatch"
-        class="h-5 w-5 rounded-full border"
-        :class="color === swatch ? 'border-[1.5px] border-outline-gray-9' : 'border-outline-gray-2'"
-        :style="{ background: swatch }"
-        @click="emit('change', { color: swatch })"
-      />
-    </div>
+    <!-- The shared Espresso grid (#495). allow-none is false: a table with no text
+         colour has nothing to read. -->
+    <EspressoSwatchGrid
+      mode="fill"
+      :model-value="color"
+      :allow-none="false"
+      @select="emit('change', { color: $event })"
+    />
   </div>
 </template>

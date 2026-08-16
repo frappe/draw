@@ -3,7 +3,8 @@
 // the tool defaults (new lines) and to a selected line (live edit). Pure — it
 // reads the passed values and emits a patch; the parent decides where to apply
 // it (ui.state defaults vs store.updateLine).
-import { CHALK_COLORS, PEN_WIDTHS } from '@/diagram/whiteboardColors.js'
+import { PEN_WIDTHS } from '@/diagram/whiteboardColors.js'
+import EspressoSwatchGrid from '@/components/palette-right/EspressoSwatchGrid.vue'
 
 defineProps({
   start: { type: String, default: 'none' },
@@ -29,7 +30,7 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
 </script>
 
 <template>
-  <div class="w-52 p-2">
+  <div class="p-2">
     <div class="mb-1 text-2xs font-semibold text-ink-gray-5">Start</div>
     <div class="mb-2 flex gap-1">
       <button
@@ -59,16 +60,15 @@ const cellIdle = 'text-ink-gray-7 hover:bg-surface-gray-2'
       </button>
     </div>
     <div class="mb-1 text-2xs font-semibold text-ink-gray-5">Color</div>
-    <div class="mb-2 grid grid-cols-8 gap-1.5">
-      <button
-        v-for="swatch in CHALK_COLORS"
-        :key="swatch"
-        :aria-label="`Colour ${swatch}`"
-        :aria-pressed="color === swatch"
-        class="h-5 w-5 rounded-full border"
-        :class="color === swatch ? 'border-[1.5px] border-outline-gray-9' : 'border-outline-gray-2'"
-        :style="{ background: swatch }"
-        @click="emit('change', { color: swatch })"
+    <!-- The shared Espresso grid (#495), so a line is coloured from the same
+         palette as everything else rather than from CHALK_COLORS, a near-miss list
+         of its own. allow-none is false: a line with no stroke colour vanishes. -->
+    <div class="mb-2">
+      <EspressoSwatchGrid
+        mode="fill"
+        :model-value="color"
+        :allow-none="false"
+        @select="emit('change', { color: $event })"
       />
     </div>
     <div class="mb-1 text-2xs font-semibold text-ink-gray-5">Width</div>

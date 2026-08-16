@@ -60,3 +60,77 @@ export function allSwatches() {
 export function inkFor(fillHex) {
   return readableInk(fillHex)
 }
+
+// --- matching a stored colour to the grid (#495) ------------------------------
+//
+// Diagrams made before the palettes were unified hold values from the older
+// SWATCH_PALETTE, which are genuinely different colours — its red is #E24C4C
+// against Espresso's #E03636. Matched by string those shapes select nothing, so the
+// picker opens looking unset on a shape that plainly has a colour.
+//
+// So the grid rings the NEAREST swatch instead. Nothing on the canvas changes: the
+// stored value is left exactly as it is and only rewritten if the user picks
+// something. The ring says "closest to this", which is true, rather than "none of
+// these", which is not.
+//
+// Distance is measured in CIE Lab, not in RGB. RGB distance is not merely
+// imprecise here, it is wrong: it puts the old palette's mint green (#88D5A5) in
+// the TEAL family and its soft red (#F08A8A) in PINK, because a large blue-channel
+// difference outweighs the hue. Both have tests. Lab is ~20 lines and gets the
+// family right, which is the whole job — someone reading the grid checks the row
+// before the shade.
+const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i
+
+export function parseHex(value) {
+  const match = HEX.exec(String(value || '').trim())
+  if (!match) return null
+  const digits = match[1].length === 3 ? [...match[1]].map((c) => c + c).join('') : match[1]
+  return [0, 2, 4].map((at) => parseInt(digits.slice(at, at + 2), 16))
+}
+
+// sRGB -> CIE Lab (D65). The two steps that matter: undo the sRGB transfer curve so
+// the channels are linear light, then the cube-root compression that makes Lab's
+// axes roughly uniform to the eye.
+const WHITE_POINT = [0.95047, 1, 1.08883]
+
+function toLinear(channel) {
+  const value = channel / 255
+  return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+}
+
+function pivot(value) {
+  return value > 0.008856 ? Math.cbrt(value) : 7.787 * value + 16 / 116
+}
+
+function toLab([r, g, b]) {
+  const [red, green, blue] = [toLinear(r), toLinear(g), toLinear(b)]
+  const xyz = [
+    red * 0.4124 + green * 0.3576 + blue * 0.1805,
+    red * 0.2126 + green * 0.7152 + blue * 0.0722,
+    red * 0.0193 + green * 0.1192 + blue * 0.9505,
+  ].map((value, axis) => pivot(value / WHITE_POINT[axis]))
+  return [116 * xyz[1] - 16, 500 * (xyz[0] - xyz[1]), 200 * (xyz[1] - xyz[2])]
+}
+
+function distance(a, b) {
+  const [first, second] = [toLab(a), toLab(b)]
+  return (first[0] - second[0]) ** 2 + (first[1] - second[1]) ** 2 + (first[2] - second[2]) ** 2
+}
+
+// The swatch a stored colour should show as selected, or null when the value is not
+// a colour at all ('none', 'transparent', a malformed hex). An exact match wins
+// outright, so a colour already in the grid never depends on the metric.
+export function nearestSwatch(value, candidates = [...allSwatches(), ...Object.values(NEUTRALS)]) {
+  const target = parseHex(value)
+  if (!target) return null
+  const exact = candidates.find((hex) => hex.toLowerCase() === String(value).toLowerCase())
+  if (exact) return exact
+  let best = null
+  for (const hex of candidates) {
+    const rgb = parseHex(hex)
+    if (!rgb) continue
+    const away = distance(target, rgb)
+    if (!best || away < best.away) best = { hex, away }
+  }
+  return best?.hex || null
+}

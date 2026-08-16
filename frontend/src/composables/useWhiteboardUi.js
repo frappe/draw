@@ -7,7 +7,7 @@
 // particular is never persisted or exported, spec C5/C10/G8).
 
 import { reactive, ref, readonly, shallowRef } from 'vue'
-import { PEN_COLORS, PEN_WIDTHS, HIGHLIGHTER_WIDTHS, STICKY_COLORS, PEN_OPACITY, HIGHLIGHTER_OPACITY } from '@/diagram/whiteboardColors.js'
+import { DEFAULT_INK, PEN_WIDTHS, HIGHLIGHTER_WIDTHS, STICKY_COLORS, PEN_OPACITY, HIGHLIGHTER_OPACITY } from '@/diagram/whiteboardColors.js'
 import { pruneTrail } from '@/diagram/laser.js'
 import { ERASER_SIZES } from '@/diagram/eraser.js'
 
@@ -27,7 +27,7 @@ export function useWhiteboardUi(store = null) {
 
 function createWhiteboardUi() {
   const state = reactive({
-    penColor: PEN_COLORS[0],
+    penColor: DEFAULT_INK,
     penWidth: PEN_WIDTHS[1],
     highlighterWidth: HIGHLIGHTER_WIDTHS[1],
     // The merged Draw tool's sub-mode (#242): 'pen' | 'highlighter', which ink the

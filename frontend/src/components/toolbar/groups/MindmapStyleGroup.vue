@@ -5,10 +5,9 @@
 // bold dark border.
 import { computed } from 'vue'
 import { Popover } from 'frappe-ui'
-import SwatchGrid from '@/components/floating/SwatchGrid.vue'
 import { useMindmapSelection } from '@/composables/useMindmapSelection.js'
 import { isRoot } from '@/diagram/mindmapModel.js'
-import { SWATCH_PALETTE } from '@/diagram/palette.js'
+import EspressoSwatchGrid from '@/components/palette-right/EspressoSwatchGrid.vue'
 import ToolbarButton from '../ToolbarButton.vue'
 
 const { store, model, nodes, hasNonRootSelected, fillPreview, branchPreview, borderPreview } =
@@ -52,9 +51,9 @@ function setLinkDash(dash) {
       </ToolbarButton>
     </template>
     <template #default>
-      <div class="w-[204px] p-2">
+      <div class="p-2">
         <div class="mb-1.5 text-2xs font-semibold text-ink-gray-4">Fill</div>
-        <SwatchGrid :colors="SWATCH_PALETTE" shape="square" class="mb-2" @select="setFill" />
+        <EspressoSwatchGrid mode="fill" :model-value="fillPreview" class="mb-2" @select="setFill" />
         <ToolbarButton class="w-full" label="Match branch" @click="setFill(null)" />
       </div>
     </template>
@@ -69,9 +68,9 @@ function setLinkDash(dash) {
       </ToolbarButton>
     </template>
     <template #default>
-      <div class="w-[204px] p-2">
+      <div class="p-2">
         <div class="mb-1.5 text-2xs font-semibold text-ink-gray-4">Branch</div>
-        <SwatchGrid :colors="SWATCH_PALETTE" @select="setColor" />
+        <EspressoSwatchGrid mode="fill" :model-value="branchPreview" :allow-none="false" @select="setColor" />
       </div>
     </template>
   </Popover>
@@ -85,9 +84,9 @@ function setLinkDash(dash) {
       </ToolbarButton>
     </template>
     <template #default>
-      <div class="w-[204px] p-2">
+      <div class="p-2">
         <div class="mb-1.5 text-2xs font-semibold text-ink-gray-4">Border</div>
-        <SwatchGrid :colors="SWATCH_PALETTE" shape="ring" class="mb-2" @select="setBorder" />
+        <EspressoSwatchGrid mode="border" :model-value="borderPreview" class="mb-2" @select="setBorder" />
         <ToolbarButton class="w-full" label="Match branch" @click="setBorder(null)" />
       </div>
     </template>

@@ -12,7 +12,8 @@ import { Button, Dialog, Popover, Slider, TabButtons } from 'frappe-ui'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
-import { CHALK_COLORS, STICKY_COLORS, PEN_WIDTHS, HIGHLIGHTER_WIDTHS } from '@/diagram/whiteboardColors.js'
+import { STICKY_COLORS, PEN_WIDTHS, HIGHLIGHTER_WIDTHS } from '@/diagram/whiteboardColors.js'
+import EspressoSwatchGrid from '@/components/palette-right/EspressoSwatchGrid.vue'
 import { ERASER_SIZES } from '@/diagram/eraser.js'
 import { visibleWhiteboardTools } from './whiteboardTools.js'
 import ToolbarButton from '@/components/toolbar/ToolbarButton.vue'
@@ -215,12 +216,21 @@ function insertTable({ rows, cols }, close) {
       <template #default>
         <!-- Draw (#242): pen/highlighter sub-mode picker, shared color,
              and a size + opacity pair that belongs to whichever ink is active. -->
-        <div v-if="t.tool === 'pen'" class="w-48 p-2">
+        <div v-if="t.tool === 'pen'" class="p-2">
           <TabButtons v-model="ui.state.drawKind" class="mb-2" size="sm" :options="DRAW_KIND_TABS" />
 
           <div class="mb-1 text-sm font-semibold text-ink-gray-5">Color</div>
-          <div class="mb-2 grid grid-cols-8 gap-1.5">
-            <!-- frappe-ui-exempt: swatch paints a literal color Button cannot render --><button v-for="c in CHALK_COLORS" :key="c" class="h-5 w-5 rounded-full border" :class="ui.state.penColor === c ? 'border-[1.5px] border-outline-gray-9' : 'border-outline-gray-2'" :style="{ background: c }" @click="ui.state.penColor = c" />
+          <!-- The full Espresso grid, the same one every other picker opens (#495,
+               Vibhav 16 Aug 2026). It replaces CHALK_COLORS, a row of eight that
+               was a near-miss of this palette rather than part of it. allow-none is
+               false: ink with no colour draws nothing. -->
+          <div class="mb-2">
+            <EspressoSwatchGrid
+              mode="fill"
+              :model-value="ui.state.penColor"
+              :allow-none="false"
+              @select="ui.state.penColor = $event"
+            />
           </div>
 
           <div class="mb-1 text-sm font-semibold text-ink-gray-5">Size</div>

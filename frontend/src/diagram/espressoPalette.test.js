@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ESPRESSO_FAMILIES, SHADE_LEVELS, NODE_GRAY, NEUTRALS, allSwatches, inkFor } from './espressoPalette.js'
+import { ESPRESSO_FAMILIES, SHADE_LEVELS, NODE_GRAY, NEUTRALS, allSwatches, inkFor, nearestSwatch } from './espressoPalette.js'
 
 describe('espressoPalette', () => {
   it('is a curated 9 x 6 grid (families x shades)', () => {
@@ -52,5 +52,57 @@ describe('espressoPalette', () => {
   it('picks dark ink on a light fill and white ink on a dark fill', () => {
     expect(inkFor('#F3F3F3')).toBe('#1F2933')
     expect(inkFor('#171717')).toBe('#FFFFFF')
+  })
+})
+
+// #495: one palette across the app means diagrams made against the OLD one hold
+// colours that are not in the grid — SWATCH_PALETTE's red is #E24C4C against
+// Espresso's #E03636. Matched by string those shapes ring nothing, so the picker
+// opens looking unset on a shape that plainly has a colour.
+//
+// Vibhav's call (16 Aug 2026): ring the nearest swatch, never rewrite what is
+// stored. Nothing on anyone's canvas changes colour.
+describe('nearestSwatch (#495)', () => {
+  it('returns a colour already in the grid unchanged', () => {
+    for (const hex of allSwatches()) {
+      expect(nearestSwatch(hex)).toBe(hex)
+    }
+  })
+
+  it('matches regardless of case, since stored values are not normalised', () => {
+    expect(nearestSwatch('#e03636')).toBe('#E03636')
+  })
+
+  it.each([
+    ['the old red', '#E24C4C', 'red'],
+    ['the old green', '#1F9D57', 'green'],
+    ['the old light green', '#88D5A5', 'green'],
+    ['the old light red', '#F08A8A', 'red'],
+  ])('puts %s in the right family', (_name, stored, family) => {
+    const match = nearestSwatch(stored)
+    const shades = ESPRESSO_FAMILIES.find((entry) => entry.name === family).shades
+    expect(shades, `${stored} matched ${match}, which is not a ${family}`).toContain(match)
+  })
+
+  it('finds white, which lives outside the family grid', () => {
+    expect(nearestSwatch('#FEFEFE')).toBe('#FFFFFF')
+  })
+
+  it('is null for anything that is not a colour', () => {
+    // 'none' and 'transparent' are sentinels the pickers use for "no fill".
+    for (const value of ['none', 'transparent', '', null, undefined, 'rgb(1,2,3)', '#12345']) {
+      expect(nearestSwatch(value)).toBeNull()
+    }
+  })
+
+  it('reads three-digit hex, which a hand-edited document can carry', () => {
+    expect(nearestSwatch('#fff')).toBe('#FFFFFF')
+    expect(nearestSwatch('#000')).toBe('#000000')
+  })
+
+  it('never returns null for a real colour — the picker must ring something', () => {
+    for (const hex of ['#123456', '#ABCDEF', '#010101', '#FEDCBA']) {
+      expect(nearestSwatch(hex)).not.toBeNull()
+    }
   })
 })

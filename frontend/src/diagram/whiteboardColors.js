@@ -5,18 +5,13 @@
 // colour-picking (1-9) was removed, because the block keyboard used the same keys to
 // recolour a shape and both meanings cannot hold on the unified canvas.
 
-// Pen + highlighter ink colors (ink-dark first so the default reads well).
-export const PEN_COLORS = [
-  '#171717', // gray-900 (default ink)
-  '#E03636', // red-500
-  '#DB7706', // amber-600
-  '#30A66D', // green-600
-  '#006EDB', // blue-600
-  '#6846E3', // violet-500
-  '#E34AA6', // pink-500
-  '#0B9E92', // teal-600
-  '#7C7C7C', // gray-600
-]
+// The ink a new stroke starts in. Pen colour is PICKED from the shared Espresso
+// grid now (#495), so there is no ink list here any more — only the default.
+//
+// There used to be two: PEN_COLORS (nine) and CHALK_COLORS (the same nine minus
+// teal). Only CHALK_COLORS was ever drawn; PEN_COLORS existed to supply `[0]`, so
+// two near-identical lists sat side by side with one of them invisible.
+export const DEFAULT_INK = '#171717' // gray-900
 
 // Exactly six sticky-note fills (spec): Yellow, Green, Blue, Pink, White, Purple.
 export const STICKY_COLORS = [
@@ -26,18 +21,6 @@ export const STICKY_COLORS = [
   '#FCEAF5', // Pink
   '#FFFFFF', // White
   '#EFEAFE', // Purple
-]
-
-// Chalk palette for the whiteboard — soft ink colors on the white board.
-export const CHALK_COLORS = [
-  '#171717', // charcoal (default ink)
-  '#E03636', // red
-  '#DB7706', // amber
-  '#30A66D', // green
-  '#006EDB', // blue
-  '#6846E3', // violet
-  '#E34AA6', // pink
-  '#7C7C7C', // gray
 ]
 
 export const PEN_WIDTHS = [2, 4, 8]

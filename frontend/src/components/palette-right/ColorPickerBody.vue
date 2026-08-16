@@ -7,14 +7,19 @@
 import { reactive, computed, watch, onBeforeUnmount } from 'vue'
 import { Button, TextInput } from 'frappe-ui'
 import { recentColors, pushRecentColor } from '@/composables/useRecentColors.js'
-import { SWATCH_PALETTE } from '@/diagram/palette.js'
+import { allSwatches } from '@/diagram/espressoPalette.js'
 
 const props = defineProps({
   modelValue: { type: String, default: '#FFFFFF' },
 })
 const emit = defineEmits(['update:modelValue'])
 
-const quickColors = SWATCH_PALETTE
+// The quick row is drawn FROM the Espresso grid (#495), so the shortcut under the
+// continuous picker offers the same colours as every other picker in the app rather
+// than a second, near-miss palette. One shade per family, the mid 500 — enough to
+// reach a hue in one click, with the full picker right above it for anything else.
+const QUICK_SHADE = 2
+const quickColors = allSwatches().filter((_hex, index) => index % 6 === QUICK_SHADE)
 const hsv = reactive({ h: 0, s: 0, v: 1, a: 1 })
 
 const currentHex = computed(() => {

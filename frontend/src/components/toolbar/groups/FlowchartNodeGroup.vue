@@ -6,9 +6,8 @@
 // Type swap and branches are single-selection only.
 import { computed } from 'vue'
 import { Popover, TextInput } from 'frappe-ui'
-import SwatchGrid from '@/components/floating/SwatchGrid.vue'
 import { useFlowchartSelection } from '@/composables/useFlowchartSelection.js'
-import { SWATCH_PALETTE } from '@/diagram/palette.js'
+import EspressoSwatchGrid from '@/components/palette-right/EspressoSwatchGrid.vue'
 import {
   NODE_TYPES,
   NODE_TYPE_META,
@@ -123,7 +122,7 @@ function remove() {
     <template #default>
       <div class="w-[204px] p-2">
         <div class="mb-1.5 text-sm font-semibold text-ink-gray-4">Fill</div>
-        <SwatchGrid :colors="SWATCH_PALETTE" shape="square" class="mb-2" @select="setFill" />
+        <EspressoSwatchGrid mode="fill" :model-value="fillPreview" class="mb-2" @select="setFill" />
         <ToolbarButton class="w-full" label="No fill" @click="setFill('none')" />
       </div>
     </template>
@@ -140,7 +139,7 @@ function remove() {
     <template #default>
       <div class="w-[204px] p-2">
         <div class="mb-1.5 text-sm font-semibold text-ink-gray-4">Border</div>
-        <SwatchGrid :colors="SWATCH_PALETTE" shape="ring" class="mb-2" @select="setBorder" />
+        <EspressoSwatchGrid mode="border" :model-value="borderPreview" class="mb-2" @select="setBorder" />
         <ToolbarButton class="w-full" label="Default border" @click="setBorder(null)" />
       </div>
     </template>

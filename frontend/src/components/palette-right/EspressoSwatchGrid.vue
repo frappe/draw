@@ -6,7 +6,8 @@
 // the node. Presentational: it emits the chosen colour (or null for "None"); the
 // parent writes it to the shape. Swatch VALUES are literal canvas colours (the SVG
 // canvas is the token exception); the chrome around them uses frappe-ui tokens.
-import { ESPRESSO_FAMILIES, NEUTRALS, SHADE_LEVELS } from '@/diagram/espressoPalette.js'
+import { computed } from 'vue'
+import { ESPRESSO_FAMILIES, NEUTRALS, SHADE_LEVELS, nearestSwatch } from '@/diagram/espressoPalette.js'
 
 const props = defineProps({
   mode: { type: String, default: 'fill' }, // 'fill' | 'border'
@@ -18,9 +19,19 @@ const emit = defineEmits(['select'])
 // The "None" sentinel per mode: a node with no fill / no border.
 const NONE = props.mode === 'border' ? 'transparent' : 'none'
 
+// The swatch to ring: the stored colour when it is one of these, else the closest
+// one (#495). A diagram made before the palettes were unified holds values from the
+// older SWATCH_PALETTE — genuinely different colours — and matching by string left
+// the picker looking unset on a shape that plainly had a colour. Nothing is
+// rewritten; the ring only says which swatch the current value is nearest to.
+const selectedSwatch = computed(() => nearestSwatch(props.modelValue))
+
 function isSelected(value) {
   const current = (props.modelValue || '').toLowerCase()
-  return current === value.toLowerCase()
+  if (current === value.toLowerCase()) return true
+  // "None" is a sentinel, not a colour, so it is only ever an exact match.
+  if (value === NONE) return false
+  return selectedSwatch.value?.toLowerCase() === value.toLowerCase()
 }
 </script>
 
