@@ -327,7 +327,7 @@ function insertTable({ rows, cols }, close) {
     allows-blur
     icon="lucide-image"
     label="Insert image"
-    @click="imageInsert.pick(() => editorUi.viewport.centerPoint())"
+    @click="imageInsert.pick((image) => editorUi.armStarter({ kind: 'image', image }))"
   />
 
   <!-- Clear all asks first (#462), the way the mind map's own clear-all does. It

@@ -4,14 +4,17 @@ import { useViewport } from './useViewport.js'
 // Capture the options passed to FileUploadHandler.upload so we can assert the
 // diagram-attach params that fix #74. The mock resolves a file_url like a real
 // upload so insert() runs to completion.
-const captured = { options: null }
+const captured = { options: null, result: null, error: null }
+const toast = { error: vi.fn(), success: vi.fn() }
 vi.mock('frappe-ui', () => ({
   FileUploadHandler: class {
     upload(file, options) {
       captured.options = options
-      return Promise.resolve({ file_url: '/files/inserted.png' })
+      if (captured.error) return Promise.reject(captured.error)
+      return Promise.resolve(captured.result ?? { file_url: '/files/inserted.png' })
     }
   },
+  toast,
 }))
 
 // naturalSize() builds `new Image()` and waits for onload; stub it so the promise
@@ -24,18 +27,38 @@ class FakeImage {
 
 const { useImageInsert } = await import('./useImageInsert.js')
 
+// insertImage is the store op the real store carries; it is what places the box, so
+// the fake reproduces its centring to keep the placement assertions honest.
 function fakeStore(name) {
-  return {
+  const store = {
     state: { name, canvas: { width: 1280, height: 720 } },
     addShape: vi.fn(() => 'shape-1'),
     select: vi.fn(),
   }
+  store.insertImage = (image, at) => {
+    const cx = at?.x ?? store.state.canvas.width / 2
+    const cy = at?.y ?? store.state.canvas.height / 2
+    const id = store.addShape({
+      type: 'image',
+      src: image.src,
+      x: Math.round(cx - image.w / 2),
+      y: Math.round(cy - image.h / 2),
+      w: image.w,
+      h: image.h,
+    })
+    store.select(id)
+    return id
+  }
+  return store
 }
 const pngFile = { type: 'image/png', name: 'photo.png' }
 
 describe('useImageInsert', () => {
   beforeEach(() => {
     captured.options = null
+    captured.result = null
+    captured.error = null
+    toast.error.mockClear()
     vi.stubGlobal('Image', FakeImage)
   })
   afterEach(() => vi.unstubAllGlobals())
@@ -63,11 +86,89 @@ describe('useImageInsert', () => {
     expect(captured.options).toEqual({ private: false })
   })
 
-  it('ignores a non-image file without uploading', async () => {
+  it('refuses a non-image file without uploading, and says so', async () => {
     const store = fakeStore('my-diagram')
     const result = await useImageInsert(store).insert({ type: 'application/pdf', name: 'x.pdf' })
     expect(result).toBeNull()
     expect(captured.options).toBeNull()
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('x.pdf'))
+  })
+
+  // #502: every one of these used to be a silent `return null` or an unhandled
+  // rejection. From the canvas they were indistinguishable from nothing happening.
+  describe('a failed insert says why (#502)', () => {
+    it('refuses a file over the 10 MB server limit before uploading it', async () => {
+      const store = fakeStore('my-diagram')
+      const big = { type: 'image/png', name: 'huge.png', size: 11 * 1024 * 1024 }
+      expect(await useImageInsert(store).insert(big)).toBeNull()
+      expect(captured.options).toBeNull() // never left the browser
+      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('10 MB'))
+    })
+
+    it('refuses an extension the server would reject', async () => {
+      const store = fakeStore('my-diagram')
+      const bmp = { type: 'image/bmp', name: 'old.bmp' }
+      expect(await useImageInsert(store).insert(bmp)).toBeNull()
+      expect(captured.options).toBeNull()
+      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('.bmp'))
+    })
+
+    it('reports the server’s own message when the upload throws', async () => {
+      const store = fakeStore('my-diagram')
+      captured.error = { messages: ['Image is too large'] }
+      expect(await useImageInsert(store).insert(pngFile)).toBeNull()
+      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('Image is too large'))
+      expect(store.addShape).not.toHaveBeenCalled()
+    })
+
+    it('reports an upload that comes back without a file url', async () => {
+      const store = fakeStore('my-diagram')
+      captured.result = {}
+      expect(await useImageInsert(store).insert(pngFile)).toBeNull()
+      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('photo.png'))
+      expect(store.addShape).not.toHaveBeenCalled()
+    })
+
+    it('says nothing when the insert works', async () => {
+      const store = fakeStore('my-diagram')
+      await useImageInsert(store).insert(pngFile)
+      expect(toast.error).not.toHaveBeenCalled()
+    })
+  })
+
+  // #503: the picker hands the uploaded image to its caller to ARM, instead of
+  // dropping it at the viewport centre. A rejected file arms nothing.
+  describe('pick hands an uploaded image to its caller (#503)', () => {
+    // vitest runs this file in the node environment, so there is no document to spy
+    // on — the whole thing is stubbed, which is enough for an <input type="file">.
+    function fakePicker(file) {
+      const input = { type: '', accept: '', files: file ? [file] : [], click: vi.fn(), listeners: {} }
+      input.addEventListener = (name, fn) => (input.listeners[name] = fn)
+      vi.stubGlobal('document', { createElement: () => input })
+      return input
+    }
+
+    it('passes the uploaded image, measured and capped, to onReady', async () => {
+      const store = fakeStore('my-diagram')
+      const input = fakePicker(pngFile)
+      const onReady = vi.fn()
+      useImageInsert(store).pick(onReady)
+      await input.listeners.change()
+      await vi.waitFor(() => expect(onReady).toHaveBeenCalled())
+      expect(onReady.mock.calls[0][0]).toMatchObject({ src: '/files/inserted.png' })
+      // Armed, not placed: nothing reaches the canvas until the click.
+      expect(store.addShape).not.toHaveBeenCalled()
+    })
+
+    it('arms nothing when the chosen file is refused', async () => {
+      const store = fakeStore('my-diagram')
+      const input = fakePicker({ type: 'application/pdf', name: 'x.pdf' })
+      const onReady = vi.fn()
+      useImageInsert(store).pick(onReady)
+      await input.listeners.change()
+      await vi.waitFor(() => expect(toast.error).toHaveBeenCalled())
+      expect(onReady).not.toHaveBeenCalled()
+    })
   })
 
   // #119 / in-view part of #75: a picked image is centred on the point the palette

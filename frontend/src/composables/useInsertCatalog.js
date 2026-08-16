@@ -117,14 +117,19 @@ export function useInsertCatalog() {
   // Three kinds of action hide behind one tile list: image opens a file picker,
   // text arms block draw-text, and the surface tools arm a whiteboard mode.
   function runCreateTool(tool, close) {
-    if (tool.key === 'image') imageInsert.pick(() => viewport.centerPoint())
+    // The picked image is uploaded, then ARMED rather than dropped (#503): the user
+    // clicks where it goes, like every other insert. Escape or arming another tool
+    // cancels it, the same as a starter.
+    if (tool.key === 'image') imageInsert.pick((image) => editorUi.armStarter({ kind: 'image', image }))
     else if (tool.key === 'text') editorUi.setDrawShape('text')
     else editorUi.setTool(tool.key)
     close?.()
   }
   function isCreateToolActive(tool) {
     if (tool.key === 'text') return isArmed('text')
-    if (tool.key === 'image') return false
+    // An armed image reads as active until the click that places it, so the tile
+    // shows the same "waiting for you" state the other insert tools do.
+    if (tool.key === 'image') return editorUi.state.pendingStarter?.kind === 'image'
     return editorUi.state.tool === tool.key
   }
 

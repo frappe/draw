@@ -159,12 +159,20 @@ describe('no insert path re-frames the camera (wiring guards)', () => {
     expect(addFirstIdea.slice(0, addFirstIdea.indexOf('}'))).not.toContain('fit')
   })
 
-  it('the image tools pick into the viewport centre so a picked image lands in view', () => {
-    expect(readSrc('./useInsertCatalog.js')).toContain(
-      'imageInsert.pick(() => viewport.centerPoint())',
-    )
-    expect(readSrc('../components/floating/WhiteboardTools.vue')).toContain(
-      'imageInsert.pick(() => editorUi.viewport.centerPoint())',
-    )
+  // A picked image no longer lands at the viewport centre — it arms for click-to-place
+  // (#503), so the user names the point and it is in view by construction. The guard
+  // this file exists for is unchanged: neither tool may move the camera. What they
+  // hand to `pick` is now an arming callback, and `armStarter` touches no pan or zoom.
+  it('the image tools arm a picked image for placement, and never re-frame', () => {
+    for (const path of ['./useInsertCatalog.js', '../components/floating/WhiteboardTools.vue']) {
+      const src = readSrc(path)
+      const pick = src.slice(src.indexOf('imageInsert.pick('))
+      const call = pick.slice(0, pick.indexOf('\n'))
+      expect(call).toContain("armStarter({ kind: 'image'")
+      expect(call).not.toContain('centerPoint')
+      expect(call).not.toContain('fit')
+      expect(call).not.toContain('setPan')
+      expect(call).not.toContain('setZoom')
+    }
   })
 })

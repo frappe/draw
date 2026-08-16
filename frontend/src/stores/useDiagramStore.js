@@ -961,6 +961,26 @@ function attachShapeMutations(store, state, history) {
     history.commit('Add shape', () => state.shapes.push(shape))
     return shape.id
   }
+  // Drop an already-uploaded image, centred on `at` (canvas units) or on the canvas
+  // centre. `image` is `{ src, w, h }`, measured and capped by useImageInsert before
+  // it gets here. It is a store op rather than a helper beside the uploader so that
+  // the click-to-place path (#503) can drop one without the canvas pulling in the
+  // upload and toast machinery.
+  store.insertImage = (image, at = null) => {
+    const canvas = state.canvas
+    const cx = at?.x ?? (canvas.width || 1280) / 2
+    const cy = at?.y ?? (canvas.height || 720) / 2
+    const id = store.addShape({
+      type: 'image',
+      src: image.src,
+      x: Math.round(cx - image.w / 2),
+      y: Math.round(cy - image.h / 2),
+      w: image.w,
+      h: image.h,
+    })
+    store.select(id)
+    return id
+  }
   // A mind-map node's box is derived from its label, so any patch that touches the
   // text — the words OR the style they are set in — has to re-fit the box in the
   // same commit (#427). Without this, raising the font size grew the letters inside

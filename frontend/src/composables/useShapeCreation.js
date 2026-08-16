@@ -91,6 +91,10 @@ export function useShapeCreation(store, editorUi) {
     const point = logicalPoint(event)
     if (starter.kind === 'mindmap') store.insertMindmapStarter(null, point)
     else if (starter.kind === 'flowchart') store.insertFlowchartStarter(null, starter.nodeType, point)
+    // A picked image is already uploaded and measured by the time it is armed, so
+    // the click only has to say where (#503). One click, no drag to size — the
+    // width is capped for us, and there is nothing else to decide.
+    else if (starter.kind === 'image') store.insertImage(starter.image, point)
     editorUi.setTool('select')
     // A dropped mind-map root drops you straight into typing (#263): the insert
     // selected it, so edit it with "New idea" pre-selected — the first keystroke
