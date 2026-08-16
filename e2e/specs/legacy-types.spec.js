@@ -188,11 +188,15 @@ test.describe('flowchart', () => {
 // again so it can't sit over the canvas the drag needs to reach.
 async function armDraw(page, kind) {
   await page.getByTestId('wtool-pen').click()
-  // The ink picker is TabButtons, which renders each tab through reka-ui's
-  // RadioGroupItem — so the tab is a <button role="radio">, NOT role="button".
+  // Plain buttons since #497 took the ink picker off TabButtons — which rendered
+  // each tab through reka-ui's RadioGroupItem, so they used to be role="radio".
+  // TabButtons hard-codes the native browser `title`, and nothing a consumer passes
+  // turns that off, so the only way off it was off the component. The control keeps
+  // its single-choice meaning through aria-pressed, matching every other segmented
+  // row in the app (the connector menu's, Home's view toggle).
   const ink = page
     .locator(POPOVER)
-    .getByRole('radio', { name: kind === 'highlighter' ? 'Highlighter' : 'Pen', exact: true })
+    .getByRole('button', { name: kind === 'highlighter' ? 'Highlighter' : 'Pen', exact: true })
   await ink.waitFor({ state: 'visible' })
   await ink.click()
   // Dismiss by clicking the tool itself: re-arming the already-active tool is a
