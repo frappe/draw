@@ -1,13 +1,15 @@
 // Debounced autosave (SPEC §8): saves the diagram document ~1.5s after the last
 // change via the whitelisted save_diagram method, revision-checked for concurrent
 // writes. Exposes a `status` ref ('saved' | 'saving' | 'error'), a `frozen` ref and
-// an `offline` ref, all rendered by EditorShell → TopToolbar → SaveIndicator.
+// an `offline` ref plus `recoverable` (whether reloading fixes a freeze, #504),
+// all rendered by EditorShell → TopToolbar → SaveIndicator.
 // Unsaved state is held in memory (and in IndexedDB) and flushed on reconnect. A
 // revision race against a connected co-editor is retried instead of freezing.
 
 import { ref, watch, onUnmounted } from 'vue'
 import { createResource, toast } from 'frappe-ui'
 import { putLocalDoc, getLocalDoc, clearLocalDoc } from '@/utils/localCache.js'
+import { saveFailure, blocksSaving } from '@/diagram/saveFailure.js'
 
 const DEBOUNCE_MS = 1500
 const MAX_STALE_RETRIES = 3
@@ -21,10 +23,15 @@ export function useAutosave(
 ) {
   const status = ref('saved')
   const frozen = ref(null)
+  // Whether reloading can get a frozen session working again (#504). The indicator
+  // always offers to download the document — it is still in memory either way — but
+  // there is no coming back to a diagram that has been deleted.
+  const recoverable = ref(true)
   // Whether the editor can currently reach the server. Announced once per episode
   // as a toast rather than as standing header chrome (#417).
   const offline = ref(false)
   const session = createSaveSession(store, diagramResource, status, frozen, offline)
+  session.setRecoverable = (value) => (recoverable.value = Boolean(value))
   // Whether a co-editor is connected to the same Yjs room. A stale revision
   // between two peers of that room is a save race, not a conflict — see
   // recoverFromStaleRevision().
@@ -66,7 +73,7 @@ export function useAutosave(
     session.teardown()
   })
 
-  return { status, frozen, offline, flush: session.flushNow }
+  return { status, frozen, recoverable, offline, flush: session.flushNow }
 }
 
 // One-shot restore: if a dirty local copy exists for this diagram on the same
@@ -227,26 +234,28 @@ function onSaveSuccess(session, diagramResource, status, savedDocument, result) 
   return true
 }
 
-// A stale revision freezes the editor for reload; anything else leaves the pending
-// document in memory to retry, and only a request that never reached the server
-// reports a connectivity problem.
+// A failure that stops this tab saving freezes the editor for reload; anything else
+// leaves the pending document in memory to retry, and only a request that never
+// reached the server reports a connectivity problem.
+//
+// Which is which is saveFailure's decision (#504), so the classification is one pure
+// function rather than a chain of exc_type checks grown here over time. A peer of
+// our own Yjs room winning a revision race is the one case that looks blocking and
+// is not — freezing there is what silently dropped everything the user drew
+// afterwards (GitHub #171) — so `peered` is passed straight through.
 function onSaveError(session, status, frozen, error, peered = false) {
   status.value = 'error'
-  if (isStaleRevision(error)) {
-    // Only a conflict with a session we are NOT connected to freezes: it holds
-    // edits we do not have, so saving over them would lose them. A peer of our own
-    // Yjs room does not, so a race it wins just leaves this save pending for the
-    // next edit to retry — freezing there is what silently dropped everything the
-    // user drew afterwards (GitHub #171).
-    if (peered) return
-    frozen.value = 'This diagram was changed elsewhere — reload.'
+  const failure = saveFailure(error, { peered })
+  if (blocksSaving(failure)) {
+    frozen.value = failure.message
+    session.setRecoverable?.(failure.recoverable)
     return
   }
   // A server that answered — with ANY status — is reachable, so the save failed on
-  // its own merits and "Save failed" is the honest report. Reporting every failure
-  // as offline is what told people they had no connection while they were online
-  // (#417): a 500 from save_diagram, a revoked permission and a dropped Wi-Fi all
-  // came out of here as the same sentence.
+  // its own merits and the retry message is the honest report. Reporting every
+  // failure as offline is what told people they had no connection while they were
+  // online (#417): a 500 from save_diagram, a revoked permission and a dropped
+  // Wi-Fi all came out of here as the same sentence.
   if (reachedServer(error)) return session.clearOffline?.()
   session.goOffline?.(isBrowserOnline())
 }

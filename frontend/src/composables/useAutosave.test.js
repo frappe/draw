@@ -231,7 +231,12 @@ describe('flush on a stale revision', () => {
 
     expect(h.saver.submit).toHaveBeenCalledTimes(1)
     expect(h.session.refreshRevision).not.toHaveBeenCalled()
-    expect(h.frozen.value).toBe('This diagram was changed elsewhere — reload.')
+    // The message names the ACTION now, not just the cause (#504) — a frozen
+    // editor keeps accepting edits, so "changed elsewhere" alone left the user with
+    // nothing to do about it. saveFailure owns the wording; this pins that the
+    // conflict path still reaches it.
+    expect(h.frozen.value).toContain('changed elsewhere')
+    expect(h.frozen.value).toContain('reload')
     expect(h.status.value).toBe('error')
   })
 
@@ -431,7 +436,7 @@ describe('watchBeforeUnload', () => {
     // Offline reaches this through 'error': the save that could not go out is what
     // makes closing the tab risky, and it is the state an offline editor sits in.
     expect(fires('error', null)).toBe(true)
-    expect(fires('saved', 'This diagram was changed elsewhere — reload.')).toBe(true)
+    expect(fires('saved', 'This diagram was changed elsewhere — reload to see the latest version.')).toBe(true)
   })
 
   it('stays silent during normal editing (saved / saving)', () => {

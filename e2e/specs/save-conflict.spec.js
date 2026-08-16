@@ -13,7 +13,8 @@ import { dragShapeFromCatalog } from '../helpers/editor.js'
 // connection between two browser contexts, which is not a deterministic thing to
 // assert on in this suite.
 
-const FREEZE_MESSAGE = 'This diagram was changed elsewhere — reload.'
+// The message names the ACTION now, not only the cause (#504).
+const FREEZE_MESSAGE = 'This diagram was changed elsewhere — reload to see the latest version.'
 
 // Save the diagram from "another session", which advances the stored revision past
 // the one this editor holds. Goes through save_diagram (not a raw doc write) so the
@@ -48,6 +49,12 @@ test('a conflicting save tells the user to reload instead of only "Save failed"'
   await dragShapeFromCatalog(page, { x: 320, y: 260 })
 
   await expect(page.getByText(FREEZE_MESSAGE, { exact: true })).toBeVisible({ timeout: 20_000 })
+
+  // A frozen editor goes on accepting edits, so the warning has to come with a way
+  // to act on it (#504): reload, and a download first so the reload does not throw
+  // the work away.
+  await expect(page.getByRole('button', { name: 'Reload' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Download a copy' })).toBeVisible()
 
   // The 417 is the expected outcome of this spec, so it must not count as a failure.
   const unexpected = errors.failures.filter((f) => !f.startsWith('417'))

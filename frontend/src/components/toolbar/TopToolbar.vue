@@ -23,10 +23,12 @@ defineProps({
   saveStatus: { type: String, default: 'saved' },
   // Autosave's freeze reason, when it is frozen — shown in place of the status.
   saveMessage: { type: String, default: '' },
+  // Whether reloading can recover a frozen session (#504).
+  saveRecoverable: { type: Boolean, default: true },
   // Connectivity is announced as a toast instead, so the indicator stays quiet.
   offline: { type: Boolean, default: false },
 })
-const emit = defineEmits(['update:title'])
+const emit = defineEmits(['update:title', 'download'])
 
 const router = useRouter()
 
@@ -53,7 +55,13 @@ function goHome() {
 
     <!-- RIGHT: actions. -->
     <div class="flex items-center justify-end gap-2">
-      <SaveIndicator :status="saveStatus" :message="saveMessage" :offline="offline" />
+      <SaveIndicator
+        :status="saveStatus"
+        :message="saveMessage"
+        :recoverable="saveRecoverable"
+        :offline="offline"
+        @download="emit('download')"
+      />
       <ExportDialog />
       <DriveMenu />
       <CommentsToggle />

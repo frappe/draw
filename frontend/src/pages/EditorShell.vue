@@ -19,6 +19,7 @@ import { createSelectionContext, provideSelectionContext } from '@/composables/u
 import { useClipboard } from '@/composables/useClipboard.js'
 import { useAutosave } from '@/composables/useAutosave.js'
 import { useThumbnail } from '@/composables/useThumbnail.js'
+import { useExport } from '@/composables/useExport.js'
 import { useCollaboration } from '@/composables/useCollaboration.js'
 import TopToolbar from '@/components/toolbar/TopToolbar.vue'
 import CanvasToolbar from '@/components/toolbar/CanvasToolbar.vue'
@@ -109,6 +110,15 @@ const thumbnail = useThumbnail(store, diagram)
 useKeyboard(store, editorUi)
 useClipboard(store)
 
+// The escape hatch offered beside a frozen save (#504). A tab that cannot save is
+// still holding the work in memory, and a reload throws it away — so there has to
+// be a way to take it with you first. SVG because it is the lossless one: a raster
+// keeps a picture of the diagram, this keeps its geometry.
+const exporter = useExport(store, () => diagram.doc?.title)
+function downloadCopy() {
+  exporter.exportSvg()
+}
+
 // Regenerate the thumbnail after each successful save; generate() self-throttles
 // to at most once / 30s (spec §11.2/§11.4).
 let savedThisSession = false
@@ -184,8 +194,10 @@ onMounted(() => {
       :title="diagram.doc?.title || 'Untitled diagram'"
       :save-status="autosave.status.value"
       :save-message="autosave.frozen.value || ''"
+      :save-recoverable="autosave.recoverable.value"
       :offline="autosave.offline.value"
       @update:title="rename"
+      @download="downloadCopy"
     />
 
     <!-- Static canvas toolbar (#359): below the title bar, above the ruler, and
