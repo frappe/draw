@@ -384,3 +384,37 @@ describe('the connector glyphs (#490, #493)', () => {
     }
   })
 })
+
+// #489: the Lines menu reserved 24px it never used — a quarter of a single-row box
+// sitting empty to the right of its last tile. The width was computed from a 34px
+// tile; ToolbarButton renders 28. Shapes had the same slack, hidden across two rows.
+//
+// This is the SECOND hard-coded box computed from a tile size that is not the real
+// one, so the guard is on the shape of the mistake rather than on the number.
+describe('an insert menu is as wide as its tiles (#489)', () => {
+  const source = read('groups/InsertGroups.vue')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/^\s*\/\/.*$/gm, '')
+
+  it('fixes no panel width at all', () => {
+    // Any `w-[...]` here is a box someone measured once, which is what drifts.
+    expect(source).not.toMatch(/w-\[\d+px\]/)
+  })
+
+  it('keeps the column counts, which are what set the layout', () => {
+    // #451 made Shapes deliberately 4-across and #470 took it to 5; only the fixed
+    // width was ever the bug.
+    expect(source).toContain('grid-cols-5')
+    expect(source).toContain('grid-cols-4')
+  })
+
+  it('gives each menu its own column count rather than one shared constant', () => {
+    // Lines and the flowchart nodes hold different numbers of tiles, so a count
+    // that suits both is a coincidence — and the shared constant is what stopped
+    // the Lines menu going to three columns for its six-tile rebuild.
+    expect(source).toContain('const linesGrid')
+    expect(source).toContain('const flowchartGrid')
+    expect(source).toContain(':class="linesGrid"')
+    expect(source).toContain(':class="flowchartGrid"')
+  })
+})

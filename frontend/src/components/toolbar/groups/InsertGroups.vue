@@ -39,12 +39,25 @@ const {
   endTileDrag,
 } = useInsertCatalog()
 
+// A menu is as wide as its tiles (#489). Both of these carried a fixed width
+// computed from a 34px tile — ToolbarButton renders 28 — so every menu reserved a
+// visible empty run to the right of its last tile: 24px on Lines, 32px on Shapes.
+// On Shapes the slack hid across two rows; on Lines it was a quarter of a
+// single-row box.
+//
+// The column count stays; only the width goes. A grid with no width is exactly as
+// wide as its contents and cannot drift the next time the tile size moves, which is
+// the second time a hard-coded box has been computed from the wrong tile.
+const GRID = 'grid gap-1 p-2'
 // Five across (#470). The Shapes menu holds ten tiles now — Trapezoid and
 // Parallelogram joined the eight of #451 item 3 — so five columns fill two rows
 // exactly with no gap at the end, where four would have left a half-empty third row.
-const shapesGrid = 'grid w-[204px] grid-cols-5 gap-1 p-2'
-// Lines and the flowchart nodes keep four across, which fills their rows.
-const grid = 'grid w-[164px] grid-cols-4 gap-1 p-2'
+const shapesGrid = `${GRID} grid-cols-5`
+// Lines and the flowchart nodes keep four across, which fills their rows. They are
+// named separately rather than sharing one constant: the two menus hold different
+// numbers of tiles, so a column count that suits both is a coincidence, not a rule.
+const linesGrid = `${GRID} grid-cols-4`
+const flowchartGrid = `${GRID} grid-cols-4`
 
 // The side-count prompt opens inside the Shapes menu, replacing the tile that
 // asked for it. A second Popover nested in this one would close the outer menu on
@@ -108,7 +121,7 @@ function closeSides(toggle) {
       </ToolbarButton>
     </template>
     <template #default="{ toggle }">
-      <div :class="grid">
+      <div :class="linesGrid">
         <ToolbarButton
           allows-blur
           v-for="connector in LINES"
@@ -168,7 +181,7 @@ function closeSides(toggle) {
            wears it, so the two menus used to be indistinguishable (#459). -->
       <template #trigger><ToolbarButton allows-blur label="Flowchart" icon="lucide-network" /></template>
       <template #default="{ toggle }">
-        <div :class="grid">
+        <div :class="flowchartGrid">
           <ToolbarButton
             allows-blur
             v-for="node in FLOWCHART_NODES"
