@@ -115,3 +115,64 @@ test.describe('sticky note selection (#416)', () => {
     await expect(stickyOnly).toHaveCount(0)
   })
 })
+
+// #501: sticky text gets the options a text box has. It stored a plain string and a
+// note-wide `strike` boolean, so bold, a size, an alignment, a text colour — and
+// "half of this struck through" — could not be said at all.
+test.describe('sticky note text options (#501)', () => {
+  const bar = (page) => page.locator('[data-canvas-toolbar]')
+  // Exact and scoped: the fixture names each diagram after its own test, so the
+  // title button's accessible name carries the test's words and getByRole matches
+  // substrings by default.
+  const control = (page, name) => bar(page).getByRole('button', { name, exact: true })
+  const notes = async (diagram, name) => (await diagram.saved(name)).whiteboard.stickyNotes
+
+  async function selectSticky(page) {
+    const sticky = page.getByText('note', { exact: true }).first()
+    const box = await sticky.boundingBox()
+    if (!box) throw new Error('the seeded sticky note is not rendered')
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+  }
+
+  test('bolding a selected note persists as a run, keeping the text intact', async ({ page, diagram }) => {
+    const name = await diagram.open('whiteboard', {})
+    await selectSticky(page)
+
+    await control(page, 'Bold').click()
+
+    await expect
+      .poll(async () => (await notes(diagram, name))[0]?.runs?.[0]?.bold, {
+        message: 'bolding a note never reached the saved document',
+        timeout: 20_000,
+      })
+      .toBe(true)
+    // `text` stays the plain source of truth, exactly as a table cell's does.
+    expect((await notes(diagram, name))[0].text).toBe('note')
+  })
+
+  test('the note carries its own text size, alignment and colour', async ({ page, diagram }) => {
+    const name = await diagram.open('whiteboard', {})
+    const paper = (await notes(diagram, name))[0].color
+    await selectSticky(page)
+
+    await control(page, 'Align center').click()
+    await expect
+      .poll(async () => (await notes(diagram, name))[0]?.textStyle?.align, {
+        message: 'the alignment never reached the document',
+        timeout: 20_000,
+      })
+      .toBe('center')
+
+    await control(page, 'Note text colour').click()
+    await page.getByRole('button', { name: 'blue 500', exact: true }).click()
+    await expect
+      .poll(async () => (await notes(diagram, name))[0]?.textStyle?.color, {
+        message: 'the text colour never reached the document',
+        timeout: 20_000,
+      })
+      .toBe('#0289F7')
+
+    // The PAPER colour is a different axis and must not have moved with the ink.
+    expect((await notes(diagram, name))[0].color, 'the paper changed with the ink').toBe(paper)
+  })
+})

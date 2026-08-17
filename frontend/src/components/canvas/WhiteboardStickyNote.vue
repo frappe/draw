@@ -20,14 +20,15 @@ import { startGroupMove } from '@/composables/useWhiteboardInteraction.js'
 // toolbar while it's actively being dragged, not just while selected (#248).
 import { isAdditiveEvent } from '@/composables/pointer.js'
 import { safeHref } from '@/utils/safeUrl.js'
-import { contrastInk } from '@/diagram/whiteboardColors.js'
+import { stickyRuns, stickyTextStyle } from '@/diagram/whiteboardModel.js'
+import { domToRuns, runsToDom } from '@/utils/richTextDom.js'
+import { runsToText, trimRuns } from '@/diagram/richText.js'
 import { roughenRect } from '@/diagram/sketch.js'
 import { pointsToPath } from '@/diagram/svgPath.js'
 import {
   newlineIntent,
   plainPaste,
   stickyTextHeight,
-  STICKY_FONT_SIZE,
   STICKY_LINE_HEIGHT,
   STICKY_PAD_X,
   STICKY_PAD_Y,
@@ -46,7 +47,10 @@ const router = useRouter()
 const field = ref(null)
 const editing = ref(false)
 
-const ink = computed(() => contrastInk(props.note.color))
+// Text size / alignment / colour, with the auto-contrast ink for the paper as the
+// colour default — so a note nobody has restyled looks exactly as it always did.
+const textStyle = computed(() => stickyTextStyle(props.note))
+const ink = computed(() => textStyle.value.color)
 // The field is laid out with the same font, leading and padding the height
 // measurement assumes, so a note that grew to fit its text really does fit it.
 const fieldStyle = computed(() => ({
@@ -54,11 +58,11 @@ const fieldStyle = computed(() => ({
   padding: `${STICKY_PAD_Y / 2}px ${STICKY_PAD_X / 2}px`,
   boxSizing: 'border-box',
   fontFamily: 'Inter, sans-serif',
-  fontSize: `${STICKY_FONT_SIZE}px`,
+  fontSize: `${textStyle.value.size}px`,
   lineHeight: String(STICKY_LINE_HEIGHT),
   whiteSpace: 'pre-wrap',
   wordBreak: 'break-word',
-  textDecoration: props.note.strike ? 'line-through' : 'none',
+  textAlign: textStyle.value.align,
   cursor: editing.value ? 'text' : 'move',
 }))
 // Highlighted whenever part of the selection (multi-select shows every member's
@@ -73,16 +77,23 @@ const MIN = 80
 // Keep the (non-editing) DOM text in sync with the model without interpolating
 // inside the contentEditable, mirroring the shared TextEditor so user keystrokes
 // are never clobbered by a re-render.
+// Runs, not a plain string (#501): a note can carry marks now, so the field is
+// rebuilt from them the same way a table cell's editor is. runsToDom writes the
+// marks as data attributes plus inline style, which domToRuns reads back on commit.
+function paintField() {
+  if (field.value) runsToDom(field.value, stickyRuns(props.note))
+}
+
 watch(
-  () => props.note.text,
-  (text) => {
-    if (!editing.value && field.value) field.value.textContent = text || ''
+  () => [props.note.text, props.note.runs, props.note.strike],
+  () => {
+    if (!editing.value) paintField()
   },
   { immediate: false },
 )
 
 onMounted(() => {
-  if (field.value) field.value.textContent = props.note.text || ''
+  paintField()
   // A sticky placed from the tool sets stickyEditRequest BEFORE this component
   // mounts, so the (non-immediate) watch below never observes it. Honour a
   // pending request on mount so a freshly-dropped note opens for typing.
@@ -162,7 +173,7 @@ async function startEditing() {
   ui.selectSticky(props.note.id)
   await nextTick()
   if (!field.value) return
-  field.value.textContent = props.note.text || ''
+  paintField()
   field.value.focus()
   const range = document.createRange()
   range.selectNodeContents(field.value)
@@ -192,9 +203,15 @@ watch(
 
 function commit() {
   if (!editing.value) return
-  const text = fieldText()
+  // Multiline, or the browser's own <div>-per-line markup would be read back as one
+  // joined line — #416, which the plain-text editor solved with innerText. Trimmed
+  // because a note has always stored its text trimmed, and Enter as the last
+  // keystroke leaves an empty line behind.
+  const runs = trimRuns(domToRuns(field.value, { multiline: true }))
   editing.value = false
-  store.updateStickyNote(props.note.id, { text, h: fittedHeight(text) })
+  // One commit carries the marks, the plain text and the height the text measures
+  // to, so a formatted edit is a single undo step.
+  store.setStickyRuns(props.note.id, runs, fittedHeight(runsToText(runs)))
 }
 
 // innerText, NOT textContent (#416). Pressing Enter in a contentEditable makes the
@@ -202,6 +219,9 @@ function commit() {
 // — and textContent concatenates those with nothing between them, so "First line /
 // Second line" was saved as "First lineSecond line". innerText reports the text as
 // it is laid out, line breaks included.
+//
+// Only the live growth while typing reads the field this way now; commit() measures
+// the runs it is about to store, so the height can never describe different text.
 function fieldText() {
   return (field.value?.innerText || '').trim()
 }

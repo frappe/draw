@@ -14,6 +14,10 @@ const TAG_MARKS = {
   S: 'strike', STRIKE: 'strike', DEL: 'strike',
 }
 
+// The elements a browser starts a new line with. Only these two ever appear: the
+// note pastes as plain text, so no other markup reaches the field.
+const BLOCK_TAGS = new Set(['DIV', 'P'])
+
 // Replace the editor's contents with `runs`, one span each.
 export function runsToDom(root, runs) {
   root.replaceChildren(...toRuns(runs).map((run) => runSpan(root.ownerDocument, run)))
@@ -22,9 +26,15 @@ export function runsToDom(root, runs) {
 // Read the editor back as runs. Walks whatever markup is actually there — a
 // browser may drop a bare text node in as you type — rather than assuming the
 // spans we wrote are still intact.
-export function domToRuns(root) {
+//
+// `multiline` keeps the line breaks (#501). A sticky note holds several lines, and
+// the browser writes a break as MARKUP rather than as a "\n": typing Enter turns
+// the next line into its own <div>. Reading only the text nodes therefore joins
+// the lines silently, which is #416 all over again. A table cell stays single-line,
+// so it keeps ignoring breaks — Enter there commits the edit.
+export function domToRuns(root, { multiline = false } = {}) {
   const out = []
-  collectRuns(root, {}, out)
+  collectRuns(root, {}, out, { multiline, root })
   return normalizeRuns(out)
 }
 
@@ -83,15 +93,43 @@ export function decorationFor(run) {
   return run.underline === undefined && run.strike === undefined ? '' : 'none'
 }
 
-function collectRuns(node, inherited, out) {
+function collectRuns(node, inherited, out, context) {
   for (const child of node.childNodes) {
     if (child.nodeType === 3) {
       if (child.nodeValue) out.push({ ...inherited, text: child.nodeValue })
-    } else if (child.nodeType === 1) {
-      // Line breaks are dropped: a cell is single-line, Enter commits the edit.
-      if (child.tagName !== 'BR') collectRuns(child, marksOf(child, inherited), out)
+      continue
     }
+    if (child.nodeType !== 1) continue
+    if (child.tagName === 'BR') {
+      if (context.multiline && !isBlockFiller(child, context.root)) out.push(lineBreak(out, inherited))
+      continue
+    }
+    // A block that FOLLOWS content opens a line; the one that opens the field does
+    // not, or every note would start with a blank line.
+    if (context.multiline && BLOCK_TAGS.has(child.tagName) && out.length) out.push(lineBreak(out, inherited))
+    collectRuns(child, marksOf(child, inherited), out, context)
   }
+}
+
+// A break takes the marks of the text before it, so a note bolded end to end stays
+// ONE bold run instead of being split in three by every line ending — which would
+// also leave the toolbar reading the note as only partly bold.
+function lineBreak(out, inherited) {
+  const previous = out[out.length - 1]
+  if (!previous) return { ...inherited, text: '\n' }
+  const { text, ...marks } = previous
+  return { ...marks, text: '\n' }
+}
+
+// Chrome closes an empty block with a <br> that exists only to give the block a
+// height. The block boundary has already counted that line, so counting the <br>
+// as well would double every blank line. The search stops at the editor root, so a
+// <br> ending the field counts as a filler too.
+function isBlockFiller(br, root) {
+  for (let node = br; node && node !== root && !BLOCK_TAGS.has(node.tagName); node = node.parentNode) {
+    if (node.nextSibling) return false
+  }
+  return true
 }
 
 function marksOf(element, inherited) {

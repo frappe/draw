@@ -22,6 +22,8 @@ import {
 import { unionBounds } from '@/diagram/geometry.js'
 import {
   whiteboardObjectsInZOrder,
+  stickyRuns,
+  stickyTextStyle,
   tableRows,
   tableCols,
   cellSpanBox,
@@ -581,14 +583,47 @@ function whiteboardSticky(note) {
 // ran off the note. Each line gets its own <tspan>, hard breaks first and then the
 // wrap the canvas applies, and lines past the bottom of the note are dropped rather
 // than drawn over whatever sits below it.
+// A note carries its own size, alignment and text colour since #501, and marks as
+// runs. Size, alignment and colour are exported exactly. Marks are exported only
+// when they cover the WHOLE note — which is the common case, and exactly what a
+// migrated note-wide `strike: true` produces.
+//
+// A mark on PART of a note is deliberately not exported. The wrap here normalises
+// whitespace to lay text out by character count, so run offsets do not map back to
+// the wrapped lines reliably; guessing would put the wrong words in bold in a
+// downloaded file, which is worse than showing the note unformatted.
 function stickyText(note, { x, y, w, h }, ink) {
   if (!note.text) return ''
-  const step = STICKY_FONT_SIZE * STICKY_LINE_HEIGHT
-  const lines = stickyLines(note.text, w).slice(0, Math.max(0, Math.floor((h - STICKY_PAD_Y) / step)) || 1)
+  const style = stickyTextStyle(note)
+  const runs = stickyRuns(note)
+  const size = num(style.size, STICKY_FONT_SIZE)
+  const step = size * STICKY_LINE_HEIGHT
+  const lines = stickyLines(note.text, w, size).slice(0, Math.max(0, Math.floor((h - STICKY_PAD_Y) / step)) || 1)
+  const anchor = { left: 'start', center: 'middle', right: 'end' }[style.align] || 'start'
+  const textX =
+    style.align === 'center' ? x + w / 2 : style.align === 'right' ? x + w - STICKY_PAD_X / 2 : x + STICKY_PAD_X / 2
   const spans = lines
-    .map((line, index) => `<tspan x="${x + STICKY_PAD_X / 2}" y="${y + STICKY_PAD_Y / 2 + step * (index + 0.8)}">${escapeText(line)}</tspan>`)
+    .map((line, index) => `<tspan x="${num(textX)}" y="${y + STICKY_PAD_Y / 2 + step * (index + 0.8)}">${escapeText(line)}</tspan>`)
     .join('')
-  return `<text fill="${ink}" font-size="${STICKY_FONT_SIZE}" font-family="Inter, sans-serif">${spans}</text>`
+  return (
+    `<text fill="${safeColor(style.color, ink)}" font-size="${size}"` +
+    ` text-anchor="${anchor}" font-family="Inter, sans-serif"${wholeNoteMarks(runs)}>${spans}</text>`
+  )
+}
+
+// The marks every run carries, as SVG attributes. Empty when the note is only
+// partly marked — see stickyText.
+function wholeNoteMarks(runs) {
+  const everywhere = (mark) => runs.length > 0 && runs.every((run) => resolveMark(run, mark))
+  let out = ''
+  if (everywhere('bold')) out += ' font-weight="600"'
+  if (everywhere('italic')) out += ' font-style="italic"'
+  const decoration = [
+    everywhere('underline') ? 'underline' : null,
+    everywhere('strike') ? 'line-through' : null,
+  ].filter(Boolean).join(' ')
+  if (decoration) out += ` text-decoration="${decoration}"`
+  return out
 }
 
 

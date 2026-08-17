@@ -51,9 +51,16 @@ test.describe('sticky note toolbar (#356)', () => {
     const stickies = async () => (await diagram.saved(name)).whiteboard.stickyNotes
 
     await selectSticky(page)
-    await bar(page).getByRole('button', { name: 'Strikethrough' }).click()
+    await bar(page).getByRole('button', { name: 'Strikethrough', exact: true }).click()
+    // A mark, not the note-wide `strike` boolean this used to assert. #501 retired
+    // that flag: sticky text carries runs now, so striking a selected note marks
+    // the whole of it. The flag is still READ, so an old note keeps its strike —
+    // it is simply never written again.
     await expect
-      .poll(async () => (await stickies())[0].strike, { message: 'strikethrough did not persist', timeout: 20_000 })
+      .poll(async () => (await stickies())[0]?.runs?.[0]?.strike, {
+        message: 'strikethrough did not persist',
+        timeout: 20_000,
+      })
       .toBe(true)
 
     await bar(page).getByRole('button', { name: 'Delete' }).click()

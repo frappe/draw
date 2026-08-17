@@ -8,8 +8,9 @@
 
 import { nextId } from './factories.js'
 import { distanceToSegment } from './geometry.js'
-import { strokeOpacity } from './whiteboardColors.js'
+import { strokeOpacity, contrastInk } from './whiteboardColors.js'
 import { hasFormatting, normalizeRuns, runsToText, toRuns } from './richText.js'
+import { STICKY_FONT_SIZE } from './stickyText.js'
 
 // Pen and highlighter are the two stroke kinds (spec C3); eraser removes whole
 // strokes rather than producing one.
@@ -40,8 +41,67 @@ export function makeStickyNote(x, y, partial = {}) {
     ...STICKY_SIZE,
     text: partial.text || '',
     color: partial.color || '#FFE8A3',
+    // Inline formatting, the same shape a table cell uses (#344, #501): `text`
+    // stays the plain source of truth and `runs` mirrors it only when the note
+    // actually carries a mark, so an unformatted note adds nothing to the document.
+    runs: partial.runs,
+    // Text size / alignment / colour, sparse like the runs. The note's own `color`
+    // is its PAPER; this is the ink on it.
+    textStyle: partial.textStyle,
     zIndex: partial.zIndex || 0,
   }
+}
+
+// The size, alignment and colour a note's text is drawn at (#501). Colour defaults
+// to the auto-contrast ink for the paper, which is what a note has always used —
+// so a note nobody has restyled looks exactly as it did.
+export const STICKY_TEXT_SIZE = STICKY_FONT_SIZE
+
+export function stickyTextStyle(note) {
+  const own = note.textStyle || {}
+  return {
+    size: own.size || STICKY_TEXT_SIZE,
+    align: own.align || 'left',
+    color: own.color || contrastInk(note.color),
+  }
+}
+
+export function setStickyTextStyle(note, patch) {
+  const next = { ...(note.textStyle || {}) }
+  for (const [field, value] of Object.entries(patch)) {
+    if (value === null) delete next[field]
+    else next[field] = value
+  }
+  note.textStyle = Object.keys(next).length ? next : undefined
+}
+
+// A note's text as runs, whether it was stored plain, formatted, or struck through
+// by the OLD note-wide boolean (#501).
+//
+// That boolean is migrated here rather than by a data patch: a note carrying
+// `strike: true` reads as one run marked struck, so it looks the same as it always
+// did and becomes editable as a mark the moment anything touches it. Vibhav's call
+// (16 Aug 2026) — keep it, do not drop it. Nothing is rewritten until the user
+// edits, so an untouched document is never modified just by being opened.
+export function stickyRuns(note) {
+  const runs = note.runs
+  const text = note.text || ''
+  // The plain string stays authoritative: if the two disagree (a hand-edited or
+  // partly-migrated document), render the text rather than stale runs.
+  if (runs && runsToText(runs) === text) return toRuns(runs)
+  if (note.strike && text) return [{ text, strike: true }]
+  return toRuns(text)
+}
+
+// The single writer for a note's content. Mirrors setTableCellRuns: `text` keeps
+// the plain string, `runs` appears only when a mark is present, and the legacy
+// note-wide `strike` is dropped once the note carries real marks — otherwise it
+// would keep re-striking text the user had just un-struck.
+export function setStickyRuns(note, runs) {
+  const clean = normalizeRuns(runs)
+  note.text = runsToText(clean)
+  note.runs = hasFormatting(clean) ? clean : undefined
+  delete note.strike
 }
 
 // A straight line with selectable endpoint styles ('none' | 'arrow' | 'dot').

@@ -43,6 +43,8 @@ import {
   removeStroke,
   addStickyNote,
   removeStickyNote,
+  setStickyRuns,
+  setStickyTextStyle,
   strokeById,
   stickyNoteById,
   addLine,
@@ -800,6 +802,22 @@ function attachWhiteboard(store, state, history) {
     history.commit('Update sticky', () => {
       const note = stickyNoteById(state.whiteboard || {}, id)
       if (note) applyPatch(note, patch)
+    })
+  // Land a formatted sticky edit: the marks, the plain text the runs carry, and the
+  // height that text measures to, as ONE undoable unit (#501).
+  store.setStickyRuns = (id, runs, height) =>
+    history.commit('Update sticky', () => {
+      const note = stickyNoteById(state.whiteboard || {}, id)
+      if (!note) return
+      setStickyRuns(note, runs)
+      if (height) note.h = height
+    })
+  // Give a note's TEXT its own size / alignment / colour, or clear one with null so
+  // it follows the default again (#501). The note's `color` stays its paper.
+  store.setStickyTextStyle = (id, patch) =>
+    history.commit('Sticky text style', () => {
+      const note = stickyNoteById(state.whiteboard || {}, id)
+      if (note) setStickyTextStyle(note, patch)
     })
   // Live, unrecorded growth while a note is being typed into (#416). The editor
   // grows the note line by line and commits the final text and height together, so

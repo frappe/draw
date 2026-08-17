@@ -4,6 +4,12 @@ import {
   setTableCellStyle,
   TABLE_FONT_SIZE,
   createWhiteboard,
+  makeStickyNote,
+  stickyRuns,
+  setStickyRuns,
+  stickyTextStyle,
+  setStickyTextStyle,
+  STICKY_TEXT_SIZE,
   addStroke,
   removeStroke,
   addStickyNote,
@@ -343,5 +349,97 @@ describe('per-cell text style (#508)', () => {
     setTableCellStyle(model, 0, 0, { color: '#E03636' })
     setTableCellStyle(model, 0, 0, { color: null })
     expect(model.cellStyles).toBeUndefined()
+  })
+})
+
+// #501: a sticky's text gets the same options a text box has. It stored a plain
+// string and a note-wide `strike` boolean, so "half of this struck through" could
+// not be said — and neither could bold, a size, an alignment or a text colour.
+//
+// The migration decision (Vibhav, 16 Aug 2026): an existing `strike: true` KEEPS
+// its strike, as a mark across the whole text. Nothing is rewritten on open.
+describe('sticky note rich text (#501)', () => {
+  const note = (partial = {}) => makeStickyNote(0, 0, { text: 'hello', ...partial })
+  // A legacy note arrives by deserialising a saved document, not from the factory —
+  // makeStickyNote deliberately does not carry the retired flag, so a NEW note can
+  // never have one.
+  const legacyNote = () => ({ ...note(), strike: true })
+
+  it('reads plain text as one unmarked run', () => {
+    expect(stickyRuns(note())).toEqual([{ text: 'hello' }])
+  })
+
+  it('migrates a legacy note-wide strike to a mark across the whole text', () => {
+    expect(stickyRuns(legacyNote())).toEqual([{ text: 'hello', strike: true }])
+  })
+
+  it('does not rewrite the stored note just by reading it', () => {
+    // Opening a document must not modify it; the migration is a read-time view
+    // until the user edits.
+    const legacy = legacyNote()
+    stickyRuns(legacy)
+    expect(legacy.strike).toBe(true)
+    expect(legacy.runs).toBeUndefined()
+  })
+
+  it('never gives a NEW note the retired flag', () => {
+    expect(note()).not.toHaveProperty('strike')
+  })
+
+  it('drops the legacy flag once real marks are written', () => {
+    // Otherwise the boolean would keep re-striking text the user just un-struck.
+    const legacy = legacyNote()
+    setStickyRuns(legacy, [{ text: 'hello' }])
+    expect(legacy.strike).toBeUndefined()
+    expect(stickyRuns(legacy)).toEqual([{ text: 'hello' }])
+  })
+
+  it('keeps the plain text as the source of truth', () => {
+    const marked = note()
+    setStickyRuns(marked, [{ text: 'he', bold: true }, { text: 'llo' }])
+    expect(marked.text).toBe('hello')
+    expect(marked.runs).toHaveLength(2)
+  })
+
+  it('stores no runs for a note carrying no marks', () => {
+    const plain = note()
+    setStickyRuns(plain, [{ text: 'hello' }])
+    expect(plain.runs).toBeUndefined()
+  })
+
+  it('prefers the plain text when the two disagree', () => {
+    // A hand-edited or partly-migrated document must render what it says, not
+    // stale runs describing different words.
+    const drifted = note({ text: 'changed', runs: [{ text: 'hello', bold: true }] })
+    expect(stickyRuns(drifted)).toEqual([{ text: 'changed' }])
+  })
+})
+
+describe('sticky note text style (#501)', () => {
+  const note = (partial = {}) => makeStickyNote(0, 0, { color: '#FFF7D3', ...partial })
+
+  it('defaults the colour to the auto-contrast ink for the paper', () => {
+    // A note nobody has restyled looks exactly as it always did.
+    expect(stickyTextStyle(note()).color).toBe(contrastInk('#FFF7D3'))
+  })
+
+  it('defaults size and alignment', () => {
+    const style = stickyTextStyle(note())
+    expect(style.size).toBe(STICKY_TEXT_SIZE)
+    expect(style.align).toBe('left')
+  })
+
+  it('keeps the note’s own paper colour separate from its ink', () => {
+    const restyled = note()
+    setStickyTextStyle(restyled, { color: '#E03636' })
+    expect(stickyTextStyle(restyled).color).toBe('#E03636')
+    expect(restyled.color, 'the paper changed with the ink').toBe('#FFF7D3')
+  })
+
+  it('clears one field with null and stores nothing when empty', () => {
+    const restyled = note()
+    setStickyTextStyle(restyled, { size: 20, align: 'center' })
+    setStickyTextStyle(restyled, { size: null, align: null })
+    expect(restyled.textStyle).toBeUndefined()
   })
 })
