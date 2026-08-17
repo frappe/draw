@@ -55,6 +55,26 @@ export function allSwatches() {
   return ESPRESSO_FAMILIES.flatMap((family) => family.shades)
 }
 
+// One ink per family, for a picker that has to stay small (Vibhav, 17 Aug 2026).
+// The Draw popover opens WITH the tool, so the full grid — ten rows of swatches —
+// sat over the top of the canvas, and a stroke drawn while it was open landed on
+// the panel instead of the board.
+//
+// The row is derived FROM the grid rather than hand-picked. A second list of
+// near-miss values is exactly what #495 removed, so the pen offers the same colours
+// as every other picker, nine of them instead of fifty-five.
+//
+// The shade per family is the one that reads as INK on a white canvas. That is the
+// 500 for most, the 600 for green and teal, whose 500 is too pale to write with,
+// and the dark end for grey, which is black.
+const INK_SHADES = { gray: 5, red: 2, orange: 2, amber: 2, green: 3, teal: 3, blue: 2, violet: 2, pink: 2 }
+
+export const INK_ROW = ESPRESSO_FAMILIES.map((family) => ({
+  hex: family.shades[INK_SHADES[family.name]],
+  // The grid's own naming, so one colour has one name wherever it is offered.
+  name: `${family.name} ${SHADE_LEVELS[INK_SHADES[family.name]]}`,
+}))
+
 // Readable text ink for a given fill (reuses the canvas ink heuristic). Kept here
 // so node creation asks ONE module for "fill X -> use ink Y".
 export function inkFor(fillHex) {

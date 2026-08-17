@@ -59,8 +59,19 @@ describe('one colour palette across the app (#495)', () => {
     ['flowchart fill / border', 'components/toolbar/groups/FlowchartNodeGroup.vue'],
     ['whiteboard line colour', 'components/floating/LineOptions.vue'],
     ['table colour', 'components/floating/TableOptions.vue'],
-    ['pen and highlighter ink', 'components/floating/WhiteboardTools.vue'],
   ])('opens the shared grid for %s', (_name, file) => {
     expect(read(path.join(SRC, file))).toContain('EspressoSwatchGrid')
+  })
+
+  // Pen and highlighter ink is the one site that shows a SHORT row rather than the
+  // whole grid (Vibhav, 17 Aug 2026): its popover opens with the tool, and the grid
+  // made it tall enough to cover the canvas being drawn on. What #495 forbids is a
+  // second palette, not a smaller picker — so the row has to be derived from
+  // espressoPalette and hold no colours of its own.
+  it('draws the pen ink row from the shared palette, not a list of its own', () => {
+    const source = read(path.join(SRC, 'components/floating/WhiteboardTools.vue'))
+    expect(source).toContain('INK_ROW')
+    expect(source).toContain('espressoPalette.js')
+    expect(source, 'a hex literal means a second palette is creeping back').not.toMatch(/#[0-9a-f]{6}/i)
   })
 })

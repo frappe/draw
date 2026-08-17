@@ -13,7 +13,7 @@ import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { STICKY_COLORS, PEN_WIDTHS, HIGHLIGHTER_WIDTHS } from '@/diagram/whiteboardColors.js'
-import EspressoSwatchGrid from '@/components/palette-right/EspressoSwatchGrid.vue'
+import { INK_ROW, nearestSwatch } from '@/diagram/espressoPalette.js'
 import { ERASER_SIZES } from '@/diagram/eraser.js'
 import { visibleWhiteboardTools } from './whiteboardTools.js'
 import ToolbarButton from '@/components/toolbar/ToolbarButton.vue'
@@ -81,6 +81,13 @@ const showImageInsert = computed(() => !props.exclude.includes('image'))
 // Pen and highlighter each keep their own width/opacity preference, so
 // switching sub-mode never carries one ink's settings onto the other. These
 // pick the pair the Draw popover reads and writes for whichever is active.
+// Which ink to ring, matching how the full grid decides (#495): the exact swatch
+// when the stored colour is one, else the nearest. The default ink is gray-900,
+// which is deliberately not a swatch, and an older diagram can hold any value at
+// all — string matching would leave the row looking unset on a pen that plainly
+// has a colour. Nothing is rewritten; the ring only says "closest to this".
+const ringedInk = computed(() => nearestSwatch(ui.state.penColor, INK_ROW.map((ink) => ink.hex)))
+
 const activeDrawWidths = computed(() => (ui.state.drawKind === 'highlighter' ? HIGHLIGHTER_WIDTHS : PEN_WIDTHS))
 const activeDrawWidthKey = computed(() => (ui.state.drawKind === 'highlighter' ? 'highlighterWidth' : 'penWidth'))
 const activeDrawOpacityKey = computed(() => (ui.state.drawKind === 'highlighter' ? 'highlighterOpacity' : 'penOpacity'))
@@ -235,16 +242,24 @@ function insertTable({ rows, cols }, close) {
           </TooltipProvider>
 
           <div class="mb-1 text-sm font-semibold text-ink-gray-5">Color</div>
-          <!-- The full Espresso grid, the same one every other picker opens (#495,
-               Vibhav 16 Aug 2026). It replaces CHALK_COLORS, a row of eight that
-               was a near-miss of this palette rather than part of it. allow-none is
-               false: ink with no colour draws nothing. -->
-          <div class="mb-2">
-            <EspressoSwatchGrid
-              mode="fill"
-              :model-value="ui.state.penColor"
-              :allow-none="false"
-              @select="ui.state.penColor = $event"
+          <!-- One ink per Espresso family, not the full grid (Vibhav, 17 Aug 2026).
+               The grid's ten rows made this popover tall enough to cover the top of
+               the canvas, and the popover opens WITH the tool — so a stroke drawn
+               while it was open landed on the panel rather than the board. The
+               values still come from the grid (INK_ROW), so this is the same
+               palette in a smaller shape, not the near-miss second palette #495
+               removed. There is no "None": ink with no colour draws nothing. -->
+          <div class="mb-2 flex gap-1.5">
+            <!-- frappe-ui-exempt: swatch renders a literal canvas colour -->
+            <button
+              v-for="ink in INK_ROW"
+              :key="ink.hex"
+              type="button"
+              class="size-5 rounded border border-outline-gray-2"
+              :class="ringedInk === ink.hex ? 'ring-2 ring-outline-gray-4' : ''"
+              :style="{ background: ink.hex }"
+              :aria-label="ink.name"
+              @click="ui.state.penColor = ink.hex"
             />
           </div>
 

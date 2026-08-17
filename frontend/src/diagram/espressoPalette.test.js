@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { ESPRESSO_FAMILIES, SHADE_LEVELS, NODE_GRAY, NEUTRALS, allSwatches, inkFor, nearestSwatch } from './espressoPalette.js'
+import {
+  ESPRESSO_FAMILIES,
+  SHADE_LEVELS,
+  NODE_GRAY,
+  NEUTRALS,
+  INK_ROW,
+  allSwatches,
+  inkFor,
+  nearestSwatch,
+} from './espressoPalette.js'
 
 describe('espressoPalette', () => {
   it('is a curated 9 x 6 grid (families x shades)', () => {
@@ -104,5 +113,33 @@ describe('nearestSwatch (#495)', () => {
     for (const hex of ['#123456', '#ABCDEF', '#010101', '#FEDCBA']) {
       expect(nearestSwatch(hex)).not.toBeNull()
     }
+  })
+})
+
+// The short ink row the Draw popover shows instead of the whole grid (Vibhav,
+// 17 Aug 2026). The point of it is that it is the SAME palette in a smaller shape,
+// so what is worth testing is that every value really comes from the grid.
+describe('the pen ink row', () => {
+  it('offers one ink per family, in the grid’s own order', () => {
+    expect(INK_ROW).toHaveLength(ESPRESSO_FAMILIES.length)
+    expect(INK_ROW.map((ink) => ink.name.split(' ')[0])).toEqual(ESPRESSO_FAMILIES.map((family) => family.name))
+  })
+
+  it('takes every value from the grid rather than inventing one', () => {
+    // A near-miss of the palette is exactly what #495 removed. If a value here is
+    // not in allSwatches(), a second palette has started again.
+    for (const ink of INK_ROW) expect(allSwatches(), `${ink.name} is not a grid swatch`).toContain(ink.hex)
+  })
+
+  it('names each ink the way the grid names it', () => {
+    // One colour, one name, wherever it is offered.
+    for (const ink of INK_ROW) {
+      const family = ESPRESSO_FAMILIES.find((entry) => entry.shades.includes(ink.hex))
+      expect(ink.name).toBe(`${family.name} ${SHADE_LEVELS[family.shades.indexOf(ink.hex)]}`)
+    }
+  })
+
+  it('fits one row, which is the whole reason it exists', () => {
+    expect(INK_ROW.length).toBeLessThanOrEqual(10)
   })
 })
