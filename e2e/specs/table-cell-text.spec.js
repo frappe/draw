@@ -245,7 +245,9 @@ test.describe('per-cell text options (#508)', () => {
     await openCell(page)
     await selectAllInCell(page)
     await control(page, 'Strikethrough').click()
-    await page.keyboard.press('Escape')
+    // Enter COMMITS. Escape abandons the edit — there is a test in this file that
+    // says so, and using it here asserted a mark had persisted after cancelling it.
+    await page.keyboard.press('Enter')
 
     await expect
       .poll(async () => (await table(diagram, name)).cellRuns?.['0,0']?.[0]?.strike, {
