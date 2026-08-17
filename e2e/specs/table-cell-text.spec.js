@@ -232,12 +232,19 @@ test.describe('a table cell is typed in the same type it commits to (#507)', () 
 test.describe('per-cell text options (#508)', () => {
   const table = async (diagram, name) => (await diagram.saved(name)).whiteboard.tables[0]
 
+  // Scoped to the canvas toolbar AND exact. Both matter: the fixture names each
+  // diagram after its own test, so the title button's accessible name contains the
+  // test's words — and getByRole matches substrings by default, which made a test
+  // called "strikethrough persists…" match the title as well as the control.
+  const control = (page, name) =>
+    page.locator('[data-canvas-toolbar]').getByRole('button', { name, exact: true })
+
   test('strikethrough persists as a run, like the other three marks', async ({ page, diagram }) => {
     const name = await diagram.open('whiteboard', { table: true })
 
     await openCell(page)
     await selectAllInCell(page)
-    await page.getByRole('button', { name: 'Strikethrough' }).click()
+    await control(page, 'Strikethrough').click()
     await page.keyboard.press('Escape')
 
     await expect
@@ -255,7 +262,7 @@ test.describe('per-cell text options (#508)', () => {
     const before = (await table(diagram, name)).color
 
     await openCell(page)
-    await page.getByRole('button', { name: 'Cell text colour' }).click()
+    await control(page, 'Cell text colour').click()
     await page.getByRole('button', { name: 'blue 500', exact: true }).click()
 
     await expect
@@ -272,7 +279,7 @@ test.describe('per-cell text options (#508)', () => {
     const name = await diagram.open('whiteboard', { table: true })
 
     await openCell(page)
-    await page.getByRole('button', { name: 'Align center' }).click()
+    await control(page, 'Align center').click()
 
     await expect
       .poll(async () => (await table(diagram, name)).cellStyles?.['0,0']?.align, {
