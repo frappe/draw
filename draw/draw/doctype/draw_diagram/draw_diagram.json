@@ -127,6 +127,7 @@
    "description": "Entire diagram as versioned JSON — the source of truth for render, thumbnail and export.",
    "fieldname": "document",
    "fieldtype": "JSON",
+   "ignore_xss_filter": 1,
    "label": "Document"
   },
   {

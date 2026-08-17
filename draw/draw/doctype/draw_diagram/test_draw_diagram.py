@@ -44,6 +44,30 @@ class TestDrawDiagram(IntegrationTestCase):
 			doc = self._make(t, {"schemaVersion": 1, "diagramType": t})
 			self.assertEqual(doc.diagram_type, t)
 
+	def test_rich_text_with_an_attribute_survives_the_save(self):
+		# #546. `document` is a JSON field, so MariaDB puts a json_valid() CHECK on
+		# the column. BaseDocument._sanitize_content runs nh3 over every string field
+		# that holds an angle bracket, and nh3 reads the whole serialized document as
+		# HTML: it re-emits each attribute with plain quotes and drops the JSON
+		# backslash escaping, so the value stops being JSON and the insert fails.
+		#
+		# Until frappe/frappe#41626 sanitize_html returned any JSON unchanged, which
+		# hid this. `ignore_xss_filter` on the field is what keeps it hidden now.
+		#
+		# A shape's rich text carries an attribute whenever it is colored, sized or
+		# linked, so this is the ordinary case, not an exotic one. Draw sanitizes
+		# where the value reaches the DOM instead — see e2e/specs/untrusted-document.
+		html = '<span style="font-weight:700">bold</span><a href="https://example.com">link</a>'
+		document = {"schemaVersion": 1, "diagramType": "unified", "shapes": [{"text": {"html": html}}]}
+
+		doc = self._make("unified", document)
+		doc.reload()
+
+		stored = json.loads(doc.document)
+		self.assertEqual(stored, document)
+		# Named on its own: the attribute quoting is the part the sanitizer rewrites.
+		self.assertEqual(stored["shapes"][0]["text"]["html"], html)
+
 	# ----- Writer-style sharing (view / comment / edit) -----
 
 	def _user(self, email):
