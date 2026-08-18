@@ -60,7 +60,6 @@ import {
   mergeTableCells,
   unmergeTableCell,
   whiteboardObjectsInZOrder,
-  maxWhiteboardZIndex,
 } from '@/diagram/whiteboardModel.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 
@@ -972,15 +971,19 @@ function attachQueries(store, state) {
   store.hasSubModel = (subModel) => state[subModel] != null
 }
 
-function maxZIndex(shapes) {
-  return shapes.reduce((max, shape) => Math.max(max, shape.zIndex || 0), 0)
-}
-
-// Shapes and whiteboard objects share one stacking scale (#27), so "on top"
-// means above BOTH pools — otherwise an image added after a freehand stroke
-// still lands underneath it.
+// Shapes, authored connectors and whiteboard objects share one stacking scale
+// (#27, #542), so "on top" means above EVERY pool — otherwise an image added
+// after a freehand stroke still lands underneath it.
+//
+// Read the max off stackedObjects, the same pool repackZIndex renumbers. Read it
+// off the shapes alone and a new object TIES with a connector the user just sent
+// to the front: repack renumbers both together, so the connector holds the top
+// index and the highest SHAPE index is one below it. The tie is the real bug —
+// the two renderers break one in opposite directions (DiagramCanvas lists
+// connectors first, WhiteboardLayer lists shapes first), so the same document
+// stacked one way in block mode and the other on the unified canvas.
 function nextZIndex(state) {
-  return Math.max(maxZIndex(state.shapes), maxWhiteboardZIndex(state.whiteboard)) + 1
+  return stackedObjects(state).reduce((max, { object }) => Math.max(max, object.zIndex || 0), 0) + 1
 }
 
 // Every object that carries a zIndex, as a flat list — the pool the Arrange

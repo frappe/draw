@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { createDiagramStore } from './useDiagramStore.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
+import { whiteboardObjectsInZOrder } from '@/diagram/whiteboardModel.js'
 
 // #542: a connector had no stacking position at all — it always painted below
 // every shape, in a dedicated leading loop, and Arrange never touched it (it
@@ -84,5 +85,41 @@ describe('a connector shares the document-wide stacking order (#542)', () => {
     expect(store.connectorById('e1').zIndex).toBeUndefined()
     expect(store.shapeById('s1').zIndex).toBe(1)
     expect(store.shapeById('s2').zIndex).toBe(2)
+  })
+})
+
+// nextZIndex used to read the SHAPE pool only, while repackZIndex renumbers
+// shapes and connectors together. So once a connector had been arranged to the
+// top it held the highest index in the document, the highest shape index sat one
+// below it, and the next object created landed on that same index as the
+// connector.
+//
+// A tie is worse than a plain wrong order: the two renderers break one in
+// opposite directions — DiagramCanvas lists connectors before shapes,
+// WhiteboardLayer lists shapes before connectors — so the same document stacked
+// one way in block mode and the other on the unified canvas.
+describe('a new object clears everything already stacked (#542)', () => {
+  it('lands above an arranged connector rather than level with it', () => {
+    const store = unified()
+    const shapeA = store.addShape({ type: 'rectangle', x: 0, y: 0, w: 40, h: 40 })
+    const connectorId = store.addConnector({ from: { x: 0, y: 0 }, to: { x: 10, y: 10 } })
+    store.bringToFront([connectorId])
+
+    const shapeB = store.addShape({ type: 'rectangle', x: 0, y: 0, w: 40, h: 40 })
+
+    expect(store.shapeById(shapeB).zIndex).toBeGreaterThan(store.connectorById(connectorId).zIndex)
+    expect(stack(store)).toEqual([shapeA, connectorId, shapeB])
+  })
+
+  it('counts an arranged connector when the new object is a whiteboard one', () => {
+    const store = unified()
+    store.addShape({ type: 'rectangle', x: 0, y: 0, w: 40, h: 40 })
+    const connectorId = store.addConnector({ from: { x: 0, y: 0 }, to: { x: 10, y: 10 } })
+    store.bringToFront([connectorId])
+
+    const noteId = store.addStickyNote(0, 0)
+    const note = whiteboardObjectsInZOrder(store.state.whiteboard).find((o) => o.id === noteId)
+
+    expect(note.object.zIndex).toBeGreaterThan(store.connectorById(connectorId).zIndex)
   })
 })

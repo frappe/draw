@@ -209,15 +209,6 @@ export function whiteboardObjectsInZOrder(model) {
   return out.sort((a, b) => (a.object.zIndex || 0) - (b.object.zIndex || 0))
 }
 
-export function maxWhiteboardZIndex(model) {
-  if (!model) return 0
-  let max = 0
-  for (const kind of WHITEBOARD_KINDS) {
-    for (const object of WB_LIST[kind](model)) max = Math.max(max, object.zIndex || 0)
-  }
-  return max
-}
-
 export function tableById(model, id) {
   return (model.tables || []).find((table) => table.id === id)
 }
