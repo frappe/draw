@@ -97,12 +97,14 @@ describe('useImageInsert', () => {
   // #502: every one of these used to be a silent `return null` or an unhandled
   // rejection. From the canvas they were indistinguishable from nothing happening.
   describe('a failed insert says why (#502)', () => {
-    it('refuses a file over the 10 MB server limit before uploading it', async () => {
+    // The 10 MB client-side gate was dropped on request — nothing left in this
+    // file reads a file's `size` at all, so a large file uploads like any other.
+    it('does not refuse a large file — no size gate left client-side', async () => {
       const store = fakeStore('my-diagram')
-      const big = { type: 'image/png', name: 'huge.png', size: 11 * 1024 * 1024 }
-      expect(await useImageInsert(store).insert(big)).toBeNull()
-      expect(captured.options).toBeNull() // never left the browser
-      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('10 MB'))
+      const big = { type: 'image/png', name: 'huge.png', size: 200 * 1024 * 1024 }
+      expect(await useImageInsert(store).insert(big)).toBe('shape-1')
+      expect(captured.options).not.toBeNull()
+      expect(toast.error).not.toHaveBeenCalled()
     })
 
     it('refuses an extension the server would reject', async () => {

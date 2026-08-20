@@ -21,10 +21,10 @@ import { FileUploadHandler, toast } from 'frappe-ui'
 
 const ACCEPT = 'image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml'
 const MAX_W = 420 // cap the placed width so a big photo doesn't fill the canvas
-// The server's own gates (upload_diagram_image), mirrored so a file it would refuse
-// is refused here — with a reason — instead of costing an upload to find out. Keep
-// in step with _MAX_IMAGE_BYTES / _IMAGE_EXTENSIONS.
-const MAX_BYTES = 10 * 1024 * 1024
+// No byte-size gate here (or on the server, upload_diagram_image) — dropped on
+// request. What still limits an upload is whatever sits below this app: the
+// site's own max_file_size (site_config.json) and the web server's request-body
+// limit, neither of which this file can see or mirror.
 const EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg']
 
 export function useImageInsert(store) {
@@ -91,12 +91,11 @@ function boxFor(src, size) {
   return { src, w: Math.round(size.w * scale), h: Math.round(size.h * scale) }
 }
 
-// Why this file cannot be inserted, or null. The same three gates the server
+// Why this file cannot be inserted, or null. The same gates the server
 // applies, so the refusal arrives before the bytes go anywhere.
 function refusalFor(file) {
   const name = nameOf(file)
   if (!file.type?.startsWith('image/')) return `${name} is not an image.`
-  if (file.size > MAX_BYTES) return `${name} is larger than the 10 MB limit.`
   const extension = extensionOf(file)
   if (extension && !EXTENSIONS.includes(extension)) {
     return `Draw cannot insert .${extension} files. Use PNG, JPG, GIF, WebP or SVG.`

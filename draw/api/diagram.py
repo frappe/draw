@@ -413,7 +413,6 @@ def _save_thumbnail_file(
 
 # Mirrors the frontend picker (useImageInsert.js ACCEPT).
 _IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp", "svg"}
-_MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
 
 @frappe.whitelist(methods=["POST"])
@@ -443,8 +442,6 @@ def upload_diagram_image(name: str | None = None) -> dict:
 	content, filename = _uploaded_image()
 	if not content:
 		frappe.throw(_("No image was uploaded"), frappe.ValidationError)
-	if len(content) > _MAX_IMAGE_BYTES:
-		frappe.throw(_("Image is too large"), frappe.ValidationError)
 	extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 	if extension not in _IMAGE_EXTENSIONS:
 		frappe.throw(_("Only image files can be inserted"), frappe.ValidationError)
