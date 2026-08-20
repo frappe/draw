@@ -817,7 +817,6 @@ const surfaceCursor = computed(() => {
 
           <SmartGuidesLayer />
           <HoverArrows />
-          <SelectionLayer />
           <!-- On-canvas "+" add-handles for migrated mind-map nodes (#118): a no-op
                unless the canvas holds role-tagged mind-map shapes, so legacy
                single-type maps (MindMapNodeLayer, below) are unaffected. -->
@@ -905,10 +904,10 @@ const surfaceCursor = computed(() => {
         <template v-if="(isWhiteboard || isUnified) && store.state.whiteboard">
           <WhiteboardLayer :whiteboard="store.state.whiteboard" />
           <!-- A legacy whiteboard has no block substrate, so it supplies its own
-               selection + text overlays. On the unified canvas the block substrate
-               above already provides these — don't double-mount them. -->
+               text overlay. On the unified canvas the block substrate above
+               already provides one — don't double-mount it. Its selection overlay
+               is the shared one below, not mounted here. -->
           <template v-if="isWhiteboard && !isUnified">
-            <SelectionLayer v-if="store.state.selection.length" />
             <TextEditor />
           </template>
         </template>
@@ -935,6 +934,14 @@ const surfaceCursor = computed(() => {
              Painted last (same reason as the editor) so an opaque shape can't
              occlude it on the unified canvas (#261). -->
         <HoverOutline v-if="showBlockLayer" />
+
+        <!-- Selection outline + handles: the single shared overlay for both block
+             mode and a legacy whiteboard. Painted LAST, after WhiteboardLayer, for
+             the same reason as TextEditor/HoverOutline/FlowchartHoverHandles above
+             (#441/#258/#261) — a selected shape that sits under an opaque whiteboard
+             object (a sticky, an image, another shape) must not have its selection
+             box hidden underneath it. -->
+        <SelectionLayer v-if="showBlockLayer || isWhiteboard" />
       </g>
     </svg>
 

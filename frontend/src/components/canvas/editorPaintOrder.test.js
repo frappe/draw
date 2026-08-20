@@ -30,3 +30,23 @@ describe('inline text editor paints above the shape layers (#258)', () => {
     expect(src).toContain('<TextEditor v-if="showBlockLayer" />')
   })
 })
+
+// The selection outline + resize/rotate handles have the same paint-order need as
+// the text editor above, and the same reason (#258-class bug, filed as its own
+// issue): a selected shape sitting under an opaque whiteboard object — a sticky, an
+// image, another shape — on the unified canvas must not have its selection box
+// hidden underneath it.
+describe('selection layer paints above the whiteboard layer', () => {
+  it('renders <SelectionLayer> only after <WhiteboardLayer>, and only once', () => {
+    const whiteboard = src.indexOf('<WhiteboardLayer')
+    expect(whiteboard).toBeGreaterThan(-1)
+    const first = src.indexOf('<SelectionLayer')
+    expect(first).toBeGreaterThan(whiteboard)
+    // Exactly one mount — no earlier block-layer copy, no legacy-whiteboard copy.
+    expect(src.indexOf('<SelectionLayer', first + 1)).toBe(-1)
+  })
+
+  it('mounts for both the block substrate and a legacy whiteboard', () => {
+    expect(src).toContain('<SelectionLayer v-if="showBlockLayer || isWhiteboard" />')
+  })
+})
