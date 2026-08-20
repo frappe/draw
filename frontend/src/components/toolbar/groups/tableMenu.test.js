@@ -13,6 +13,7 @@ const actions = () =>
       'insertColumnAfter',
       'deleteColumns',
       'toggleHeaderRows',
+      'toggleHeaderColumns',
       'clearContents',
       'deleteTable',
     ].map((name) => [name, vi.fn()]),
@@ -29,6 +30,7 @@ describe('tableMenuOptions', () => {
       'Delete row',
       'Insert column left',
       'Insert column right',
+      'Make header column',
       'Delete column',
       'Clear contents',
       'Delete table',
@@ -44,6 +46,11 @@ describe('tableMenuOptions', () => {
   it('reverts rather than repeats when the selected rows are already the header', () => {
     const menu = tableMenuOptions({ isHeader: true, actions: actions() })
     expect(labels(menu)).toContain('Remove header row')
+  })
+
+  it('reverts rather than repeats when the selected columns are already the header', () => {
+    const menu = tableMenuOptions({ isHeaderColumn: true, actions: actions() })
+    expect(labels(menu)).toContain('Remove header column')
   })
 
   it('wires each entry to its action', () => {

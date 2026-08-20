@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createDiagramStore } from '@/stores/useDiagramStore.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
 import { tableById } from '@/diagram/whiteboardModel.js'
-import { tableHeaderRows } from '@/diagram/tableStructure.js'
+import { tableHeaderRows, tableHeaderCols } from '@/diagram/tableStructure.js'
 
 vi.mock('@/stores/useDiagramStore.js', async (importOriginal) => {
   const actual = await importOriginal()
@@ -93,6 +93,7 @@ describe('with nothing selected', () => {
       selection.insertColumnAfter,
       selection.deleteColumns,
       selection.toggleHeaderRows,
+      selection.toggleHeaderColumns,
       selection.clearContents,
       selection.deleteTable,
     ]) {
@@ -142,6 +143,20 @@ describe('structural actions keep the selection usable', () => {
     selection.selectRow(1)
     selection.toggleHeaderRows()
     expect(tableHeaderRows(table())).toBe(1)
+  })
+
+  it('makes the selected columns the header, and reverts them, independently of the header row', () => {
+    const { table } = setup()
+    const selection = useTableSelection()
+    selection.selectRow(1)
+    selection.toggleHeaderRows()
+    selection.selectColumn(1)
+    selection.toggleHeaderColumns()
+    expect(tableHeaderCols(table())).toBe(2)
+    expect(tableHeaderRows(table()), 'the header row is untouched by the column toggle').toBe(2)
+    selection.selectColumn(1)
+    selection.toggleHeaderColumns()
+    expect(tableHeaderCols(table())).toBe(1)
   })
 
   it('clears the text of the selected cells and keeps the table', () => {

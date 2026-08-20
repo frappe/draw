@@ -21,7 +21,7 @@ import { startGroupMove } from '@/composables/useWhiteboardInteraction.js'
 import { isAdditiveEvent } from '@/composables/pointer.js'
 import { safeHref } from '@/utils/safeUrl.js'
 import { stickyRuns, stickyTextStyle } from '@/diagram/whiteboardModel.js'
-import { domToRuns, runsToDom } from '@/utils/richTextDom.js'
+import { domToRuns, runsToDom, lineBeforeCaret, deleteBeforeCaret } from '@/utils/richTextDom.js'
 import { runsToText, trimRuns } from '@/diagram/richText.js'
 import { NEUTRAL_SELECT } from '@/diagram/selectionChrome.js'
 import { roughenRect } from '@/diagram/sketch.js'
@@ -233,7 +233,7 @@ function onKeydown(event) {
   if (event.key === 'Escape') return field.value?.blur()
   if (event.key !== 'Enter' || event.isComposing) return
   event.preventDefault()
-  const intent = newlineIntent(lineBeforeCaret())
+  const intent = newlineIntent(lineBeforeCaret(field.value))
   deleteBeforeCaret(intent.deleteBefore)
   if (intent.insert) document.execCommand('insertText', false, intent.insert)
   growToText(fieldText())
@@ -245,41 +245,6 @@ function onPaste(event) {
   event.preventDefault()
   document.execCommand('insertText', false, plainPaste(event.clipboardData?.getData('text/plain')))
   growToText(fieldText())
-}
-
-// The text of the line the caret is on, up to the caret. Read from the caret's own
-// block (the <div> the browser made for that line, or the field itself for the
-// first one), because a Range spanning several blocks reports their text with the
-// breaks between them missing. A note opened for editing starts as ONE text node
-// carrying real newlines, so the last break inside the block still decides where
-// the line begins.
-function lineBeforeCaret() {
-  const selection = window.getSelection()
-  if (!selection?.rangeCount || !field.value) return ''
-  const range = selection.getRangeAt(0).cloneRange()
-  range.setStart(blockOf(range.startContainer), 0)
-  const text = range.toString()
-  return text.slice(text.lastIndexOf('\n') + 1)
-}
-
-function blockOf(node) {
-  const root = field.value
-  let current = node
-  while (current && current.parentNode !== root) current = current.parentNode
-  return current?.nodeType === 1 ? current : root
-}
-
-// Take `count` characters back from the caret — the "- " marker being cleared when
-// a list ends.
-function deleteBeforeCaret(count) {
-  if (!count) return
-  const selection = window.getSelection()
-  if (!selection?.rangeCount) return
-  const range = selection.getRangeAt(0)
-  range.setStart(range.startContainer, Math.max(0, range.startOffset - count))
-  selection.removeAllRanges()
-  selection.addRange(range)
-  document.execCommand('delete')
 }
 
 // Grow the note so the text stays inside it. Growth only: a note the user made

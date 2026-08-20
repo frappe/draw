@@ -2,7 +2,7 @@
 // cell text, its runs, its style overrides, the merges and the dragged sizes
 // with it — these lock that down, plus the header-row rule.
 import { describe, it, expect } from 'vitest'
-import { makeTable, tableCellRuns, tableCellStyle } from './whiteboardModel.js'
+import { makeTable, tableCellRuns, tableCellStyle, colWidthsOf, rowHeightsOf, setTableCell, MIN_TABLE_CELL } from './whiteboardModel.js'
 import {
   insertTableRow,
   deleteTableRow,
@@ -11,7 +11,15 @@ import {
   tableHeaderRows,
   isHeaderRow,
   toggleHeaderThroughRow,
+  tableHeaderCols,
+  isHeaderColumn,
+  toggleHeaderThroughColumn,
   clearTableCells,
+  wrappedCellLines,
+  wrappedCellHeight,
+  wrappedCellRunLines,
+  autoFitColumnWidth,
+  autoFitRowHeight,
 } from './tableStructure.js'
 
 function table(partial = {}) {
@@ -123,6 +131,107 @@ describe('header rows', () => {
     expect(tableHeaderRows(grid)).toBe(2)
     deleteTableRow(grid, 0)
     expect(tableHeaderRows(grid)).toBe(1)
+  })
+})
+
+describe('header columns', () => {
+  it('starts with no header column, unlike rows there is no legacy boolean to read', () => {
+    expect(tableHeaderCols(table())).toBe(0)
+  })
+
+  it('makes the header run out to the selected column, and reverts it', () => {
+    const grid = table()
+    toggleHeaderThroughColumn(grid, 1)
+    expect(tableHeaderCols(grid)).toBe(2)
+    expect(isHeaderColumn(grid, 1)).toBe(true)
+    toggleHeaderThroughColumn(grid, 1)
+    expect(tableHeaderCols(grid)).toBe(1)
+    toggleHeaderThroughColumn(grid, 0)
+    expect(tableHeaderCols(grid)).toBe(0)
+  })
+
+  it('follows the columns inserted before or deleted from the header', () => {
+    const grid = table({ headerCols: 1 })
+    insertTableColumn(grid, 0)
+    expect(tableHeaderCols(grid)).toBe(2)
+    deleteTableColumn(grid, 0)
+    expect(tableHeaderCols(grid)).toBe(1)
+  })
+
+  it('is independent of the header row', () => {
+    const grid = table({ headerRows: 1, headerCols: 1 })
+    expect(isHeaderRow(grid, 0)).toBe(true)
+    expect(isHeaderColumn(grid, 0)).toBe(true)
+    expect(isHeaderRow(grid, 1)).toBe(false)
+    expect(isHeaderColumn(grid, 1)).toBe(false)
+  })
+})
+
+describe('wrappedCellLines / wrappedCellHeight (#556)', () => {
+  it('keeps short text on one line', () => {
+    expect(wrappedCellLines(200, 'hi', 14)).toEqual(['hi'])
+  })
+
+  it('wraps long text across several lines the way stickyText.js wraps a note', () => {
+    const lines = wrappedCellLines(60, 'one two three four five', 14)
+    expect(lines.length).toBeGreaterThan(1)
+    // Every character survives the wrap; only the spaces move.
+    expect(lines.join('').replace(/ /g, '')).toBe('onetwothreefourfive')
+  })
+
+  it('grows the height with the line count', () => {
+    const one = wrappedCellHeight(200, 'hi', 14)
+    const many = wrappedCellHeight(60, 'one two three four five', 14)
+    expect(many).toBeGreaterThan(one)
+  })
+
+  it('keeps a hard line break as its own line even when it would otherwise fit', () => {
+    expect(wrappedCellLines(200, 'a\nb', 14)).toEqual(['a', 'b'])
+  })
+})
+
+describe('wrappedCellRunLines (#556)', () => {
+  it('wraps a cell’s runs, keeping marks on the right characters', () => {
+    const grid = table({ cells: { '0,0': 'CELL-TEXT' }, cellRuns: { '0,0': [{ text: 'CELL-TEXT', bold: true }] } })
+    // Narrow the column enough to force a wrap.
+    grid.colWidths = [40, grid.cellW, grid.cellW]
+    const lines = wrappedCellRunLines(grid, 0, 0)
+    expect(lines.length).toBeGreaterThan(1)
+    expect(lines.every((line) => line.every((run) => run.bold === true))).toBe(true)
+  })
+
+  it('is one line for a cell that fits', () => {
+    const grid = table({ cells: { '0,0': 'hi' } })
+    expect(wrappedCellRunLines(grid, 0, 0)).toHaveLength(1)
+  })
+})
+
+describe('autoFitColumnWidth / autoFitRowHeight (#556)', () => {
+  it('never shrinks a column below MIN_TABLE_CELL', () => {
+    const grid = table({ cells: { '0,0': 'x' } })
+    autoFitColumnWidth(grid, 0)
+    expect(colWidthsOf(grid)[0]).toBeGreaterThanOrEqual(MIN_TABLE_CELL)
+  })
+
+  it('never shrinks a row below MIN_TABLE_CELL', () => {
+    const grid = table({ cells: { '0,0': 'x' } })
+    autoFitRowHeight(grid, 0)
+    expect(rowHeightsOf(grid)[0]).toBeGreaterThanOrEqual(MIN_TABLE_CELL)
+  })
+
+  it('grows the row to fit long wrapped text at the current column width', () => {
+    const grid = table()
+    grid.colWidths = [40, grid.cellW, grid.cellW]
+    setTableCell(grid, 0, 0, 'one two three four five six seven')
+    const before = rowHeightsOf(grid)[0]
+    autoFitRowHeight(grid, 0)
+    expect(rowHeightsOf(grid)[0]).toBeGreaterThan(before)
+  })
+
+  it('ignores a cell a merge covers, only measuring the anchor', () => {
+    const grid = table({ merges: [{ row: 0, col: 0, rowspan: 1, colspan: 2 }] })
+    // Column 1 is covered at row 0; nothing there should blow up or count.
+    expect(() => autoFitColumnWidth(grid, 1)).not.toThrow()
   })
 })
 

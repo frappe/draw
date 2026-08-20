@@ -8,7 +8,8 @@
 
 import { nextId } from './factories.js'
 import { distanceToSegment } from './geometry.js'
-import { strokeOpacity, contrastInk } from './whiteboardColors.js'
+import { strokeOpacity, contrastInk, TABLE_GRID_COLOR } from './whiteboardColors.js'
+import { ESPRESSO_SANS } from './textFonts.js'
 import { hasFormatting, normalizeRuns, runsToText, toRuns } from './richText.js'
 import { STICKY_FONT_SIZE } from './stickyText.js'
 
@@ -152,6 +153,9 @@ export function makeTable(x, y, partial = {}) {
     // saved here still reads as a header table in an older client.
     headerRows: headerRowsOf(partial) || undefined,
     hasHeader: headerRowsOf(partial) > 0,
+    // Same idea on the column axis (#556), independently configurable. No legacy
+    // boolean — columns never had a single-column predecessor to stay compatible with.
+    headerCols: partial.headerCols || undefined,
     // Horizontal text alignment for every cell: 'left' | 'center' | 'right'.
     align: partial.align || 'left',
     // Per-column widths / per-row heights only materialise once a border is
@@ -267,12 +271,28 @@ export function setTableCellRuns(table, row, col, runs) {
 // The colour / alignment / font size ONE cell is drawn with: its own override where
 // it has one, else the table's value (#508). The single read path for the canvas and
 // the export, so a cell cannot be exported in a style it is not shown in.
+// font/fill/border added for #556 — flat keys on the per-cell override
+// (`ownFont`/`fill`/`borderColor`/`borderWidth`/`borderDash`), same "own value, else
+// the table's" merge every other field here already follows. Flat rather than a
+// nested `border: {...}` override because setTableCellStyle writes each patch key
+// as a shallow field: a nested object would let "set colour" then "set width"
+// silently drop the colour a moment before.
 export function tableCellStyle(table, row, col) {
   const own = (table.cellStyles || {})[`${row},${col}`] || {}
   return {
     color: own.color || table.color || '#171717',
     align: own.align || table.align || 'left',
     size: own.size || TABLE_FONT_SIZE,
+    // Falls back to ESPRESSO_SANS's exact string, not a hand-typed lookalike —
+    // the font Select's options are keyed on that literal value, so a fallback
+    // that doesn't match it byte-for-byte renders the picker blank (#556).
+    font: own.font || table.font || ESPRESSO_SANS,
+    fill: own.fill || table.fill || 'none',
+    border: {
+      color: own.borderColor || table.border?.color || TABLE_GRID_COLOR,
+      width: own.borderWidth ?? table.border?.width ?? 1,
+      dash: own.borderDash || table.border?.dash || 'solid',
+    },
   }
 }
 

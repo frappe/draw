@@ -57,7 +57,7 @@ describe('startTableMove', () => {
     expect(ui.state.editingCell).toBeNull()
   })
 
-  it('treats a sub-threshold press as a click that opens the cell under it (no move)', () => {
+  it('treats a sub-threshold press as a click that selects the cell under it (no move, no edit)', () => {
     const { table, store, editorUi, ui, id } = setup()
     const x0 = table.x
     const y0 = table.y
@@ -70,8 +70,10 @@ describe('startTableMove', () => {
     expect(table.x, 'a click must not move the table').toBe(x0)
     expect(table.y).toBe(y0)
     expect(store.updateWhiteboardModel).not.toHaveBeenCalled()
-    // (150,150) is 50px right / 50px down of the origin → column 0, row 1 (T2 edit).
-    expect(ui.state.editingCell).toEqual({ tableId: id, row: 1, col: 0 })
+    // (150,150) is 50px right / 50px down of the origin → column 0, row 1 — a
+    // click selects that cell (#556), it does not open it for editing.
+    expect(ui.state.editingCell).toBeNull()
+    expect(ui.state.cellRange).toEqual({ tableId: id, r0: 1, c0: 0, r1: 1, c1: 0 })
   })
 
   it('abandons a cancelled press: no move, no cell-edit, and no leaked listener', () => {
@@ -206,11 +208,38 @@ describe('startCellRangeDrag', () => {
     expect(ui.state.editingCell, 'a drag opened the cell editor').toBe(null)
   })
 
-  it('opens the cell for editing when the press never left it', () => {
+  it('leaves the pressed cell selected, not open for editing, when the press never left it (#556)', () => {
     const { table, store, editorUi, ui } = setup()
     startCellRangeDrag(press(150, 150), store, editorUi, ui, table, { x: 150, y: 150 })
     pointer('pointerup', 150, 150)
 
-    expect(ui.state.editingCell).toEqual({ tableId: table.id, row: 1, col: 0 })
+    expect(ui.state.editingCell).toBeNull()
+    expect(ui.state.cellRange).toEqual({ tableId: table.id, r0: 1, c0: 0, r1: 1, c1: 0 })
+  })
+
+  // Regression guard for #7/#8: a range drag keeps updating continuously and
+  // never opens the editor on release, and a double click still opens the
+  // editor afterwards regardless of the cellRange a preceding click left behind.
+  it('keeps updating the range continuously through a drag and never edits on release', () => {
+    const { table, store, editorUi, ui } = setup()
+    startCellRangeDrag(press(110, 110), store, editorUi, ui, table, { x: 110, y: 110 })
+    pointer('pointermove', 230, 110)
+    expect(ui.state.cellRange).toEqual({ tableId: table.id, r0: 0, c0: 0, r1: 0, c1: 1 })
+    pointer('pointermove', 350, 190)
+    expect(ui.state.cellRange).toEqual({ tableId: table.id, r0: 0, c0: 0, r1: 2, c1: 2 })
+    pointer('pointerup', 350, 190)
+
+    expect(ui.state.editingCell).toBeNull()
+  })
+
+  it('still opens the cell on a double click even with a cellRange already set by the preceding click', () => {
+    const { store, id } = setup()
+    const ui = useWhiteboardUi()
+    ui.reset()
+    ui.state.cellRange = { tableId: id, r0: 2, c0: 2, r1: 2, c1: 2 }
+
+    expect(editTableCellAt(store, { x: 150, y: 150 })).toBe(true)
+
+    expect(ui.state.editingCell).toEqual({ tableId: id, row: 1, col: 0 })
   })
 })

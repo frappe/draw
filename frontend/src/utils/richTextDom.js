@@ -63,6 +63,39 @@ export function selectOffsets(root, start, end) {
   selection.addRange(range)
 }
 
+// The text of the line the caret is on, up to the caret. Read from the caret's own
+// block (the <div> the browser made for that line, or `root` for the first one),
+// because a Range spanning several blocks reports their text with the breaks
+// between them missing. Shared by the sticky note and the table cell editor (#556)
+// — both intercept Enter the same way, via stickyText.js's newlineIntent.
+export function lineBeforeCaret(root) {
+  const selection = root?.ownerDocument?.defaultView?.getSelection()
+  if (!selection?.rangeCount || !root) return ''
+  const range = selection.getRangeAt(0).cloneRange()
+  range.setStart(blockOf(root, range.startContainer), 0)
+  const text = range.toString()
+  return text.slice(text.lastIndexOf('\n') + 1)
+}
+
+function blockOf(root, node) {
+  let current = node
+  while (current && current.parentNode !== root) current = current.parentNode
+  return current?.nodeType === 1 ? current : root
+}
+
+// Take `count` characters back from the caret — the "- " marker being cleared when
+// a list ends.
+export function deleteBeforeCaret(count) {
+  if (!count) return
+  const selection = window.getSelection()
+  if (!selection?.rangeCount) return
+  const range = selection.getRangeAt(0)
+  range.setStart(range.startContainer, Math.max(0, range.startOffset - count))
+  selection.removeAllRanges()
+  selection.addRange(range)
+  document.execCommand('delete')
+}
+
 function runSpan(doc, run) {
   const span = doc.createElement('span')
   span.textContent = run.text

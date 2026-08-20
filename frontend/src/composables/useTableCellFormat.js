@@ -11,6 +11,7 @@
 import { toValue } from 'vue'
 import { MARKS, applyMark, markState, resolveMark, runsToText } from '@/diagram/richText.js'
 import { isCoveredCell, tableCellRuns } from '@/diagram/whiteboardModel.js'
+import { isHeaderRow, isHeaderColumn } from '@/diagram/tableStructure.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { domToRuns, runsToDom, selectionOffsets, selectOffsets } from '@/utils/richTextDom.js'
 
@@ -32,9 +33,12 @@ export function useTableCellFormat({ table, store, editingCell, editorEl, range 
 
   function toggleInEditor(mark) {
     const element = editorEl.value
-    const runs = domToRuns(element)
+    // multiline: a cell can wrap across several lines now (#556) — reading
+    // without it would silently join them back into one before the mark gets
+    // reapplied, dropping every break the cell had.
+    const runs = domToRuns(element, { multiline: true })
     const { start, end } = targetRange(element, runs)
-    const inherited = inheritedFor(mark, editingCell.value.row)
+    const inherited = inheritedFor(mark, editingCell.value.row, editingCell.value.col)
     const value = nextValue(markState(runs, start, end, mark), inherited)
     runsToDom(element, applyMark(runs, start, end, mark, value))
     selectOffsets(element, start, end)
@@ -55,10 +59,10 @@ export function useTableCellFormat({ table, store, editingCell, editorEl, range 
 
   function stateOf(mark) {
     if (editingCell.value && editorEl.value) {
-      const runs = domToRuns(editorEl.value)
+      const runs = domToRuns(editorEl.value, { multiline: true })
       const { start, end } = targetRange(editorEl.value, runs)
       const state = markState(runs, start, end, mark)
-      return state === undefined ? inheritedFor(mark, editingCell.value.row) : state
+      return state === undefined ? inheritedFor(mark, editingCell.value.row, editingCell.value.col) : state
     }
     const cells = formattableCells()
     if (!cells.length) return false
@@ -83,13 +87,18 @@ export function useTableCellFormat({ table, store, editingCell, editorEl, range 
     return inherited ? false : undefined
   }
 
-  function inheritedFor(mark, row) {
-    return mark === 'bold' && toValue(table).hasHeader === true && row === 0
+  // Was hardcoded to `hasHeader === true && row === 0` — a single-row check that
+  // never noticed a multi-row header (#553) or a header column at all. isHeaderRow
+  // / isHeaderColumn are the same functions the header band and the toolbar toggle
+  // already read, so this now agrees with what the cell actually looks like (#556).
+  function inheritedFor(mark, row, col) {
+    const current = toValue(table)
+    return mark === 'bold' && (isHeaderRow(current, row) || isHeaderColumn(current, col))
   }
 
   function cellFullyMarked(cell, mark) {
     const runs = tableCellRuns(toValue(table), cell.row, cell.col)
-    const inherited = inheritedFor(mark, cell.row)
+    const inherited = inheritedFor(mark, cell.row, cell.col)
     return runs.length > 0 && runs.every((run) => resolveMark(run, mark, inherited))
   }
 

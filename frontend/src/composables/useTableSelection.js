@@ -12,7 +12,7 @@ import { computed } from 'vue'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { isCoveredCell, tableById, tableCols, tableRows } from '@/diagram/whiteboardModel.js'
-import { isHeaderRow } from '@/diagram/tableStructure.js'
+import { isHeaderRow, isHeaderColumn } from '@/diagram/tableStructure.js'
 
 export function useTableSelection() {
   const store = useDiagramStore()
@@ -73,6 +73,9 @@ export function useTableSelection() {
   // "Make header row" reverts when the whole selection is already header.
   const selectionIsHeader = computed(
     () => !!table.value && rows.value.every((row) => isHeaderRow(table.value, row)),
+  )
+  const selectionIsHeaderColumn = computed(
+    () => !!table.value && columns.value.every((col) => isHeaderColumn(table.value, col)),
   )
 
   function select(r0, c0, r1, c1) {
@@ -147,6 +150,13 @@ export function useTableSelection() {
     onSelection((id, at) => store.toggleTableHeaderThroughRow(id, at.bottom))
   }
 
+  // The header runs from the left out to the selection's last column, or ends
+  // just before it when those columns are already header — the column mirror
+  // of toggleHeaderRows (#556).
+  function toggleHeaderColumns() {
+    onSelection((id, at) => store.toggleTableHeaderThroughColumn(id, at.right))
+  }
+
   function clearContents() {
     const targets = cells.value
     onSelection((id) => store.clearTableCells(id, targets))
@@ -187,6 +197,7 @@ export function useTableSelection() {
     spansAllRows,
     spansAllColumns,
     selectionIsHeader,
+    selectionIsHeaderColumn,
     select,
     selectRow,
     selectColumn,
@@ -199,6 +210,7 @@ export function useTableSelection() {
     insertColumnAfter,
     deleteColumns,
     toggleHeaderRows,
+    toggleHeaderColumns,
     clearContents,
     deleteTable,
   }

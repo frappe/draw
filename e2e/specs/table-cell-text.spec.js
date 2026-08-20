@@ -11,25 +11,45 @@ import { boxInWindow } from '../helpers/editor.js'
 // failure — and formatting is exactly the kind of thing that looks right on
 // screen while the model still holds a plain string.
 //
-// Cells are reached by clicking the seeded cell text: once to select the table,
-// again to drop the caret in (the T2 click-to-edit path). The <text> is
+// Cells are reached by double-clicking the seeded cell text. The <text> is
 // pointer-events:none, so the click lands on the table group beneath it.
+//
+// A single click no longer opens a cell — it only selects it (#556) — so a
+// double-click is the sole route into edit mode now (see the "opening a table
+// cell by double-click" block below for the click-selects-only counterpart).
 
 const table = async (diagram, name) => (await diagram.saved(name)).whiteboard.tables[0]
 
+// Returns the opened cell's box, so commitCell can click a neighbour of THIS
+// cell later without re-searching by text — the seeded "CELL-TEXT" is usually
+// gone by then, replaced by whatever the test typed.
 async function openCell(page) {
   const cell = page.getByText('CELL-TEXT').first()
   const box = await boxInWindow(page, cell, 'the seeded table cell')
   const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
-  // Two SEPARATE clicks, not a double-click. A cell only opens on a click once
-  // its table is already selected (the T2 path), so the first click selects and
-  // the second drops the caret in. The pause keeps the pair from registering as a
-  // double-click, which takes a different route: onDoubleClick sets editingCell
-  // and then calls selectTable, whose setSelection clears it straight back to null.
-  await page.mouse.click(point.x, point.y)
-  await page.waitForTimeout(600)
-  await page.mouse.click(point.x, point.y)
+  await page.mouse.dblclick(point.x, point.y)
   await expect(page.locator('[role="textbox"][contenteditable]')).toBeVisible()
+  return box
+}
+
+// Commits the open cell: a cell wraps now (#556), so Enter inserts a line
+// break instead of closing it — the same newlineIntent list-continuation the
+// sticky note uses. What actually commits is a press elsewhere inside the
+// table's grid (startCellRangeDrag nulls editingCell unconditionally at press
+// time, whichever cell it lands on), so this clicks the seeded table's other
+// cell — one column over, same row — rather than truly empty canvas: clicking
+// outside the table entirely is its own separate, currently-broken thing on a
+// unified document (tracked outside this PR), and has nothing to do with what
+// these tests are asserting.
+//
+// A fixed 200px offset, not a multiple of `box`: `box` is the "CELL-TEXT"
+// GLYPH's own bounding box (only as wide as the rendered string, ~60-90px),
+// not the cell's — the fixtures seed 120-160px-wide cells, so 200px past the
+// text's left edge reliably lands one column over without a third column's
+// width in play.
+async function commitCell(page, box) {
+  await page.mouse.click(box.x + 200, box.y + 10)
+  await expect(page.locator('[role="textbox"][contenteditable]')).toHaveCount(0)
 }
 
 // Select the whole cell: the caret opens at the end, so extend it to the start.
@@ -41,10 +61,10 @@ test.describe('whiteboard table cell text (#344)', () => {
   test('typing in a cell still persists as plain text', async ({ page, diagram }) => {
     const name = await diagram.open('whiteboard', { table: true })
 
-    await openCell(page)
+    const box = await openCell(page)
     await selectAllInCell(page)
     await page.keyboard.type('TYPED-TEXT')
-    await page.keyboard.press('Enter')
+    await commitCell(page, box)
 
     await expect
       .poll(async () => (await table(diagram, name)).cells['0,0'], {
@@ -72,10 +92,10 @@ test.describe('whiteboard table cell text (#344)', () => {
   test('bolding the selected words persists as runs, keeping the plain text intact', async ({ page, diagram }) => {
     const name = await diagram.open('whiteboard', { table: true })
 
-    await openCell(page)
+    const box = await openCell(page)
     await selectAllInCell(page)
     await page.keyboard.press('ControlOrMeta+b')
-    await page.keyboard.press('Enter')
+    await commitCell(page, box)
 
     await expect
       .poll(async () => (await table(diagram, name)).cellRuns?.['0,0'], {
@@ -90,11 +110,11 @@ test.describe('whiteboard table cell text (#344)', () => {
   test('bold applies to only the selected part of a cell', async ({ page, diagram }) => {
     const name = await diagram.open('whiteboard', { table: true })
 
-    await openCell(page)
+    const box = await openCell(page)
     // The caret opens at the end; take just the last four characters ("TEXT").
     for (let i = 0; i < 4; i += 1) await page.keyboard.press('Shift+ArrowLeft')
     await page.keyboard.press('ControlOrMeta+b')
-    await page.keyboard.press('Enter')
+    await commitCell(page, box)
 
     await expect
       .poll(async () => (await table(diagram, name)).cellRuns?.['0,0'], {
@@ -107,10 +127,10 @@ test.describe('whiteboard table cell text (#344)', () => {
   test('the B / I / U control formats a cell from the toolbar', async ({ page, diagram }) => {
     const name = await diagram.open('whiteboard', { table: true })
 
-    await openCell(page)
+    const box = await openCell(page)
     await selectAllInCell(page)
     await page.getByRole('button', { name: 'Italic' }).click()
-    await page.keyboard.press('Enter')
+    await commitCell(page, box)
 
     await expect
       .poll(async () => (await table(diagram, name)).cellRuns?.['0,0'], {
@@ -142,7 +162,7 @@ test.describe('opening a table cell by double-click (#353, #354)', () => {
       // And it is a working editor, not just a mounted one.
       await page.keyboard.press('Shift+Home')
       await page.keyboard.type('FROM-DBLCLICK')
-      await page.keyboard.press('Enter')
+      await commitCell(page, box)
       await expect
         .poll(async () => (await diagram.saved(name)).whiteboard.tables[0].cells['0,0'], {
           message: 'text typed after a double-click never reached the saved document',
@@ -242,12 +262,13 @@ test.describe('per-cell text options (#508)', () => {
   test('strikethrough persists as a run, like the other three marks', async ({ page, diagram }) => {
     const name = await diagram.open('whiteboard', { table: true })
 
-    await openCell(page)
+    const box = await openCell(page)
     await selectAllInCell(page)
     await control(page, 'Strikethrough').click()
-    // Enter COMMITS. Escape abandons the edit — there is a test in this file that
-    // says so, and using it here asserted a mark had persisted after cancelling it.
-    await page.keyboard.press('Enter')
+    // A click elsewhere in the table COMMITS. Escape abandons the edit instead —
+    // there is a test in this file that says so, and using it here asserted a
+    // mark had persisted after cancelling it.
+    await commitCell(page, box)
 
     await expect
       .poll(async () => (await table(diagram, name)).cellRuns?.['0,0']?.[0]?.strike, {
@@ -264,7 +285,9 @@ test.describe('per-cell text options (#508)', () => {
     const before = (await table(diagram, name)).color
 
     await openCell(page)
-    await control(page, 'Cell text colour').click()
+    // Table and cell colour share one "Text colour" control now (#556); it
+    // writes the cell when a cell is picked, the table otherwise.
+    await control(page, 'Text colour').click()
     await page.getByRole('button', { name: 'blue 500', exact: true }).click()
 
     await expect

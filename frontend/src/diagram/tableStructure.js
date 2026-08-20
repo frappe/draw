@@ -10,11 +10,21 @@
 
 import {
   MAX_TABLE_DIM,
+  MIN_TABLE_CELL,
+  TABLE_FONT_SIZE,
   tableCols,
   tableMerges,
   tableRows,
   setTableCellRuns,
+  tableCellRuns,
+  tableCellStyle,
+  isCoveredCell,
+  colWidthsOf,
+  resizeTableColumn,
+  resizeTableRow,
 } from './whiteboardModel.js'
+import { runsToText, wrapRuns } from './richText.js'
+import { textWidth, wrapLines, charsPerLine } from './textMetrics.js'
 
 // Keys of `cells` / `cellRuns` / `cellStyles` are "row,col". Shift every key on
 // one axis at or past `at` by `delta`; a delete (delta -1) drops that line's own
@@ -132,6 +142,7 @@ export function insertTableColumn(table, at) {
   table.merges = keptMerges(mergesAfterInsert(table, 'col', index))
   table.colWidths = sizesAfterInsert(table.colWidths, index, table.cellW)
   table.cols = cols + 1
+  if (index < tableHeaderCols(table)) setTableHeaderCols(table, tableHeaderCols(table) + 1)
 }
 
 // Delete column `col`, keeping the last one for the same reason as the row.
@@ -139,12 +150,14 @@ export function deleteTableColumn(table, col) {
   const cols = tableCols(table)
   if (cols <= 1) return
   const index = clampIndex(col, cols - 1)
+  const headerCols = tableHeaderCols(table)
   table.cells = shiftKeyedCells(table.cells, 'col', index, -1) || {}
   table.cellRuns = shiftKeyedCells(table.cellRuns, 'col', index, -1)
   table.cellStyles = shiftKeyedCells(table.cellStyles, 'col', index, -1)
   table.merges = keptMerges(mergesAfterDelete(table, 'col', index))
   table.colWidths = sizesAfterDelete(table.colWidths, index)
   table.cols = cols - 1
+  if (index < headerCols) setTableHeaderCols(table, headerCols - 1)
 }
 
 // ----- header rows -----------------------------------------------------------
@@ -176,8 +189,106 @@ export function toggleHeaderThroughRow(table, row) {
   setTableHeaderRows(table, isHeaderRow(table, index) ? index : index + 1)
 }
 
+// ----- header columns ---------------------------------------------------------
+// Same shape as header rows, mirrored onto the column axis, independently
+// configurable (#556). No legacy boolean here — `hasHeader` only existed for
+// documents saved before the row count generalised it (#338); columns never had
+// a single-column predecessor to stay compatible with.
+
+export function tableHeaderCols(table) {
+  return clampIndex(Number.isFinite(table.headerCols) ? table.headerCols : 0, tableCols(table))
+}
+
+export function isHeaderColumn(table, col) {
+  return col < tableHeaderCols(table)
+}
+
+export function setTableHeaderCols(table, count) {
+  table.headerCols = clampIndex(count, tableCols(table)) || undefined
+}
+
+// One click on a selected column: make the header run out to it, or — when it
+// is already a header column — end the header just before it.
+export function toggleHeaderThroughColumn(table, col) {
+  const index = clampIndex(col, Math.max(0, tableCols(table) - 1))
+  setTableHeaderCols(table, isHeaderColumn(table, index) ? index : index + 1)
+}
+
 // Empty the given cells, keeping their style overrides — "clear contents" is
 // about the text, not about undoing the formatting of the cells that held it.
 export function clearTableCells(table, cells) {
   for (const { row, col } of cells) setTableCellRuns(table, row, col, [])
+}
+
+// ----- cell text wrap and auto-fit (#556) -------------------------------------
+// A cell wraps rather than scrolling, and a row grows to hold what it wraps to
+// (#10/#11) — the same deterministic, no-DOM-measurement heuristic
+// stickyText.js uses for a note, so a table (like a note) sizes the same on
+// every machine. Padding/line-height are the table's own numbers, not the
+// note's: a cell's committed text already insets 12px each side (textLayout,
+// WhiteboardTable.vue) and the editor was `px-3` — TABLE_CELL_PAD_X keeps that.
+export const TABLE_CELL_PAD_X = 24
+export const TABLE_CELL_PAD_Y = 16
+export const TABLE_LINE_HEIGHT = 1.3
+const CHAR_WIDTH_RATIO = 0.55 // Inter's average advance, relative to the font size — matches stickyText.js
+
+// A cell's text as the lines it wraps to at `width`: hard breaks first, then the
+// wrap that width forces. Shared by the live render, the export, and the height
+// below, so a cell that fits on the canvas fits in the exported image.
+export function wrappedCellLines(width, text, fontSize = TABLE_FONT_SIZE) {
+  const perLine = charsPerLine(width - TABLE_CELL_PAD_X, fontSize * CHAR_WIDTH_RATIO)
+  return String(text || '')
+    .split(/\r?\n/)
+    .flatMap((line) => wrapLines(line, perLine))
+}
+
+// The height a cell's text needs at `width` — how far a row has to grow to hold it.
+export function wrappedCellHeight(width, text, fontSize = TABLE_FONT_SIZE) {
+  const lines = wrappedCellLines(width, text, fontSize).length
+  return Math.ceil(lines * fontSize * TABLE_LINE_HEIGHT + TABLE_CELL_PAD_Y)
+}
+
+// A cell's RUNS, wrapped into lines at its current column width — what the
+// committed render and the export draw, so a cell that fits on the canvas
+// fits in the exported image with the same bold/italic/underline/strike marks
+// on the same characters (#556). The plain-text wrappedCellLines above answers
+// a narrower question (how many lines, for sizing) and stays mark-free on
+// purpose — this is the one place marks and wrapping meet.
+export function wrappedCellRunLines(table, row, col) {
+  const width = colWidthsOf(table)[col]
+  const style = tableCellStyle(table, row, col)
+  const perLine = charsPerLine(width - TABLE_CELL_PAD_X, style.size * CHAR_WIDTH_RATIO)
+  return wrapRuns(tableCellRuns(table, row, col), perLine)
+}
+
+// Double-clicking a column's edge (#12): widen it to the widest UNWRAPPED line
+// any of its cells holds, Excel-style. Only cells anchored in this exact column
+// count — a merged cell spanning into it does not force it wider, the same way
+// insert/delete already treat a merge as owned by its anchor.
+export function autoFitColumnWidth(table, col) {
+  const rows = tableRows(table)
+  let widest = 0
+  for (let row = 0; row < rows; row += 1) {
+    if (isCoveredCell(table, row, col)) continue
+    const style = tableCellStyle(table, row, col)
+    const text = runsToText(tableCellRuns(table, row, col))
+    widest = Math.max(widest, textWidth(text, { size: style.size, font: style.font }))
+  }
+  resizeTableColumn(table, col, Math.max(MIN_TABLE_CELL, Math.ceil(widest + TABLE_CELL_PAD_X)))
+}
+
+// Double-clicking a row's edge: grow it to the tallest a cell in it wraps to at
+// its CURRENT column width — the same measurement typing into that cell would
+// grow the row to (growTableRow, useDiagramStore.js).
+export function autoFitRowHeight(table, row) {
+  const cols = tableCols(table)
+  const widths = colWidthsOf(table)
+  let tallest = 0
+  for (let col = 0; col < cols; col += 1) {
+    if (isCoveredCell(table, row, col)) continue
+    const style = tableCellStyle(table, row, col)
+    const text = runsToText(tableCellRuns(table, row, col))
+    tallest = Math.max(tallest, wrappedCellHeight(widths[col], text, style.size))
+  }
+  resizeTableRow(table, row, Math.max(MIN_TABLE_CELL, tallest))
 }

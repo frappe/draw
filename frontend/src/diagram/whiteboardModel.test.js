@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { ESPRESSO_SANS } from './textFonts.js'
 import {
   tableCellStyle,
   setTableCellStyle,
@@ -310,7 +311,14 @@ describe('per-cell text style (#508)', () => {
 
   it('falls back to the table for a cell that has no style of its own', () => {
     const style = tableCellStyle(table(), 0, 0)
-    expect(style).toEqual({ color: '#171717', align: 'left', size: TABLE_FONT_SIZE })
+    expect(style).toEqual({
+      color: '#171717',
+      align: 'left',
+      size: TABLE_FONT_SIZE,
+      font: ESPRESSO_SANS,
+      fill: 'none',
+      border: { color: '#E6E6EA', width: 1, dash: 'solid' },
+    })
   })
 
   it('follows the table when the table changes, for an untouched cell', () => {
@@ -340,6 +348,34 @@ describe('per-cell text style (#508)', () => {
     setTableCellStyle(model, 0, 0, { color: null })
     expect(tableCellStyle(model, 0, 0).color).toBe('#171717')
     expect(tableCellStyle(model, 0, 0).size).toBe(20)
+  })
+
+  // #556: font, fill and border follow the same per-cell-override-else-table
+  // pattern as color/align/size, and a flat cell override cannot drop a sibling
+  // border field the way a nested patch could (setTableCellStyle writes each key
+  // shallowly).
+  it('lets one cell override its font, fill and border independently', () => {
+    const model = table()
+    setTableCellStyle(model, 0, 0, { font: 'ui-monospace, monospace', fill: '#EFF6FF', borderColor: '#8FBEF5' })
+    const style = tableCellStyle(model, 0, 0)
+    expect(style.font).toBe('ui-monospace, monospace')
+    expect(style.fill).toBe('#EFF6FF')
+    expect(style.border).toEqual({ color: '#8FBEF5', width: 1, dash: 'solid' })
+  })
+
+  it('keeps a border colour override after a later border-width-only patch', () => {
+    const model = table()
+    setTableCellStyle(model, 0, 0, { borderColor: '#8FBEF5' })
+    setTableCellStyle(model, 0, 0, { borderWidth: 2 })
+    const style = tableCellStyle(model, 0, 0)
+    expect(style.border.color).toBe('#8FBEF5')
+    expect(style.border.width).toBe(2)
+  })
+
+  it('follows the table default border when the table sets one', () => {
+    const model = table()
+    model.border = { color: '#171717', width: 2, dash: 'dashed' }
+    expect(tableCellStyle(model, 0, 0).border).toEqual({ color: '#171717', width: 2, dash: 'dashed' })
   })
 
   it('stores nothing for a table nobody has restyled', () => {

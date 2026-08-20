@@ -6,7 +6,11 @@ import path from 'node:path'
 // #475: the canvas font menu against Espresso. Browser-free node env, so the list is
 // asserted by source inspection, the house pattern for these components.
 const here = path.dirname(fileURLToPath(import.meta.url))
-const source = readFileSync(path.join(here, 'groups/TextGroup.vue'), 'utf8')
+const groupSource = readFileSync(path.join(here, 'groups/TextGroup.vue'), 'utf8')
+// The font stacks live in a shared module (#556) so table cells can reuse them
+// without a second, driftable copy — the list itself is asserted against that
+// module, not the component that merely imports it.
+const source = readFileSync(path.join(here, '../../diagram/textFonts.js'), 'utf8')
 
 // design/colors_and_type.css lines 190-192. Restated here so a drift in either
 // direction fails: Espresso's stack is the contract, not whatever TextGroup holds.
@@ -59,6 +63,13 @@ describe('the canvas font menu (#475)', () => {
   // '', the Select would render blank on every shape that has never had a font
   // picked — which is most of them.
   it('resolves an unset font to Inter so the Select still shows a value', () => {
-    expect(source).toContain('textStyle.value.font || ESPRESSO_SANS')
+    expect(groupSource).toContain('textStyle.value.font || ESPRESSO_SANS')
+  })
+
+  // #556: table cells need the same stacks, so they moved to a shared module
+  // rather than a second copy living in TextGroup itself.
+  it('imports the font list from the shared module instead of holding its own copy', () => {
+    expect(groupSource).toContain("from '@/diagram/textFonts.js'")
+    expect(groupSource).not.toContain('const FONTS = [')
   })
 })

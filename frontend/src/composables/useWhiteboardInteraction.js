@@ -467,8 +467,9 @@ export function startGroupMove(event, store, editorUi, ui) {
 // Press on a whiteboard table (select tool). Like the sticky, the table owns its
 // own press once selected: a drag past a small threshold moves it (with every
 // co-selected object), while a press that never crosses the threshold stays a
-// plain click that drops the caret into the cell under it (Frappe-Writer T2 cell
-// edit). Live-mutates the model for a smooth preview, then commits the whole
+// plain click that selects the cell under it (#556 — single click selects, it no
+// longer opens the editor; only a double click does that, via editTableCellAt).
+// Live-mutates the model for a smooth preview, then commits the whole
 // translation as ONE undoable unit (#133). `point` is the press in canvas units.
 export function startTableMove(event, store, editorUi, ui, table, point) {
   const model = store.state.whiteboard
@@ -503,12 +504,14 @@ export function startTableMove(event, store, editorUi, ui, table, point) {
       })
       return
     }
-    // A plain click (a real release, not a cancelled gesture) opens the cell under
-    // the press for inline editing (T2). editingCell is set directly — no reselect —
-    // so it survives (setSelection would clear it).
+    // A plain click (a real release, not a cancelled gesture) selects the cell
+    // under the press (#556) — a 1x1 range, matching startCellRangeDrag's press
+    // behavior, not an open editor. editingCell is cleared directly rather than
+    // through setSelection, since the table itself must stay selected.
     if (cell && finishEvent?.type !== 'pointercancel') {
       const anchor = mergeAnchor(table, cell)
-      ui.state.editingCell = { tableId: table.id, row: anchor.row, col: anchor.col }
+      ui.state.cellRange = { tableId: table.id, r0: anchor.row, c0: anchor.col, r1: anchor.row, c1: anchor.col }
+      ui.state.editingCell = null
     }
   }
   window.addEventListener('pointermove', move)
@@ -519,16 +522,16 @@ export function startTableMove(event, store, editorUi, ui, table, point) {
 }
 
 // Press inside the cells of a lone-selected table: drag to select a cell range
-// (#553), release without leaving the cell to open it for editing — the click
-// that used to reach startTableMove. Moving the table is the frame band's job
-// now (TableGrips), because a drag across cells has to mean "select these".
+// (#553). A plain click (no drag) leaves that 1x1 range selected rather than
+// opening the cell (#556) — the click that used to reach startTableMove. Moving
+// the table is the frame band's job now (TableGrips), because a drag across
+// cells has to mean "select these".
 export function startCellRangeDrag(event, store, editorUi, ui, table, point) {
   const pressed = tableCellAt(table, point)
   if (!pressed) return
   const anchor = mergeAnchor(table, pressed)
   const surface = event.target.closest('[data-fdpreset]')
   const rect = surface ? surface.getBoundingClientRect() : { left: 0, top: 0 }
-  let extended = false
   const setRange = (cell) => {
     ui.state.cellRange = { tableId: table.id, r0: anchor.row, c0: anchor.col, r1: cell.row, c1: cell.col }
   }
@@ -538,17 +541,14 @@ export function startCellRangeDrag(event, store, editorUi, ui, table, point) {
   const move = (moveEvent) => {
     const cell = tableCellAt(table, clientToLogical(moveEvent, rect, editorUi.viewport))
     if (!cell) return
-    if (cell.row !== anchor.row || cell.col !== anchor.col) extended = true
     setRange(cell)
   }
-  const finish = (finishEvent) => {
+  const finish = () => {
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', finish)
     window.removeEventListener('pointercancel', finish)
-    // A press that never left the cell is a click: drop the caret in it (T2).
-    if (!extended && finishEvent?.type !== 'pointercancel') {
-      ui.state.editingCell = { tableId: table.id, row: anchor.row, col: anchor.col }
-    }
+    // A press that never left the cell is a click: the 1x1 range set at press
+    // time (#556) already stands as the selection, nothing further to do here.
   }
   window.addEventListener('pointermove', move)
   window.addEventListener('pointerup', finish)
@@ -589,6 +589,16 @@ export function startTableResize(event, store, editorUi, table, axis, index) {
   window.addEventListener('pointermove', move)
   window.addEventListener('pointerup', finish)
   window.addEventListener('pointercancel', finish)
+}
+
+// Double-clicking a resize handle fits that column/row to its content instead
+// of dragging it (#12/#556) — a thin call into the store, kept here rather than
+// inline in the component for the same testability startTableResize gets.
+export function onColumnAutoFit(store, table, col) {
+  store.autoFitTableColumn(table.id, col)
+}
+export function onRowAutoFit(store, table, row) {
+  store.autoFitTableRow(table.id, row)
 }
 
 // Open the table cell under `point` for editing, if there is one. Exported
