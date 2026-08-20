@@ -182,7 +182,12 @@ const labelWidth = computed(() => (props.connector.label?.length || 0) * 7 + 16)
 const dragging = ref(null)
 
 function toLogical(event, node) {
-  const ctm = node.ownerSVGElement.getScreenCTM()
+  // CTM off `node` itself, not its `ownerSVGElement` — the root canvas <svg> has
+  // no transform of its own, so its CTM skips the ancestor <g>'s pan/zoom entirely.
+  // `node` (the dragged handle/hit-path) sits inside that <g>, so its own CTM
+  // correctly includes it — the same house pattern HoverArrows/HoverOutline/
+  // MindmapHoverHandles/FlowchartHoverHandles use via their own `layer.value`.
+  const ctm = node.getScreenCTM()
   const point = node.ownerSVGElement.createSVGPoint()
   point.x = event.clientX
   point.y = event.clientY
