@@ -196,9 +196,10 @@ describe('the shapes grid (#451)', () => {
     expect(groups).toContain(':class="shapesGrid"')
   })
 
-  it('gives the polygon tile a polygon glyph, not the pen tool', () => {
+  it('gives the polygon tile an irregular polygon glyph, not a regular pentagon or the pen tool', () => {
     const polygon = SHAPES.find((shape) => shape.type === 'polygon')
-    expect(polygon.icon).toBe('lucide-pentagon')
+    expect(polygon.glyph).toBe('polygon-freeform')
+    expect(polygon.icon).not.toBe('lucide-pentagon')
     expect(polygon.icon).not.toBe('lucide-pen-tool')
   })
 

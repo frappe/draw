@@ -20,7 +20,7 @@ import { nodeShape } from '@/diagram/flowchartShapes.js'
 import { presetPolygonPoints } from '@/diagram/polygon.js'
 
 const props = defineProps({
-  // 'flowchart' | 'preset' | 'mindmap' | 'polygon-n' | 'connector' | 'endpoint' | 'corner'
+  // 'flowchart' | 'preset' | 'mindmap' | 'polygon-n' | 'polygon-freeform' | 'connector' | 'endpoint' | 'corner'
   family: { type: String, default: 'flowchart' },
   type: { type: String, default: '' },
 })
@@ -151,6 +151,14 @@ const flow = computed(() => {
         n
       </text>
     </template>
+
+    <!-- Freeform polygon: the tile that arms click-to-place-a-vertex drawing, with
+         no fixed side count. A regular pentagon (lucide-pentagon) told the wrong
+         story here — a symmetric five-sided glyph reads as "insert a pentagon", not
+         "trace whatever shape you click out". An IRREGULAR outline says the shape is
+         yours to decide, the way the custom-polygon glyph above says the count is. -->
+    <polygon v-else-if="family === 'polygon-freeform'" points="4,15 3,8 10,3 19,6 20,14 13,21 7,20" />
+
 
     <!-- The six connector tiles as ONE family (#499): three geometries, each drawn
          plain and with a head, so the menu reads as a matrix rather than as six

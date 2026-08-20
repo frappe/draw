@@ -51,10 +51,11 @@ export const SHAPES = [
   { type: 'ellipse', icon: 'lucide-circle', label: 'Ellipse' },
   { type: 'triangle', icon: 'lucide-triangle', label: 'Triangle' },
   { type: 'hexagon', icon: 'lucide-hexagon', label: 'Hexagon' },
-  // A polygon glyph, not the pen tool #431 gave it (#451 item 1). The tile draws a
-  // polygon, so it should look like one — and it now sits beside the custom
-  // polygon, whose glyph is the same outline marked "n".
-  { type: 'polygon', icon: 'lucide-pentagon', label: 'Polygon' },
+  // An irregular polygon outline, not lucide-pentagon: a regular, symmetric
+  // pentagon told a wrong, specific story ("insert a pentagon") for a tile that
+  // arms click-to-place-a-vertex drawing with no fixed side count. Drawn, like the
+  // custom polygon beside it whose glyph marks the count instead of the shape.
+  { type: 'polygon', glyph: 'polygon-freeform', label: 'Polygon' },
   { type: 'arrow', icon: 'lucide-arrow-big-right', label: 'Block arrow' },
   { type: 'trapezoid', glyph: 'preset', label: 'Trapezoid' },
   { type: 'parallelogram', glyph: 'preset', label: 'Parallelogram' },
