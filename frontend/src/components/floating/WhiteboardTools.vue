@@ -15,6 +15,7 @@ import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { STICKY_COLORS, PEN_WIDTHS, HIGHLIGHTER_WIDTHS } from '@/diagram/whiteboardColors.js'
 import { INK_ROW, nearestSwatch } from '@/diagram/espressoPalette.js'
 import { ERASER_SIZES } from '@/diagram/eraser.js'
+import { dotStyle } from '@/diagram/sizeDot.js'
 import { visibleWhiteboardTools } from './whiteboardTools.js'
 import ToolbarButton from '@/components/toolbar/ToolbarButton.vue'
 import LineOptions from './LineOptions.vue'
@@ -160,29 +161,10 @@ function clearAll() {
   confirmingClearAll.value = false
 }
 
-// The size preview dot, SCALED across the row's own range rather than clamped to
-// it (#498).
-//
-// It used to be `Math.min(size, 18)`, which collapsed the highlighter's 18 and 26
-// into the same 18px dot — two options drawn identically, told apart only by the
-// selected background — and drew the pen's 2 as a 2px speck. The clamp existed for
-// a real reason (a 26px dot does not fit a 28px cell), but capping the top instead
-// of mapping the range is what made two sizes one control twice.
-//
-// The scale is per ROW, so the three options are as distinct as the cell allows.
-// That means pen and highlighter draw the same three dots for different real
+// The size preview dot: see diagram/sizeDot.js for the scaling rule. The scale is
+// per ROW, so pen and highlighter draw the same three dots for different real
 // widths — acceptable, because the toggle above the row already says which ink is
 // in play, and this control's job is to separate ITS three sizes.
-const DOT_MIN = 4
-const DOT_MAX = 18
-
-function dotStyle(size, sizes) {
-  const smallest = Math.min(...sizes)
-  const largest = Math.max(...sizes)
-  const position = largest === smallest ? 1 : (size - smallest) / (largest - smallest)
-  const dot = Math.round(DOT_MIN + position * (DOT_MAX - DOT_MIN))
-  return { width: `${dot}px`, height: `${dot}px` }
-}
 
 // New-line defaults live on ui.state; LineOptions emits a partial patch and this
 // copies each present field onto the right default.
