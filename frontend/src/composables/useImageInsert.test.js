@@ -78,6 +78,7 @@ describe('useImageInsert', () => {
     expect(store.addShape).toHaveBeenCalledOnce()
     expect(store.addShape.mock.calls[0][0]).toMatchObject({ type: 'image', src: '/files/inserted.png' })
     expect(id).toBe('shape-1')
+    expect(toast.success).toHaveBeenCalledWith('Image uploaded successfully')
   })
 
   it('falls back to a plain upload when the diagram name is not known yet', async () => {
@@ -156,6 +157,7 @@ describe('useImageInsert', () => {
       await input.listeners.change()
       await vi.waitFor(() => expect(onReady).toHaveBeenCalled())
       expect(onReady.mock.calls[0][0]).toMatchObject({ src: '/files/inserted.png' })
+      expect(toast.success).toHaveBeenCalledWith('Image uploaded successfully')
       // Armed, not placed: nothing reaches the canvas until the click.
       expect(store.addShape).not.toHaveBeenCalled()
     })

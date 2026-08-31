@@ -460,7 +460,7 @@ def upload_diagram_image(name: str | None = None) -> dict:
 			"decode": False,
 		}
 	).insert(ignore_permissions=True)
-	return {"file_url": file_doc.file_url, "file_name": file_doc.file_name}
+	return {"file_url": file_doc.file_url, "file_name": file_doc.file_name, "name": file_doc.name}
 
 
 def _uploaded_image_diagram(name: str | None) -> str:

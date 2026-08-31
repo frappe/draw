@@ -100,7 +100,7 @@ export function useInsertCatalog() {
   const store = useDiagramStore()
   const editorUi = useEditorUi()
   const whiteboardUi = useWhiteboardUi()
-  const imageInsert = useImageInsert(store)
+  const imageInsert = useImageInsert(store, editorUi)
   const viewport = editorUi.viewport
 
   // Detected from the document, not the strategy, which falls back to block.

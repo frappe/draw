@@ -33,7 +33,7 @@ const props = defineProps({
 const editorUi = useEditorUi()
 const store = useDiagramStore()
 const ui = useWhiteboardUi()
-const imageInsert = useImageInsert(store)
+const imageInsert = useImageInsert(store, editorUi)
 
 // Tools that carry their own options popover, opened by clicking the tool
 // itself. The table tool is absent: clicking it opens the size picker (which

@@ -138,7 +138,7 @@ const polygonLastVertex = computed(() => polygon.vertices.value[polygon.vertices
 // geometry of the armed tool (spec §7.1) and the preview matches the committed
 // shape (#130). The mapping is a pure, unit-tested helper.
 const previewShape = computed(() => draftPreviewShape(creation.preview.value))
-const imageInsert = useImageInsert(store)
+const imageInsert = useImageInsert(store, editorUi)
 // The whiteboard object selection lives here (separate from block shape
 // selection); we clear it when a block shape on the board is picked, so the two
 // selections never both show (S13/U1).
