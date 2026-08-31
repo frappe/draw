@@ -159,6 +159,14 @@ function connectorBody(c, shapes) {
   const a = endpointPoint(c.from, shapes)
   const b = endpointPoint(c.to, shapes)
   const stroke = `stroke="${safeColor(c.style?.color, '#7C7C7C')}" stroke-width="${num(c.style?.width || 2.2, 2.2)}"`
+  if (c.type === 'curved') {
+    const cp = c.midpoint ? { x: num(c.midpoint.x), y: num(c.midpoint.y) } : { x: (a.x + b.x) / 2, y: a.y }
+    return `<path d="M ${a.x} ${a.y} Q ${cp.x} ${cp.y} ${b.x} ${b.y}" ${stroke} fill="none" stroke-linecap="round"/>`
+  }
+  if (c.type === 'elbow') {
+    const midX = num(c.midX ?? c.midpoint?.x, (a.x + b.x) / 2)
+    return `<path d="M ${a.x} ${a.y} L ${midX} ${a.y} L ${midX} ${b.y} L ${b.x} ${b.y}" ${stroke} fill="none" stroke-linecap="round"/>`
+  }
   return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" ${stroke} stroke-linecap="round"/>`
 }
 

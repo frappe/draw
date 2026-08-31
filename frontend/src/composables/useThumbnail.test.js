@@ -77,6 +77,33 @@ describe('documentToSvg for a unified document', () => {
     expect(documentToSvg(unifiedDocument())).toContain('BLOCK-SHAPE')
   })
 
+  it('renders curved and elbow connectors with custom midpoint/midX (#573)', () => {
+    const doc = {
+      ...unifiedDocument(),
+      connectors: [
+        {
+          id: 'c1',
+          type: 'curved',
+          from: { x: 0, y: 0 },
+          to: { x: 100, y: 100 },
+          midpoint: { x: 50, y: 20 },
+          style: { color: '#006EDB', width: 2 },
+        },
+        {
+          id: 'c2',
+          type: 'elbow',
+          from: { x: 0, y: 0 },
+          to: { x: 100, y: 100 },
+          midX: 30,
+          style: { color: '#FF0000', width: 2 },
+        },
+      ],
+    }
+    const svg = documentToSvg(doc)
+    expect(svg).toContain('d="M 0 0 Q 50 20 100 100"')
+    expect(svg).toContain('d="M 0 0 L 30 0 L 30 100 L 100 100"')
+  })
+
   it('includes whiteboard ink and sticky notes', () => {
     const svg = documentToSvg(unifiedDocument())
     expect(svg, 'whiteboard stroke colour missing from the export').toContain('#123456')

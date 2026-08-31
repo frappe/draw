@@ -68,7 +68,11 @@ const control = computed(() => {
   return { x: (start.value.x + end.value.x) / 2, y: start.value.y }
 })
 
-const elbowMidX = computed(() => (start.value.x + end.value.x) / 2)
+const elbowMidX = computed(() => {
+  const stored = props.connector.midX ?? props.connector.midpoint?.x
+  if (Number.isFinite(stored)) return stored
+  return (start.value.x + end.value.x) / 2
+})
 
 const selected = computed(() => store.state.selection.includes(props.connector.id))
 const style = computed(() => props.connector.style || {})
@@ -205,6 +209,13 @@ function onDrag(event) {
   const point = toLogical(event, event.target)
   if (dragging.value === 'control') {
     store.updateConnector(props.connector.id, { midpoint: { x: Math.round(point.x), y: Math.round(point.y) } })
+    return
+  }
+  if (dragging.value === 'elbowBend') {
+    store.updateConnector(props.connector.id, {
+      midX: Math.round(point.x),
+      midpoint: { x: Math.round(point.x), y: Math.round(point.y) },
+    })
     return
   }
   drawing.moveEndpoint(props.connector.id, dragging.value, point)
@@ -421,6 +432,7 @@ const LABEL_EDITOR_H = 28
          visibly does nothing. Such an edge is re-pointed by moving its node. -->
     <g v-if="selected && !flowchartRoute">
       <circle
+        v-if="connector.type === 'curved'"
         :cx="control.x"
         :cy="control.y"
         r="6"
@@ -428,8 +440,20 @@ const LABEL_EDITOR_H = 28
         stroke="#006EDB"
         stroke-width="1.5"
         class="cursor-move"
-        v-if="connector.type === 'curved'"
         @pointerdown.stop.prevent="startDrag('control', $event)"
+        @pointermove="onDrag"
+        @pointerup="endDrag"
+      />
+      <circle
+        v-if="connector.type === 'elbow'"
+        :cx="elbowMidX"
+        :cy="(start.y + end.y) / 2"
+        r="6"
+        fill="#FFFFFF"
+        stroke="#006EDB"
+        stroke-width="1.5"
+        class="cursor-ew-resize"
+        @pointerdown.stop.prevent="startDrag('elbowBend', $event)"
         @pointermove="onDrag"
         @pointerup="endDrag"
       />

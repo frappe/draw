@@ -28,5 +28,8 @@ export function translateConnectorBody(connector, dx, dy) {
   if (connector?.midpoint) {
     patch.midpoint = { x: connector.midpoint.x + dx, y: connector.midpoint.y + dy }
   }
+  if (Number.isFinite(connector?.midX)) {
+    patch.midX = connector.midX + dx
+  }
   return patch
 }

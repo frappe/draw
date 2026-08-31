@@ -38,6 +38,12 @@ describe('translateConnectorBody (#542)', () => {
     expect(patch.midpoint).toEqual({ x: 7, y: -2 })
   })
 
+  it('moves a stored elbow midX along with the endpoints (#573)', () => {
+    const connector = { from: { x: 0, y: 0 }, to: { x: 10, y: 0 }, midX: 5 }
+    const patch = translateConnectorBody(connector, 3, 4)
+    expect(patch.midX).toBe(8)
+  })
+
   it('produces an empty patch for a fully-attached connector', () => {
     const connector = { from: { shapeId: 's1' }, to: { shapeId: 's2' } }
     expect(translateConnectorBody(connector, 5, 5)).toEqual({})
