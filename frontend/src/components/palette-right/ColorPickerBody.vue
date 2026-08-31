@@ -11,6 +11,7 @@ import { allSwatches } from '@/diagram/espressoPalette.js'
 
 const props = defineProps({
   modelValue: { type: String, default: '#FFFFFF' },
+  showQuickColors: { type: Boolean, default: true },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -246,7 +247,7 @@ defineExpose({ currentColor })
       </div>
     </div>
 
-    <div class="mt-2.5 grid grid-cols-6 gap-1.5">
+    <div v-if="showQuickColors" class="mt-2.5 grid grid-cols-6 gap-1.5">
       <button
         v-for="color in quickColors"
         :key="color"

@@ -7,7 +7,7 @@
 // (per-paragraph alignment). A module-level `activeEditor` ref points at the
 // editor currently being edited, so the palette can run commands on it.
 
-import { shallowRef } from 'vue'
+import { ref, shallowRef } from 'vue'
 import StarterKit from '@tiptap/starter-kit'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
@@ -22,12 +22,37 @@ export const RICH_EXTENSIONS = [
 
 // The TipTap editor for the shape/connector currently being edited (or null).
 export const activeEditor = shallowRef(null)
+export const activeTextColor = ref(null)
+
+function updateActiveTextColor(editor) {
+  activeTextColor.value = editor.getAttributes('textStyle').color || null
+}
+
+let transactionHandler = null
 
 export function setActiveEditor(editor) {
   activeEditor.value = editor
+  updateActiveTextColor(editor)
+
+  if (transactionHandler) {
+    editor.off('transaction', transactionHandler)
+  }
+
+  transactionHandler = () => {
+    updateActiveTextColor(editor)
+  }
+  editor.on('transaction', transactionHandler)
 }
+
 export function clearActiveEditor(editor) {
-  if (activeEditor.value === editor) activeEditor.value = null
+  if (activeEditor.value === editor) {
+    if (transactionHandler) {
+      editor.off('transaction', transactionHandler)
+      transactionHandler = null
+    }
+    activeEditor.value = null
+    activeTextColor.value = null
+  }
 }
 
 // Plain text → seed HTML for a shape that only has legacy `content`.

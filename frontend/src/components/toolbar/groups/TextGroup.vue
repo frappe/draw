@@ -10,8 +10,8 @@
 import { computed, ref, watch } from 'vue'
 import { Popover, Select, TextInput } from 'frappe-ui'
 import { useBlockSelection } from '@/composables/useBlockSelection.js'
-import { richCommands, isMarkActive } from '@/composables/useRichText.js'
-import EspressoSwatchGrid from '@/components/palette-right/EspressoSwatchGrid.vue'
+import { richCommands, isMarkActive, activeTextColor } from '@/composables/useRichText.js'
+import ColorPickerBody from '@/components/palette-right/ColorPickerBody.vue'
 import ToolbarButton from '../ToolbarButton.vue'
 
 // textShapes, not every selected shape (#519): a mixed selection of an image and a
@@ -56,6 +56,9 @@ const ALIGNMENTS = [
   { value: 'center', label: 'Align center', icon: 'lucide-text-align-center' },
   { value: 'right', label: 'Align right', icon: 'lucide-text-align-end' },
 ]
+// Writer's compact text-colour row. It gives the common choices one-click access;
+// the continuous picker below is the escape hatch for every other colour.
+const WRITER_TEXT_COLORS = ['#FFB3E6', '#00B3E6', '#E6B333', '#3366E6', '#999966', '#99FF99', '#B34D4D', '#80B300']
 
 const textRef = computed(() => textShapes.value[0])
 const textStyle = computed(() => textRef.value?.text?.style || {})
@@ -65,7 +68,12 @@ const textAlign = computed(() => textRef.value?.text?.align || 'center')
 // on every shape that has never had a font chosen — which is most of them.
 const font = computed(() => textStyle.value.font || ESPRESSO_SANS)
 const fontSize = computed(() => textStyle.value.size ?? 16)
-const currentTextColor = computed(() => textStyle.value.color || '#171717')
+const currentTextColor = computed(() => {
+  if (editing.value && activeTextColor.value) {
+    return activeTextColor.value
+  }
+  return textStyle.value.color || '#171717'
+})
 
 // The typed draft, kept separate from `fontSize` so a half-typed value (the "3"
 // on its way to "32") never round-trips through the store. Re-synced whenever
@@ -212,8 +220,20 @@ function setTextColor(hex) {
       </ToolbarButton>
     </template>
     <template #default>
-      <div class="p-1">
-        <EspressoSwatchGrid mode="fill" :allow-none="false" :model-value="currentTextColor" @select="setTextColor" />
+      <div class="w-[176px] p-3">
+        <div class="mb-3 flex flex-wrap gap-1.5">
+          <button
+            v-for="color in WRITER_TEXT_COLORS"
+            :key="color"
+            type="button"
+            class="size-3.5 rounded-full shadow-sm ring-1 ring-black/10"
+            :class="currentTextColor.toLowerCase() === color.toLowerCase() ? 'ring-2 ring-outline-gray-5 ring-offset-1' : ''"
+            :style="{ background: color }"
+            :aria-label="`Text colour ${color}`"
+            @click="setTextColor(color)"
+          />
+        </div>
+        <ColorPickerBody :show-quick-colors="false" :model-value="currentTextColor" @update:model-value="setTextColor" />
       </div>
     </template>
   </Popover>
