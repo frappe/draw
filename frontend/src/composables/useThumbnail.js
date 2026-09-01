@@ -5,13 +5,16 @@
 import { createResource } from 'frappe-ui'
 import { themeVarStyle, findThemePreset, primaryTriad } from '@/diagram/theme.js'
 import { parseDiagramDocument, isUnifiedDocument } from '@/diagram/schema.js'
-import { layoutMindMap, branchPath } from '@/diagram/mindmapLayout.js'
+import { layoutMindMap, branchPath, branchPathPoints } from '@/diagram/mindmapLayout.js'
 import { resolveNodeColor, nodeFill, readableInk } from '@/diagram/mindmapColors.js'
 import { isRoot } from '@/diagram/mindmapModel.js'
 import { nodeSize as flowchartNodeSize } from '@/diagram/flowchartModel.js'
 import { nodeShape } from '@/diagram/flowchartShapes.js'
+import { routeFlowchartEdges } from '@/diagram/flowchartRouting.js'
 import { routeEdge, routeOffsets, flowchartContentBounds } from '@/diagram/flowchartLayout.js'
+import { flowchartPathData } from '@/diagram/flowchartPath.js'
 import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
+import { ROLE } from '@/diagram/freeFloating.js'
 import {
   stickyLines,
   STICKY_FONT_SIZE,
@@ -19,7 +22,7 @@ import {
   STICKY_PAD_X,
   STICKY_PAD_Y,
 } from '@/diagram/stickyText.js'
-import { unionBounds } from '@/diagram/geometry.js'
+import { unionBounds, anchorPoint } from '@/diagram/geometry.js'
 import {
   whiteboardObjectsInZOrder,
   stickyRuns,
@@ -164,24 +167,210 @@ function shapeText(s) {
   )
 }
 
-function connectorBody(c, shapes) {
-  const a = endpointPoint(c.from, shapes)
-  const b = endpointPoint(c.to, shapes)
-  const stroke = `stroke="${safeColor(c.style?.color, '#7C7C7C')}" stroke-width="${num(c.style?.width || 2.2, 2.2)}"`
-  return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" ${stroke} stroke-linecap="round"/>`
+function normEnd(val) {
+  if (val === true) return 'arrow'
+  if (!val || val === 'none') return 'none'
+  return val
 }
 
-// Resolve an endpoint to a point. Attached ends use the shape centre as a cheap
-// approximation (full anchor math is overkill for a 200x100 preview).
+function markerMarkup(id, type, color, orient) {
+  const refX = (type === 'arrow' || type === 'open-arrow' ? 9 : 5)
+  let shapeMarkup = ''
+  if (type === 'arrow') {
+    shapeMarkup = `<path d="M0,0 L10,5 L0,10 z" fill="${safeColor(color)}"/>`
+  } else if (type === 'open-arrow') {
+    shapeMarkup = `<path d="M0,1 L9,5 L0,9" fill="none" stroke="${safeColor(color)}" stroke-width="1.6"/>`
+  } else if (type === 'circle') {
+    shapeMarkup = `<circle cx="5" cy="5" r="4" fill="${safeColor(color)}"/>`
+  } else if (type === 'square') {
+    shapeMarkup = `<rect x="1" y="1" width="8" height="8" fill="${safeColor(color)}"/>`
+  } else if (type === 'diamond') {
+    shapeMarkup = `<polygon points="5,0 10,5 5,10 0,5" fill="${safeColor(color)}"/>`
+  }
+  return `<marker id="${id}" viewBox="0 0 10 10" refX="${refX}" refY="5" markerWidth="8" markerHeight="8" orient="${orient}">${shapeMarkup}</marker>`
+}
+
+function elbowPath(a, b, midX, corner) {
+  const ax = num(a.x), ay = num(a.y)
+  const bx = num(b.x), by = num(b.y)
+  const mx = num(midX)
+  const sharp = `M ${ax} ${ay} L ${mx} ${ay} L ${mx} ${by} L ${bx} ${by}`
+  if (corner === 'sharp') return sharp
+  const r = Math.min(14, Math.abs(mx - ax) / 2, Math.abs(by - ay) / 2, Math.abs(bx - mx) / 2)
+  if (!(r > 0.5)) return sharp
+  const sx1 = Math.sign(mx - ax)
+  const sy = Math.sign(by - ay)
+  const sx2 = Math.sign(bx - mx)
+  return (
+    `M ${ax} ${ay} L ${mx - sx1 * r} ${ay} ` +
+    `Q ${mx} ${ay} ${mx} ${ay + sy * r} ` +
+    `L ${mx} ${by - sy * r} ` +
+    `Q ${mx} ${by} ${mx + sx2 * r} ${by} L ${bx} ${by}`
+  )
+}
+
+function midpointAlong(points) {
+  let total = 0
+  for (let i = 0; i < points.length - 1; i += 1) {
+    total += Math.hypot(points[i + 1].x - points[i].x, points[i + 1].y - points[i].y)
+  }
+  let remaining = total / 2
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const a = points[i]
+    const b = points[i + 1]
+    const segment = Math.hypot(b.x - a.x, b.y - a.y)
+    if (segment >= remaining) {
+      const t = segment === 0 ? 0 : remaining / segment
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
+    }
+    remaining -= segment
+  }
+  return points[points.length - 1] || { x: 0, y: 0 }
+}
+
+function computeFlowchartRoutes(doc) {
+  const boxes = {}
+  for (const shape of doc.shapes || []) {
+    if (shape.role === ROLE.flowchartNode) {
+      boxes[shape.id] = {
+        x: num(shape.x), y: num(shape.y), w: num(shape.w), h: num(shape.h),
+        nodeType: shape.flowchart?.nodeType,
+      }
+    }
+  }
+  const edges = []
+  for (const connector of doc.connectors || []) {
+    if (connector.role === ROLE.flowchartEdge) {
+      const fromId = connector.from?.shapeId
+      const toId = connector.to?.shapeId
+      if (boxes[fromId] && boxes[toId] && fromId !== toId) {
+        edges.push({ id: connector.id, fromId, toId })
+      }
+    }
+  }
+  return edges.length ? routeFlowchartEdges(boxes, edges) : {}
+}
+
+function connectorBody(c, shapes, flowchartRoutes = null) {
+  const a = endpointPoint(c.from, shapes)
+  const b = endpointPoint(c.to, shapes)
+  const style = c.style || {}
+
+  const isBranch = c.role === ROLE.mindmapBranch
+  let strokeColorValue = style.color
+  if (isBranch) {
+    const childId = c.mindmap?.childId || c.to?.shapeId
+    const child = shapes.find((s) => s.id === childId)
+    strokeColorValue = child?.border?.color || '#525252'
+  }
+  const stroke = `stroke="${safeColor(strokeColorValue, '#7C7C7C')}" stroke-width="${num(style.width || 2.2, 2.2)}"`
+  const dashArray = style.dash === 'dashed' ? `stroke-dasharray="${num(style.width || 2.2, 2.2) * 3} ${num(style.width || 2.2, 2.2) * 2}"` :
+                    style.dash === 'dotted' ? `stroke-dasharray="${num(style.width || 2.2, 2.2)} ${num(style.width || 2.2, 2.2) * 2}"` : ''
+
+  let d = ''
+  let route = null
+  if (c.role === ROLE.flowchartEdge && flowchartRoutes) {
+    route = flowchartRoutes[c.id]
+  }
+
+  if (route) {
+    d = flowchartPathData(route.points, route.crossings, style.corner)
+  } else if (c.role === ROLE.mindmapBranch) {
+    d = branchPathPoints(a, b)
+  } else if (c.type === 'curved') {
+    const q = c.midpoint
+      ? { x: num(c.midpoint.x), y: num(c.midpoint.y) }
+      : { x: num((a.x + b.x) / 2), y: num(a.y) }
+    d = `M ${num(a.x)} ${num(a.y)} Q ${num(q.x)} ${num(q.y)} ${num(b.x)} ${num(b.y)}`
+  } else if (c.type === 'elbow') {
+    const midX = num((a.x + b.x) / 2)
+    d = elbowPath(a, b, midX, style.corner)
+  } else {
+    d = `M ${num(a.x)} ${num(a.y)} L ${num(b.x)} ${num(b.y)}`
+  }
+
+  const safeId = String(c.id).replace(/[^a-zA-Z0-9_-]/g, '')
+  const startMarkerId = `mk-start-${safeId}`
+  const endMarkerId = `mk-end-${safeId}`
+  const startType = normEnd(c.arrowheads?.start)
+  const endType = normEnd(c.arrowheads?.end)
+
+  let defs = ''
+  if (startType !== 'none' || endType !== 'none') {
+    defs = `<defs>`
+    if (startType !== 'none') {
+      defs += markerMarkup(startMarkerId, startType, style.color || '#7C7C7C', 'auto-start-reverse')
+    }
+    if (endType !== 'none') {
+      defs += markerMarkup(endMarkerId, endType, style.color || '#7C7C7C', 'auto')
+    }
+    defs += `</defs>`
+  }
+
+  const markerStartAttr = startType !== 'none' ? `marker-start="url(#${startMarkerId})"` : ''
+  const markerEndAttr = endType !== 'none' ? `marker-end="url(#${endMarkerId})"` : ''
+
+  const mainPath = `<path d="${d}" fill="none" ${stroke} ${dashArray} stroke-linecap="round" stroke-linejoin="round" ${markerStartAttr} ${markerEndAttr}/>`
+
+  let labelPillAndText = ''
+  if (c.label) {
+    const labelAnchor = route ? midpointAlong(route.points) :
+                        c.type === 'curved' ? { x: (a.x + 2 * (c.midpoint?.x ?? (a.x + b.x) / 2) + b.x) / 4, y: (a.y + 2 * (c.midpoint?.y ?? a.y) + b.y) / 4 } :
+                        { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+    const labelWidth = (c.label.length || 0) * 7 + 16
+    const lx = num(labelAnchor.x)
+    const ly = num(labelAnchor.y)
+    const pill = `<rect x="${lx - labelWidth / 2}" y="${ly - 11}" width="${labelWidth}" height="22" rx="6" fill="#FFFFFF" stroke="#E2E2E2" stroke-width="1"/>`
+    const textStr = `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#525252" font-family="Inter, sans-serif">${escapeText(c.label)}</text>`
+    labelPillAndText = pill + textStr
+  }
+
+  return `<g data-connector-id="${escapeAttr(safeId)}">${defs}${mainPath}${labelPillAndText}</g>`
+}
+
 function endpointPoint(endpoint, shapes) {
   if (endpoint?.shapeId) {
     const shape = shapes.find((s) => s.id === endpoint.shapeId)
     if (shape) {
-      const { x, y, w, h } = box(shape)
-      return { x: x + w / 2, y: y + h / 2 }
+      const pt = anchorPoint(shape, endpoint.anchor || 'right')
+      return { x: num(pt.x), y: num(pt.y) }
     }
   }
   return { x: num(endpoint?.x), y: num(endpoint?.y) }
+}
+
+function renderShape(s) {
+  const body = shapeBody(s)
+  const text = shapeText(s)
+  if (!body && !text) return ''
+  const tf = shapeTransform(s)
+  if (tf) {
+    return `<g ${tf}>${body}${text}</g>`
+  }
+  return body + text
+}
+
+function shapeTransform(s) {
+  const parts = []
+  const roleIsNode = s.role === 'mindmap-node' || s.role === 'flowchart-node'
+  const rotation = roleIsNode ? 0 : num(s.rotation, 0)
+  const flipX = s.flipX
+  const flipY = s.flipY
+  if (rotation) {
+    const cx = num(s.x) + num(s.w) / 2
+    const cy = num(s.y) + num(s.h) / 2
+    parts.push(`rotate(${rotation} ${cx} ${cy})`)
+  }
+  if (flipX || flipY) {
+    const cx = num(s.x) + num(s.w) / 2
+    const cy = num(s.y) + num(s.h) / 2
+    parts.push(
+      `translate(${cx} ${cy})`,
+      `scale(${flipX ? -1 : 1} ${flipY ? -1 : 1})`,
+      `translate(${-cx} ${-cy})`
+    )
+  }
+  return parts.length ? `transform="${parts.join(' ')}"` : ''
 }
 
 function escapeText(value) {
@@ -401,11 +590,14 @@ function unionViewBox(boxes, pad = 40) {
 
 function blockBody(doc) {
   const { width, height } = doc.canvas
-  const connectors = (doc.connectors || []).map((c) => connectorBody(c, doc.shapes || [])).join('')
+  const flowchartRoutes = computeFlowchartRoutes(doc)
+  const connectors = (doc.connectors || [])
+    .map((c) => connectorBody(c, doc.shapes || [], flowchartRoutes))
+    .join('')
   const shapes = (doc.shapes || [])
     .filter((s) => !s.hidden)
     .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
-    .map((s) => shapeBody(s) + shapeText(s))
+    .map((s) => renderShape(s))
     .join('')
   return { viewBox: `0 0 ${width} ${height}`, body: connectors + shapes }
 }
@@ -544,7 +736,10 @@ function shiftPolygon(points, dx, dy) {
 function whiteboardBody(doc) {
   const model = doc.whiteboard
   const bounds = whiteboardContentBounds(model, doc.shapes || [])
-  const connectors = (doc.connectors || []).map((c) => connectorBody(c, doc.shapes || [])).join('')
+  const flowchartRoutes = computeFlowchartRoutes(doc)
+  const connectors = (doc.connectors || [])
+    .map((c) => connectorBody(c, doc.shapes || [], flowchartRoutes))
+    .join('')
   // Shapes and board objects share one stacking scale (#27), so the export paints
   // them in a single zIndex-ordered pass — the same order the canvas draws. Lines
   // and tables used to be omitted entirely here, so a board holding either
@@ -563,7 +758,7 @@ function whiteboardBody(doc) {
 }
 
 const WB_BODY = {
-  shape: (s) => shapeBody(s) + shapeText(s),
+  shape: (s) => renderShape(s),
   stroke: whiteboardStroke,
   line: whiteboardLine,
   table: whiteboardTable,
