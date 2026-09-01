@@ -11,6 +11,7 @@ import { allSwatches } from '@/diagram/espressoPalette.js'
 
 const props = defineProps({
   modelValue: { type: String, default: '#FFFFFF' },
+  compact: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -170,7 +171,8 @@ defineExpose({ currentColor })
 <template>
   <div class="select-none">
     <div
-      class="relative h-[124px] w-full cursor-crosshair rounded-md"
+      class="relative w-full cursor-crosshair rounded-md"
+      :class="compact ? 'h-24' : 'h-[124px]'"
       :style="{ background: hueColor }"
       @pointerdown="startDrag($event, pickSquare)"
     >
@@ -183,7 +185,8 @@ defineExpose({ currentColor })
     </div>
 
     <div
-      class="relative mt-3 h-3 w-full cursor-pointer rounded-full"
+      class="relative h-3 w-full cursor-pointer rounded-full"
+      :class="compact ? 'mt-2' : 'mt-3'"
       style="background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)"
       @pointerdown="startDrag($event, pickHue)"
     >
@@ -195,7 +198,8 @@ defineExpose({ currentColor })
 
     <!-- Alpha (opacity) over a checkerboard, transparent → opaque colour. -->
     <div
-      class="relative mt-3 h-3 w-full cursor-pointer rounded-full"
+      class="relative h-3 w-full cursor-pointer rounded-full"
+      :class="compact ? 'mt-2' : 'mt-3'"
       style="background: repeating-conic-gradient(#d4d4d4 0% 25%, #ffffff 0% 50%) 50% / 8px 8px"
       @pointerdown="startDrag($event, pickAlpha)"
     >
@@ -206,7 +210,7 @@ defineExpose({ currentColor })
       />
     </div>
 
-    <div class="mt-3 flex items-center gap-1.5">
+    <div class="flex items-center gap-1.5" :class="compact ? 'mt-2' : 'mt-3'">
       <TextInput
         class="flex-1 uppercase"
         variant="outline"
@@ -232,7 +236,7 @@ defineExpose({ currentColor })
       />
     </div>
 
-    <div v-if="recentColors.length" class="mt-2.5">
+    <div v-if="recentColors.length" :class="compact ? 'mt-2' : 'mt-2.5'">
       <div class="mb-1 text-2xs font-semibold text-ink-gray-4">Recent</div>
       <div class="grid grid-cols-6 gap-1.5">
         <button
@@ -246,7 +250,7 @@ defineExpose({ currentColor })
       </div>
     </div>
 
-    <div class="mt-2.5 grid grid-cols-6 gap-1.5">
+    <div class="grid grid-cols-6 gap-1.5" :class="compact ? 'mt-2' : 'mt-2.5'">
       <button
         v-for="color in quickColors"
         :key="color"

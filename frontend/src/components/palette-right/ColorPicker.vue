@@ -12,6 +12,7 @@ const props = defineProps({
   modelValue: { type: String, default: '#FFFFFF' },
   label: { type: String, default: '' },
   inline: { type: Boolean, default: false },
+  compact: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue'])
 
@@ -29,7 +30,7 @@ function onUpdate(color) {
   <!-- Inline: the full picker, no popover wrapper. -->
   <div v-if="inline">
     <div v-if="label" class="mb-1.5 text-2xs text-ink-gray-6">{{ label }}</div>
-    <ColorPickerBody :model-value="modelValue" @update:model-value="onUpdate" />
+    <ColorPickerBody :compact="compact" :model-value="modelValue" @update:model-value="onUpdate" />
   </div>
 
   <!-- Default: labelled swatch trigger opening the picker in a popover. -->

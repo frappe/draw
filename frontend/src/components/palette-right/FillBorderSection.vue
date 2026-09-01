@@ -15,6 +15,7 @@ const store = useDiagramStore()
 // and Border as separate items.
 const props = defineProps({
   mode: { type: String, default: 'both', validator: (v) => ['both', 'fill', 'border'].includes(v) },
+  compact: { type: Boolean, default: false },
 })
 const showFill = computed(() => props.mode !== 'border')
 const showBorder = computed(() => props.mode !== 'fill')
@@ -88,8 +89,8 @@ function applyQuickStyle(preset) {
       />
     </div>
     <div class="space-y-2">
-      <ColorPicker v-if="showFill" inline label="Fill" :model-value="fill" @update:model-value="setFill" />
-      <ColorPicker v-if="showBorder" inline label="Border" :model-value="borderColor" @update:model-value="setBorderColor" />
+      <ColorPicker v-if="showFill" inline :compact="compact" label="Fill" :model-value="fill" @update:model-value="setFill" />
+      <ColorPicker v-if="showBorder" inline :compact="compact" label="Border" :model-value="borderColor" @update:model-value="setBorderColor" />
     </div>
 
     <div v-if="showBorder" class="mt-2.5 flex gap-1.5">

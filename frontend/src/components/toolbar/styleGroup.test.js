@@ -9,6 +9,9 @@ import { supportsCornerRounding } from '@/diagram/shapeGeometry.js'
 // does. The behaviour underneath is pinned in shapeGeometry.test.js.
 const here = path.dirname(fileURLToPath(import.meta.url))
 const source = readFileSync(path.join(here, 'groups/StyleGroup.vue'), 'utf8')
+const fillBorderSource = readFileSync(path.join(here, '../palette-right/FillBorderSection.vue'), 'utf8')
+const colorPickerSource = readFileSync(path.join(here, '../palette-right/ColorPicker.vue'), 'utf8')
+const colorPickerBodySource = readFileSync(path.join(here, '../palette-right/ColorPickerBody.vue'), 'utf8')
 const template = source.slice(source.indexOf('<template>'))
 
 // #465: the Corners popover used to hold two controls — a node's branch curve and a
@@ -57,6 +60,22 @@ describe('the Fill button swatch', () => {
   it('falls back to grey when there is no fill to show', () => {
     expect(source).toContain("const WHITES = ['#fff', '#ffffff', 'white']")
     expect(template).toContain("hasVisibleFill ? null : 'bg-surface-gray-4'")
+  })
+})
+
+describe('Fill and Border popovers (#580)', () => {
+  it('uses a compact picker in a narrower toolbar popover', () => {
+    expect(source).toContain("const panel = 'max-h-[70vh] w-[240px] overflow-y-auto'")
+    expect(template).toContain('<FillBorderSection compact mode="fill" />')
+    expect(template).toContain('<FillBorderSection v-else compact mode="border" />')
+  })
+
+  it('forwards compact mode all the way to the picker geometry', () => {
+    expect(fillBorderSource).toContain('compact: { type: Boolean, default: false }')
+    expect(fillBorderSource).toContain(':compact="compact"')
+    expect(colorPickerSource).toContain('compact: { type: Boolean, default: false }')
+    expect(colorPickerSource).toContain('<ColorPickerBody :compact="compact"')
+    expect(colorPickerBodySource).toContain("compact ? 'h-24' : 'h-[124px]'")
   })
 })
 

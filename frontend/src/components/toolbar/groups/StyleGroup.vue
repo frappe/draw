@@ -36,7 +36,7 @@ const hasVisibleFill = computed(() => {
   return Boolean(fill) && fill !== 'none' && !WHITES.includes(fill)
 })
 
-const panel = 'max-h-[70vh] w-[300px] overflow-y-auto'
+const panel = 'max-h-[70vh] w-[240px] overflow-y-auto'
 
 // A mind-map node selection swaps the full colour picker for the curated
 // Espresso grid and gains a per-node corner curve (#274 / #260).
@@ -107,7 +107,7 @@ function setNodeCurve(value) {
     <template #default>
       <div :class="panel">
         <EspressoSwatchGrid v-if="isNodeSelection" mode="fill" :model-value="primaryFill" @select="setNodeFill" />
-        <template v-else><FillBorderSection mode="fill" /><TransparencySection /></template>
+        <template v-else><FillBorderSection compact mode="fill" /><TransparencySection /></template>
       </div>
     </template>
   </Popover>
@@ -123,7 +123,7 @@ function setNodeCurve(value) {
     <template #default>
       <div :class="panel">
         <EspressoSwatchGrid v-if="isNodeSelection" mode="border" :model-value="primaryBorder" @select="setNodeBorder" />
-        <FillBorderSection v-else mode="border" />
+        <FillBorderSection v-else compact mode="border" />
       </div>
     </template>
   </Popover>
