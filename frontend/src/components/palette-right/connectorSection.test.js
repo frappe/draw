@@ -96,3 +96,10 @@ describe('the Arrow endpoint icon matches what it draws (#490)', () => {
     expect(source).toContain("value: 'open-arrow', icon: 'lucide-chevron-right'")
   })
 })
+
+describe('elbow corner style is labeled clearly (#577)', () => {
+  it('labels the row Corner style and provides descriptive tooltips', () => {
+    expect(template).toContain('Corner style')
+    expect(template).toContain(':text="`Elbow corner: ${c.label}`"')
+  })
+})

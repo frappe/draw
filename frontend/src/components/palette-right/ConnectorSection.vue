@@ -174,12 +174,12 @@ const cell = 'flex h-7 flex-1 items-center justify-center rounded-md'
 
       <!-- Elbow routes can bend with rounded or sharp corners (spec 3.6). -->
       <template v-if="connector.type === 'elbow'">
-        <div class="mb-2 mt-2 text-2xs font-semibold text-ink-gray-5">Corners</div>
+        <div class="mb-2 mt-2 text-2xs font-semibold text-ink-gray-5">Corner style</div>
         <div class="flex gap-1">
-          <Tooltip v-for="c in CORNERS" :key="c.value" :text="c.label">
+          <Tooltip v-for="c in CORNERS" :key="c.value" :text="`Elbow corner: ${c.label}`">
             <button
               :class="[cell, (style.corner || 'rounded') === c.value ? cellActive : cellIdle]"
-              :aria-label="`Corners: ${c.label}`"
+              :aria-label="`Corner style: ${c.label}`"
               :aria-pressed="(style.corner || 'rounded') === c.value"
               @click="setStyle({ corner: c.value })"
             >
