@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pruneTrail, trailOutline, trailOpacity, LASER_FADE_MS, LASER_WIDTH } from './laser.js'
+import { pruneTrail, smoothLaserPoint, trailOutline, trailOpacity, LASER_FADE_MS, LASER_WIDTH } from './laser.js'
 
 // The laser trail is the one whiteboard element that is pure chrome: it fades on
 // its own and never reaches the document (spec C5/C10). These cover the rules the
@@ -31,6 +31,26 @@ describe('pruneTrail', () => {
     const now = 10_000
     const points = [{ x: 5, y: 5, at: now }]
     expect(pruneTrail(points, now + LASER_FADE_MS)).toEqual([])
+  })
+})
+
+describe('smoothLaserPoint', () => {
+  it('keeps the first sample at the pointer and eases later samples toward it', () => {
+    const first = { x: 10, y: 20, at: 1 }
+    const raw = { x: 20, y: 10, at: 2 }
+
+    expect(smoothLaserPoint(null, first)).toEqual(first)
+    expect(smoothLaserPoint(first, raw)).toEqual({ x: 14, y: 16, at: 2 })
+  })
+
+  it('filters a jittering sample instead of adding it directly to the spine', () => {
+    const steady = { x: 100, y: 100, at: 1 }
+    const jitter = smoothLaserPoint(steady, { x: 102, y: 98, at: 2 })
+
+    expect(jitter.x).toBeGreaterThan(100)
+    expect(jitter.x).toBeLessThan(102)
+    expect(jitter.y).toBeGreaterThan(98)
+    expect(jitter.y).toBeLessThan(100)
   })
 })
 

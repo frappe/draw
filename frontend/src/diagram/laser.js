@@ -20,6 +20,9 @@ export const LASER_HEAD_RADIUS = 5
 // The glow is a wide translucent stroke on the same outline, so it costs one more
 // path rather than an SVG filter re-run on every animation frame.
 export const LASER_GLOW_SCALE = 3
+// Weight given to each incoming pointer sample. Keeping some of the last spine
+// position filters hand tremor before the trail geometry is built.
+export const LASER_POINT_EASING = 0.4
 
 // Longest gap (canvas units) left between two spine points before the outline is
 // built. A fast flick reports pointer moves tens of units apart; without filling
@@ -41,6 +44,18 @@ const SMOOTHING_PASSES = 2
 // drives a whole frame.
 export function pruneTrail(points, now) {
   return points.filter((point) => now - point.at < LASER_FADE_MS)
+}
+
+// Ease an incoming sample toward the last accepted spine point. Outline smoothing
+// rounds the ribbon around its spine; this is deliberately earlier in the pipeline
+// so raw pointer jitter cannot become part of that spine in the first place.
+export function smoothLaserPoint(previous, point) {
+  if (!previous) return point
+  return {
+    ...point,
+    x: previous.x + (point.x - previous.x) * LASER_POINT_EASING,
+    y: previous.y + (point.y - previous.y) * LASER_POINT_EASING,
+  }
 }
 
 // The trail as one closed outline: down the left of the path and back up the

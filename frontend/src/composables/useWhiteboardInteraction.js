@@ -238,7 +238,12 @@ function onPointerUp(event, context, store, ui, drawing, erasing, lining, laseri
   if (drawing.active) return finishStroke(ui, drawing, store, context.point)
   if (lining.active) return finishLine(ui, lining, store)
   if (erasing.active) return finishErase(store, erasing)
-  if (lasering.active) lasering.active = false
+  if (lasering.active) {
+    // A final pointer move is not guaranteed before pointerup. Snap the head to
+    // that endpoint so easing never leaves it visibly behind the cursor.
+    ui.pushLaserPoint(context.point, { snap: true })
+    lasering.active = false
+  }
 }
 
 // Commit the whole erase gesture as one undoable unit: rewind to the pre-drag
