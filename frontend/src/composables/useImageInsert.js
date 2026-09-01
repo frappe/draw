@@ -21,11 +21,23 @@ import { FileUploadHandler, toast } from 'frappe-ui'
 
 const ACCEPT = 'image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml'
 const MAX_W = 420 // cap the placed width so a big photo doesn't fill the canvas
-// The server's own gates (upload_diagram_image), mirrored so a file it would refuse
-// is refused here — with a reason — instead of costing an upload to find out. Keep
-// in step with _MAX_IMAGE_BYTES / _IMAGE_EXTENSIONS.
-const MAX_BYTES = 10 * 1024 * 1024
+// Frappe's File doctype refuses an oversized upload on the server regardless of
+// anything this file does (check_max_file_size, on every File.insert) — so this
+// gate is purely for a fast, specific refusal instead of spending an upload to
+// find out the same thing (#502, #558). The number itself has to come from the
+// server: it reads System Settings, then site_config.json, then a 25 MB
+// default (frappe.core.api.file.get_max_file_size), none of which this file can
+// see. draw/www/draw.py puts it on window.max_file_size at boot, alongside the
+// same-shaped csrf_token/socketio_port globals. The 25 MB fallback below only
+// matters if that boot value is ever missing (a guest on the read-only /view/
+// route gets an empty boot, or an old cached bundle loads before a deploy) —
+// it mirrors get_max_file_size's own default so client and server still agree.
+const FALLBACK_MAX_BYTES = 25 * 1024 * 1024
 const EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg']
+
+function maxFileSize() {
+  return globalThis.max_file_size || FALLBACK_MAX_BYTES
+}
 
 export function useImageInsert(store) {
   const handler = new FileUploadHandler()
@@ -91,16 +103,17 @@ function boxFor(src, size) {
   return { src, w: Math.round(size.w * scale), h: Math.round(size.h * scale) }
 }
 
-// Why this file cannot be inserted, or null. The same three gates the server
+// Why this file cannot be inserted, or null. The same gates the server
 // applies, so the refusal arrives before the bytes go anywhere.
 function refusalFor(file) {
   const name = nameOf(file)
   if (!file.type?.startsWith('image/')) return `${name} is not an image.`
-  if (file.size > MAX_BYTES) return `${name} is larger than the 10 MB limit.`
   const extension = extensionOf(file)
   if (extension && !EXTENSIONS.includes(extension)) {
     return `Draw cannot insert .${extension} files. Use PNG, JPG, GIF, WebP or SVG.`
   }
+  const limit = maxFileSize()
+  if (file.size > limit) return `${name} is larger than the ${Math.floor(limit / 1048576)} MB limit.`
   return null
 }
 

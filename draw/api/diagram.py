@@ -413,7 +413,6 @@ def _save_thumbnail_file(
 
 # Mirrors the frontend picker (useImageInsert.js ACCEPT).
 _IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp", "svg"}
-_MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
 
 @frappe.whitelist(methods=["POST"])
@@ -437,14 +436,19 @@ def upload_diagram_image(name: str | None = None) -> dict:
 	diagram had a name to route by (#415).
 
 	Kept PUBLIC (is_private=0): the file_url is embedded in the diagram document and
-	must render for anyone the diagram is shared/exported to, exactly as before."""
+	must render for anyone the diagram is shared/exported to, exactly as before.
+
+	No size gate here (#558) — none is needed. `File.insert()` below already runs
+	`check_max_file_size` on the content before it writes anything, throwing the
+	site's real limit (System Settings, then site_config.json, then 25 MB) rather
+	than a number this endpoint would have had to keep in step with it. The
+	frontend's own pre-check (useImageInsert.js) mirrors that same number, read
+	from the boot payload, purely so a refusal doesn't cost an upload to arrive."""
 	diagram = _get_writable_diagram(_uploaded_image_diagram(name))
 
 	content, filename = _uploaded_image()
 	if not content:
 		frappe.throw(_("No image was uploaded"), frappe.ValidationError)
-	if len(content) > _MAX_IMAGE_BYTES:
-		frappe.throw(_("Image is too large"), frappe.ValidationError)
 	extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 	if extension not in _IMAGE_EXTENSIONS:
 		frappe.throw(_("Only image files can be inserted"), frappe.ValidationError)

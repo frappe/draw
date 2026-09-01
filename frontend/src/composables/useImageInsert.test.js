@@ -97,12 +97,34 @@ describe('useImageInsert', () => {
   // #502: every one of these used to be a silent `return null` or an unhandled
   // rejection. From the canvas they were indistinguishable from nothing happening.
   describe('a failed insert says why (#502)', () => {
-    it('refuses a file over the 10 MB server limit before uploading it', async () => {
+    // #558: the gate reads the site's REAL ceiling off window.max_file_size
+    // (draw/www/draw.py's boot payload) rather than a number hardcoded here, so
+    // it can't drift from what the server (File.check_max_file_size) actually
+    // enforces. Set per-test with vi.stubGlobal rather than relying on the
+    // FALLBACK_MAX_BYTES default, so these pin the dynamic behaviour itself.
+    it('refuses a file over the site’s configured limit before uploading it', async () => {
+      vi.stubGlobal('max_file_size', 10 * 1024 * 1024)
       const store = fakeStore('my-diagram')
       const big = { type: 'image/png', name: 'huge.png', size: 11 * 1024 * 1024 }
       expect(await useImageInsert(store).insert(big)).toBeNull()
       expect(captured.options).toBeNull() // never left the browser
       expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('10 MB'))
+    })
+
+    it('allows a file the site’s configured limit was raised to admit', async () => {
+      vi.stubGlobal('max_file_size', 200 * 1024 * 1024)
+      const store = fakeStore('my-diagram')
+      const big = { type: 'image/png', name: 'big.png', size: 150 * 1024 * 1024 }
+      expect(await useImageInsert(store).insert(big)).toBe('shape-1')
+      expect(captured.options).not.toBeNull()
+      expect(toast.error).not.toHaveBeenCalled()
+    })
+
+    it('falls back to the server’s own 25 MB default when the boot payload has no limit', async () => {
+      const store = fakeStore('my-diagram')
+      const big = { type: 'image/png', name: 'huge.png', size: 26 * 1024 * 1024 }
+      expect(await useImageInsert(store).insert(big)).toBeNull()
+      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('25 MB'))
     })
 
     it('refuses an extension the server would reject', async () => {

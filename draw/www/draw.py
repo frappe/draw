@@ -1,4 +1,5 @@
 import frappe
+from frappe.core.api.file import get_max_file_size
 from frappe.sessions import get_csrf_token
 
 from draw.setup import grant_draw_user_role
@@ -12,8 +13,13 @@ def get_context(context):
 	fails with "frappe.client.insert is not whitelisted"). The public read-only
 	viewer (/view/<name>) stays open to guests for shared diagrams.
 
-	For logged-in users, inject the CSRF token (without it every write 400s) and
-	the user's name so the sidebar shows the real account (like Frappe Drive).
+	For logged-in users, inject the CSRF token (without it every write 400s), the
+	user's name so the sidebar shows the real account (like Frappe Drive), and the
+	site's real upload ceiling so useImageInsert.js can refuse an oversized image
+	before spending an upload to find out (#558) — instead of a number hardcoded
+	in the frontend, which could only ever drift from whatever the site is
+	actually configured for (System Settings, then site_config.json, then
+	Frappe's own 25 MB default; get_max_file_size resolves all three).
 	"""
 	if frappe.session.user == "Guest":
 		path = (frappe.local.request.path if frappe.local.request else "") or "/draw"
@@ -37,6 +43,7 @@ def get_context(context):
 		"user_id": frappe.session.user,
 		"full_name": frappe.utils.get_fullname(frappe.session.user),
 		"socketio_port": frappe.conf.socketio_port,
+		"max_file_size": get_max_file_size(),
 	}
 	context.no_cache = 1
 	return context
