@@ -34,7 +34,7 @@ describe('the canvas annotation tools use the app’s own tooltip (#497)', () =>
   it('carries its own provider, since a popover teleports out of the toolbar’s', () => {
     // Without one the tooltips match the bar's in looks but each waits out its own
     // delay, which is the half of this that is easy to miss.
-    expect(template).toContain('<TooltipProvider>')
+    expect(template).toContain('<TooltipProvider :hover-delay="2" :skip-delay="0">')
   })
 
   it('keeps the toggle a toggle for assistive tech, not just in paint', () => {
@@ -52,11 +52,26 @@ describe('Home’s view toggle is on the same tooltip (#497)', () => {
 
   it('builds the tile/list toggle without TabButtons', () => {
     expect(source).not.toContain('<TabButtons')
-    expect(template).toContain('<TooltipProvider>')
+    expect(template).toContain('<TooltipProvider :hover-delay="2" :skip-delay="0">')
   })
 
   it('keeps it icon-only, and still named for assistive tech', () => {
     expect(template).toContain(':aria-label="option.label"')
     expect(template).toContain(':aria-pressed="view === option.value"')
+  })
+})
+
+describe('tooltip timing (#578)', () => {
+  it('waits two seconds before every app tooltip and never skips that delay', () => {
+    for (const rel of [
+      'App.vue',
+      'components/toolbar/CanvasToolbar.vue',
+      'components/home/TileGrid.vue',
+      'components/floating/WhiteboardTools.vue',
+      'components/palette-right/ConnectorSection.vue',
+    ]) {
+      const source = read(rel)
+      expect(source).toContain('<TooltipProvider :hover-delay="2" :skip-delay="0">')
+    }
   })
 })

@@ -52,7 +52,7 @@ describe('the connector menu is one kind of control throughout (#493)', () => {
   })
 
   it('carries its own TooltipProvider, since a popover teleports out of the bar’s', () => {
-    expect(template).toContain('<TooltipProvider>')
+    expect(template).toContain('<TooltipProvider :hover-delay="2" :skip-delay="0">')
   })
 })
 

@@ -87,7 +87,7 @@ const cell = 'flex h-7 flex-1 items-center justify-center rounded-md'
   <!-- One provider for the whole menu: it opens as a Popover, whose content is
        teleported out of the toolbar's provider, so without this the tooltips would
        match the toolbar's in looks but each wait out its own delay (#497). -->
-  <TooltipProvider>
+  <TooltipProvider :hover-delay="2" :skip-delay="0">
     <PaletteSection label="Start">
       <div class="flex gap-1">
         <Tooltip v-for="e in ENDPOINTS" :key="`s-${e.value}`" :text="e.label">

@@ -113,7 +113,7 @@ const flowchartSelected = computed(
     data-slot="fixed-menu"
     class="flex h-10 flex-none items-center gap-1 overflow-x-auto border-b border-outline-gray-1 bg-surface-base px-3"
   >
-    <TooltipProvider>
+    <TooltipProvider :hover-delay="2" :skip-delay="0">
       <!-- NAVIGATION: everything that moves you around the diagram or changes how
            you see it, without writing anything to it (#460). Select / Hand / Laser,
            then zoom, then guides.

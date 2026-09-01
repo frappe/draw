@@ -304,7 +304,7 @@ const collectionHandlers = {
            `icon` IS icon-only — which is the flat grey OS tooltip, drawn wherever
            the pointer is and about a second late. Nothing a consumer passes turns
            it off. Same control the canvas tools use, so both surfaces match. -->
-      <TooltipProvider>
+      <TooltipProvider :hover-delay="2" :skip-delay="0">
         <div class="flex gap-1">
           <Tooltip v-for="option in VIEW_OPTIONS" :key="option.value" :text="option.label">
             <!-- frappe-ui-exempt: an icon-only toggle cell — see #497 above; TabButtons' native title tooltip is what this replaces --><button

@@ -230,7 +230,7 @@ function insertTable({ rows, cols }, close) {
           <!-- Its own provider: this popover's content is teleported out of the
                toolbar's, so without one the tooltips would match the bar's in
                looks but each wait out its own delay. -->
-          <TooltipProvider>
+          <TooltipProvider :hover-delay="2" :skip-delay="0">
             <div class="mb-2 flex gap-1">
               <Tooltip v-for="kind in DRAW_KINDS" :key="kind.key" :text="kind.label">
                 <button
