@@ -77,6 +77,29 @@ describe('documentToSvg for a unified document', () => {
     expect(documentToSvg(unifiedDocument())).toContain('BLOCK-SHAPE')
   })
 
+  it('renders fill and border for a text box (#579)', () => {
+    const doc = {
+      ...unifiedDocument(),
+      shapes: [
+        {
+          id: 't1',
+          type: 'text',
+          text: { content: 'Hello', style: {} },
+          x: 10,
+          y: 20,
+          w: 100,
+          h: 50,
+          fill: '#FF0000',
+          border: { color: '#0000FF', width: 2 },
+        },
+      ],
+    }
+    const svg = documentToSvg(doc)
+    expect(svg).toContain('fill="#FF0000"')
+    expect(svg).toContain('stroke="#0000FF"')
+    expect(svg).toContain('stroke-width="2"')
+  })
+
   it('includes whiteboard ink and sticky notes', () => {
     const svg = documentToSvg(unifiedDocument())
     expect(svg, 'whiteboard stroke colour missing from the export').toContain('#123456')

@@ -266,7 +266,7 @@ useAutoFitText(richEl, () => ({
       />
     </g>
     <rect
-      v-else-if="(shape.type === 'rectangle' || shape.type === 'square' || shape.type === 'rounded') && !mindmapAsText"
+      v-else-if="(shape.type === 'rectangle' || shape.type === 'square' || shape.type === 'rounded' || shape.type === 'text') && !mindmapAsText"
       :x="shape.x"
       :y="shape.y"
       :width="shape.w"
