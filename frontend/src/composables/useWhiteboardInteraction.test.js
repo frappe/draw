@@ -10,6 +10,7 @@ import {
   startTableMove,
   editTableCellAt,
   extendStroke,
+  appendStrokeEndpoint,
 } from './useWhiteboardInteraction.js'
 import { useWhiteboardUi } from './useWhiteboardUi.js'
 import { createWhiteboard, addTable } from '@/diagram/whiteboardModel.js'
@@ -163,6 +164,22 @@ describe('thinning a stroke while it is drawn', () => {
       false,
       false,
     ])
+  })
+
+  it('uses a coarser threshold for wider ink, where small movements are tremor', () => {
+    const drawing = { points: [], minPointDistance: 4 }
+
+    expect(extendStroke(drawing, { x: 0, y: 0 })).toBe(true)
+    expect(extendStroke(drawing, { x: 3, y: 0 })).toBe(false)
+    expect(extendStroke(drawing, { x: 4, y: 0 })).toBe(true)
+    expect(drawing.points).toEqual([{ x: 0, y: 0 }, { x: 4, y: 0 }])
+  })
+
+  it('keeps a short gesture endpoint even when width-aware thinning dropped it', () => {
+    const drawing = { points: [{ x: 0, y: 0 }], minPointDistance: 4 }
+
+    appendStrokeEndpoint(drawing, { x: 3, y: 0 })
+    expect(drawing.points).toEqual([{ x: 0, y: 0 }, { x: 3, y: 0 }])
   })
 
   it('keeps every sample a hand actually moves between', () => {
