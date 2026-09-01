@@ -12,6 +12,7 @@ import {
   trimRuns,
   replaceRange,
   runsEqual,
+  wrapRuns,
 } from './richText.js'
 
 describe('toRuns', () => {
@@ -249,5 +250,48 @@ describe('strikethrough as the fourth mark (#508)', () => {
     // undefined, not false: a mark nobody has set is UNSET, which is how a header
     // cell can inherit bold and still be explicitly un-bolded.
     expect(markState(runs, 0, 4, 'underline')).toBeUndefined()
+  })
+})
+
+// A wrapped table cell keeps its marks on the right characters (#556) — the
+// mark-aware counterpart to textMetrics.js's plain-string wrapLines.
+describe('wrapRuns', () => {
+  it('keeps one run whole when it fits on one line', () => {
+    expect(wrapRuns([{ text: 'hi', bold: true }], 10)).toEqual([[{ text: 'hi', bold: true }]])
+  })
+
+  it('wraps a run across lines, keeping its mark on every piece', () => {
+    const lines = wrapRuns([{ text: 'one two three', bold: true }], 7)
+    expect(lines.length).toBeGreaterThan(1)
+    for (const line of lines) for (const run of line) expect(run.bold).toBe(true)
+    // No character lost, only the spacing changes at a wrap point.
+    expect(lines.flatMap((line) => line.map((run) => run.text)).join('').replace(/ /g, '')).toBe('onetwothree')
+  })
+
+  it('splits a word that spans two runs without losing either mark', () => {
+    const lines = wrapRuns([{ text: 'CELL-' }, { text: 'TEXT', bold: true }], 4)
+    // "CELL-TEXT" is one word (no space), so it hard-splits every 4 characters:
+    // "CELL" | "-TEX" | "T" — and the run boundary (after "CELL-") falls inside
+    // the middle chunk, so that chunk itself splits into a plain "-" and a bold "TEX".
+    expect(lines).toEqual([
+      [{ text: 'CELL' }],
+      [{ text: '-' }, { text: 'TEX', bold: true }],
+      [{ text: 'T', bold: true }],
+    ])
+    // No character lost or duplicated by the split.
+    expect(lines.flatMap((line) => line.map((run) => run.text)).join('')).toBe('CELL-TEXT')
+  })
+
+  it('treats an embedded line break as its own line', () => {
+    expect(wrapRuns([{ text: 'a\nb' }], 10)).toEqual([[{ text: 'a' }], [{ text: 'b' }]])
+  })
+
+  it('returns one empty line for no runs, never throws', () => {
+    expect(wrapRuns([], 10)).toEqual([[]])
+  })
+
+  it('merges adjacent same-mark characters back into one run per line', () => {
+    const lines = wrapRuns([{ text: 'ab', bold: true }, { text: 'cd', bold: true }], 10)
+    expect(lines).toEqual([[{ text: 'abcd', bold: true }]])
   })
 })

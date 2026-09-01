@@ -208,11 +208,17 @@ const flowchartSelected = computed(
 
       <!-- Whiteboard objects. All three self-gate: the sticky group on a lone
            sticky, the cell group on an open cell or a dragged range, and the
-           object group on everything else the board holds. -->
+           object group on everything else the board holds. Cell group BEFORE
+           object group (#556 feedback) so the cell group's trailing Merge/Split
+           sits immediately next to the object group's leading Table settings
+           control — both are "reshape the table" actions, just gated
+           differently (Merge/Split needs a picked range, Table settings does
+           not). Delete stays the true last item either way, at the end of the
+           object group. -->
       <template v-if="chromeType === 'whiteboard'">
         <StickyGroup />
-        <WhiteboardObjectGroup />
         <TableCellGroup />
+        <WhiteboardObjectGroup />
       </template>
 
       <!-- Whole-map actions, self-gating: a no-op unless the document is a map

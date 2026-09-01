@@ -172,3 +172,128 @@ function markValuesIn(runs, start, end, mark) {
 function clamp(value, low, high) {
   return Math.min(Math.max(value, low), high)
 }
+
+// Greedy word-wrap at `perLine` characters, per RUN instead of a plain string,
+// so a wrapped table cell keeps its bold/italic/underline/strike marks on the
+// right characters after it splits across lines (#556). This is the ONE wrap
+// tableStructure.js sizes cells with (wrappedCellLines) as well as the one the
+// canvas render and export use (wrappedCellRunLines) — a plain string just goes
+// in as a single run — so a row grown for a cell always agrees with how many
+// lines that cell is drawn with (#557). Kept here rather than in textMetrics.js
+// because it needs the mark algebra (sameMarks, MARKS) that file deliberately
+// has none of.
+//
+// Operates on individual characters rather than whole runs so a word made of
+// several runs (bold "CELL-" next to plain "TEXT") still wraps as one word: a
+// flat per-character mark list survives a mid-word run boundary in a way that
+// packing whole runs as units could not.
+export function wrapRuns(runs, perLine) {
+  const chars = toRuns(runs).flatMap((run) => {
+    const { text, ...marks } = run
+    return [...text].map((ch) => ({ ch, marks }))
+  })
+  const hardLines = splitCharsOnBreaks(chars)
+  return hardLines.flatMap((line) => wrapCharLine(line, perLine))
+}
+
+function splitCharsOnBreaks(chars) {
+  const lines = [[]]
+  for (const c of chars) {
+    if (c.ch === '\n') lines.push([])
+    else lines[lines.length - 1].push(c)
+  }
+  return lines
+}
+
+// One hard line's characters, greedily packed into lines of at most `perLine`
+// characters.
+//
+// Tokenised into words and the ORIGINAL whitespace characters BETWEEN them,
+// kept apart rather than reconstructed: a plain-string wrap can get away with
+// re-joining words on a fresh single space because nothing downstream cares
+// which run a space belongs to, but here the space itself carries a mark (bold
+// text has a bold space in the middle of it) — dropping and reinserting it
+// would silently hand that character whichever neighbour's mark happened to
+// run the reconstruction, moving a bold/underline boundary by one character.
+// Reconstruction would also cost a run of N whitespace characters only ONE
+// column instead of N — this is the divergence #557 fixed by moving
+// wrappedCellLines onto this same per-character tokenizer. A wrapped line may
+// end with a trailing space (the one that caused the wrap) rather than
+// trimming it — invisible either way, under `white-space: pre-wrap` and in the
+// SVG export alike.
+function wrapCharLine(chars, perLine) {
+  const tokens = []
+  let word = []
+  for (const c of chars) {
+    if (/\s/.test(c.ch)) {
+      if (word.length) {
+        tokens.push(word)
+        word = []
+      }
+      tokens.push(c)
+    } else word.push(c)
+  }
+  if (word.length) tokens.push(word)
+  if (!tokens.length) return [[]]
+
+  const lines = []
+  let line = []
+  let col = 0
+  for (const token of tokens) {
+    const isSpace = !Array.isArray(token)
+    if (isSpace) {
+      // A wrapped line never starts with the space that caused the wrap —
+      // same as wrapLines' own words.filter(Boolean) dropping it.
+      if (col === 0) continue
+      if (col + 1 > perLine) {
+        lines.push(line)
+        line = []
+        col = 0
+        continue
+      }
+      line = [...line, token]
+      col += 1
+      continue
+    }
+    const word = token
+    if (word.length > perLine) {
+      if (col > 0) {
+        lines.push(line)
+        line = []
+        col = 0
+      }
+      for (let at = 0; at < word.length; at += perLine) {
+        if (col > 0) {
+          lines.push(line)
+          line = []
+          col = 0
+        }
+        line = word.slice(at, at + perLine)
+        col = line.length
+      }
+      continue
+    }
+    if (col + word.length <= perLine) {
+      line = [...line, ...word]
+      col += word.length
+    } else {
+      lines.push(line)
+      line = word
+      col = word.length
+    }
+  }
+  lines.push(line)
+  return lines.map(coalesceChars)
+}
+
+// Adjacent characters sharing every mark become one run, so a wrapped line
+// carries as few <tspan>s as the text actually needs.
+function coalesceChars(chars) {
+  const out = []
+  for (const { ch, marks } of chars) {
+    const last = out[out.length - 1]
+    if (last && sameMarks(last, marks)) last.text += ch
+    else out.push({ ...marks, text: ch })
+  }
+  return out
+}

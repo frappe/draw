@@ -10,6 +10,7 @@ const props = defineProps({
   rows: { type: Number, default: 3 },
   cols: { type: Number, default: 3 },
   headerRows: { type: Number, default: 0 },
+  headerCols: { type: Number, default: 0 },
   align: { type: String, default: 'left' },
   // 'create' → grid picker to size a new table; 'edit' → steppers on the table.
   mode: { type: String, default: 'create', validator: (v) => ['create', 'edit'].includes(v) },
@@ -45,7 +46,7 @@ function step(field, delta) {
 </script>
 
 <template>
-  <div class="w-44 p-2">
+  <div class="w-72 p-2.5">
     <!-- CREATE only: grid picker — sweep to size, click to commit (T2/Q8). -->
     <template v-if="mode === 'create'">
       <div class="mb-1 flex items-center justify-between">
@@ -67,41 +68,53 @@ function step(field, delta) {
       </div>
     </template>
 
-    <!-- EDIT only: an "add/remove row · column" hint above the steppers. -->
+    <!-- EDIT only: an "add/remove row · column" hint above the steppers. Rows and
+         columns sit side by side (#556 feedback: a single narrow column made this
+         popup run well past the bottom of the screen), which is the same reason
+         the header checkboxes and the header labels below are paired up too. -->
     <div v-else class="mb-1 text-xs font-semibold text-ink-gray-5">Add / remove</div>
 
-    <div class="mb-2 flex items-center justify-between">
-      <span class="text-xs text-ink-gray-7">Rows</span>
-      <div class="flex items-center gap-1.5">
-        <Button variant="ghost" theme="gray" size="sm" icon="lucide-minus" label="Remove row" @click="step('rows', -1)" />
-        <span class="w-5 text-center text-sm font-medium text-ink-gray-9">{{ rows }}</span>
-        <Button variant="ghost" theme="gray" size="sm" icon="lucide-plus" label="Add row" @click="step('rows', 1)" />
+    <div class="mb-2 grid grid-cols-2 gap-2">
+      <div>
+        <div class="mb-1 text-xs text-ink-gray-7">Rows</div>
+        <div class="flex items-center gap-1">
+          <Button variant="ghost" theme="gray" size="sm" icon="lucide-minus" label="Remove row" @click="step('rows', -1)" />
+          <span class="w-5 text-center text-sm font-medium text-ink-gray-9">{{ rows }}</span>
+          <Button variant="ghost" theme="gray" size="sm" icon="lucide-plus" label="Add row" @click="step('rows', 1)" />
+        </div>
+      </div>
+      <div>
+        <div class="mb-1 text-xs text-ink-gray-7">Columns</div>
+        <div class="flex items-center gap-1">
+          <Button variant="ghost" theme="gray" size="sm" icon="lucide-minus" label="Remove column" @click="step('cols', -1)" />
+          <span class="w-5 text-center text-sm font-medium text-ink-gray-9">{{ cols }}</span>
+          <Button variant="ghost" theme="gray" size="sm" icon="lucide-plus" label="Add column" @click="step('cols', 1)" />
+        </div>
       </div>
     </div>
-    <div class="mb-2 flex items-center justify-between">
-      <span class="text-xs text-ink-gray-7">Columns</span>
-      <div class="flex items-center gap-1.5">
-        <Button variant="ghost" theme="gray" size="sm" icon="lucide-minus" label="Remove column" @click="step('cols', -1)" />
-        <span class="w-5 text-center text-sm font-medium text-ink-gray-9">{{ cols }}</span>
-        <Button variant="ghost" theme="gray" size="sm" icon="lucide-plus" label="Add column" @click="step('cols', 1)" />
-      </div>
+
+    <!-- A tinted, bold first row/column — a property of an existing table, so
+         edit only (#338, #556). More rows/columns than the first become header
+         from the table menu, which works on the selection (#553). -->
+    <div v-if="mode === 'edit'" class="mb-2.5 grid grid-cols-2 gap-2">
+      <Checkbox
+        size="sm"
+        label="Header row"
+        :model-value="headerRows > 0"
+        @update:model-value="emit('change', { headerRows: $event ? 1 : 0 })"
+      />
+      <Checkbox
+        size="sm"
+        label="Header column"
+        :model-value="headerCols > 0"
+        @update:model-value="emit('change', { headerCols: $event ? 1 : 0 })"
+      />
     </div>
-    <!-- A tinted, bold first row — a property of an existing table, so edit only
-         (#338). More rows than the first become header from the table menu, which
-         works on the row you have selected (#553). -->
-    <Checkbox
-      v-if="mode === 'edit'"
-      class="mb-2.5"
-      size="sm"
-      label="Header row"
-      :model-value="headerRows > 0"
-      @update:model-value="emit('change', { headerRows: $event ? 1 : 0 })"
-    />
 
     <!-- Cell text alignment — edit only, a property of the whole table (#338). -->
     <template v-if="mode === 'edit'">
       <div class="mb-1 text-xs font-semibold text-ink-gray-5">Alignment</div>
-      <div class="mb-2.5 flex gap-1">
+      <div class="mb-1 flex gap-1">
         <Button
           v-for="option in ALIGN_OPTIONS"
           :key="option.value"

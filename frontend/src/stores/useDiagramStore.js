@@ -26,7 +26,11 @@ import {
   deleteTableColumn,
   toggleHeaderThroughRow,
   setTableHeaderRows,
+  toggleHeaderThroughColumn,
+  setTableHeaderCols,
   clearTableCells,
+  autoFitColumnWidth,
+  autoFitRowHeight,
 } from '@/diagram/tableStructure.js'
 import { mindmapModelFromShapes, flowchartModelFromShapes, mindmapComponentIds } from '@/diagram/freeFloatingGraph.js'
 import { buildMindmapChild, buildMindmapSibling, buildFlowchartChild, flowchartLayoutPatches, mindmapLayoutPatches } from '@/diagram/freeFloatingOps.js'
@@ -69,6 +73,7 @@ import {
   mergeTableCells,
   unmergeTableCell,
   whiteboardObjectsInZOrder,
+  rowHeightsOf,
 } from '@/diagram/whiteboardModel.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 
@@ -924,10 +929,19 @@ function attachWhiteboardTables(store, state, history) {
       if (!table) return
       for (const { row, col } of cells) setTableCellStyle(table, row, col, patch)
     })
-  store.setTableCellRuns = (id, row, col, runs) =>
+  // `rowHeight` is optional: when given (a cell that grew while it was typed
+  // into, #556), the final size lands in the SAME commit as the text, so one
+  // undo takes back both — mirrors setStickyRuns(id, runs, height).
+  store.setTableCellRuns = (id, row, col, runs, rowHeight) =>
     history.commit('Edit cell', () => {
       const table = tableById(state.whiteboard || {}, id)
-      if (table) setTableCellRuns(table, row, col, runs)
+      if (!table) return
+      setTableCellRuns(table, row, col, runs)
+      if (rowHeight) {
+        const heights = rowHeightsOf(table)
+        heights[row] = Math.max(heights[row], rowHeight)
+        table.rowHeights = heights
+      }
     })
   // One undo step for a format applied across a cell range (#344) — undoing
   // "Bold" must put every cell back, not just the last one touched.
@@ -969,8 +983,31 @@ function attachWhiteboardTables(store, state, history) {
     commitOnTable(state, history, 'Header row', id, (table) => setTableHeaderRows(table, count))
   store.toggleTableHeaderThroughRow = (id, row) =>
     commitOnTable(state, history, 'Header row', id, (table) => toggleHeaderThroughRow(table, row))
+  store.setTableHeaderCols = (id, count) =>
+    commitOnTable(state, history, 'Header column', id, (table) => setTableHeaderCols(table, count))
+  store.toggleTableHeaderThroughColumn = (id, col) =>
+    commitOnTable(state, history, 'Header column', id, (table) => toggleHeaderThroughColumn(table, col))
   store.clearTableCells = (id, cells) =>
     commitOnTable(state, history, 'Clear cells', id, (table) => clearTableCells(table, cells))
+  // Live, unrecorded growth while a cell is being typed into (#556) — same
+  // contract as growStickyNote: growth-only, and never its own undo step. The
+  // final height lands with the text in ONE commit via setTableCellRuns's
+  // optional 5th argument.
+  store.growTableRow = (id, row, height) => {
+    const table = tableById(state.whiteboard || {}, id)
+    if (!table) return
+    const heights = rowHeightsOf(table)
+    if (height > heights[row]) {
+      heights[row] = height
+      table.rowHeights = heights
+    }
+  }
+  // Double-click a resize handle to fit that column/row to its content (#12),
+  // reusing the same undo labels a manual drag already uses.
+  store.autoFitTableColumn = (id, col) =>
+    commitOnTable(state, history, 'Resize column', id, (table) => autoFitColumnWidth(table, col))
+  store.autoFitTableRow = (id, row) =>
+    commitOnTable(state, history, 'Resize row', id, (table) => autoFitRowHeight(table, row))
   store.removeTable = (id) => {
     if (!state.whiteboard) return
     history.commit('Delete table', () => removeTable(state.whiteboard, id))

@@ -11,7 +11,13 @@ function plural(count, noun) {
   return count > 1 ? `${count} ${noun}s` : noun
 }
 
-export function tableMenuOptions({ rowCount = 1, columnCount = 1, isHeader = false, actions }) {
+export function tableMenuOptions({
+  rowCount = 1,
+  columnCount = 1,
+  isHeader = false,
+  isHeaderColumn = false,
+  actions,
+}) {
   return [
     {
       group: 'Rows',
@@ -37,6 +43,11 @@ export function tableMenuOptions({ rowCount = 1, columnCount = 1, isHeader = fal
       options: [
         { label: 'Insert column left', icon: 'lucide-arrow-left', onClick: actions.insertColumnBefore },
         { label: 'Insert column right', icon: 'lucide-arrow-right', onClick: actions.insertColumnAfter },
+        {
+          label: isHeaderColumn ? 'Remove header column' : 'Make header column',
+          icon: 'lucide-heading',
+          onClick: actions.toggleHeaderColumns,
+        },
         {
           label: `Delete ${plural(columnCount, 'column')}`,
           icon: 'lucide-trash-2',

@@ -4,8 +4,8 @@
 import { describe, it, expect } from 'vitest'
 import { createDiagramStore } from './useDiagramStore.js'
 import { createDiagramDocument } from '@/diagram/schema.js'
-import { tableById } from '@/diagram/whiteboardModel.js'
-import { tableHeaderRows } from '@/diagram/tableStructure.js'
+import { tableById, rowHeightsOf } from '@/diagram/whiteboardModel.js'
+import { tableHeaderRows, tableHeaderCols } from '@/diagram/tableStructure.js'
 
 function setup() {
   const store = createDiagramStore(createDiagramDocument(undefined, 'unified'))
@@ -65,6 +65,68 @@ describe('header rows', () => {
     expect(table().hasHeader).toBe(true)
     store.setTableHeaderRows(id, 0)
     expect(table().hasHeader).toBe(false)
+  })
+})
+
+describe('header columns', () => {
+  it('makes the header run out to the column that was picked, then reverts it', () => {
+    const { store, id, table } = setup()
+    store.toggleTableHeaderThroughColumn(id, 1)
+    expect(tableHeaderCols(table())).toBe(2)
+    store.toggleTableHeaderThroughColumn(id, 1)
+    expect(tableHeaderCols(table())).toBe(1)
+  })
+
+  it('undoes a header-column change in one step', () => {
+    const { store, id, table } = setup()
+    store.setTableHeaderCols(id, 2)
+    expect(tableHeaderCols(table())).toBe(2)
+    store.undo()
+    expect(tableHeaderCols(table())).toBe(0)
+  })
+})
+
+// #556: a cell wraps and its row grows to hold what it wraps to.
+describe('growTableRow', () => {
+  it('grows a row live, with no history commit of its own', () => {
+    const { store, id, table } = setup()
+    const before = rowHeightsOf(table())[0]
+    store.growTableRow(id, 0, before + 50)
+    expect(rowHeightsOf(table())[0]).toBe(before + 50)
+    // Same contract as growStickyNote: nothing pushed to the undo stack, so
+    // ONE undo() still fully unwinds all the way back to before setup's own
+    // addTable (removing the table) — there is no separate "grow" step
+    // sitting on top of it to absorb that undo instead.
+    store.undo()
+    expect(table()).toBeUndefined()
+  })
+
+  it('never shrinks a row — growth only, like growStickyNote', () => {
+    const { store, id, table } = setup()
+    const before = rowHeightsOf(table())[0]
+    store.growTableRow(id, 0, before + 50)
+    store.growTableRow(id, 0, before)
+    expect(rowHeightsOf(table())[0]).toBe(before + 50)
+  })
+})
+
+describe('setTableCellRuns with a row height (#556)', () => {
+  it('bundles the text and the grown height into one undo step', () => {
+    const { store, id, table } = setup()
+    const before = rowHeightsOf(table())[0]
+    store.setTableCellRuns(id, 0, 0, [{ text: 'wrapped text' }], before + 40)
+    expect(table().cells['0,0']).toBe('wrapped text')
+    expect(rowHeightsOf(table())[0]).toBe(before + 40)
+    store.undo()
+    expect(table().cells['0,0']).toBeUndefined()
+    expect(rowHeightsOf(table())[0]).toBe(before)
+  })
+
+  it('omitting the height leaves the row alone, as every other caller already expects', () => {
+    const { store, id, table } = setup()
+    const before = rowHeightsOf(table())[0]
+    store.setTableCellRuns(id, 0, 0, [{ text: 'plain' }])
+    expect(rowHeightsOf(table())[0]).toBe(before)
   })
 })
 

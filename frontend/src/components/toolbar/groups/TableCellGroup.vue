@@ -16,10 +16,9 @@ import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useWhiteboardUi } from '@/composables/useWhiteboardUi.js'
 import { useTableCellFormat } from '@/composables/useTableCellFormat.js'
 import { mergeCovering, tableById, tableCellStyle, TABLE_FONT_SIZE } from '@/diagram/whiteboardModel.js'
-import EspressoSwatchGrid from '@/components/palette-right/EspressoSwatchGrid.vue'
 import { useTableSelection } from '@/composables/useTableSelection.js'
-import { tableMenuOptions } from './tableMenu.js'
-import { Dropdown, Popover } from 'frappe-ui'
+import { Select } from 'frappe-ui'
+import { FONTS } from '@/diagram/textFonts.js'
 import ToolbarButton from '../ToolbarButton.vue'
 import ToolbarSeparator from '../ToolbarSeparator.vue'
 
@@ -56,18 +55,12 @@ const { activeMarks, toggleMark, refreshActiveMarks } = useTableCellFormat({
   range,
 })
 
-// Structural edits act on whatever cells are selected — one cell, a dragged
-// range, a whole row from its grip (#553). The composable owns both the reading
-// and the actions, so this group only has to name them.
+// Structural edits (insert/delete row & column, header toggles, the Table
+// actions menu) moved to WhiteboardObjectGroup's combined "Table" control
+// (#556) — it has to work whether or not a cell is picked, this group only
+// shows once one is. useTableSelection is still read here for the cells a
+// format change applies to.
 const selection = useTableSelection()
-const tableMenu = computed(() =>
-  tableMenuOptions({
-    rowCount: selection.rows.value.length,
-    columnCount: selection.columns.value.length,
-    isHeader: selection.selectionIsHeader.value,
-    actions: selection,
-  }),
-)
 
 const canMerge = computed(
   () => !!range.value && (range.value.r0 !== range.value.r1 || range.value.c0 !== range.value.c1),
@@ -129,10 +122,27 @@ function stepFontSize(delta) {
   const size = Math.max(6, Math.min(200, (current.value?.size || TABLE_FONT_SIZE) + delta))
   setCellStyle({ size })
 }
+
+function setFont(value) {
+  setCellStyle({ font: value })
+}
 </script>
 
 <template>
   <template v-if="show">
+    <!-- Font, size, alignment are per CELL, with the table's own value as the
+         default an untouched cell follows (#508). They act on the open cell, or on
+         every cell of a dragged range. -->
+    <template v-if="current">
+      <Select :model-value="current.font" :options="FONTS" class="h-7 w-[92px]" @update:model-value="setFont" @mousedown.stop />
+
+      <div class="flex items-center rounded-md border border-outline-gray-2">
+        <ToolbarButton class="!w-6" label="Decrease cell font size" icon="lucide-minus" @click="stepFontSize(-1)" />
+        <span class="w-6 text-center text-sm tabular-nums text-ink-gray-8">{{ current.size }}</span>
+        <ToolbarButton class="!w-6" label="Increase cell font size" icon="lucide-plus" @click="stepFontSize(1)" />
+      </div>
+    </template>
+
     <ToolbarButton
       v-for="option in FORMAT_OPTIONS"
       :key="option.mark"
@@ -142,17 +152,7 @@ function stepFontSize(delta) {
       @click="toggleMark(option.mark)"
     />
 
-    <!-- Size, alignment and colour are per CELL, with the table's own value as the
-         default an untouched cell follows (#508). They act on the open cell, or on
-         every cell of a dragged range. -->
     <template v-if="current">
-      <ToolbarSeparator />
-      <div class="flex items-center rounded-md border border-outline-gray-2">
-        <ToolbarButton class="!w-6" label="Decrease cell font size" icon="lucide-minus" @click="stepFontSize(-1)" />
-        <span class="w-6 text-center text-sm tabular-nums text-ink-gray-8">{{ current.size }}</span>
-        <ToolbarButton class="!w-6" label="Increase cell font size" icon="lucide-plus" @click="stepFontSize(1)" />
-      </div>
-
       <ToolbarButton
         v-for="option in ALIGNMENTS"
         :key="option.value"
@@ -161,42 +161,12 @@ function stepFontSize(delta) {
         :active="current.align === option.value"
         @click="setCellStyle({ align: option.value })"
       />
-
-      <Popover>
-        <template #trigger>
-          <ToolbarButton label="Cell text colour">
-            <template #icon>
-              <span class="size-4 rounded-full" :style="{ background: current.color }" />
-            </template>
-          </ToolbarButton>
-        </template>
-        <template #default>
-          <div class="p-2">
-            <!-- allow-none is false: a cell with no text colour has nothing to read. -->
-            <EspressoSwatchGrid
-              mode="fill"
-              :model-value="current.color"
-              :allow-none="false"
-              @select="setCellStyle({ color: $event })"
-            />
-          </div>
-        </template>
-      </Popover>
     </template>
-
-    <ToolbarSeparator />
-    <Dropdown :options="tableMenu" align="start">
-      <ToolbarButton label="Table actions" icon="lucide-table" allows-blur />
-    </Dropdown>
 
     <template v-if="canMerge || canSplit">
       <ToolbarSeparator />
-      <ToolbarButton v-if="canMerge" label="Merge cells" icon-left="lucide-table-cells-merge" @click="doMerge">
-        Merge
-      </ToolbarButton>
-      <ToolbarButton v-if="canSplit" label="Split cell" icon-left="lucide-table-cells-split" @click="doSplit">
-        Split
-      </ToolbarButton>
+      <ToolbarButton v-if="canMerge" label="Merge cells" icon="lucide-table-cells-merge" @click="doMerge" />
+      <ToolbarButton v-if="canSplit" label="Split cell" icon="lucide-table-cells-split" @click="doSplit" />
     </template>
   </template>
 </template>
