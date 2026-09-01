@@ -88,3 +88,47 @@ describe('armComment', () => {
     expect(ui.state.pendingComment).toBe(false)
   })
 })
+
+// The empty-block nudge (#564) latches off on first arm and must stay off, even
+// after the tool that armed it is unarmed back to select.
+describe('hasArmedTool', () => {
+  it('starts false', () => {
+    const ui = createEditorUi()
+    expect(ui.state.hasArmedTool).toBe(false)
+  })
+
+  it('setDrawShape latches it on', () => {
+    const ui = createEditorUi()
+    ui.setDrawShape('rectangle')
+    expect(ui.state.hasArmedTool).toBe(true)
+  })
+
+  it('setTool to a non-select tool latches it on', () => {
+    const ui = createEditorUi()
+    ui.setTool('hand')
+    expect(ui.state.hasArmedTool).toBe(true)
+  })
+
+  it('setTool to select alone does not latch it on', () => {
+    const ui = createEditorUi()
+    ui.setTool('select')
+    expect(ui.state.hasArmedTool).toBe(false)
+  })
+
+  it('armStarter and armComment latch it on', () => {
+    const starterUi = createEditorUi()
+    starterUi.armStarter({ kind: 'mindmap' })
+    expect(starterUi.state.hasArmedTool).toBe(true)
+
+    const commentUi = createEditorUi()
+    commentUi.armComment()
+    expect(commentUi.state.hasArmedTool).toBe(true)
+  })
+
+  it('stays latched after unarming back to select', () => {
+    const ui = createEditorUi()
+    ui.setDrawShape('rectangle')
+    ui.setTool('select')
+    expect(ui.state.hasArmedTool).toBe(true)
+  })
+})

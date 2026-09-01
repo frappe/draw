@@ -238,8 +238,12 @@ const blockLayerItems = computed(() =>
 )
 
 // Block has no own-layer empty prompt (whiteboard/mind-map/flowchart do), so show
-// a faint centred hint on a blank block canvas, consistent with the others.
+// a faint centred hint on a blank block canvas, consistent with the others. It is
+// a first-run nudge, not a persistent empty-state: once the user has armed any
+// tool it must stay gone for good, even after unarming back to select on an
+// empty canvas (#564) — editorUi.state.hasArmedTool latches true and never resets.
 const blockEmpty = computed(() => {
+  if (editorUi.state.hasArmedTool) return false
   const noBlock = !orderedShapes.value.length && !store.state.connectors.length
   // On the unified canvas the block prompt is the single empty-state, so it must
   // account for every layer. Mind-map / flowchart nodes are ordinary shapes now

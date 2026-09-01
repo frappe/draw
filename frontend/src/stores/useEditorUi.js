@@ -28,6 +28,11 @@ export function createEditorUi() {
     pendingComment: false,
     // Whether the comments side panel (thread list) is open (#108).
     commentsPanelOpen: false,
+    // Sticky latch: true once the user has armed any tool (draw shape, starter,
+    // or comment) for the first time. Never reset back to false — the empty-block
+    // nudge (#564) reads this to disappear for good on first arm, not just while
+    // a tool stays armed.
+    hasArmedTool: false,
     gridVisible: false,
     gridDensity: 'dense',
     // The canvas is an infinite surface by default (no fixed paper bounds).
@@ -67,6 +72,7 @@ function attachTools(ui, state) {
     state.pendingStarter = null
     state.pendingComment = false
     state.tool = tool
+    if (tool !== 'select') state.hasArmedTool = true
   }
   ui.setDrawShape = (type) => {
     state.pendingStarter = null
@@ -74,6 +80,7 @@ function attachTools(ui, state) {
     state.drawShapeType = type
     state.lastShapeType = type
     state.tool = 'draw'
+    state.hasArmedTool = true
   }
   // Arm a mind-map / flowchart starter for click-to-place (#75). It is not a draw
   // shape type, so the tool drops back to select (no shape draft can start under it)
@@ -83,6 +90,7 @@ function attachTools(ui, state) {
     state.tool = 'select'
     state.pendingComment = false
     state.pendingStarter = starter
+    state.hasArmedTool = true
   }
   ui.clearStarter = () => (state.pendingStarter = null)
 
@@ -95,6 +103,7 @@ function attachTools(ui, state) {
     state.pendingStarter = null
     state.pendingComment = true
     state.commentsPanelOpen = true
+    state.hasArmedTool = true
   }
   ui.clearComment = () => (state.pendingComment = false)
   ui.toggleCommentsPanel = () => {
