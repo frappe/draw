@@ -62,6 +62,18 @@ describe('eraseInkAt', () => {
     expect(Math.max(...kept.map((p) => p.x))).toBeLessThan(20)
   })
 
+  it('clips sparse segments crossing through the eraser radius smoothly (#569)', () => {
+    const model = {
+      strokes: [makeStroke([{ x: 0, y: 0 }, { x: 100, y: 0 }], { width: 2 })],
+      lines: [],
+    }
+    expect(eraseInkAt(model, { x: 50, y: 0 }, 10)).toBe(true)
+    expect(model.strokes.length).toBe(2)
+    const [left, right] = model.strokes
+    expect(left.points[1].x).toBeCloseTo(39, 1)
+    expect(right.points[0].x).toBeCloseTo(61, 1)
+  })
+
   it('clips the head of a stroke when only its first segment is caught', () => {
     const model = { strokes: [makeStroke([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 20, y: 0 }], { width: 2 })], lines: [] }
     expect(eraseInkAt(model, { x: 2, y: 0 }, 5)).toBe(true)
