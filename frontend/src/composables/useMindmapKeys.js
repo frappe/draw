@@ -11,7 +11,7 @@ import { navigate } from '@/diagram/mindmapNavigation.js'
 import { isRoot, rootNodes } from '@/diagram/mindmapModel.js'
 import { deleteNodes, promoteNode, reorderNode, unlinkNodes } from '@/diagram/mindmapOperations.js'
 import { selectedNodeId, selectNode, beginEdit, mindmapUi } from '@/stores/mindmapUi.js'
-import { isMindmapShape } from '@/diagram/freeFloating.js'
+import { isMindmapShape, shouldConfirmMindmapDelete } from '@/diagram/freeFloating.js'
 import { useTextEditing } from '@/composables/useTextEditing.js'
 
 const ARROW_DIRECTIONS = {
@@ -148,7 +148,15 @@ function freeFloatingMindmapKey(event, store, editorUi, ids) {
   if (event.key === 'Tab' && !event.shiftKey && id) return name(store.addChildNode(id))
   if (event.key === 'Enter' && id) return name(store.addSiblingNode(id))
   if (event.key === 'Delete' || event.key === 'Backspace') {
-    store.deleteMindmapSubtrees(ids)
+    const allSelected = store.state.selection?.length ? [...store.state.selection] : [...ids]
+    if (shouldConfirmMindmapDelete(store.state.shapes, allSelected)) {
+      const label = allSelected.length > 1
+        ? `Delete ${allSelected.length} selected items and their sub-branches?`
+        : `Delete "${store.state.shapes?.find((s) => s.id === ids[0])?.text || 'this node'}" and its sub-branches?`
+      mindmapUi.confirmDelete = { ids: allSelected, label, freeFloating: true }
+      return true
+    }
+    store.deleteMindmapSubtrees(allSelected)
     selectNode(store, null)
     return true
   }

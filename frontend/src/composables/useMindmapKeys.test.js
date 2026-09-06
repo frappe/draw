@@ -71,6 +71,13 @@ describe('mindmapKeydown — migrated free-floating node', () => {
     expect(store.deleteMindmapSubtrees).toHaveBeenCalledWith(['n1'])
   })
 
+  it('Delete passes the entire selection including standalone connectors to deleteMindmapSubtrees', () => {
+    const store = fakeStore()
+    store.state.selection = ['n1', 'c-standalone']
+    expect(mindmapKeydown({ key: 'Delete' }, store, {})).toBe(true)
+    expect(store.deleteMindmapSubtrees).toHaveBeenCalledWith(['n1', 'c-standalone'])
+  })
+
   it('opens no editor when the add is refused', () => {
     const store = fakeStore()
     store.addChildNode = vi.fn(() => null)

@@ -7,6 +7,7 @@ import { reactive, computed, provide, inject } from 'vue'
 import { createShape, createConnector, nextId } from '@/diagram/factories.js'
 import { createHistory } from '@/stores/history.js'
 import { clone } from '@/utils/clone.js'
+import { mindmapUi } from '@/stores/mindmapUi.js'
 import { DEFAULT_THEME_PRESET } from '@/diagram/theme.js'
 import { createDiagramDocument, SCHEMA_VERSION, DEFAULT_DIAGRAM_TYPE } from '@/diagram/schema.js'
 import { addChild, addSibling, addRootNode, createMindMap, subtreeIds } from '@/diagram/mindmapModel.js'
@@ -17,6 +18,7 @@ import {
   isAuthoredConnector,
   flattenSubmodels,
   FLOWCHART_FALLBACK_TYPE,
+  shouldConfirmMindmapDelete,
 } from '@/diagram/freeFloating.js'
 import { createWhiteboard } from '@/diagram/whiteboardModel.js'
 import {
@@ -302,15 +304,22 @@ function attachMindMap(store, state, history) {
     return anchors
   }
 
-  // Remove shapes and let any mind map they came from close back up (#513). Adding a
-  // node shoves its siblings aside and re-flows (#273); deleting one has to be that
-  // move in reverse, or a tree goes on holding space for nodes that are not in it.
-  // Every delete path routes through here, so it does not matter whether a node left
-  // by the mind-map Delete key or by a plain shape delete. Must run inside the
-  // caller's commit(), so the delete and the settle are one undo step.
   store.removeShapesAndSettle = (ids) => {
-    const anchors = survivorsOfRemoval(ids)
-    removeShapesInternal(state, ids)
+    const model = mindmapModelFromShapes(state.shapes)
+    const remove = new Set()
+    for (const id of ids || []) {
+      const shape = state.shapes.find((s) => s.id === id)
+      if (shape && shape.role === ROLE.mindmapNode) {
+        for (const sid of subtreeIds(model, id)) {
+          remove.add(sid)
+        }
+      } else {
+        remove.add(id)
+      }
+    }
+    const finalIds = [...remove]
+    const anchors = survivorsOfRemoval(finalIds)
+    removeShapesInternal(state, finalIds)
     reflowTreesOf(anchors)
   }
 
@@ -511,10 +520,20 @@ function attachMindMap(store, state, history) {
   // branches. Ids that are not mind-map shapes expand to just themselves.
   store.deleteMindmapSubtrees = (ids) => {
     const model = mindmapModelFromShapes(state.shapes)
-    const remove = new Set()
-    for (const id of ids || []) for (const sid of subtreeIds(model, id)) remove.add(sid)
-    if (!remove.size) return
-    history.commit('Delete', () => store.removeShapesAndSettle([...remove]))
+    const shapeRemove = new Set()
+    const connectorRemove = new Set()
+    for (const id of ids || []) {
+      if (store.connectorById(id)) {
+        connectorRemove.add(id)
+      } else {
+        for (const sid of subtreeIds(model, id)) shapeRemove.add(sid)
+      }
+    }
+    if (!shapeRemove.size && !connectorRemove.size) return
+    history.commit('Delete', () => {
+      if (shapeRemove.size) store.removeShapesAndSettle([...shapeRemove])
+      if (connectorRemove.size) removeConnectorsInternal(state, [...connectorRemove])
+    })
   }
   // Templates/Insert (canvas unification): drop a starter mind map on the canvas.
   // Free-floating #122: this now creates a ROLE-TAGGED root SHAPE via the migration
@@ -867,10 +886,17 @@ function attachWhiteboard(store, state, history) {
   // Delete whiteboard objects AND block shapes/connectors (e.g. images) as ONE
   // undoable unit — Select All on a whiteboard can select both, so a single
   // Delete should undo in one step (not two).
-  store.removeWhiteboardSelection = (items, ids = []) => {
+  store.removeWhiteboardSelection = (items, ids = [], force = false) => {
     if (!state.whiteboard) return
     const shapeIds = ids.filter((id) => store.shapeById(id))
     const connectorIds = ids.filter((id) => store.connectorById(id))
+    if (!force && shouldConfirmMindmapDelete(state.shapes, shapeIds)) {
+      const label = ids.length > 1
+        ? `Delete ${ids.length} selected items and their sub-branches?`
+        : `Delete "${state.shapes.find((s) => s.id === shapeIds[0])?.text || 'this node'}" and its sub-branches?`
+      mindmapUi.confirmDelete = { ids: [...ids], items: [...items], label, freeFloating: true }
+      return
+    }
     history.commit('Delete', () => {
       removeWhiteboardObjectsInto(items)
       if (shapeIds.length) store.removeShapesAndSettle(shapeIds)
@@ -1157,7 +1183,21 @@ function attachShapeMutations(store, state, history) {
     history.commit('Delete shapes', () => store.removeShapesAndSettle(ids))
   store.removeConnectors = (ids) =>
     history.commit('Delete connectors', () => removeConnectorsInternal(state, ids))
-  store.removeSelectionOrIds = (ids) => removeMixed(store, state, history, ids || state.selection)
+  store.removeSelectionOrIds = (ids, force = false) => {
+    const targetIds = ids || state.selection || []
+    if (!force && shouldConfirmMindmapDelete(state.shapes, targetIds)) {
+      const mindmapShapes = targetIds.filter((id) => {
+        const s = store.shapeById(id)
+        return s && s.role === ROLE.mindmapNode
+      })
+      const label = targetIds.length > 1
+        ? `Delete ${targetIds.length} selected items and their sub-branches?`
+        : `Delete "${state.shapes.find((s) => s.id === mindmapShapes[0])?.text || 'this node'}" and its sub-branches?`
+      mindmapUi.confirmDelete = { ids: [...targetIds], label, freeFloating: true }
+      return
+    }
+    removeMixed(store, state, history, targetIds)
+  }
   store.duplicate = (ids) => duplicateInternal(store, state, history, ids)
 }
 

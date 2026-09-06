@@ -51,6 +51,13 @@ function confirmDeleteNodes() {
     // One of several independent maps on the canvas (#48) — drop that tree only.
     deleteTrees(store, pending.trees)
     selectNode(store, null)
+  } else if (pending.freeFloating) {
+    if (pending.items?.length && store.state.whiteboard) {
+      store.removeWhiteboardSelection(pending.items, pending.ids, true)
+    } else {
+      store.deleteMindmapSubtrees(pending.ids)
+    }
+    selectNode(store, null)
   } else {
     const first = model.value?.nodes.find((node) => node.id === pending.ids[0])
     selectNode(store, first?.parentId || null)

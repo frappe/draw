@@ -4,6 +4,7 @@ import { createDiagramDocument } from '@/diagram/schema.js'
 import { flattenSubmodels, ROLE } from '@/diagram/freeFloating.js'
 import { createFlowchart, addFlowchartNode } from '@/diagram/flowchartModel.js'
 import { createMindMap, addChild } from '@/diagram/mindmapModel.js'
+import { mindmapUi } from '@/stores/mindmapUi.js'
 import { useAppSettings, resetSettings } from '@/composables/useAppSettings.js'
 
 // A store whose flowchart has been flattened to free-floating tagged shapes (the
@@ -402,6 +403,84 @@ describe('deleting a mind-map node settles the tree (#513)', () => {
     const before = distanceFromRoot(store, rootId, ids[2])
     store.removeShapes([ids[0], ids[1]])
     expect(distanceFromRoot(store, rootId, ids[2])).toBeLessThan(before)
+  })
+
+  it('cascade deletes the subtree of a mind-map node on plain shape delete', () => {
+    const { store, ids } = migratedMindmapStoreWith(['right', 'right'])
+    store.addChildNode(ids[0])
+    const grandchildId = store.state.shapes.find((s) => s.mindmap?.parentId === ids[0])?.id
+    expect(grandchildId).toBeTruthy()
+
+    store.removeShapes([ids[0]])
+    expect(store.shapeById(ids[0])).toBeFalsy()
+    expect(store.shapeById(grandchildId)).toBeFalsy()
+  })
+
+  it('deletes both mind-map subtrees and standalone connectors in deleteMindmapSubtrees', () => {
+    const { store, ids } = migratedMindmapStoreWith(['right', 'right'])
+    const connId = store.addConnector({ id: 'c-standalone', from: { x: 0, y: 0 }, to: { x: 10, y: 10 } })
+    store.deleteMindmapSubtrees([ids[0], connId])
+    expect(store.shapeById(ids[0])).toBeFalsy()
+    expect(store.connectorById(connId)).toBeFalsy()
+  })
+
+  it('prompts confirmation when removing a mind-map node with unselected children', () => {
+    const { store, ids } = migratedMindmapStoreWith(['right', 'right'])
+    store.addChildNode(ids[0])
+    mindmapUi.confirmDelete = null
+    store.removeSelectionOrIds([ids[0]])
+    expect(mindmapUi.confirmDelete).toBeTruthy()
+    expect(mindmapUi.confirmDelete.ids).toEqual([ids[0]])
+  })
+
+  it('prompts confirmation when removing a root whose children are not selected', () => {
+    const { store, rootId } = migratedMindmapStoreWith(['right'])
+    // Root has a child which is NOT in the deletion set
+    mindmapUi.confirmDelete = null
+    store.removeSelectionOrIds([rootId])
+    expect(mindmapUi.confirmDelete).toBeTruthy()
+    expect(mindmapUi.confirmDelete.ids).toEqual([rootId])
+  })
+
+  it('deletes a childless root immediately without confirmation', () => {
+    const { store } = migratedMindmapStoreWith([])
+    const starter = store.state.shapes.find((s) => s.role === ROLE.mindmapNode)
+    mindmapUi.confirmDelete = null
+    store.removeSelectionOrIds([starter.id])
+    expect(mindmapUi.confirmDelete).toBeNull()
+    expect(store.shapeById(starter.id)).toBeFalsy()
+  })
+
+  it('deletes a root and all children immediately when all are selected', () => {
+    const { store, rootId, ids } = migratedMindmapStoreWith(['right', 'right'])
+    mindmapUi.confirmDelete = null
+    store.removeSelectionOrIds([rootId, ...ids])
+    expect(mindmapUi.confirmDelete).toBeNull()
+    expect(store.shapeById(rootId)).toBeFalsy()
+  })
+
+  it('prompts confirmation when a selected child has an unselected grandchild', () => {
+    const { store, ids } = migratedMindmapStoreWith(['right', 'right'])
+    // ids[0] is a child of root; add a grandchild under ids[0]
+    store.addChildNode(ids[0])
+    const grandchild = store.state.shapes.find(
+      (s) => s.role === ROLE.mindmapNode && s.mindmap?.parentId === ids[0],
+    )
+    expect(grandchild).toBeTruthy()
+    mindmapUi.confirmDelete = null
+    // Select ids[0] but NOT the grandchild → should confirm
+    store.removeSelectionOrIds([ids[0]])
+    expect(mindmapUi.confirmDelete).toBeTruthy()
+  })
+
+  it('includes whiteboard items in confirmation payload on removeWhiteboardSelection', () => {
+    const { store, ids } = migratedMindmapStoreWith(['right', 'right'])
+    store.addChildNode(ids[0])
+    mindmapUi.confirmDelete = null
+    store.removeWhiteboardSelection([{ type: 'sticky', id: 's1' }], [ids[0]])
+    expect(mindmapUi.confirmDelete).toBeTruthy()
+    expect(mindmapUi.confirmDelete.items).toEqual([{ type: 'sticky', id: 's1' }])
+    expect(mindmapUi.confirmDelete.ids).toEqual([ids[0]])
   })
 
   it('is one undo step covering the delete and the settle', () => {
