@@ -13,23 +13,26 @@
 //
 // It now renders the document through documentToSvg, the same builder behind the
 // home thumbnails and every export. The overview IS the drawing, in miniature.
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { Button, Tooltip } from 'frappe-ui'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useModeStrategy } from '@/stores/useModeStrategy.js'
-import { documentToSvg } from '@/composables/useThumbnail.js'
+import { documentToSvg, isDocumentEmpty } from '@/composables/useThumbnail.js'
 import { useMinimapNavigator, WIDTH, HEIGHT } from '@/composables/useMinimapNavigator.js'
 
 const store = useDiagramStore()
 const modeStrategy = useModeStrategy()
+const collapsed = ref(false)
 
 // Breathing room around the content, in canvas units, so nothing sits flush
 // against the edge of the box.
 const PAD = 24
 
 const type = computed(() => modeStrategy.value.type)
-// The whiteboard has its own navigator; every other type shows this one, even
-// when empty, so the mini-navigator is always available (S4/B2/N15).
-const shown = computed(() => type.value !== 'whiteboard')
+const isEmpty = computed(() => isDocumentEmpty(store.getDocument()))
+// The whiteboard has its own navigator; every other type shows this one when
+// there is content to navigate (#568).
+const shown = computed(() => type.value !== 'whiteboard' && !isEmpty.value)
 
 // `xMinYMin` matters: useMinimapNavigator maps the frame's top-left to 0,0 at a
 // uniform scale, so the picture has to be anchored the same way. The default
@@ -75,54 +78,85 @@ const { clampedViewRect: viewRect, onDown, onMove, onUp } = useMinimapNavigator(
 </script>
 
 <template>
-  <div
-    v-if="shown"
-    class="absolute bottom-3 right-3 z-10 rounded-lg border border-outline-gray-2 bg-surface-base/95 p-1 shadow-md backdrop-blur"
-    aria-label="Minimap"
-  >
-    <div class="relative rounded" :style="{ width: `${WIDTH}px`, height: `${HEIGHT}px` }">
-      <!-- The diagram itself, in miniature. Same markup the export produces, so
-           what the overview shows is what the file would contain. -->
-      <div
-        v-if="hasContent"
-        class="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full"
-        v-html="overview"
-      />
+  <div v-if="shown" class="absolute bottom-3 right-3 z-10">
+    <!-- Collapsed button toggle -->
+    <div v-if="collapsed">
+      <Tooltip text="Show minimap">
+        <Button
+          variant="outline"
+          size="sm"
+          icon="lucide-map"
+          aria-label="Show minimap"
+          class="rounded-lg border border-outline-gray-2 bg-surface-base/95 shadow-md backdrop-blur"
+          @click="collapsed = false"
+        />
+      </Tooltip>
+    </div>
 
-      <!-- Interaction and the viewport rectangle sit above it. -->
-      <svg
-        :width="WIDTH"
-        :height="HEIGHT"
-        class="absolute inset-0 rounded"
-        style="cursor: pointer"
-        @pointerdown="onDown"
-        @pointermove="onMove"
-        @pointerup="onUp"
-        @pointerleave="onUp"
-      >
-        <!-- Viewport indicator — only when zoomed into a subset of the content
-             (null when everything's already in view, so no boundary is drawn). -->
-        <rect
-          v-if="hasContent && viewRect"
-          :x="viewRect.x"
-          :y="viewRect.y"
-          :width="Math.max(4, viewRect.w)"
-          :height="Math.max(4, viewRect.h)"
-          fill="rgba(0,110,219,0.10)"
-          stroke="#006EDB"
-          stroke-width="1.5"
+    <!-- Expanded minimap box -->
+    <div
+      v-else
+      class="group relative rounded-lg border border-outline-gray-2 bg-surface-base/95 p-1 shadow-md backdrop-blur"
+      aria-label="Minimap"
+    >
+      <div class="relative rounded" :style="{ width: `${WIDTH}px`, height: `${HEIGHT}px` }">
+        <!-- The diagram itself, in miniature. Same markup the export produces, so
+             what the overview shows is what the file would contain. -->
+        <div
+          v-if="hasContent"
+          class="pointer-events-none absolute inset-0 [&>svg]:h-full [&>svg]:w-full"
+          v-html="overview"
         />
 
-        <!-- Empty state: a faint prompt toward the toolbar. -->
-        <template v-if="!hasContent">
-          <text :x="WIDTH / 2" :y="HEIGHT / 2 - 5" text-anchor="middle" font-size="9" fill="#B0B7C0" style="font-family: Inter, sans-serif">
-            Nothing to preview yet
-          </text>
-          <text :x="WIDTH / 2" :y="HEIGHT / 2 + 9" text-anchor="middle" font-size="9" fill="#B0B7C0" style="font-family: Inter, sans-serif">
-            Add a shape from the toolbar above
-          </text>
-        </template>
-      </svg>
+        <!-- Interaction and the viewport rectangle sit above it. -->
+        <svg
+          :width="WIDTH"
+          :height="HEIGHT"
+          class="absolute inset-0 rounded"
+          style="cursor: pointer"
+          @pointerdown="onDown"
+          @pointermove="onMove"
+          @pointerup="onUp"
+          @pointerleave="onUp"
+        >
+          <!-- Viewport indicator — only when zoomed into a subset of the content
+               (null when everything's already in view, so no boundary is drawn). -->
+          <rect
+            v-if="hasContent && viewRect"
+            :x="viewRect.x"
+            :y="viewRect.y"
+            :width="Math.max(4, viewRect.w)"
+            :height="Math.max(4, viewRect.h)"
+            fill="rgba(0,110,219,0.10)"
+            stroke="#006EDB"
+            stroke-width="1.5"
+          />
+
+          <!-- Empty state: a faint prompt toward the toolbar. -->
+          <template v-if="!hasContent">
+            <text :x="WIDTH / 2" :y="HEIGHT / 2 - 5" text-anchor="middle" font-size="9" fill="#B0B7C0" style="font-family: Inter, sans-serif">
+              Nothing to preview yet
+            </text>
+            <text :x="WIDTH / 2" :y="HEIGHT / 2 + 9" text-anchor="middle" font-size="9" fill="#B0B7C0" style="font-family: Inter, sans-serif">
+              Add a shape from the toolbar above
+            </text>
+          </template>
+        </svg>
+
+        <!-- Collapse minimap button -->
+        <div class="absolute right-1 top-1 z-20">
+          <Tooltip text="Collapse minimap">
+            <Button
+              variant="ghost"
+              size="xs"
+              icon="lucide-chevron-down"
+              aria-label="Collapse minimap"
+              class="h-5 w-5 p-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100"
+              @click="collapsed = true"
+            />
+          </Tooltip>
+        </div>
+      </div>
     </div>
   </div>
 </template>

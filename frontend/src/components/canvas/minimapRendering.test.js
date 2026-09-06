@@ -65,4 +65,16 @@ describe('the minimap draws the diagram, not an approximation (#236, #237)', () 
     // A degenerate box would make the navigator's scale Infinity.
     expect(minimap).toContain('if (width <= 0 || height <= 0) return null')
   })
+
+  it('is collapsible and hides when document is empty (#568)', () => {
+    expect(minimap).toContain('const isEmpty = computed(() => isDocumentEmpty(store.getDocument()))')
+    expect(minimap).toContain("const shown = computed(() => type.value !== 'whiteboard' && !isEmpty.value)")
+    expect(minimap).toContain('collapsed = ref(false)')
+    expect(minimap).toContain('v-if="shown"')
+    expect(minimap).toContain('v-if="collapsed"')
+    expect(minimap).toContain('@click="collapsed = false"')
+    expect(minimap).toContain('@click="collapsed = true"')
+    expect(minimap).toContain('Collapse minimap')
+    expect(minimap).toContain('Show minimap')
+  })
 })
