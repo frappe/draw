@@ -35,8 +35,8 @@ function submit() {
 </script>
 
 <template>
-  <div class="w-[164px] border-t border-outline-gray-1 p-2">
-    <label class="mb-1.5 block text-xs text-ink-gray-6" for="polygon-sides">Number of sides</label>
+  <div class="w-48 p-2.5">
+    <label class="mb-1.5 block text-xs font-medium text-ink-gray-7" for="polygon-sides">Number of sides</label>
     <TextInput
       id="polygon-sides"
       ref="input"
@@ -49,14 +49,12 @@ function submit() {
       @keydown.enter.prevent="submit"
       @keydown.esc.prevent="emit('cancel')"
     />
-    <p class="mt-1.5 text-xs text-ink-gray-5">
+    <p class="mt-1.5 text-2xs text-ink-gray-5">
       {{ MIN_POLYGON_VERTICES }} to {{ MAX_POLYGON_SIDES }}, all sides equal.
     </p>
-    <div class="mt-2 flex justify-end gap-1">
-      <Button variant="ghost" size="sm" label="Cancel" @click="emit('cancel')">Cancel</Button>
-      <Button variant="solid" size="sm" label="Insert" :disabled="!isValid" @click="submit">
-        Insert
-      </Button>
+    <div class="mt-3 flex justify-end gap-1.5">
+      <Button variant="ghost" size="sm" label="Cancel" @click="emit('cancel')" />
+      <Button variant="solid" size="sm" label="Insert" :disabled="!isValid" @click="submit" />
     </div>
   </div>
 </template>
