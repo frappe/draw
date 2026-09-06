@@ -248,6 +248,7 @@ function screenBoxOf(nodeId) {
       style="cursor: pointer"
       @click.stop="openPicker(handle)"
       @pointerdown.stop
+      @mousedown.stop
     >
       <title>{{ handle.label ? `Add step on "${handle.label}"` : 'Add step' }}</title>
       <!-- A decision previews the branch each handle would extend, so the user can

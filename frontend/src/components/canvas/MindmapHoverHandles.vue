@@ -234,6 +234,7 @@ function add(handle) {
       style="cursor: pointer"
       @click.stop="add(handle)"
       @pointerdown.stop
+      @mousedown.stop
     >
       <title>Add node</title>
       <path

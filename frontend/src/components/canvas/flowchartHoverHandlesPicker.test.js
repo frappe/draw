@@ -137,4 +137,14 @@ describe('the "+" survives the trip from the node to the handle (#441 round 2)',
   it('unmounting clears a pending leave timer instead of leaking it', () => {
     expect(src).toMatch(/onBeforeUnmount\(\(\) => \{\s*\n\s*clearPendingLeave\(\)/)
   })
+
+  it('stops pointerdown and mousedown on both flowchart and mindmap handles so clicking unselected node handle fires on first click (#576)', () => {
+    const mmSrc = readFileSync(path.join(dir, './MindmapHoverHandles.vue'), 'utf8')
+    expect(src).toContain('@pointerdown.stop')
+    expect(src).toContain('@mousedown.stop')
+    expect(src).toContain('@click.stop="openPicker(handle)"')
+    expect(mmSrc).toContain('@pointerdown.stop')
+    expect(mmSrc).toContain('@mousedown.stop')
+    expect(mmSrc).toContain('@click.stop="add(handle)"')
+  })
 })
