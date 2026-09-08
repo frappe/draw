@@ -493,6 +493,25 @@ function onSurfacePointerDown(event) {
   if (comments?.activeThread?.value) comments.closeThread()
   // Hand tool always pans, for every type (shared transform, Part G4).
   if (editorUi.state.tool === 'hand') return viewport.startPan(event)
+  // A table (and any open cell editor, #553) drops its selection on every other
+  // press via the legacy whiteboard's own selectAt, whose clearSelection nulls
+  // editingCell and empties the selection on any plain empty-canvas click. On the
+  // unified canvas nothing delegates there for the select tool (editTableCellAt
+  // above works around the same gap for opening a cell by double-click, #354), so
+  // neither ever ran: the editor's toolbar stuck on screen after clicking away
+  // (#563), and the table itself stayed selected too (#556 item 9). A press that
+  // reaches this handler is always off the table (its own pointerdown intercepts
+  // and stops propagation for any in-bounds press), so a plain click clears it
+  // here, mirroring selectAt/beginMarquee's own miss-click clear, before deciding
+  // what the press actually does.
+  if (
+    isUnified.value &&
+    editorUi.state.tool === 'select' &&
+    !isAdditiveEvent(event) &&
+    (whiteboardUi.state.editingCell || whiteboardUi.state.selection.length)
+  ) {
+    whiteboardUi.clearSelection()
+  }
   // An armed add-comment (#108) drops a comment pin at the click — on the shape under
   // the pointer, or the board point if it misses — then disarms. Before the type
   // routing (like the starter below) so an armed comment click always places.
