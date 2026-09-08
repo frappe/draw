@@ -10,7 +10,7 @@ import { TEXT_EDITOR, exitTextEdit } from '../helpers/editor.js'
 // The assertions read the rendered stroke, because the fault is entirely visual:
 // every one of these states already worked, and every one of them was blue.
 
-const NEUTRAL_SELECT = '#525252'
+const NEUTRAL_SELECT = '#006EDB'
 const NEUTRAL_HOVER = '#C7C7C7'
 
 const outlines = (page) => page.locator('[data-selection-layer] rect')

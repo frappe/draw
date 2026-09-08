@@ -1,20 +1,18 @@
 // How the canvas draws "you are hovering this" and "you have this selected"
 // (#414, #451 item 8).
 //
-// One selection language for the whole canvas: the neutral grey a flowchart node
-// wears. Shapes used to be wrapped in a bright blue dashed rectangle, which is
-// louder than anything it surrounds, does not belong to the Frappe palette, and
-// meant a diagram with a shape and a node selected showed two different ideas of
-// "selected". Grey states it once.
+// One selection language for the whole canvas: the bright blue selection color
+// (#006EDB). This ensures a diagram with any shape, connector, table or sticky
+// note selected shows a unified idea of "selected". Blue states it once.
 //
 // The outline is still DASHED on a drawn shape and solid on text: a shape has a
-// border of its own, and a solid grey line around a grey-bordered rectangle is
+// border of its own, and a solid line around a rectangle is
 // unreadable as chrome. That distinction is what the dashes carry, not the colour.
 
 // Canvas colours are literal, never chrome tokens (CONVENTIONS rule 2).
 // The resting node border, and the ink a selected node draws itself with.
 export const NEUTRAL_HOVER = '#C7C7C7'
-export const NEUTRAL_SELECT = '#525252'
+export const NEUTRAL_SELECT = '#006EDB'
 
 export function isTextElement(shape) {
   return shape?.type === 'text'

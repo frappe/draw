@@ -13,6 +13,7 @@ import { branchPathPoints } from '@/diagram/mindmapLayout.js'
 import { flowchartPathData } from '@/diagram/flowchartPath.js'
 import { connectorBodyMovable, translateConnectorBody } from '@/diagram/connectorMove.js'
 import { safeHref } from '@/utils/safeUrl.js'
+import { NEUTRAL_SELECT } from '@/diagram/selectionChrome.js'
 import { useDiagramStore } from '@/stores/useDiagramStore.js'
 import { useEditorUi } from '@/stores/useEditorUi.js'
 import { useConnectorDrawing } from '@/composables/useConnectorDrawing.js'
@@ -425,7 +426,7 @@ const LABEL_EDITOR_H = 28
         :cy="control.y"
         r="6"
         fill="#FFFFFF"
-        stroke="#006EDB"
+        :stroke="NEUTRAL_SELECT"
         stroke-width="1.5"
         class="cursor-move"
         v-if="connector.type === 'curved'"
@@ -438,7 +439,7 @@ const LABEL_EDITOR_H = 28
         :cy="start.y"
         r="6"
         fill="#FFFFFF"
-        stroke="#006EDB"
+        :stroke="NEUTRAL_SELECT"
         stroke-width="1.5"
         class="cursor-move"
         @pointerdown.stop.prevent="startDrag('from', $event)"
@@ -450,7 +451,7 @@ const LABEL_EDITOR_H = 28
         :cy="end.y"
         r="6"
         fill="#FFFFFF"
-        stroke="#006EDB"
+        :stroke="NEUTRAL_SELECT"
         stroke-width="1.5"
         class="cursor-move"
         @pointerdown.stop.prevent="startDrag('to', $event)"
