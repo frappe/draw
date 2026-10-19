@@ -215,6 +215,8 @@ by the shape it ends in.
 - **Double-click** any shape → text-edit mode immediately. Default alignment: horizontally and vertically centered.
 - Text sits inside the shape with a **fixed 12px horizontal padding**, so a label never touches the shape's edges. User can change horizontal alignment; the text box is not separately resizable.
 - **Formatting (v1):** **Inter** as the single default font (no font-family picker in v1 — keeps export/print consistent). Controls: size, bold, italic, underline, text color, left/center/right alignment.
+- **Canvas typography update:** the canvas now has a font-family picker, including bundled Vazirmatn. Inter remains the default. The application interface keeps its Inter type scale. See [Canvas typography](canvas-typography.md).
+- **Paragraph direction:** shape and paragraph content can use Auto, LTR, or RTL direction. The toolbar shows independent LTR and RTL toggles. With neither selected, Auto resolves from paragraph content. See [Paragraph direction](paragraph-direction-v2.md).
 - **Overflow:** text wraps; if it still overflows vertically, the **shape auto-grows vertically**. For diamonds/triangles the text area is the **inscribed rectangle**.
 - **Connector labels:** sit at the connector midpoint, horizontal, in a small pill filled with the canvas background color; move with the line.
 
@@ -376,7 +378,7 @@ Only items with genuine open questions or implementation risk are held back:
 - **Offline support** — explicitly out.
 - **Connector auto-routing around shapes** — hard layout problem.
 - **Rich arrowhead/end-style library** — beyond single/double heads.
-- **OS-clipboard image paste**, **font-family picker**, **arbitrary hex colors**, **multi-level group nesting**, **auto-layout / "tidy up"**, **comments**, **presentation mode**, **AI / text-to-diagram (Mermaid import)** — future.
+- **OS-clipboard image paste**, **arbitrary hex colors**, **multi-level group nesting**, **auto-layout / "tidy up"**, **comments**, **presentation mode**, **AI / text-to-diagram (Mermaid import)** — future. The canvas font-family picker was added after v1; see [Canvas typography](canvas-typography.md).
 
 ---
 

@@ -16,7 +16,9 @@ contract that lets independently-built features integrate. Also read:
    **never** hand-roll `es-btn`/inline-style chrome like the prototype did.
 2. **The canvas is the exception.** SVG shapes/connectors/paper use literal colors and the
    per-canvas `--t*` theme-preset CSS variables (see theme.js), NOT chrome tokens. The
-   canvas stays light in dark mode.
+   canvas stays light in dark mode. Canvas font choices live in `diagram/textFonts.js`
+   and do not change application chrome. See `design/canvas-typography.md` and
+   `design/paragraph-direction-v2.md` for canvas fonts and text direction.
 3. **Follow taste.md:** clean OOP-ish modules, functions ~10 lines, files 100–300 lines,
    <15 files per folder, no abbreviations, reuse first, write tests, minimum-working then iterate.
 4. **Dark mode = chrome only** (`data-theme="dark"` on app root). Canvas never changes.

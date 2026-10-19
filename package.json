@@ -12,5 +12,9 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0"
+  },
+  "dependencies": {
+    "corepack": "^0.36.0",
+    "playwright": "^1.64.1"
   }
 }

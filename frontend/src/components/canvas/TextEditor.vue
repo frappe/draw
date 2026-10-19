@@ -2,130 +2,206 @@
 // Inline rich-text editor overlay (spec §6). A TipTap editor lives in a
 // <foreignObject> aligned to the editing shape's text area at any zoom (it sits
 // inside the viewport-transformed <g>, so logical units suffice). Gives multi-
-// line text, bullet/ordered lists, bold/italic/underline and per-paragraph
-// alignment. Commits store BOTH the HTML (rich render) and plain text (export
+// line text, bullet/ordered lists, bold/italic/underline, per-paragraph
+// alignment and direction. Commits store BOTH the HTML (rich render) and plain text (export
 // fallback + empty check). Connector labels stay plain (label = the text).
 //
 // Editing ends — and commits — on a real blur or Escape. Right-palette text
 // buttons use mousedown.prevent, so they don't steal focus and the editor keeps
 // its selection while you format.
-import { computed, nextTick, watch } from 'vue'
-import { useEditor, EditorContent } from '@tiptap/vue-3'
-import { useDiagramStore } from '@/stores/useDiagramStore.js'
-import { useEditorUi } from '@/stores/useEditorUi.js'
-import { anchorPoint } from '@/diagram/geometry.js'
+import { computed, nextTick, onBeforeUnmount, onMounted, watch } from "vue";
+import { useEditor, EditorContent } from "@tiptap/vue-3";
+import { useDiagramStore } from "@/stores/useDiagramStore.js";
+import { useEditorUi } from "@/stores/useEditorUi.js";
+import { anchorPoint } from "@/diagram/geometry.js";
 import {
-  useTextEditing,
-  shapeTextArea,
-  textStyleCss,
-  fitsWidthToText,
-  LINE_HEIGHT,
-} from '@/composables/useTextEditing.js'
-import { textWidth, lineCount } from '@/diagram/textMetrics.js'
-import { RICH_EXTENSIONS, setActiveEditor, clearActiveEditor, contentToHtml } from '@/composables/useRichText.js'
-import { sanitizeRichText } from '@/utils/sanitizeHtml.js'
-import { mindmapNodeSize } from '@/diagram/mindmapNodeSize.js'
-import { flowchartNodeSize } from '@/diagram/flowchartNodeSize.js'
+	useTextEditing,
+	shapeTextArea,
+	textStyleCss,
+	fitsWidthToText,
+	LINE_HEIGHT,
+} from "@/composables/useTextEditing.js";
+import { lineCount } from "@/diagram/textMetrics.js";
+import {
+	RICH_EXTENSIONS,
+	richCommands,
+	setActiveEditor,
+	clearActiveEditor,
+	contentToHtml,
+	selectRichTextDocument,
+} from "@/composables/useRichText.js";
+import { sanitizeRichText } from "@/utils/sanitizeHtml.js";
+import { mindmapNodeSize } from "@/diagram/mindmapNodeSize.js";
+import { flowchartNodeSize } from "@/diagram/flowchartNodeSize.js";
+import {
+	richTextLines,
+	richTextLayoutText,
+	richTextLayoutWidth,
+} from "@/diagram/richTextLists.js";
+import {
+	hasOpenTextFormattingSurface,
+	isTextEditingSurfaceTarget,
+} from "@/composables/useTextFormatting.js";
 
-const store = useDiagramStore()
-const editorUi = useEditorUi()
-const editing = useTextEditing(store, editorUi)
+const store = useDiagramStore();
+const editorUi = useEditorUi();
+const editing = useTextEditing(store, editorUi);
 
-const shape = computed(() => (editing.editingShapeId.value ? store.shapeById(editing.editingShapeId.value) : null))
+const shape = computed(() =>
+	editing.editingShapeId.value ? store.shapeById(editing.editingShapeId.value) : null
+);
 const connector = computed(() =>
-  editing.editingConnectorId.value ? store.connectorById(editing.editingConnectorId.value) : null,
-)
+	editing.editingConnectorId.value ? store.connectorById(editing.editingConnectorId.value) : null
+);
 
-const area = computed(() => (shape.value ? shapeTextArea(shape.value) : connectorArea.value))
+const area = computed(() => (shape.value ? shapeTextArea(shape.value) : connectorArea.value));
 
 const connectorArea = computed(() => {
-  if (!connector.value) return null
-  const a = resolve(connector.value.from)
-  const b = resolve(connector.value.to)
-  return { x: (a.x + b.x) / 2 - 60, y: (a.y + b.y) / 2 - 14, w: 120, h: 28 }
-})
+	if (!connector.value) return null;
+	const a = resolve(connector.value.from);
+	const b = resolve(connector.value.to);
+	return { x: (a.x + b.x) / 2 - 60, y: (a.y + b.y) / 2 - 14, w: 120, h: 28 };
+});
 
 function resolve(endpoint) {
-  if (endpoint?.shapeId) {
-    const target = store.shapeById(endpoint.shapeId)
-    if (target) return anchorPoint(target, endpoint.anchor || 'right')
-  }
-  return { x: endpoint?.x || 0, y: endpoint?.y || 0 }
+	if (endpoint?.shapeId) {
+		const target = store.shapeById(endpoint.shapeId);
+		if (target) return anchorPoint(target, endpoint.anchor || "right");
+	}
+	return { x: endpoint?.x || 0, y: endpoint?.y || 0 };
 }
 
-const isMindmapNode = computed(() => shape.value?.role === 'mindmap-node')
-const isFlowchartNode = computed(() => shape.value?.role === 'flowchart-node')
+const isMindmapNode = computed(() => shape.value?.role === "mindmap-node");
+const isFlowchartNode = computed(() => shape.value?.role === "flowchart-node");
 // Both node kinds are already a drawn box that sizes itself to its label, so both
 // edit "bare": no ring, no extra padding, measured rather than read off the DOM.
-const isNode = computed(() => isMindmapNode.value || isFlowchartNode.value)
+const isNode = computed(() => isMindmapNode.value || isFlowchartNode.value);
 
 // A connector label is the last thing that still gets a ring while it is edited. It
 // floats on the line with no box of its own, and nothing else marks where the words
 // are going, so the ring is the only feedback there is. No SHAPE takes one (#467).
-const EDIT_RING = { boxShadow: 'inset 0 0 0 1.5px #006EDB', borderRadius: '4px' }
+const EDIT_RING = { boxShadow: "inset 0 0 0 1.5px #006EDB", borderRadius: "4px" };
 // Room either side of the measured text, so the caret at the end of a line is not
 // flush against the edge of the box.
-const TEXT_FIT_PADDING = 16
+const TEXT_FIT_PADDING = 16;
 
 const fieldStyle = computed(() => {
-  if (shape.value) {
-    const text = shape.value.text || {}
-    const nowrap = fitsWidthToText(shape.value) ? { whiteSpace: 'pre' } : {}
-    // A node's padding already lives in its text area, which is the box minus the
-    // frame it was measured with; padding the field again would wrap the text
-    // narrower than the box was sized for (#427, and #441 item 14 for flowcharts —
-    // where the frame also clears the shape's own geometry).
-    const padding = isNode.value ? '0' : '4px 6px'
-    // No shape gets an edit ring (#467). This file has arrived at the same answer
-    // three times from three directions: a node is already a box, so a rectangle
-    // drawn just inside it says nothing new — and inside a diamond it read as a bug
-    // (#441 item 4); a canvas text element has no box at all, and drawing one turns
-    // "type on the canvas" into "fill in this field" (#414); and a block shape kept
-    // both its dashed selection box AND the ring, so typing into one showed two
-    // boxes at once. The caret and the live text are the feedback that editing is
-    // happening. The dashed selection box stays, so the resize handles stay
-    // reachable while typing.
-    return {
-      ...textStyleCss(text.style, text.valign, text.align),
-      ...nowrap,
-      padding,
-      height: '100%',
-    }
-  }
-  return { ...textStyleCss({ size: 12 }, 'middle', 'center'), ...EDIT_RING, padding: '2px 8px', height: '100%' }
-})
+	if (shape.value) {
+		const text = shape.value.text || {};
+		const nowrap = fitsWidthToText(shape.value) ? { whiteSpace: "pre" } : {};
+		// A node's padding already lives in its text area, which is the box minus the
+		// frame it was measured with; padding the field again would wrap the text
+		// narrower than the box was sized for (#427, and #441 item 14 for flowcharts —
+		// where the frame also clears the shape's own geometry).
+		const padding = isNode.value ? "0" : "4px 6px";
+		// No shape gets an edit ring (#467). This file has arrived at the same answer
+		// three times from three directions: a node is already a box, so a rectangle
+		// drawn just inside it says nothing new — and inside a diamond it read as a bug
+		// (#441 item 4); a canvas text element has no box at all, and drawing one turns
+		// "type on the canvas" into "fill in this field" (#414); and a block shape kept
+		// both its dashed selection box AND the ring, so typing into one showed two
+		// boxes at once. The caret and the live text are the feedback that editing is
+		// happening. The dashed selection box stays, so the resize handles stay
+		// reachable while typing.
+		return {
+			...textStyleCss(text.style, text.valign, text.align),
+			...nowrap,
+			padding,
+			height: "100%",
+		};
+	}
+	return {
+		...textStyleCss({ size: 12 }, "middle", "center"),
+		...EDIT_RING,
+		padding: "2px 8px",
+		height: "100%",
+	};
+});
 
 const editor = useEditor({
-  extensions: RICH_EXTENSIONS,
-  content: '<p></p>',
-  onUpdate: () => autoGrow(),
-  onBlur: () => commit(),
-})
+	extensions: RICH_EXTENSIONS,
+	content: "<p></p>",
+	onUpdate: () => autoGrow(),
+	onBlur: ({ event }) => {
+		if (
+			isTextFormattingFocus(event?.relatedTarget) ||
+			hasOpenTextFormattingSurface(editing.session.id)
+		)
+			return;
+		commit();
+	},
+});
 
 // Seed the editor and focus when a session starts (target changed).
 watch(
-  () => [editing.editingShapeId.value, editing.editingConnectorId.value],
-  async () => {
-    if (!editing.isEditing.value || !editor.value) return
-    // Sanitised on the way in as well as on the way out (ShapeView): TipTap's schema
-    // would drop unknown nodes anyway, but editing a shared shape should not be the
-    // one path where unsanitised markup from someone else's document is parsed.
-    let html = shape.value
-      ? sanitizeRichText(shape.value.text?.html) || contentToHtml(shape.value.text?.content)
-      : contentToHtml(connector.value?.label)
-    // Seed a default label into an empty shape (e.g. "New idea" on a dropped node),
-    // then select it below so the first keystroke replaces it — drop-to-type (#263).
-    if (shape.value && !shape.value.text?.content && editing.session.seedIfEmpty) {
-      html = contentToHtml(editing.session.seedIfEmpty)
-    }
-    editor.value.commands.setContent(html, false)
-    setActiveEditor(editor.value)
-    await nextTick()
-    editor.value.commands.focus('end')
-    if (editing.session.selectAll) editor.value.commands.selectAll()
-    autoGrow()
-  },
-)
+	() => [editing.editingShapeId.value, editing.editingConnectorId.value],
+	async () => {
+		if (!editing.isEditing.value || !editor.value) return;
+		// Sanitised on the way in as well as on the way out (ShapeView): TipTap's schema
+		// would drop unknown nodes anyway, but editing a shared shape should not be the
+		// one path where unsanitised markup from someone else's document is parsed.
+		let html = shape.value
+			? sanitizeRichText(shape.value.text?.html) || contentToHtml(shape.value.text?.content)
+			: contentToHtml(connector.value?.label);
+		// Seed a default label into an empty shape (e.g. "New idea" on a dropped node),
+		// then select it below so the first keystroke replaces it — drop-to-type (#263).
+		if (shape.value && !shape.value.text?.content && editing.session.seedIfEmpty) {
+			html = contentToHtml(editing.session.seedIfEmpty);
+		}
+		editor.value.storage.paragraphDirection.defaultDirection =
+			shape.value?.text?.direction || "auto";
+		editor.value.commands.setContent(html, false);
+		setActiveEditor(editor.value, {
+			store,
+			shapeId: shape.value?.id || null,
+			sessionId: editing.session.id,
+		});
+		await nextTick();
+		editor.value.commands.focus("end");
+		if (editing.session.selectAll) selectEditingContent();
+		if (editing.session.pendingListType) {
+			applyPendingListCommand();
+			return;
+		}
+		autoGrow();
+	}
+);
+
+watch(
+	() => shape.value?.text?.style?.font,
+	async (font) => {
+		if (!font || !shape.value || !editing.isEditing.value || !document.fonts?.load) return;
+		const shapeId = shape.value.id;
+		const fontSize = shape.value.text?.style?.size || 16;
+		try {
+			await document.fonts.load(`${fontSize}px ${font}`);
+		} catch {
+			// Use the CSS fallback if the selected font cannot load.
+		}
+		if (shape.value?.id === shapeId && shape.value.text?.style?.font === font) autoGrow();
+	}
+);
+
+function selectEditingContent() {
+	if (!editing.session.pendingListType) {
+		editor.value.commands.selectAll();
+		return;
+	}
+	selectRichTextDocument(editor.value);
+}
+
+function applyPendingListCommand() {
+	const listType = editing.session.pendingListType;
+	editing.session.pendingListType = null;
+	if (!editor.value?.getText().trim()) {
+		endEditing();
+		return;
+	}
+	store.breakHistoryCoalescing();
+	const applied = richCommands.toggleList(listType, { focus: false });
+	if (applied) commit();
+	else endEditing();
+}
 
 // Grow the shape so wrapped/multi-line text never overflows (spec §6).
 //
@@ -135,15 +211,16 @@ watch(
 // a shape's label has a box to live in, and widening a rectangle because someone
 // typed into it would move the diagram around them.
 function autoGrow() {
-  if (!shape.value || !editor.value) return
-  if (isMindmapNode.value) return growMindmapNode()
-  if (isFlowchartNode.value) return growFlowchartNode()
-  if (fitsWidthToText(shape.value)) return fitBoxToText()
-  const dom = editor.value.view?.dom
-  if (!dom) return
-  const needed = dom.scrollHeight + 10
-  const target = Math.max(needed, lineMinimum(shape.value))
-  if (target > shape.value.h) store.updateShape(shape.value.id, { h: growToFit(shape.value, target) })
+	if (!shape.value || !editor.value) return;
+	if (isMindmapNode.value) return growMindmapNode();
+	if (isFlowchartNode.value) return growFlowchartNode();
+	if (fitsWidthToText(shape.value)) return fitBoxToText();
+	const dom = editor.value.view?.dom;
+	if (!dom) return;
+	const needed = dom.scrollHeight + 10;
+	const target = Math.max(needed, lineMinimum(shape.value));
+	if (target > shape.value.h)
+		store.updateShape(shape.value.id, { h: growToFit(shape.value, target) });
 }
 
 // Size a canvas text element to its content, both ways (#418).
@@ -155,13 +232,14 @@ function autoGrow() {
 // hundreds. `chrome` is the inset between the shape and its text area, added back
 // so the text gets the width it measured.
 function fitBoxToText() {
-  const text = editor.value.getText()
-  const style = shape.value.text?.style || {}
-  const chrome = shape.value.w - shapeTextArea(shape.value).w
-  const width = Math.ceil(textWidth(text, style)) + TEXT_FIT_PADDING + chrome
-  const height = Math.ceil(lineCount(text) * (style.size || 16) * LINE_HEIGHT) + 8
-  if (width === shape.value.w && height === shape.value.h) return
-  store.updateShape(shape.value.id, { w: width, h: height })
+	const lines = richTextLines(editor.value.getHTML(), editor.value.getText());
+	const text = richTextLayoutText(lines);
+	const style = shape.value.text?.style || {};
+	const chrome = shape.value.w - shapeTextArea(shape.value).w;
+	const width = Math.ceil(richTextLayoutWidth(lines, style)) + TEXT_FIT_PADDING + chrome;
+	const height = Math.ceil(lineCount(text) * (style.size || 16) * LINE_HEIGHT) + 8;
+	if (width === shape.value.w && height === shape.value.h) return;
+	store.updateShape(shape.value.id, { w: width, h: height });
 }
 
 // A mind-map node is a text container: it takes the size its label measures to on
@@ -169,15 +247,19 @@ function fitBoxToText() {
 // leak out (#427 item 5). Measured, not read back from the DOM, so the box the
 // user is typing into is exactly the box the layout will space the tree against.
 function growMindmapNode() {
-  const size = mindmapNodeSize({
-    text: editor.value.getText() || '',
-    fontSize: shape.value.text?.style?.size,
-    isRoot: !shape.value.mindmap?.parentId,
-  })
-  if (size.w === shape.value.w && size.h === shape.value.h) return
-  // Through the mind-map path, so this resize shares a history label with the
-  // commit that follows and the whole edit stays one undo step.
-  store.resizeMindmapNodeToText(shape.value.id, size)
+	const style = shape.value.text?.style || {};
+	const size = mindmapNodeSize({
+		text: richTextLayoutText(richTextLines(editor.value.getHTML(), editor.value.getText())),
+		fontSize: style.size,
+		font: style.font,
+		bold: style.bold,
+		italic: style.italic,
+		isRoot: !shape.value.mindmap?.parentId,
+	});
+	if (size.w === shape.value.w && size.h === shape.value.h) return;
+	// Through the mind-map path, so this resize shares a history label with the
+	// commit that follows and the whole edit stays one undo step.
+	store.resizeMindmapNodeToText(shape.value.id, size);
 }
 
 // A flowchart node sizes to its label the same way, but through the per-shape
@@ -187,90 +269,125 @@ function growMindmapNode() {
 // against. Measured, not read back from the DOM, so the box being typed into is
 // the box the renderer will inset.
 function growFlowchartNode() {
-  const size = flowchartNodeSize({
-    nodeType: shape.value.flowchart?.nodeType,
-    text: editor.value.getText() || '',
-    fontSize: shape.value.text?.style?.size,
-  })
-  if (size.w === shape.value.w && size.h === shape.value.h) return
-  store.resizeFlowchartNodeToText(shape.value.id, size)
+	const style = shape.value.text?.style || {};
+	const size = flowchartNodeSize({
+		nodeType: shape.value.flowchart?.nodeType,
+		text: richTextLayoutText(richTextLines(editor.value.getHTML(), editor.value.getText())),
+		fontSize: style.size,
+		font: style.font,
+		bold: style.bold,
+		italic: style.italic,
+	});
+	if (size.w === shape.value.w && size.h === shape.value.h) return;
+	store.resizeFlowchartNodeToText(shape.value.id, size);
 }
 
 function growToFit(s, areaHeight) {
-  const factor = s.type === 'diamond' || s.type === 'triangle' ? 0.5 : 1
-  return Math.ceil(areaHeight / factor) + 8
+	const factor = s.type === "diamond" || s.type === "triangle" ? 0.5 : 1;
+	return Math.ceil(areaHeight / factor) + 8;
 }
 function lineMinimum(s) {
-  const size = s.text?.style?.size || 16
-  return Math.ceil(size * LINE_HEIGHT) + 12
+	const size = s.text?.style?.size || 16;
+	return Math.ceil(size * LINE_HEIGHT) + 12;
 }
 
 function commit() {
-  if (!editing.isEditing.value) return
-  if (shape.value) commitShape()
-  else if (connector.value) commitConnector()
-  clearActiveEditor(editor.value)
-  editing.session.shapeId = null
-  editing.session.connectorId = null
+	if (!editing.isEditing.value) return;
+	if (shape.value) commitShape();
+	else if (connector.value) commitConnector();
+	endEditing();
 }
 
+function isTextFormattingFocus(target) {
+	return isTextEditingSurfaceTarget(target);
+}
+
+function handleFormattingFocusChange(event) {
+	if (!editing.isEditing.value) return;
+	const target = event.target;
+	if (isTextEditingSurfaceTarget(target)) return;
+	commit();
+}
+
+function endEditing() {
+	clearActiveEditor(editor.value);
+	editing.session.shapeId = null;
+	editing.session.connectorId = null;
+	editing.session.selectAll = false;
+	editing.session.seedIfEmpty = null;
+	editing.session.pendingListType = null;
+}
+
+onBeforeUnmount(() => {
+	if (editing.isEditing.value) commit();
+	clearActiveEditor(editor.value);
+});
+onMounted(() => {
+	document.addEventListener("pointerdown", handleFormattingFocusChange, true);
+	document.addEventListener("focusin", handleFormattingFocusChange, true);
+});
+onBeforeUnmount(() => {
+	document.removeEventListener("pointerdown", handleFormattingFocusChange, true);
+	document.removeEventListener("focusin", handleFormattingFocusChange, true);
+});
+
 function commitShape() {
-  const text = (editor.value?.getText() || '').trim()
-  // An empty text box carries nothing, so reject it (text boxes only — a labeled
-  // rectangle/ellipse left blank is still a real shape and stays).
-  if (!text && shape.value.type === 'text') {
-    store.removeShapes([shape.value.id])
-    return
-  }
-  const value = { html: editor.value.getHTML(), content: text }
-  // A mind-map node settles its box and its tree in the same commit as the text,
-  // so one undo takes back the whole edit (#427).
-  if (isMindmapNode.value) return store.commitMindmapNodeText(shape.value.id, value)
-  if (isFlowchartNode.value) return store.commitFlowchartNodeText(shape.value.id, value)
-  store.updateShape(shape.value.id, { text: value })
+	const text = (editor.value?.getText() || "").trim();
+	// An empty text box carries nothing, so reject it (text boxes only — a labeled
+	// rectangle/ellipse left blank is still a real shape and stays).
+	if (!text && shape.value.type === "text") {
+		store.removeShapes([shape.value.id]);
+		return;
+	}
+	const value = { html: editor.value.getHTML(), content: text };
+	// A mind-map node settles its box and its tree in the same commit as the text,
+	// so one undo takes back the whole edit (#427).
+	if (isMindmapNode.value) return store.commitMindmapNodeText(shape.value.id, value);
+	if (isFlowchartNode.value) return store.commitFlowchartNodeText(shape.value.id, value);
+	store.updateShape(shape.value.id, { text: value });
 }
 
 function commitConnector() {
-  store.updateConnector(connector.value.id, { label: (editor.value?.getText() || '').trim() })
+	store.updateConnector(connector.value.id, { label: (editor.value?.getText() || "").trim() });
 }
 
 function onKeydown(event) {
-  if (event.key === 'Escape') {
-    event.stopPropagation()
-    editor.value?.commands.blur()
-    return
-  }
-  // #263: Cmd/Ctrl+Enter adds a newline in the same box too — plain Enter already
-  // does, so both keep typing multi-line instead of committing.
-  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-    event.preventDefault()
-    editor.value?.chain().focus().splitBlock().run()
-  }
+	if (event.key === "Escape") {
+		event.stopPropagation();
+		editor.value?.commands.blur();
+		return;
+	}
+	// #263: Cmd/Ctrl+Enter adds a newline in the same box too — plain Enter already
+	// does, so both keep typing multi-line instead of committing.
+	if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+		event.preventDefault();
+		editor.value?.chain().focus().splitBlock().run();
+	}
 }
 </script>
 
 <template>
-  <foreignObject
-    v-if="editing.isEditing.value && area"
-    data-text-editor
-    :x="area.x"
-    :y="area.y"
-    :width="area.w"
-    :height="area.h"
-    :style="{ overflow: 'visible' }"
-  >
-    <div
-      class="fd-richtext outline-none"
-      :data-fit-width="shape && fitsWidthToText(shape) ? '' : undefined"
-      :style="fieldStyle"
-      style="box-sizing: border-box; width: 100%; cursor: text"
-      @keydown="onKeydown"
-      @pointerdown.stop
-      @dblclick.stop
-    >
-      <EditorContent :editor="editor" />
-    </div>
-  </foreignObject>
+	<foreignObject
+		v-if="editing.isEditing.value && area"
+		data-text-editor
+		:x="area.x"
+		:y="area.y"
+		:width="area.w"
+		:height="area.h"
+		:style="{ overflow: 'visible' }"
+	>
+		<div
+			class="fd-richtext outline-none"
+			:data-fit-width="shape && fitsWidthToText(shape) ? '' : undefined"
+			:style="fieldStyle"
+			style="box-sizing: border-box; width: 100%; cursor: text"
+			@keydown="onKeydown"
+			@pointerdown.stop
+			@dblclick.stop
+		>
+			<EditorContent :editor="editor" />
+		</div>
+	</foreignObject>
 </template>
 
 <style>
@@ -278,18 +395,58 @@ function onKeydown(event) {
    Tailwind's base reset strips list markers, so restore them explicitly. */
 /* Wrap + break long words in BOTH the editor and the committed render, so text
    stays inside the shape and doesn't reflow/garble on blur (G3). */
-.fd-richtext { overflow-wrap: break-word; word-break: break-word; white-space: normal; }
+.fd-richtext {
+	overflow-wrap: break-word;
+	word-break: break-word;
+	white-space: normal;
+}
 /* A canvas text element (#418) is sized to its own text, so it must not wrap —
    ProseMirror sets white-space: pre-wrap on itself, which would re-flow it inside
    the box it was just measured for. */
-.fd-richtext[data-fit-width] { white-space: pre; overflow-wrap: normal; word-break: normal; }
-.fd-richtext[data-fit-width] .ProseMirror { white-space: pre; }
-.fd-richtext .ProseMirror { outline: none; min-height: 1em; }
-.fd-richtext p { margin: 0; }
+.fd-richtext[data-fit-width] {
+	white-space: pre;
+	overflow-wrap: normal;
+	word-break: normal;
+}
+.fd-richtext[data-fit-width] .ProseMirror {
+	white-space: pre;
+}
+.fd-richtext .ProseMirror {
+	outline: none;
+	min-height: 1em;
+}
+.fd-richtext p {
+	margin: 0;
+}
 .fd-richtext ul,
-.fd-richtext ol { margin: 0; padding-left: 1.4em; list-style-position: outside; text-align: left; }
-.fd-richtext ul { list-style-type: disc; }
-.fd-richtext ol { list-style-type: decimal; }
-.fd-richtext li { margin: 0; }
-.fd-richtext li p { margin: 0; }
+.fd-richtext ol {
+	margin: 0;
+	padding-inline: 1.4em;
+	list-style-position: outside;
+}
+.fd-richtext li {
+	margin-inline: 0;
+}
+.fd-richtext ul {
+	list-style-type: disc;
+}
+.fd-richtext ol {
+	list-style-type: decimal;
+}
+.fd-richtext li p {
+	margin: 0;
+}
+/* Keep a centered list marker with the paragraph instead of at the list gutter. */
+.fd-richtext li:has(> p[style*="text-align: center"]),
+.fd-richtext[style*="text-align: center"]
+	li:not(:has(> p[style*="text-align: left"])):not(:has(> p[style*="text-align: right"])) {
+	list-style-position: inside;
+	text-align: center;
+}
+.fd-richtext li:has(> p[style*="text-align: center"]) > p:first-child,
+.fd-richtext[style*="text-align: center"]
+	li:not(:has(> p[style*="text-align: left"])):not(:has(> p[style*="text-align: right"]))
+	> p:first-child {
+	display: inline;
+}
 </style>

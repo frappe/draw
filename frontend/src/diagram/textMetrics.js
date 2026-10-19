@@ -8,56 +8,56 @@
 // approximates how the rendered wrapping <div> lays the same text out, so a box
 // measured from it leaves room for every line.
 export function wrapLineCount(text, perLine) {
-  const words = String(text).split(/\s+/).filter(Boolean)
-  if (!words.length) return 1
-  let lines = 1
-  let col = 0
-  for (const word of words) {
-    if (word.length > perLine) {
-      if (col > 0) lines++ // finish the current line before the long word
-      lines += Math.ceil(word.length / perLine) - 1
-      col = word.length % perLine || perLine
-      continue
-    }
-    const need = col === 0 ? word.length : col + 1 + word.length
-    if (need <= perLine) col = need
-    else {
-      lines++
-      col = word.length
-    }
-  }
-  return lines
+	const words = String(text).split(/\s+/).filter(Boolean);
+	if (!words.length) return 1;
+	let lines = 1;
+	let col = 0;
+	for (const word of words) {
+		if (word.length > perLine) {
+			if (col > 0) lines++; // finish the current line before the long word
+			lines += Math.ceil(word.length / perLine) - 1;
+			col = word.length % perLine || perLine;
+			continue;
+		}
+		const need = col === 0 ? word.length : col + 1 + word.length;
+		if (need <= perLine) col = need;
+		else {
+			lines++;
+			col = word.length;
+		}
+	}
+	return lines;
 }
 
 // The same greedy wrap, returning the lines themselves. The exporter needs the
 // text of each line (SVG has no wrapping <text>), while the layout engines only
 // ever needed how many there would be.
 export function wrapLines(text, perLine) {
-  const words = String(text).split(/\s+/).filter(Boolean)
-  if (!words.length) return ['']
-  const lines = []
-  let line = ''
-  for (const word of words) {
-    for (const part of splitLongWord(word, perLine)) {
-      if (!line) line = part
-      else if (line.length + 1 + part.length <= perLine) line += ` ${part}`
-      else {
-        lines.push(line)
-        line = part
-      }
-    }
-  }
-  lines.push(line)
-  return lines
+	const words = String(text).split(/\s+/).filter(Boolean);
+	if (!words.length) return [""];
+	const lines = [];
+	let line = "";
+	for (const word of words) {
+		for (const part of splitLongWord(word, perLine)) {
+			if (!line) line = part;
+			else if (line.length + 1 + part.length <= perLine) line += ` ${part}`;
+			else {
+				lines.push(line);
+				line = part;
+			}
+		}
+	}
+	lines.push(line);
+	return lines;
 }
 
 // A word too long for one line is cut into full-width pieces, the way the renderer
 // breaks it (`word-break: break-word`).
 function splitLongWord(word, perLine) {
-  if (word.length <= perLine) return [word]
-  const parts = []
-  for (let at = 0; at < word.length; at += perLine) parts.push(word.slice(at, at + perLine))
-  return parts
+	if (word.length <= perLine) return [word];
+	const parts = [];
+	for (let at = 0; at < word.length; at += perLine) parts.push(word.slice(at, at + perLine));
+	return parts;
 }
 
 // Characters that fit across a box `textWidth` px wide at `charWidth` px each.
@@ -70,10 +70,10 @@ function splitLongWord(word, perLine) {
 // fraction. 15 characters at 9.714285714285714px divide back to 14.999999999999998,
 // which floors to 14, so the box wrapped a word that fits and grew a line; the next
 // character landed on an exact division and collapsed it again.
-const ROUND_TRIP_TOLERANCE = 1e-9
+const ROUND_TRIP_TOLERANCE = 1e-9;
 
 export function charsPerLine(textWidth, charWidth) {
-  return Math.max(1, Math.floor(textWidth / charWidth + ROUND_TRIP_TOLERANCE))
+	return Math.max(1, Math.floor(textWidth / charWidth + ROUND_TRIP_TOLERANCE));
 }
 
 // --- measured metrics, for text that does NOT wrap ---------------------------
@@ -89,38 +89,100 @@ export function charsPerLine(textWidth, charWidth) {
 // hundreds. Measuring the string against the font is independent of whatever box
 // it currently sits in. A 2D context is used purely as a ruler; nothing is drawn.
 
-let ruler = null
+let ruler = null;
 
 function measuringContext() {
-  if (ruler) return ruler
-  if (typeof document === 'undefined') return null
-  ruler = document.createElement('canvas').getContext('2d')
-  return ruler
+	if (ruler) return ruler;
+	if (typeof document === "undefined") return null;
+	ruler = document.createElement("canvas").getContext("2d");
+	return ruler;
 }
 
 // The CSS `font` shorthand for a text style. Order matters to the parser: style,
 // weight, size, family.
 function fontOf(style = {}) {
-  const size = style.size || 16
-  const family = style.font || 'Inter, sans-serif'
-  return `${style.italic ? 'italic ' : ''}${style.bold ? 700 : 500} ${size}px ${family}`
+	const size = style.size || 16;
+	const family = style.font || "Inter, sans-serif";
+	return `${style.italic ? "italic " : ""}${style.bold ? 700 : 500} ${size}px ${family}`;
 }
 
 // The width of the widest line in `content` at `style`. Zero for empty text and in
 // a browser-free environment, so callers fall back to their own minimum rather
 // than to NaN.
 export function textWidth(content, style = {}) {
-  const context = measuringContext()
-  if (!context || !content) return 0
-  context.font = fontOf(style)
-  return String(content)
-    .split('\n')
-    .reduce((widest, line) => Math.max(widest, context.measureText(line).width), 0)
+	const context = measuringContext();
+	if (!context || !content) return 0;
+	context.font = fontOf(style);
+	return String(content)
+		.split("\n")
+		.reduce((widest, line) => Math.max(widest, context.measureText(line).width), 0);
+}
+
+// Greedy, font-aware wrapping for renderers such as SVG that cannot wrap text
+// themselves. The canvas measures the same font stack, size, weight, and style
+// used by the text renderer; the character estimate is only a browserless
+// fallback for deterministic unit environments without a canvas implementation.
+export function wrapTextToWidth(content, maxWidth, style = {}) {
+	const text = String(content || "");
+	if (!text) return [""];
+	const available = Math.max(1, Number(maxWidth) || 1);
+	const measure = (value) => textWidth(value, style);
+	const measured = measure("M");
+	if (!measured) {
+		const size = Number(style.size) || 16;
+		return wrapLines(text, Math.max(1, Math.floor(available / (size * 0.61))));
+	}
+
+	const output = [];
+	for (const paragraph of text.split(/\r?\n/)) {
+		const words = paragraph.split(/\s+/).filter(Boolean);
+		if (!words.length) {
+			output.push("");
+			continue;
+		}
+		let line = "";
+		for (const word of words) {
+			const parts = splitMeasuredWord(word, available, measure);
+			for (const part of parts) {
+				const candidate = line ? `${line} ${part}` : part;
+				if (!line || measure(candidate) <= available) {
+					line = candidate;
+				} else {
+					output.push(line);
+					line = part;
+				}
+			}
+		}
+		output.push(line);
+	}
+	return output.length ? output : [""];
+}
+
+function splitMeasuredWord(word, maxWidth, measure) {
+	if (measure(word) <= maxWidth) return [word];
+	const segments =
+		typeof Intl.Segmenter === "function"
+			? [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(word)].map(
+					(part) => part.segment
+			  )
+			: Array.from(word);
+	const parts = [];
+	let part = "";
+	for (const segment of segments) {
+		if (part && measure(part + segment) > maxWidth) {
+			parts.push(part);
+			part = segment;
+		} else {
+			part += segment;
+		}
+	}
+	if (part) parts.push(part);
+	return parts;
 }
 
 // How many lines `content` occupies when nothing wraps it — at least one, so an
 // empty element keeps a line's height instead of collapsing.
 export function lineCount(content) {
-  if (!content) return 1
-  return String(content).split('\n').length
+	if (!content) return 1;
+	return String(content).split("\n").length;
 }

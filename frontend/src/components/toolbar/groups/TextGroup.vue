@@ -7,74 +7,116 @@
 // IS the text-only menu while editing (#259), and part of the shape menu
 // otherwise — which is why every control drives the live rich-text editor when
 // one is open and the shape-level base style when it is not.
-import { computed, ref, watch } from 'vue'
-import { Popover, Select, TextInput } from 'frappe-ui'
-import { useBlockSelection } from '@/composables/useBlockSelection.js'
-import { richCommands, isMarkActive } from '@/composables/useRichText.js'
-import EspressoSwatchGrid from '@/components/palette-right/EspressoSwatchGrid.vue'
-import ToolbarButton from '../ToolbarButton.vue'
-import { ESPRESSO_SANS, FONTS } from '@/diagram/textFonts.js'
+import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { Popover, Select, TextInput } from "frappe-ui";
+import { useBlockSelection } from "@/composables/useBlockSelection.js";
+import { richCommands, isMarkActive, activeEditorOwner } from "@/composables/useRichText.js";
+import {
+	openTextFormattingSurface,
+	closeTextFormattingSurface,
+} from "@/composables/useTextFormatting.js";
+import { useTextEditing } from "@/composables/useTextEditing.js";
+import { richTextLines } from "@/diagram/richTextLists.js";
+import EspressoSwatchGrid from "@/components/palette-right/EspressoSwatchGrid.vue";
+import ToolbarButton from "../ToolbarButton.vue";
+import ParagraphDirectionMenu from "./ParagraphDirectionMenu.vue";
+import { ESPRESSO_SANS, FONTS } from "@/diagram/textFonts.js";
 
 // textShapes, not every selected shape (#519): a mixed selection of an image and a
 // rectangle reads and writes the rectangle's label, and passes the image by. Reading
 // shapes[0] meant an image first in the selection reported a font and a size it had
 // no way to carry.
-const { store, textShapes, editing } = useBlockSelection()
-const textIds = computed(() => textShapes.value.map((shape) => shape.id))
+const { store, textShapes, editing } = useBlockSelection();
+const textIds = computed(() => textShapes.value.map((shape) => shape.id));
+const textEditing = useTextEditing(store);
+const selectedTextShape = computed(() =>
+	store.state.selection.length === 1 && textShapes.value.length === 1
+		? textShapes.value[0]
+		: null
+);
+const canFormatSelectedShapeAsList = computed(() =>
+	Boolean(selectedTextShape.value?.text?.content?.trim())
+);
+const selectedShapeListType = computed(() => {
+	const text = selectedTextShape.value?.text;
+	if (!text) return null;
+	const lines = richTextLines(text.html, text.content);
+	if (!lines.length || lines.some((line) => !line.listType)) return null;
+	const type = lines[0].listType;
+	return lines.every((line) => line.listType === type)
+		? type === "bullet"
+			? "bulletList"
+			: "orderedList"
+		: null;
+});
 
 const MARKS = [
-  { name: 'bold', label: 'Bold', icon: 'lucide-bold' },
-  { name: 'italic', label: 'Italic', icon: 'lucide-italic' },
-  { name: 'underline', label: 'Underline', icon: 'lucide-underline' },
-  { name: 'strike', label: 'Strikethrough', icon: 'lucide-strikethrough' },
-]
+	{ name: "bold", label: "Bold", icon: "lucide-bold" },
+	{ name: "italic", label: "Italic", icon: "lucide-italic" },
+	{ name: "underline", label: "Underline", icon: "lucide-underline" },
+	{ name: "strike", label: "Strikethrough", icon: "lucide-strikethrough" },
+];
 const ALIGNMENTS = [
-  { value: 'left', label: 'Align left', icon: 'lucide-text-align-start' },
-  { value: 'center', label: 'Align center', icon: 'lucide-text-align-center' },
-  { value: 'right', label: 'Align right', icon: 'lucide-text-align-end' },
-]
-
-const textRef = computed(() => textShapes.value[0])
-const textStyle = computed(() => textRef.value?.text?.style || {})
-const textAlign = computed(() => textRef.value?.text?.align || 'center')
+	{ value: "left", label: "Align left", icon: "lucide-text-align-start" },
+	{ value: "center", label: "Align center", icon: "lucide-text-align-center" },
+	{ value: "right", label: "Align right", icon: "lucide-text-align-end" },
+];
+const textRef = computed(() => textShapes.value[0]);
+const textStyle = computed(() => textRef.value?.text?.style || {});
+const textAlign = computed(() => textRef.value?.text?.align || "center");
 // An unset font IS Inter, so it resolves to Inter's stack. Left as '', it would
 // match no option now that Inter names a real one, and the Select would show blank
 // on every shape that has never had a font chosen — which is most of them.
-const font = computed(() => textStyle.value.font || ESPRESSO_SANS)
-const fontSize = computed(() => textStyle.value.size ?? 16)
-const currentTextColor = computed(() => textStyle.value.color || '#171717')
+const font = computed(() => textStyle.value.font || ESPRESSO_SANS);
+const fontSize = computed(() => textStyle.value.size ?? 16);
+const currentTextColor = computed(() => textStyle.value.color || "#171717");
 
 // The typed draft, kept separate from `fontSize` so a half-typed value (the "3"
 // on its way to "32") never round-trips through the store. Re-synced whenever
 // the committed size changes from elsewhere (the +/- steppers, another shape).
-const fontSizeDraft = ref(String(fontSize.value))
+const fontSizeDraft = ref(String(fontSize.value));
 watch(fontSize, (value) => {
-  fontSizeDraft.value = String(value)
-})
+	fontSizeDraft.value = String(value);
+});
 
 function updateTextStyle(patch) {
-  if (textIds.value.length) store.updateShapes(textIds.value, { text: { style: patch } })
+	if (textIds.value.length) store.updateShapes(textIds.value, { text: { style: patch } });
 }
 
 function markText(name) {
-  if (!editing.value) return updateTextStyle({ [name]: !textStyle.value[name] })
-  if (name === 'bold') richCommands.toggleBold()
-  else if (name === 'italic') richCommands.toggleItalic()
-  else if (name === 'underline') richCommands.toggleUnderline()
-  else if (name === 'strike') richCommands.toggleStrike()
+	if (!editing.value) return updateTextStyle({ [name]: !textStyle.value[name] });
+	if (name === "bold") richCommands.toggleBold();
+	else if (name === "italic") richCommands.toggleItalic();
+	else if (name === "underline") richCommands.toggleUnderline();
+	else if (name === "strike") richCommands.toggleStrike();
 }
 
 function markActive(name) {
-  return editing.value ? isMarkActive(name) : Boolean(textStyle.value[name])
+	return editing.value ? isMarkActive(name) : Boolean(textStyle.value[name]);
+}
+
+function listActive(name) {
+	return editing.value ? isMarkActive(name) : selectedShapeListType.value === name;
+}
+
+function toggleList(name) {
+	if (editing.value) {
+		if (name === "bulletList") richCommands.toggleBulletList();
+		else richCommands.toggleOrderedList();
+		return;
+	}
+	const shape = selectedTextShape.value;
+	if (!shape?.text?.content?.trim()) return;
+	textEditing.beginTextEditForList(shape.id, name);
 }
 
 function setTextAlign(value) {
-  if (editing.value) richCommands.setAlign(value)
-  else if (textIds.value.length) store.updateShapes(textIds.value, { text: { align: value } })
+	if (editing.value) richCommands.setAlign(value);
+	else if (textIds.value.length) store.updateShapes(textIds.value, { text: { align: value } });
 }
 
 function alignActive(value) {
-  return editing.value ? isMarkActive(null, { textAlign: value }) : textAlign.value === value
+	return editing.value ? isMarkActive(null, { textAlign: value }) : textAlign.value === value;
 }
 
 // The alignment trigger wears whichever of the three is set, so folding them
@@ -83,15 +125,32 @@ function alignActive(value) {
 // paragraph with no explicit alignment) — hence the fallback rather than an
 // assumption that one always matches.
 const currentAlignment = computed(
-  () => ALIGNMENTS.find((alignment) => alignActive(alignment.value)) || ALIGNMENTS[1],
-)
+	() => ALIGNMENTS.find((alignment) => alignActive(alignment.value)) || ALIGNMENTS[1]
+);
+
+const formattingSession = new Map();
+function formattingOpened(surfaceId) {
+	const sessionId = activeEditorOwner.value?.sessionId;
+	if (sessionId == null) return;
+	formattingSession.set(surfaceId, sessionId);
+	openTextFormattingSurface(sessionId, surfaceId);
+}
+function formattingClosed(surfaceId) {
+	const sessionId = formattingSession.get(surfaceId);
+	if (sessionId == null) return;
+	closeTextFormattingSurface(sessionId, surfaceId);
+	formattingSession.delete(surfaceId);
+}
+onBeforeUnmount(() => {
+	for (const surfaceId of formattingSession.keys()) formattingClosed(surfaceId);
+});
 
 function stepFontSize(delta) {
-  updateTextStyle({ size: Math.max(6, Math.min(200, Number(fontSize.value) + delta)) })
+	updateTextStyle({ size: Math.max(6, Math.min(200, Number(fontSize.value) + delta)) });
 }
 
 function setFont(value) {
-  updateTextStyle({ font: value })
+	updateTextStyle({ font: value });
 }
 
 // Applies the typed draft as the shape's base font size (#550): same clamp as
@@ -105,93 +164,163 @@ function setFont(value) {
 // otherwise write the typed size onto whatever got clicked instead of the
 // shape the user was actually editing.
 function commitFontSizeDraft() {
-  const parsed = Number(fontSizeDraft.value)
-  if (Number.isFinite(parsed) && parsed > 0) {
-    updateTextStyle({ size: Math.max(6, Math.min(200, Math.round(parsed))) })
-  } else {
-    fontSizeDraft.value = String(fontSize.value)
-  }
+	const parsed = Number(fontSizeDraft.value);
+	if (Number.isFinite(parsed) && parsed > 0) {
+		updateTextStyle({ size: Math.max(6, Math.min(200, Math.round(parsed))) });
+	} else {
+		fontSizeDraft.value = String(fontSize.value);
+	}
 }
 
 // Blur with no Enter is a cancel: an edit abandoned by clicking elsewhere
 // reverts rather than silently committing to a shape the click may have
 // just changed the selection to.
 function resetFontSizeDraft() {
-  fontSizeDraft.value = String(fontSize.value)
+	fontSizeDraft.value = String(fontSize.value);
 }
 
 // Recolours the caret selection live while editing, else sets the shape's base
 // text colour across the whole selection (#259).
 function setTextColor(hex) {
-  if (!hex) return
-  if (editing.value) richCommands.setColor(hex)
-  else updateTextStyle({ color: hex })
+	if (!hex) return;
+	if (editing.value) richCommands.setColor(hex);
+	else updateTextStyle({ color: hex });
 }
 </script>
 
 <template>
-  <Select :model-value="font" :options="FONTS" class="h-7 w-[92px]" @update:model-value="setFont" @mousedown.stop />
+	<div class="flex items-center gap-1" data-text-formatting-surface>
+		<Select
+			:model-value="font"
+			:options="FONTS"
+			class="h-7 w-[92px]"
+			@update:model-value="setFont"
+			@mousedown.stop
+		/>
 
-  <div class="flex items-center rounded-md border border-outline-gray-2">
-    <ToolbarButton class="!w-6" label="Decrease font size" icon="lucide-minus" @click="stepFontSize(-1)" />
-    <TextInput
-      v-model="fontSizeDraft"
-      type="text"
-      size="sm"
-      variant="ghost"
-      inputmode="numeric"
-      aria-label="Font size"
-      class="w-9 [&_input]:px-0 [&_input]:text-center [&_input]:tabular-nums"
-      @focus="$event.target.select()"
-      @keydown.enter="commitFontSizeDraft(); $event.target.blur()"
-      @blur="resetFontSizeDraft"
-    />
-    <ToolbarButton class="!w-6" label="Increase font size" icon="lucide-plus" @click="stepFontSize(1)" />
-  </div>
+		<div class="flex items-center rounded-md border border-outline-gray-2">
+			<ToolbarButton
+				class="!w-6"
+				label="Decrease font size"
+				icon="lucide-minus"
+				@click="stepFontSize(-1)"
+			/>
+			<TextInput
+				v-model="fontSizeDraft"
+				type="text"
+				size="sm"
+				variant="ghost"
+				inputmode="numeric"
+				aria-label="Font size"
+				class="w-9 [&_input]:px-0 [&_input]:text-center [&_input]:tabular-nums"
+				@focus="$event.target.select()"
+				@keydown.enter="
+					commitFontSizeDraft();
+					$event.target.blur();
+				"
+				@blur="resetFontSizeDraft"
+			/>
+			<ToolbarButton
+				class="!w-6"
+				label="Increase font size"
+				icon="lucide-plus"
+				@click="stepFontSize(1)"
+			/>
+		</div>
 
-  <ToolbarButton
-    v-for="mark in MARKS"
-    :key="mark.name"
-    :label="mark.label"
-    :icon="mark.icon"
-    :active="markActive(mark.name)"
-    @click="markText(mark.name)"
-  />
+		<ToolbarButton
+			v-for="mark in MARKS.slice(0, 2)"
+			:key="mark.name"
+			:label="mark.label"
+			:icon="mark.icon"
+			:active="markActive(mark.name)"
+			@click="markText(mark.name)"
+		/>
+		<Popover @open="formattingOpened('decoration')" @close="formattingClosed('decoration')">
+			<template #trigger>
+				<ToolbarButton label="Text decoration" icon="lucide-underline" />
+			</template>
+			<template #default>
+				<div class="p-1" data-text-formatting-surface @mousedown.prevent>
+					<div role="group" aria-label="Text decoration" class="flex gap-1">
+						<ToolbarButton
+							v-for="mark in MARKS.slice(2)"
+							:key="mark.name"
+							:label="mark.label"
+							:icon="mark.icon"
+							:active="markActive(mark.name)"
+							@click="markText(mark.name)"
+						/>
+					</div>
+				</div>
+			</template>
+		</Popover>
 
-  <!-- One entry, opening the three. Left / centre / right as three buttons cost
+		<ToolbarButton
+			label="Bulleted list"
+			icon="lucide-list"
+			:active="listActive('bulletList')"
+			:disabled="!editing && !canFormatSelectedShapeAsList"
+			@click="toggleList('bulletList')"
+		/>
+		<ToolbarButton
+			label="Numbered list"
+			icon="lucide-list-ordered"
+			:active="listActive('orderedList')"
+			:disabled="!editing && !canFormatSelectedShapeAsList"
+			@click="toggleList('orderedList')"
+		/>
+
+		<!-- One entry, opening the three. Left / centre / right as three buttons cost
        96px of a bar that overflowed a 1280px screen by 155px, and the trigger
        still shows which alignment is set, so the state stays readable without
        opening it. -->
-  <Popover>
-    <template #trigger>
-      <ToolbarButton :label="currentAlignment.label" :icon="currentAlignment.icon" />
-    </template>
-    <template #default="{ toggle }">
-      <div class="flex gap-1 p-1">
-        <ToolbarButton
-          v-for="alignment in ALIGNMENTS"
-          :key="alignment.value"
-          :label="alignment.label"
-          :icon="alignment.icon"
-          :active="alignActive(alignment.value)"
-          @click="setTextAlign(alignment.value); toggle()"
-        />
-      </div>
-    </template>
-  </Popover>
+		<Popover @open="formattingOpened('alignment')" @close="formattingClosed('alignment')">
+			<template #trigger>
+				<ToolbarButton :label="currentAlignment.label" :icon="currentAlignment.icon" />
+			</template>
+			<template #default="{ toggle }">
+				<div class="p-1" data-text-formatting-surface @mousedown.prevent>
+					<div role="group" aria-label="Alignment" class="flex gap-1">
+						<ToolbarButton
+							v-for="alignment in ALIGNMENTS"
+							:key="alignment.value"
+							:label="alignment.label"
+							:icon="alignment.icon"
+							:active="alignActive(alignment.value)"
+							@click="
+								setTextAlign(alignment.value);
+								toggle();
+							"
+						/>
+					</div>
+				</div>
+			</template>
+		</Popover>
+		<ParagraphDirectionMenu />
 
-  <Popover>
-    <template #trigger>
-      <ToolbarButton label="Text colour">
-        <template #icon>
-          <span class="grid size-4 place-items-center rounded text-sm font-semibold" :style="{ color: currentTextColor }">A</span>
-        </template>
-      </ToolbarButton>
-    </template>
-    <template #default>
-      <div class="p-1">
-        <EspressoSwatchGrid mode="fill" :allow-none="false" :model-value="currentTextColor" @select="setTextColor" />
-      </div>
-    </template>
-  </Popover>
+		<Popover @open="formattingOpened('text-colour')" @close="formattingClosed('text-colour')">
+			<template #trigger>
+				<ToolbarButton label="Text colour">
+					<template #icon>
+						<span
+							class="grid size-4 place-items-center rounded text-sm font-semibold"
+							:style="{ color: currentTextColor }"
+							>A</span
+						>
+					</template>
+				</ToolbarButton>
+			</template>
+			<template #default>
+				<div class="p-1" data-text-formatting-surface>
+					<EspressoSwatchGrid
+						mode="fill"
+						:allow-none="false"
+						:model-value="currentTextColor"
+						@select="setTextColor"
+					/>
+				</div>
+			</template>
+		</Popover>
+	</div>
 </template>

@@ -2,120 +2,143 @@
 // document->SVG-markup builder reused by home tiles for a live preview.
 // Building markup is cheap; rasterizing to PNG is throttled to <= once / 30s.
 
-import { createResource } from 'frappe-ui'
-import { themeVarStyle, findThemePreset, primaryTriad } from '@/diagram/theme.js'
-import { parseDiagramDocument, isUnifiedDocument } from '@/diagram/schema.js'
-import { layoutMindMap, branchPath, branchPathPoints } from '@/diagram/mindmapLayout.js'
-import { resolveNodeColor, nodeFill, readableInk } from '@/diagram/mindmapColors.js'
-import { isRoot } from '@/diagram/mindmapModel.js'
-import { nodeSize as flowchartNodeSize } from '@/diagram/flowchartModel.js'
-import { nodeShape } from '@/diagram/flowchartShapes.js'
-import { routeFlowchartEdges } from '@/diagram/flowchartRouting.js'
-import { routeEdge, routeOffsets, flowchartContentBounds } from '@/diagram/flowchartLayout.js'
-import { flowchartPathData } from '@/diagram/flowchartPath.js'
-import { whiteboardContentBounds } from '@/diagram/whiteboardLayout.js'
-import { ROLE } from '@/diagram/freeFloating.js'
+import { createResource } from "frappe-ui";
+import { themeVarStyle, findThemePreset, primaryTriad } from "@/diagram/theme.js";
+import { parseDiagramDocument, isUnifiedDocument } from "@/diagram/schema.js";
+import { layoutMindMap, branchPath, branchPathPoints } from "@/diagram/mindmapLayout.js";
+import { resolveNodeColor, nodeFill, readableInk } from "@/diagram/mindmapColors.js";
+import { isRoot } from "@/diagram/mindmapModel.js";
+import { nodeSize as flowchartNodeSize } from "@/diagram/flowchartModel.js";
+import { nodeShape } from "@/diagram/flowchartShapes.js";
+import { routeFlowchartEdges } from "@/diagram/flowchartRouting.js";
+import { routeEdge, routeOffsets, flowchartContentBounds } from "@/diagram/flowchartLayout.js";
+import { flowchartPathData } from "@/diagram/flowchartPath.js";
+import { whiteboardContentBounds } from "@/diagram/whiteboardLayout.js";
+import { ROLE } from "@/diagram/freeFloating.js";
 import {
-  stickyLines,
-  STICKY_FONT_SIZE,
-  STICKY_LINE_HEIGHT,
-  STICKY_PAD_X,
-  STICKY_PAD_Y,
-} from '@/diagram/stickyText.js'
-import { unionBounds, anchorPoint } from '@/diagram/geometry.js'
+	stickyLines,
+	STICKY_FONT_SIZE,
+	STICKY_LINE_HEIGHT,
+	STICKY_PAD_X,
+	STICKY_PAD_Y,
+} from "@/diagram/stickyText.js";
+import { unionBounds, anchorPoint } from "@/diagram/geometry.js";
 import {
-  whiteboardObjectsInZOrder,
-  stickyRuns,
-  stickyTextStyle,
-  tableRows,
-  tableCols,
-  cellSpanBox,
-  isCoveredCell,
-  tableCellRuns,
-  rowHeightsOf,
-  colWidthsOf,
-  tableWidth,
-  tableHeight,
-} from '@/diagram/whiteboardModel.js'
+	whiteboardObjectsInZOrder,
+	stickyRuns,
+	stickyTextStyle,
+	tableRows,
+	tableCols,
+	cellSpanBox,
+	isCoveredCell,
+	tableCellRuns,
+	rowHeightsOf,
+	colWidthsOf,
+	tableWidth,
+	tableHeight,
+} from "@/diagram/whiteboardModel.js";
 import {
-  isHeaderRow,
-  tableHeaderRows,
-  isHeaderColumn,
-  tableHeaderCols,
-  wrappedCellRunLines,
-  TABLE_LINE_HEIGHT,
-} from '@/diagram/tableStructure.js'
-import { resolveMark } from '@/diagram/richText.js'
-import { pointsToPath, smoothPath } from '@/diagram/svgPath.js'
-import { polygonPointsString, isPresetPolygon, presetPolygonPoints } from '@/diagram/polygon.js'
-import { shapeCornerRadius, SHARP_CORNER_RADIUS } from '@/diagram/shapeGeometry.js'
-import { contrastInk, strokeOpacity, TABLE_GRID_COLOR, TABLE_HEADER_FILL } from '@/diagram/whiteboardColors.js'
-import { safeImageSrc } from '@/utils/safeUrl.js'
+	isHeaderRow,
+	tableHeaderRows,
+	isHeaderColumn,
+	tableHeaderCols,
+	wrappedCellRunLines,
+	TABLE_LINE_HEIGHT,
+} from "@/diagram/tableStructure.js";
+import { resolveMark } from "@/diagram/richText.js";
+import { pointsToPath, smoothPath } from "@/diagram/svgPath.js";
+import { polygonPointsString, isPresetPolygon, presetPolygonPoints } from "@/diagram/polygon.js";
+import { shapeCornerRadius, SHARP_CORNER_RADIUS } from "@/diagram/shapeGeometry.js";
+import {
+	contrastInk,
+	strokeOpacity,
+	TABLE_GRID_COLOR,
+	TABLE_HEADER_FILL,
+} from "@/diagram/whiteboardColors.js";
+import { safeImageSrc } from "@/utils/safeUrl.js";
+import { richTextLines } from "@/diagram/richTextLists.js";
+import { textWidth, wrapTextToWidth } from "@/diagram/textMetrics.js";
+import { shapeTextArea } from "@/composables/useTextEditing.js";
+import vazirmatnFontData from "@/assets/fonts/Vazirmatn-Variable.woff2?inline";
 
-const THROTTLE_MS = 30000
+const THROTTLE_MS = 30000;
 
 // Geometry helpers mirror ShapeView/ConnectorView so previews match the canvas.
 function trianglePoints(s) {
-  return `${s.x + s.w / 2},${s.y} ${s.x + s.w},${s.y + s.h} ${s.x},${s.y + s.h}`
+	return `${s.x + s.w / 2},${s.y} ${s.x + s.w},${s.y + s.h} ${s.x},${s.y + s.h}`;
 }
 
 function diamondPoints(s) {
-  const cx = s.x + s.w / 2
-  const cy = s.y + s.h / 2
-  return `${cx},${s.y} ${s.x + s.w},${cy} ${cx},${s.y + s.h} ${s.x},${cy}`
+	const cx = s.x + s.w / 2;
+	const cy = s.y + s.h / 2;
+	return `${cx},${s.y} ${s.x + s.w},${cy} ${cx},${s.y + s.h} ${s.x},${cy}`;
 }
 
 // Geometry as well as colour: `s.x` is a persisted value, and `s.x + s.w / 2` on a
 // string concatenates rather than adds, so an unchecked coordinate reaches the
 // attribute intact. box() normalises all four before anything derives from them.
 function box(s) {
-  return { x: num(s.x), y: num(s.y), w: num(s.w), h: num(s.h) }
+	return { x: num(s.x), y: num(s.y), w: num(s.w), h: num(s.h) };
+}
+
+function textArea(s) {
+	return shapeTextArea({ ...s, ...box(s) });
 }
 
 function shapeBody(s) {
-  // Whimsical mind-map text node (#125): no box — the centred label (shapeText)
-  // carries it, matching the on-canvas look. Shaped nodes fall through to a rect.
-  if (s.role === 'mindmap-node' && s.mindmap?.shaped === false) return ''
-  // An inserted image (#518). This branch did not exist, so an image fell through
-  // to the <rect> below carrying its own fill and border — which for an image are
-  // 'none' and zero — and so appeared in none of the four surfaces this function
-  // feeds. The same gap #468 left for the preset polygons.
-  if (s.type === 'image') return imageBody(s)
-  const { x, y, w, h } = box(s)
-  const stroke = `stroke="${safeColor(s.border?.color)}" stroke-width="${num(s.border?.width)}"`
-  const fill = `fill="${safeColor(s.fill)}" fill-opacity="${num(s.opacity, 1)}"`
-  // Migrated flowchart node (free-floating #122): draw its exact glyph via the
-  // shared nodeShape geometry, matching ShapeView on the live canvas, so export
-  // and thumbnails don't degrade a stadium / parallelogram / document to a rect.
-  if (s.flowchart?.nodeType) return flowchartGlyphBody(s, fill, stroke)
-  if (s.type === 'ellipse') {
-    return `<ellipse cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2}" ry="${h / 2}" ${fill} ${stroke}/>`
-  }
-  if (s.type === 'triangle') return `<polygon points="${trianglePoints({ x, y, w, h })}" ${fill} ${stroke}/>`
-  if (s.type === 'diamond') return `<polygon points="${diamondPoints({ x, y, w, h })}" ${fill} ${stroke}/>`
-  // Preset outlines — pentagon, hexagon, block arrow, star (#468). This branch did
-  // not exist, so all four fell through to the <rect> below and exported as plain
-  // rectangles in every surface this function feeds. The geometry is the one the
-  // canvas draws from, so adding a preset can no longer reach the canvas alone.
-  if (isPresetPolygon(s.type)) {
-    return `<polygon points="${presetPolygonPoints({ ...s, x, y, w, h })}" ${fill} ${stroke}/>`
-  }
-  // Freely-drawn polygon (#139): normalised points scaled onto the box, matching
-  // ShapeView. polygonPointsString coerces every component to a number, so a
-  // crafted point can't escape the attribute here.
-  if (s.type === 'polygon') {
-    const pts = polygonPointsString({ x, y, w, h, points: s.points })
-    if (pts) return `<polygon points="${pts}" ${fill} ${stroke}/>`
-  }
-  // The radius used to be hardcoded to 8 here, so every box left the canvas less
-  // rounded than it was drawn — a rounded rectangle renders at 20 on the canvas but
-  // exported at 8, in all four surfaces this one function feeds (PNG, PDF export,
-  // the home tile, the minimap).
-  // Resolve it through the helper the live canvas uses (#411) instead of restating
-  // the rule; num() as well, because nothing in this file reaches an attribute
-  // unguarded, so the line audits on its own.
-  const rx = num(shapeCornerRadius(s.type, s.cornerRadius), SHARP_CORNER_RADIUS)
-  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" ${fill} ${stroke}/>`
+	// Whimsical mind-map text node (#125): no box — the centred label (shapeText)
+	// carries it, matching the on-canvas look. Shaped nodes fall through to a rect.
+	if (s.role === "mindmap-node" && s.mindmap?.shaped === false) return "";
+	// An inserted image (#518). This branch did not exist, so an image fell through
+	// to the <rect> below carrying its own fill and border — which for an image are
+	// 'none' and zero — and so appeared in none of the four surfaces this function
+	// feeds. The same gap #468 left for the preset polygons.
+	if (s.type === "image") return imageBody(s);
+	const { x, y, w, h } = box(s);
+	const stroke = `stroke="${safeColor(s.border?.color)}" stroke-width="${num(s.border?.width)}"`;
+	const fill = `fill="${safeColor(s.fill)}" fill-opacity="${num(s.opacity, 1)}"`;
+	// Migrated flowchart node (free-floating #122): draw its exact glyph via the
+	// shared nodeShape geometry, matching ShapeView on the live canvas, so export
+	// and thumbnails don't degrade a stadium / parallelogram / document to a rect.
+	if (s.flowchart?.nodeType) return flowchartGlyphBody(s, fill, stroke);
+	if (s.type === "ellipse") {
+		return `<ellipse cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2}" ry="${
+			h / 2
+		}" ${fill} ${stroke}/>`;
+	}
+	if (s.type === "triangle")
+		return `<polygon points="${trianglePoints({ x, y, w, h })}" ${fill} ${stroke}/>`;
+	if (s.type === "diamond")
+		return `<polygon points="${diamondPoints({ x, y, w, h })}" ${fill} ${stroke}/>`;
+	// Preset outlines — pentagon, hexagon, block arrow, star (#468). This branch did
+	// not exist, so all four fell through to the <rect> below and exported as plain
+	// rectangles in every surface this function feeds. The geometry is the one the
+	// canvas draws from, so adding a preset can no longer reach the canvas alone.
+	if (isPresetPolygon(s.type)) {
+		return `<polygon points="${presetPolygonPoints({
+			...s,
+			x,
+			y,
+			w,
+			h,
+		})}" ${fill} ${stroke}/>`;
+	}
+	// Freely-drawn polygon (#139): normalised points scaled onto the box, matching
+	// ShapeView. polygonPointsString coerces every component to a number, so a
+	// crafted point can't escape the attribute here.
+	if (s.type === "polygon") {
+		const pts = polygonPointsString({ x, y, w, h, points: s.points });
+		if (pts) return `<polygon points="${pts}" ${fill} ${stroke}/>`;
+	}
+	// The radius used to be hardcoded to 8 here, so every box left the canvas less
+	// rounded than it was drawn — a rounded rectangle renders at 20 on the canvas but
+	// exported at 8, in all four surfaces this one function feeds (PNG, PDF export,
+	// the home tile, the minimap).
+	// Resolve it through the helper the live canvas uses (#411) instead of restating
+	// the rule; num() as well, because nothing in this file reaches an attribute
+	// unguarded, so the line audits on its own.
+	const rx = num(shapeCornerRadius(s.type, s.cornerRadius), SHARP_CORNER_RADIUS);
+	return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" ${fill} ${stroke}/>`;
 }
 
 // An image shape, matching ShapeView's own <image> element down to the aspect rule.
@@ -126,262 +149,427 @@ function shapeBody(s) {
 // would phone home on every open — and the quote escape keeps it inside its
 // attribute. An src that fails the check draws nothing rather than a broken box.
 function imageBody(s) {
-  const href = safeImageSrc(s.src)
-  if (!href) return ''
-  const { x, y, w, h } = box(s)
-  return (
-    `<image href="${escapeAttr(href)}" x="${x}" y="${y}" width="${w}" height="${h}"` +
-    ` opacity="${num(s.opacity, 1)}" preserveAspectRatio="xMidYMid meet"/>`
-  )
+	const href = safeImageSrc(s.src);
+	if (!href) return "";
+	const { x, y, w, h } = box(s);
+	return (
+		`<image href="${escapeAttr(href)}" x="${x}" y="${y}" width="${w}" height="${h}"` +
+		` opacity="${num(s.opacity, 1)}" preserveAspectRatio="xMidYMid meet"/>`
+	);
 }
 
 // nodeShape geometry is local to the node box (0,0 at top-left), so the glyph is
 // drawn inside a translate group — the same approach ShapeView uses.
 function flowchartGlyphBody(s, fill, stroke) {
-  const { x, y, w, h } = box(s)
-  const glyph = nodeShape(s.flowchart.nodeType, w, h)
-  let inner
-  if (glyph.kind === 'ellipse') {
-    inner = `<ellipse cx="${w / 2}" cy="${h / 2}" rx="${w / 2}" ry="${h / 2}" ${fill} ${stroke}/>`
-  } else if (glyph.kind === 'polygon') {
-    inner = `<polygon points="${glyph.points}" ${fill} ${stroke}/>`
-  } else if (glyph.kind === 'path') {
-    inner = `<path d="${glyph.d}" ${fill} ${stroke}/>`
-  } else {
-    inner = `<rect x="0" y="0" width="${w}" height="${h}" rx="${num(glyph.rx, 8)}" ${fill} ${stroke}/>`
-  }
-  return `<g transform="translate(${x} ${y})">${inner}</g>`
+	const { x, y, w, h } = box(s);
+	const glyph = nodeShape(s.flowchart.nodeType, w, h);
+	let inner;
+	if (glyph.kind === "ellipse") {
+		inner = `<ellipse cx="${w / 2}" cy="${h / 2}" rx="${w / 2}" ry="${
+			h / 2
+		}" ${fill} ${stroke}/>`;
+	} else if (glyph.kind === "polygon") {
+		inner = `<polygon points="${glyph.points}" ${fill} ${stroke}/>`;
+	} else if (glyph.kind === "path") {
+		inner = `<path d="${glyph.d}" ${fill} ${stroke}/>`;
+	} else {
+		inner = `<rect x="0" y="0" width="${w}" height="${h}" rx="${num(
+			glyph.rx,
+			8
+		)}" ${fill} ${stroke}/>`;
+	}
+	return `<g transform="translate(${x} ${y})">${inner}</g>`;
 }
 
 function shapeText(s) {
-  if (!s.text?.content) return ''
-  const st = s.text.style || {}
-  const { x, y, w, h } = box(s)
-  const cx = x + w / 2
-  const cy = y + h / 2
-  return (
-    `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"` +
-    ` fill="${safeColor(st.color, '#171717')}" font-size="${num(st.size || 16, 16)}"` +
-    ` font-weight="${st.bold ? 700 : 500}" font-family="Inter, sans-serif">` +
-    `${escapeText(s.text.content)}</text>`
-  )
+	if (!s.text?.content) return "";
+	const lines = richTextLines(s.text.html, s.text.content, {
+		defaultDirection: s.text.direction || "auto",
+	});
+	if (lines.some((line) => line.dir)) return shapeDirectedText(s, lines);
+	if (lines.some((line) => line.listType)) return shapeListText(s, lines);
+	const st = s.text.style || {};
+	const fontFamily = escapeAttr(st.font || "Inter, sans-serif");
+	const { x, y, w, h } = box(s);
+	const cx = x + w / 2;
+	const cy = y + h / 2;
+	return (
+		`<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"` +
+		` fill="${safeColor(st.color, "#171717")}" font-size="${num(st.size || 16, 16)}"` +
+		` font-weight="${st.bold ? 700 : 500}" font-family="${fontFamily}">` +
+		`${escapeText(s.text.content)}</text>`
+	);
+}
+
+function shapeDirectedText(shape, lines) {
+	const style = shape.text.style || {};
+	const fontFamily = escapeAttr(style.font || "Inter, sans-serif");
+	const size = num(style.size || 16, 16);
+	const { x, y, w, h } = textArea(shape);
+	const visualLines = wrapListLines(lines, x, w, size, style, !shape.text.fitWidth);
+	const rowHeight = size * 1.3;
+	const startY = y + h / 2 - ((visualLines.length - 1) * rowHeight) / 2;
+	return visualLines
+		.map((line, index) => {
+			const direction = line.dir || "ltr";
+			const inset = 8 + line.depth * size * 1.4;
+			const isList = Boolean(line.listType);
+			const align =
+				line.align ||
+				shape.text.align ||
+				(isList ? (direction === "rtl" ? "right" : "left") : "center");
+			const anchor =
+				align === "center"
+					? "middle"
+					: align === "right"
+					? direction === "rtl"
+						? "start"
+						: "end"
+					: direction === "rtl"
+					? "end"
+					: "start";
+			const position =
+				align === "center" ? x + w / 2 : align === "right" ? x + w - inset : x + inset;
+			const continuationOffset =
+				isList && !line.marker && !line.align && !shape.text.align
+					? direction === "rtl"
+						? -line.markerWidth
+						: line.markerWidth
+					: 0;
+			// Keep marker and text in one bidi paragraph. Separate absolutely
+			// positioned marker text overlapped content whenever an explicit physical
+			// alignment suppressed the old marker offset.
+			const content = line.marker
+				? `<tspan direction="ltr" unicode-bidi="isolate">${escapeText(
+						line.marker
+				  )}</tspan><tspan direction="${direction}" unicode-bidi="isolate">${escapeText(
+						line.contentText
+				  )}</tspan>`
+				: escapeText(line.contentText);
+			return (
+				`<text x="${position + continuationOffset}" y="${
+					startY + index * rowHeight
+				}" direction="${direction}"` +
+				` unicode-bidi="embed" text-anchor="${anchor}" dominant-baseline="central" xml:space="preserve"` +
+				` fill="${safeColor(style.color, "#171717")}" font-size="${size}"` +
+				` font-weight="${
+					style.bold ? 700 : 500
+				}" font-family="${fontFamily}">${content}</text>`
+			);
+		})
+		.join("");
+}
+
+function shapeListText(shape, lines) {
+	const style = shape.text.style || {};
+	const fontFamily = escapeAttr(style.font || "Inter, sans-serif");
+	const size = num(style.size || 16, 16);
+	const rowHeight = size * 1.35;
+	const { x, y, w, h } = textArea(shape);
+	const visualLines = wrapListLines(lines, x, w, size, style, !shape.text.fitWidth);
+	const startY = y + h / 2 - ((visualLines.length - 1) * rowHeight) / 2;
+	const tspans = visualLines
+		.map(
+			(line, index) =>
+				`<tspan x="${line.x}" y="${startY + index * rowHeight}">${escapeText(
+					line.text
+				)}</tspan>`
+		)
+		.join("");
+	return (
+		`<text dominant-baseline="central" text-anchor="start"` +
+		` fill="${safeColor(style.color, "#171717")}" font-size="${size}"` +
+		` font-weight="${style.bold ? 700 : 500}" font-family="${fontFamily}">` +
+		`${tspans}</text>`
+	);
+}
+
+function wrapListLines(lines, originX, width, size, style = {}, allowWrap = true) {
+	return lines.flatMap((line) => {
+		const depth = Math.max(0, num(line.depth));
+		const marker = listMarker(line);
+		const inset = depth * size * 1.4 + 8;
+		const markerForWidth = marker || line.continuationMarker || "";
+		const markerWidth =
+			textWidth(markerForWidth, style) || markerForWidth.length * size * 0.61;
+		const listGutter = line.listType ? size * 1.4 * 2 * (depth + 1) : 0;
+		// HTML lists reserve both logical gutters at every nested level. The marker
+		// occupies the start gutter, so do not subtract its width a second time.
+		const reservedWidth = line.listType ? listGutter : inset * 2;
+		const availableWidth = Math.max(size * 0.55, width - reservedWidth);
+		const wrapped = allowWrap
+			? wrapTextToWidth(line.text, availableWidth, style)
+			: String(line.text || "").split(/\r?\n/);
+		return wrapped.map((text, index) => ({
+			x: originX + inset + (index ? markerWidth : 0),
+			text: `${index ? "" : marker}${text}`,
+			contentText: text,
+			marker: index ? "" : marker,
+			markerWidth,
+			dir: line.dir,
+			depth,
+			listType: line.listType,
+			align: line.align,
+		}));
+	});
+}
+
+function listMarker(line) {
+	if (line.continuation) return "";
+	if (line.listType === "bullet") return "• ";
+	if (line.listType === "ordered") return `${line.number}. `;
+	return "";
 }
 
 function normEnd(val) {
-  if (val === true) return 'arrow'
-  if (!val || val === 'none') return 'none'
-  return val
+	if (val === true) return "arrow";
+	if (!val || val === "none") return "none";
+	return val;
 }
 
 function markerMarkup(id, type, color, orient) {
-  const refX = (type === 'arrow' || type === 'open-arrow' ? 9 : 5)
-  let shapeMarkup = ''
-  if (type === 'arrow') {
-    shapeMarkup = `<path d="M0,0 L10,5 L0,10 z" fill="${safeColor(color)}"/>`
-  } else if (type === 'open-arrow') {
-    shapeMarkup = `<path d="M0,1 L9,5 L0,9" fill="none" stroke="${safeColor(color)}" stroke-width="1.6"/>`
-  } else if (type === 'circle') {
-    shapeMarkup = `<circle cx="5" cy="5" r="4" fill="${safeColor(color)}"/>`
-  } else if (type === 'square') {
-    shapeMarkup = `<rect x="1" y="1" width="8" height="8" fill="${safeColor(color)}"/>`
-  } else if (type === 'diamond') {
-    shapeMarkup = `<polygon points="5,0 10,5 5,10 0,5" fill="${safeColor(color)}"/>`
-  }
-  return `<marker id="${id}" viewBox="0 0 10 10" refX="${refX}" refY="5" markerWidth="8" markerHeight="8" orient="${orient}">${shapeMarkup}</marker>`
+	const refX = type === "arrow" || type === "open-arrow" ? 9 : 5;
+	let shapeMarkup = "";
+	if (type === "arrow") {
+		shapeMarkup = `<path d="M0,0 L10,5 L0,10 z" fill="${safeColor(color)}"/>`;
+	} else if (type === "open-arrow") {
+		shapeMarkup = `<path d="M0,1 L9,5 L0,9" fill="none" stroke="${safeColor(
+			color
+		)}" stroke-width="1.6"/>`;
+	} else if (type === "circle") {
+		shapeMarkup = `<circle cx="5" cy="5" r="4" fill="${safeColor(color)}"/>`;
+	} else if (type === "square") {
+		shapeMarkup = `<rect x="1" y="1" width="8" height="8" fill="${safeColor(color)}"/>`;
+	} else if (type === "diamond") {
+		shapeMarkup = `<polygon points="5,0 10,5 5,10 0,5" fill="${safeColor(color)}"/>`;
+	}
+	return `<marker id="${id}" viewBox="0 0 10 10" refX="${refX}" refY="5" markerWidth="8" markerHeight="8" orient="${orient}">${shapeMarkup}</marker>`;
 }
 
 function elbowPath(a, b, midX, corner) {
-  const ax = num(a.x), ay = num(a.y)
-  const bx = num(b.x), by = num(b.y)
-  const mx = num(midX)
-  const sharp = `M ${ax} ${ay} L ${mx} ${ay} L ${mx} ${by} L ${bx} ${by}`
-  if (corner === 'sharp') return sharp
-  const r = Math.min(14, Math.abs(mx - ax) / 2, Math.abs(by - ay) / 2, Math.abs(bx - mx) / 2)
-  if (!(r > 0.5)) return sharp
-  const sx1 = Math.sign(mx - ax)
-  const sy = Math.sign(by - ay)
-  const sx2 = Math.sign(bx - mx)
-  return (
-    `M ${ax} ${ay} L ${mx - sx1 * r} ${ay} ` +
-    `Q ${mx} ${ay} ${mx} ${ay + sy * r} ` +
-    `L ${mx} ${by - sy * r} ` +
-    `Q ${mx} ${by} ${mx + sx2 * r} ${by} L ${bx} ${by}`
-  )
+	const ax = num(a.x),
+		ay = num(a.y);
+	const bx = num(b.x),
+		by = num(b.y);
+	const mx = num(midX);
+	const sharp = `M ${ax} ${ay} L ${mx} ${ay} L ${mx} ${by} L ${bx} ${by}`;
+	if (corner === "sharp") return sharp;
+	const r = Math.min(14, Math.abs(mx - ax) / 2, Math.abs(by - ay) / 2, Math.abs(bx - mx) / 2);
+	if (!(r > 0.5)) return sharp;
+	const sx1 = Math.sign(mx - ax);
+	const sy = Math.sign(by - ay);
+	const sx2 = Math.sign(bx - mx);
+	return (
+		`M ${ax} ${ay} L ${mx - sx1 * r} ${ay} ` +
+		`Q ${mx} ${ay} ${mx} ${ay + sy * r} ` +
+		`L ${mx} ${by - sy * r} ` +
+		`Q ${mx} ${by} ${mx + sx2 * r} ${by} L ${bx} ${by}`
+	);
 }
 
 function midpointAlong(points) {
-  let total = 0
-  for (let i = 0; i < points.length - 1; i += 1) {
-    total += Math.hypot(points[i + 1].x - points[i].x, points[i + 1].y - points[i].y)
-  }
-  let remaining = total / 2
-  for (let i = 0; i < points.length - 1; i += 1) {
-    const a = points[i]
-    const b = points[i + 1]
-    const segment = Math.hypot(b.x - a.x, b.y - a.y)
-    if (segment >= remaining) {
-      const t = segment === 0 ? 0 : remaining / segment
-      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
-    }
-    remaining -= segment
-  }
-  return points[points.length - 1] || { x: 0, y: 0 }
+	let total = 0;
+	for (let i = 0; i < points.length - 1; i += 1) {
+		total += Math.hypot(points[i + 1].x - points[i].x, points[i + 1].y - points[i].y);
+	}
+	let remaining = total / 2;
+	for (let i = 0; i < points.length - 1; i += 1) {
+		const a = points[i];
+		const b = points[i + 1];
+		const segment = Math.hypot(b.x - a.x, b.y - a.y);
+		if (segment >= remaining) {
+			const t = segment === 0 ? 0 : remaining / segment;
+			return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+		}
+		remaining -= segment;
+	}
+	return points[points.length - 1] || { x: 0, y: 0 };
 }
 
 function computeFlowchartRoutes(doc) {
-  const boxes = {}
-  for (const shape of doc.shapes || []) {
-    if (shape.role === ROLE.flowchartNode) {
-      boxes[shape.id] = {
-        x: num(shape.x), y: num(shape.y), w: num(shape.w), h: num(shape.h),
-        nodeType: shape.flowchart?.nodeType,
-      }
-    }
-  }
-  const edges = []
-  for (const connector of doc.connectors || []) {
-    if (connector.role === ROLE.flowchartEdge) {
-      const fromId = connector.from?.shapeId
-      const toId = connector.to?.shapeId
-      if (boxes[fromId] && boxes[toId] && fromId !== toId) {
-        edges.push({ id: connector.id, fromId, toId })
-      }
-    }
-  }
-  return edges.length ? routeFlowchartEdges(boxes, edges) : {}
+	const boxes = {};
+	for (const shape of doc.shapes || []) {
+		if (shape.role === ROLE.flowchartNode) {
+			boxes[shape.id] = {
+				x: num(shape.x),
+				y: num(shape.y),
+				w: num(shape.w),
+				h: num(shape.h),
+				nodeType: shape.flowchart?.nodeType,
+			};
+		}
+	}
+	const edges = [];
+	for (const connector of doc.connectors || []) {
+		if (connector.role === ROLE.flowchartEdge) {
+			const fromId = connector.from?.shapeId;
+			const toId = connector.to?.shapeId;
+			if (boxes[fromId] && boxes[toId] && fromId !== toId) {
+				edges.push({ id: connector.id, fromId, toId });
+			}
+		}
+	}
+	return edges.length ? routeFlowchartEdges(boxes, edges) : {};
 }
 
 function connectorBody(c, shapes, flowchartRoutes = null) {
-  const a = endpointPoint(c.from, shapes)
-  const b = endpointPoint(c.to, shapes)
-  const style = c.style || {}
+	const a = endpointPoint(c.from, shapes);
+	const b = endpointPoint(c.to, shapes);
+	const style = c.style || {};
 
-  const isBranch = c.role === ROLE.mindmapBranch
-  let strokeColorValue = style.color
-  if (isBranch) {
-    const childId = c.mindmap?.childId || c.to?.shapeId
-    const child = shapes.find((s) => s.id === childId)
-    strokeColorValue = child?.border?.color || '#525252'
-  }
-  const stroke = `stroke="${safeColor(strokeColorValue, '#7C7C7C')}" stroke-width="${num(style.width || 2.2, 2.2)}"`
-  const dashArray = style.dash === 'dashed' ? `stroke-dasharray="${num(style.width || 2.2, 2.2) * 3} ${num(style.width || 2.2, 2.2) * 2}"` :
-                    style.dash === 'dotted' ? `stroke-dasharray="${num(style.width || 2.2, 2.2)} ${num(style.width || 2.2, 2.2) * 2}"` : ''
+	const isBranch = c.role === ROLE.mindmapBranch;
+	let strokeColorValue = style.color;
+	if (isBranch) {
+		const childId = c.mindmap?.childId || c.to?.shapeId;
+		const child = shapes.find((s) => s.id === childId);
+		strokeColorValue = child?.border?.color || "#525252";
+	}
+	const stroke = `stroke="${safeColor(strokeColorValue, "#7C7C7C")}" stroke-width="${num(
+		style.width || 2.2,
+		2.2
+	)}"`;
+	const dashArray =
+		style.dash === "dashed"
+			? `stroke-dasharray="${num(style.width || 2.2, 2.2) * 3} ${
+					num(style.width || 2.2, 2.2) * 2
+			  }"`
+			: style.dash === "dotted"
+			? `stroke-dasharray="${num(style.width || 2.2, 2.2)} ${
+					num(style.width || 2.2, 2.2) * 2
+			  }"`
+			: "";
 
-  let d = ''
-  let route = null
-  if (c.role === ROLE.flowchartEdge && flowchartRoutes) {
-    route = flowchartRoutes[c.id]
-  }
+	let d = "";
+	let route = null;
+	if (c.role === ROLE.flowchartEdge && flowchartRoutes) {
+		route = flowchartRoutes[c.id];
+	}
 
-  if (route) {
-    d = flowchartPathData(route.points, route.crossings, style.corner)
-  } else if (c.role === ROLE.mindmapBranch) {
-    d = branchPathPoints(a, b)
-  } else if (c.type === 'curved') {
-    const q = c.midpoint
-      ? { x: num(c.midpoint.x), y: num(c.midpoint.y) }
-      : { x: num((a.x + b.x) / 2), y: num(a.y) }
-    d = `M ${num(a.x)} ${num(a.y)} Q ${num(q.x)} ${num(q.y)} ${num(b.x)} ${num(b.y)}`
-  } else if (c.type === 'elbow') {
-    const midX = num((a.x + b.x) / 2)
-    d = elbowPath(a, b, midX, style.corner)
-  } else {
-    d = `M ${num(a.x)} ${num(a.y)} L ${num(b.x)} ${num(b.y)}`
-  }
+	if (route) {
+		d = flowchartPathData(route.points, route.crossings, style.corner);
+	} else if (c.role === ROLE.mindmapBranch) {
+		d = branchPathPoints(a, b);
+	} else if (c.type === "curved") {
+		const q = c.midpoint
+			? { x: num(c.midpoint.x), y: num(c.midpoint.y) }
+			: { x: num((a.x + b.x) / 2), y: num(a.y) };
+		d = `M ${num(a.x)} ${num(a.y)} Q ${num(q.x)} ${num(q.y)} ${num(b.x)} ${num(b.y)}`;
+	} else if (c.type === "elbow") {
+		const midX = num((a.x + b.x) / 2);
+		d = elbowPath(a, b, midX, style.corner);
+	} else {
+		d = `M ${num(a.x)} ${num(a.y)} L ${num(b.x)} ${num(b.y)}`;
+	}
 
-  const safeId = String(c.id).replace(/[^a-zA-Z0-9_-]/g, '')
-  const startMarkerId = `mk-start-${safeId}`
-  const endMarkerId = `mk-end-${safeId}`
-  const startType = normEnd(c.arrowheads?.start)
-  const endType = normEnd(c.arrowheads?.end)
+	const safeId = String(c.id).replace(/[^a-zA-Z0-9_-]/g, "");
+	const startMarkerId = `mk-start-${safeId}`;
+	const endMarkerId = `mk-end-${safeId}`;
+	const startType = normEnd(c.arrowheads?.start);
+	const endType = normEnd(c.arrowheads?.end);
 
-  let defs = ''
-  if (startType !== 'none' || endType !== 'none') {
-    defs = `<defs>`
-    if (startType !== 'none') {
-      defs += markerMarkup(startMarkerId, startType, style.color || '#7C7C7C', 'auto-start-reverse')
-    }
-    if (endType !== 'none') {
-      defs += markerMarkup(endMarkerId, endType, style.color || '#7C7C7C', 'auto')
-    }
-    defs += `</defs>`
-  }
+	let defs = "";
+	if (startType !== "none" || endType !== "none") {
+		defs = `<defs>`;
+		if (startType !== "none") {
+			defs += markerMarkup(
+				startMarkerId,
+				startType,
+				style.color || "#7C7C7C",
+				"auto-start-reverse"
+			);
+		}
+		if (endType !== "none") {
+			defs += markerMarkup(endMarkerId, endType, style.color || "#7C7C7C", "auto");
+		}
+		defs += `</defs>`;
+	}
 
-  const markerStartAttr = startType !== 'none' ? `marker-start="url(#${startMarkerId})"` : ''
-  const markerEndAttr = endType !== 'none' ? `marker-end="url(#${endMarkerId})"` : ''
+	const markerStartAttr = startType !== "none" ? `marker-start="url(#${startMarkerId})"` : "";
+	const markerEndAttr = endType !== "none" ? `marker-end="url(#${endMarkerId})"` : "";
 
-  const mainPath = `<path d="${d}" fill="none" ${stroke} ${dashArray} stroke-linecap="round" stroke-linejoin="round" ${markerStartAttr} ${markerEndAttr}/>`
+	const mainPath = `<path d="${d}" fill="none" ${stroke} ${dashArray} stroke-linecap="round" stroke-linejoin="round" ${markerStartAttr} ${markerEndAttr}/>`;
 
-  let labelPillAndText = ''
-  if (c.label) {
-    const labelAnchor = route ? midpointAlong(route.points) :
-                        c.type === 'curved' ? { x: (a.x + 2 * (c.midpoint?.x ?? (a.x + b.x) / 2) + b.x) / 4, y: (a.y + 2 * (c.midpoint?.y ?? a.y) + b.y) / 4 } :
-                        { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
-    const labelWidth = (c.label.length || 0) * 7 + 16
-    const lx = num(labelAnchor.x)
-    const ly = num(labelAnchor.y)
-    const pill = `<rect x="${lx - labelWidth / 2}" y="${ly - 11}" width="${labelWidth}" height="22" rx="6" fill="#FFFFFF" stroke="#E2E2E2" stroke-width="1"/>`
-    const textStr = `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#525252" font-family="Inter, sans-serif">${escapeText(c.label)}</text>`
-    labelPillAndText = pill + textStr
-  }
+	let labelPillAndText = "";
+	if (c.label) {
+		const labelAnchor = route
+			? midpointAlong(route.points)
+			: c.type === "curved"
+			? {
+					x: (a.x + 2 * (c.midpoint?.x ?? (a.x + b.x) / 2) + b.x) / 4,
+					y: (a.y + 2 * (c.midpoint?.y ?? a.y) + b.y) / 4,
+			  }
+			: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+		const labelWidth = (c.label.length || 0) * 7 + 16;
+		const lx = num(labelAnchor.x);
+		const ly = num(labelAnchor.y);
+		const pill = `<rect x="${lx - labelWidth / 2}" y="${
+			ly - 11
+		}" width="${labelWidth}" height="22" rx="6" fill="#FFFFFF" stroke="#E2E2E2" stroke-width="1"/>`;
+		const textStr = `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#525252" font-family="Inter, sans-serif">${escapeText(
+			c.label
+		)}</text>`;
+		labelPillAndText = pill + textStr;
+	}
 
-  return `<g data-connector-id="${escapeAttr(safeId)}">${defs}${mainPath}${labelPillAndText}</g>`
+	return `<g data-connector-id="${escapeAttr(
+		safeId
+	)}">${defs}${mainPath}${labelPillAndText}</g>`;
 }
 
 function endpointPoint(endpoint, shapes) {
-  if (endpoint?.shapeId) {
-    const shape = shapes.find((s) => s.id === endpoint.shapeId)
-    if (shape) {
-      const pt = anchorPoint(shape, endpoint.anchor || 'right')
-      return { x: num(pt.x), y: num(pt.y) }
-    }
-  }
-  return { x: num(endpoint?.x), y: num(endpoint?.y) }
+	if (endpoint?.shapeId) {
+		const shape = shapes.find((s) => s.id === endpoint.shapeId);
+		if (shape) {
+			const pt = anchorPoint(shape, endpoint.anchor || "right");
+			return { x: num(pt.x), y: num(pt.y) };
+		}
+	}
+	return { x: num(endpoint?.x), y: num(endpoint?.y) };
 }
 
 function renderShape(s) {
-  const body = shapeBody(s)
-  const text = shapeText(s)
-  if (!body && !text) return ''
-  const tf = shapeTransform(s)
-  if (tf) {
-    return `<g ${tf}>${body}${text}</g>`
-  }
-  return body + text
+	const body = shapeBody(s);
+	const text = shapeText(s);
+	if (!body && !text) return "";
+	const tf = shapeTransform(s);
+	if (tf) {
+		return `<g ${tf}>${body}${text}</g>`;
+	}
+	return body + text;
 }
 
 function shapeTransform(s) {
-  const parts = []
-  const roleIsNode = s.role === 'mindmap-node' || s.role === 'flowchart-node'
-  const rotation = roleIsNode ? 0 : num(s.rotation, 0)
-  const flipX = s.flipX
-  const flipY = s.flipY
-  if (rotation) {
-    const cx = num(s.x) + num(s.w) / 2
-    const cy = num(s.y) + num(s.h) / 2
-    parts.push(`rotate(${rotation} ${cx} ${cy})`)
-  }
-  if (flipX || flipY) {
-    const cx = num(s.x) + num(s.w) / 2
-    const cy = num(s.y) + num(s.h) / 2
-    parts.push(
-      `translate(${cx} ${cy})`,
-      `scale(${flipX ? -1 : 1} ${flipY ? -1 : 1})`,
-      `translate(${-cx} ${-cy})`
-    )
-  }
-  return parts.length ? `transform="${parts.join(' ')}"` : ''
+	const parts = [];
+	const roleIsNode = s.role === "mindmap-node" || s.role === "flowchart-node";
+	const rotation = roleIsNode ? 0 : num(s.rotation, 0);
+	const flipX = s.flipX;
+	const flipY = s.flipY;
+	if (rotation) {
+		const cx = num(s.x) + num(s.w) / 2;
+		const cy = num(s.y) + num(s.h) / 2;
+		parts.push(`rotate(${rotation} ${cx} ${cy})`);
+	}
+	if (flipX || flipY) {
+		const cx = num(s.x) + num(s.w) / 2;
+		const cy = num(s.y) + num(s.h) / 2;
+		parts.push(
+			`translate(${cx} ${cy})`,
+			`scale(${flipX ? -1 : 1} ${flipY ? -1 : 1})`,
+			`translate(${-cx} ${-cy})`
+		);
+	}
+	return parts.length ? `transform="${parts.join(" ")}"` : "";
 }
 
 function escapeText(value) {
-  return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+	return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 // escapeText leaves quotes alone, which is fine for a text node and not for an
 // attribute value. Only the image href needs this — every other persisted value
 // reaching an attribute here is a colour or a number.
 function escapeAttr(value) {
-  return escapeText(value).replace(/"/g, '&quot;')
+	return escapeText(value).replace(/"/g, "&quot;");
 }
 
 // Colours come out of the persisted document, and this markup is injected into the
@@ -390,17 +578,17 @@ function escapeAttr(value) {
 // attribute it sits in and add an event handler to the element. Allow only real colour
 // syntax and fall back otherwise. EVERY persisted value reaching an attribute in this
 // file has to pass through safeColor() or num() — a single raw one reopens the hole.
-const COLOR_RE = /^(#[0-9a-f]{3,8}|rgba?\([0-9.,%\s/]+\)|hsla?\([0-9.,%\s/deg]+\)|[a-z]{3,20})$/i
+const COLOR_RE = /^(#[0-9a-f]{3,8}|rgba?\([0-9.,%\s/]+\)|hsla?\([0-9.,%\s/deg]+\)|[a-z]{3,20})$/i;
 
-export function safeColor(value, fallback = 'none') {
-  const raw = String(value ?? '').trim()
-  return COLOR_RE.test(raw) ? raw : fallback
+export function safeColor(value, fallback = "none") {
+	const raw = String(value ?? "").trim();
+	return COLOR_RE.test(raw) ? raw : fallback;
 }
 
 // Numbers likewise: geometry attributes must never carry arbitrary text.
 export function num(value, fallback = 0) {
-  const n = Number(value)
-  return Number.isFinite(n) ? n : fallback
+	const n = Number(value);
+	return Number.isFinite(n) ? n : fallback;
 }
 
 // Build a complete inline <svg> string for a parsed diagram document. This is the
@@ -409,22 +597,32 @@ export function num(value, fallback = 0) {
 // every type renders the same geometry its on-canvas Layer draws, and frames the
 // type's content bounding box (not the bounded canvas rect) so nothing is clipped.
 export function documentToSvg(rawDocument, options = {}) {
-  const doc = withInlinedImages(parseDiagramDocument(rawDocument), options.images)
-  const vars = themeVarStyle(doc.themePreset || 'ocean')
-  const styleAttr = Object.entries(vars)
-    .map(([key, value]) => `${key}:${value}`)
-    .join(';')
-  const rendered = renderBody(doc)
-  // A caller (e.g. export-selection, spec 12.2) can frame a tighter region than
-  // the type's default content bounds by passing an explicit viewBox.
-  const viewBox = options.viewBox || rendered.viewBox
-  // Sections render behind everything, in every type.
-  const body = sectionsSvg(doc) + rendered.body
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBoxAttr(viewBox)}"` +
-    ` preserveAspectRatio="${options.fit || 'xMidYMid meet'}" style="${styleAttr}">` +
-    `${body}</svg>`
-  )
+	const doc = withInlinedImages(parseDiagramDocument(rawDocument), options.images);
+	const vars = themeVarStyle(doc.themePreset || "ocean");
+	const styleAttr = Object.entries(vars)
+		.map(([key, value]) => `${key}:${value}`)
+		.join(";");
+	const rendered = renderBody(doc);
+	// A caller (e.g. export-selection, spec 12.2) can frame a tighter region than
+	// the type's default content bounds by passing an explicit viewBox.
+	const viewBox = options.viewBox || rendered.viewBox;
+	// Sections render behind everything, in every type.
+	const body = sectionsSvg(doc) + rendered.body;
+	const fontDefinition = usesVazirmatn(doc)
+		? `<style>@font-face{font-family:'Vazirmatn';src:url('${vazirmatnFontData}') format('woff2');font-style:normal;font-weight:100 900}</style>`
+		: "";
+	return (
+		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBoxAttr(viewBox)}"` +
+		` preserveAspectRatio="${options.fit || "xMidYMid meet"}" style="${styleAttr}">` +
+		`${fontDefinition}${body}</svg>`
+	);
+}
+
+function usesVazirmatn(document) {
+	return (document.shapes || []).some((shape) => {
+		const font = shape.text?.style?.font;
+		return typeof font === "string" && font.toLowerCase().includes("vazirmatn");
+	});
 }
 
 // --- inlined images (#518) ---------------------------------------------------
@@ -444,13 +642,15 @@ export function documentToSvg(rawDocument, options = {}) {
 // than writing through: parseDiagramDocument returns the caller's own object, which
 // for the export path is the live store document.
 function withInlinedImages(doc, images) {
-  if (!images || !doc.shapes?.length) return doc
-  return {
-    ...doc,
-    shapes: doc.shapes.map((shape) =>
-      shape.type === 'image' && images[shape.src] ? { ...shape, src: images[shape.src] } : shape,
-    ),
-  }
+	if (!images || !doc.shapes?.length) return doc;
+	return {
+		...doc,
+		shapes: doc.shapes.map((shape) =>
+			shape.type === "image" && images[shape.src]
+				? { ...shape, src: images[shape.src] }
+				: shape
+		),
+	};
 }
 
 // Fetch every image in `rawDocument` and return `{ [src]: dataUri }` for the ones
@@ -461,72 +661,80 @@ function withInlinedImages(doc, images) {
 // happens — with that one image missing, exactly as it is today — rather than the
 // whole download failing on one deleted file.
 export async function inlinedImages(rawDocument) {
-  const doc = parseDiagramDocument(rawDocument)
-  const wanted = new Map()
-  for (const shape of doc.shapes || []) {
-    if (shape.type !== 'image' || wanted.has(shape.src)) continue
-    const safe = safeImageSrc(shape.src)
-    // An src that is already inline needs no fetch, and one that fails the check
-    // will not be drawn anyway.
-    if (safe && !safe.startsWith('data:')) wanted.set(shape.src, safe)
-  }
-  if (!wanted.size) return null
-  const loaded = await Promise.all(
-    [...wanted].map(async ([raw, safe]) => [raw, await dataUriFor(safe)]),
-  )
-  const images = Object.fromEntries(loaded.filter(([, uri]) => uri))
-  return Object.keys(images).length ? images : null
+	const doc = parseDiagramDocument(rawDocument);
+	const wanted = new Map();
+	for (const shape of doc.shapes || []) {
+		if (shape.type !== "image" || wanted.has(shape.src)) continue;
+		const safe = safeImageSrc(shape.src);
+		// An src that is already inline needs no fetch, and one that fails the check
+		// will not be drawn anyway.
+		if (safe && !safe.startsWith("data:")) wanted.set(shape.src, safe);
+	}
+	if (!wanted.size) return null;
+	const loaded = await Promise.all(
+		[...wanted].map(async ([raw, safe]) => [raw, await dataUriFor(safe)])
+	);
+	const images = Object.fromEntries(loaded.filter(([, uri]) => uri));
+	return Object.keys(images).length ? images : null;
 }
 
 function dataUriFor(url) {
-  return fetch(url)
-    .then((response) => (response.ok ? response.blob() : null))
-    .then((blob) => (blob ? blobToDataUri(blob) : null))
-    .catch(() => null)
+	return fetch(url)
+		.then((response) => (response.ok ? response.blob() : null))
+		.then((blob) => (blob ? blobToDataUri(blob) : null))
+		.catch(() => null);
 }
 
 function blobToDataUri(blob) {
-  return new Promise((resolve) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => resolve(null)
-    reader.readAsDataURL(blob)
-  })
+	return new Promise((resolve) => {
+		const reader = new FileReader();
+		reader.onload = () => resolve(String(reader.result));
+		reader.onerror = () => resolve(null);
+		reader.readAsDataURL(blob);
+	});
 }
 
 // Every per-type viewBox is built from the document's own coordinates (canvas size,
 // content bounds derived from node positions), so it is guarded here rather than in
 // each branch — four numbers, nothing else, whatever the document holds.
 function viewBoxAttr(viewBox) {
-  const parts = String(viewBox).trim().split(/\s+/).slice(0, 4).map((v) => num(v))
-  return parts.length === 4 ? parts.join(' ') : '0 0 1 1'
+	const parts = String(viewBox)
+		.trim()
+		.split(/\s+/)
+		.slice(0, 4)
+		.map((v) => num(v));
+	return parts.length === 4 ? parts.join(" ") : "0 0 1 1";
 }
 
 // Named sections/frames (document-level) drawn behind all content, any type.
 function sectionsSvg(doc) {
-  return (doc.sections || [])
-    .map((s) => {
-      const color = safeColor(s.color, '#6E56CF')
-      const { x, y, w, h } = box(s)
-      const rect = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="rgba(110,86,207,0.035)" stroke="${color}" stroke-width="1.5"/>`
-      const bar = `<rect x="${x}" y="${y}" width="${w}" height="26" rx="6" fill="${color}"/>`
-      const title = s.title
-        ? `<text x="${x + 8}" y="${y + 17}" fill="#FFFFFF" font-size="12" font-weight="600" font-family="Inter, sans-serif">${escapeText(s.title)}</text>`
-        : ''
-      return rect + bar + title
-    })
-    .join('')
+	return (doc.sections || [])
+		.map((s) => {
+			const color = safeColor(s.color, "#6E56CF");
+			const { x, y, w, h } = box(s);
+			const rect = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="rgba(110,86,207,0.035)" stroke="${color}" stroke-width="1.5"/>`;
+			const bar = `<rect x="${x}" y="${y}" width="${w}" height="26" rx="6" fill="${color}"/>`;
+			const title = s.title
+				? `<text x="${x + 8}" y="${
+						y + 17
+				  }" fill="#FFFFFF" font-size="12" font-weight="600" font-family="Inter, sans-serif">${escapeText(
+						s.title
+				  )}</text>`
+				: "";
+			return rect + bar + title;
+		})
+		.join("");
 }
 
 // Per-type body + viewBox. Block (and any unknown type) renders the shared
 // shapes/connectors over the canvas rect; the layered types render their own
 // geometry over their content bbox.
 function renderBody(doc) {
-  if (isUnifiedDocument(doc)) return unifiedBody(doc)
-  if (doc.diagramType === 'mindmap' && doc.mindmap) return mindmapBody(doc)
-  if (doc.diagramType === 'flowchart' && doc.flowchart) return flowchartBody(doc)
-  if (doc.diagramType === 'whiteboard' && doc.whiteboard) return whiteboardBody(doc)
-  return blockBody(doc)
+	if (isUnifiedDocument(doc)) return unifiedBody(doc);
+	if (doc.diagramType === "mindmap" && doc.mindmap) return mindmapBody(doc);
+	if (doc.diagramType === "flowchart" && doc.flowchart) return flowchartBody(doc);
+	if (doc.diagramType === "whiteboard" && doc.whiteboard) return whiteboardBody(doc);
+	return blockBody(doc);
 }
 
 // The unified canvas holds every layer at once, so its export has to compose them
@@ -540,249 +748,288 @@ function renderBody(doc) {
 // would have cropped the frames even if they had been drawn. Every new diagram is a
 // unified document, so that was the common case, not an edge case.
 function unifiedBody(doc) {
-  // whiteboardBody already emits the shared block layer (connectors + shapes) AND
-  // the whiteboard ink over it, which is exactly the absolute-coordinate layer here.
-  const base = doc.whiteboard ? whiteboardBody(doc) : blockBody(doc)
-  const boxes = [parseViewBox(base.viewBox)]
-  let body = base.body
+	// whiteboardBody already emits the shared block layer (connectors + shapes) AND
+	// the whiteboard ink over it, which is exactly the absolute-coordinate layer here.
+	const base = doc.whiteboard ? whiteboardBody(doc) : blockBody(doc);
+	const boxes = [parseViewBox(base.viewBox)];
+	let body = base.body;
 
-  // Origins are persisted values reaching an SVG attribute, so they go through num()
-  // for the same reason colours go through safeColor(): this markup is injected into a
-  // viewer's DOM, and the document may have been authored by someone else.
-  const mindmap = doc.mindmap
-  if (mindmap?.nodes?.length) {
-    const ox = num(mindmap.origin?.x)
-    const oy = num(mindmap.origin?.y)
-    const { bbox } = layoutMindMap(mindmap)
-    body += `<g transform="translate(${ox} ${oy})">${mindmapBody(doc).body}</g>`
-    boxes.push({ x: ox + bbox.x, y: oy + bbox.y, w: bbox.w, h: bbox.h })
-  }
+	// Origins are persisted values reaching an SVG attribute, so they go through num()
+	// for the same reason colours go through safeColor(): this markup is injected into a
+	// viewer's DOM, and the document may have been authored by someone else.
+	const mindmap = doc.mindmap;
+	if (mindmap?.nodes?.length) {
+		const ox = num(mindmap.origin?.x);
+		const oy = num(mindmap.origin?.y);
+		const { bbox } = layoutMindMap(mindmap);
+		body += `<g transform="translate(${ox} ${oy})">${mindmapBody(doc).body}</g>`;
+		boxes.push({ x: ox + bbox.x, y: oy + bbox.y, w: bbox.w, h: bbox.h });
+	}
 
-  const flowchart = doc.flowchart
-  let labelled = false
-  if (flowchart?.nodes?.length) {
-    const ox = num(flowchart.origin?.x)
-    const oy = num(flowchart.origin?.y)
-    const bounds = flowchartContentBounds(flowchart)
-    body += `<g transform="translate(${ox} ${oy})">${flowchartBody(doc).body}</g>`
-    boxes.push({ x: ox + bounds.x, y: oy + bounds.y, w: bounds.w, h: bounds.h })
-    labelled = (flowchart.edges || []).some((edge) => edge.label)
-  }
+	const flowchart = doc.flowchart;
+	let labelled = false;
+	if (flowchart?.nodes?.length) {
+		const ox = num(flowchart.origin?.x);
+		const oy = num(flowchart.origin?.y);
+		const bounds = flowchartContentBounds(flowchart);
+		body += `<g transform="translate(${ox} ${oy})">${flowchartBody(doc).body}</g>`;
+		boxes.push({ x: ox + bounds.x, y: oy + bounds.y, w: bounds.w, h: bounds.h });
+		labelled = (flowchart.edges || []).some((edge) => edge.label);
+	}
 
-  // flowchartContentBounds covers nodes, not the labels drawn beside edge routes, so
-  // allow more margin when any edge carries one rather than cropping it. Measuring
-  // label text properly would need font metrics — not worth it until someone hits it.
-  return { viewBox: unionViewBox(boxes, labelled ? 96 : 40), body }
+	// flowchartContentBounds covers nodes, not the labels drawn beside edge routes, so
+	// allow more margin when any edge carries one rather than cropping it. Measuring
+	// label text properly would need font metrics — not worth it until someone hits it.
+	return { viewBox: unionViewBox(boxes, labelled ? 96 : 40), body };
 }
 
 function parseViewBox(viewBox) {
-  const [x, y, w, h] = viewBox.split(' ').map(Number)
-  return { x, y, w, h }
+	const [x, y, w, h] = viewBox.split(" ").map(Number);
+	return { x, y, w, h };
 }
 
 // Smallest box covering every layer that has content, with a little breathing room so
 // frame edges aren't flush against the crop.
 function unionViewBox(boxes, pad = 40) {
-  const bounds = unionBounds(boxes.filter((b) => b && b.w > 0 && b.h > 0))
-  if (!bounds) return '0 0 1 1'
-  return `${bounds.x - pad} ${bounds.y - pad} ${bounds.w + pad * 2} ${bounds.h + pad * 2}`
+	const bounds = unionBounds(boxes.filter((b) => b && b.w > 0 && b.h > 0));
+	if (!bounds) return "0 0 1 1";
+	return `${bounds.x - pad} ${bounds.y - pad} ${bounds.w + pad * 2} ${bounds.h + pad * 2}`;
 }
 
 function blockBody(doc) {
-  const { width, height } = doc.canvas
-  const flowchartRoutes = computeFlowchartRoutes(doc)
-  const connectors = (doc.connectors || [])
-    .map((c) => connectorBody(c, doc.shapes || [], flowchartRoutes))
-    .join('')
-  const shapes = (doc.shapes || [])
-    .filter((s) => !s.hidden)
-    .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
-    .map((s) => renderShape(s))
-    .join('')
-  return { viewBox: `0 0 ${width} ${height}`, body: connectors + shapes }
+	const { width, height } = doc.canvas;
+	const flowchartRoutes = computeFlowchartRoutes(doc);
+	const connectors = (doc.connectors || [])
+		.map((c) => connectorBody(c, doc.shapes || [], flowchartRoutes))
+		.join("");
+	const shapes = (doc.shapes || [])
+		.filter((s) => !s.hidden)
+		.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
+		.map((s) => renderShape(s))
+		.join("");
+	return { viewBox: `0 0 ${width} ${height}`, body: connectors + shapes };
 }
 
 // ----- mind map (mirrors MindMapNodeLayer) -----------------------------------
 
 function mindmapBody(doc) {
-  const model = doc.mindmap
-  const { positions, bbox } = layoutMindMap(model)
-  const preset = doc.themePreset || 'ocean'
-  const visible = model.nodes.filter((node) => positions[node.id])
-  const links = visible
-    .filter((node) => node.parentId && positions[node.parentId])
-    .map((node) => mindmapLink(model, node, positions, preset))
-    .join('')
-  const nodes = visible.map((node) => mindmapNode(model, node, positions[node.id], preset)).join('')
-  // bbox is anchored on the FIRST tree, so a map holding several (#48) can reach
-  // above/left of it — the viewBox has to start at the bbox, not at zero.
-  return { viewBox: `${bbox.x} ${bbox.y} ${bbox.w} ${bbox.h}`, body: links + nodes }
+	const model = doc.mindmap;
+	const { positions, bbox } = layoutMindMap(model);
+	const preset = doc.themePreset || "ocean";
+	const visible = model.nodes.filter((node) => positions[node.id]);
+	const links = visible
+		.filter((node) => node.parentId && positions[node.parentId])
+		.map((node) => mindmapLink(model, node, positions, preset))
+		.join("");
+	const nodes = visible
+		.map((node) => mindmapNode(model, node, positions[node.id], preset))
+		.join("");
+	// bbox is anchored on the FIRST tree, so a map holding several (#48) can reach
+	// above/left of it — the viewBox has to start at the bbox, not at zero.
+	return { viewBox: `${bbox.x} ${bbox.y} ${bbox.w} ${bbox.h}`, body: links + nodes };
 }
 
 // The node's background in its chosen shape (mirrors MindMapNodeLayer). fill and
 // color derive from node.color, so they are persisted values like any other.
 function mindmapNodeShape(node, nodeBox, fill, color, sw) {
-  const attrs = `fill="${safeColor(fill)}" stroke="${safeColor(color)}" stroke-width="${num(sw, 1.8)}"`
-  const { x, y, w, h } = box(nodeBox)
-  if (node.shape === 'ellipse') {
-    return `<ellipse cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2}" ry="${h / 2}" ${attrs}/>`
-  }
-  if (node.shape === 'diamond') {
-    return `<polygon points="${x + w / 2},${y} ${x + w},${y + h / 2} ${x + w / 2},${y + h} ${x},${y + h / 2}" ${attrs}/>`
-  }
-  if (node.shape === 'hexagon') {
-    const i = Math.min(w * 0.16, h / 2)
-    return `<polygon points="${x + i},${y} ${x + w - i},${y} ${x + w},${y + h / 2} ${x + w - i},${y + h} ${x + i},${y + h} ${x},${y + h / 2}" ${attrs}/>`
-  }
-  const rx = node.shape === 'rounded' ? 12 : node.shape === 'rectangle' ? 4 : h / 2
-  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" ${attrs}/>`
+	const attrs = `fill="${safeColor(fill)}" stroke="${safeColor(color)}" stroke-width="${num(
+		sw,
+		1.8
+	)}"`;
+	const { x, y, w, h } = box(nodeBox);
+	if (node.shape === "ellipse") {
+		return `<ellipse cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2}" ry="${
+			h / 2
+		}" ${attrs}/>`;
+	}
+	if (node.shape === "diamond") {
+		return `<polygon points="${x + w / 2},${y} ${x + w},${y + h / 2} ${x + w / 2},${
+			y + h
+		} ${x},${y + h / 2}" ${attrs}/>`;
+	}
+	if (node.shape === "hexagon") {
+		const i = Math.min(w * 0.16, h / 2);
+		return `<polygon points="${x + i},${y} ${x + w - i},${y} ${x + w},${y + h / 2} ${
+			x + w - i
+		},${y + h} ${x + i},${y + h} ${x},${y + h / 2}" ${attrs}/>`;
+	}
+	const rx = node.shape === "rounded" ? 12 : node.shape === "rectangle" ? 4 : h / 2;
+	return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" ${attrs}/>`;
 }
 
 function mindmapLink(model, node, positions, preset) {
-  const color = safeColor(resolveNodeColor(model, node, preset))
-  return `<path d="${branchPath(positions[node.parentId], positions[node.id])}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>`
+	const color = safeColor(resolveNodeColor(model, node, preset));
+	return `<path d="${branchPath(
+		positions[node.parentId],
+		positions[node.id]
+	)}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>`;
 }
 
 function mindmapNode(model, node, nodeBox, preset) {
-  const color = resolveNodeColor(model, node, preset)
-  const fill = node.color ? nodeFill(node.color) : isRoot(model, node.id) ? '#ECE7FE' : nodeFill(color)
-  const ink = safeColor(readableInk(fill), '#171717')
-  const strokeWidth = isRoot(model, node.id) ? 2.5 : 1.8
-  const fontSize = num(node.fontSize || (isRoot(model, node.id) ? 17 : 14), 14)
-  const fontWeight = node.bold || isRoot(model, node.id) ? 700 : 500
-  const rect = mindmapNodeShape(node, nodeBox, fill, color, strokeWidth)
-  const { x, y, w, h } = box(nodeBox)
-  const label = (node.emoji ? node.emoji + '  ' : '') + (node.text || '')
-  const text = label
-    ? `<text x="${x + w / 2}" y="${y + h / 2}" text-anchor="middle" dominant-baseline="central" fill="${ink}" font-size="${fontSize}" font-weight="${fontWeight}" font-family="Inter, sans-serif">${escapeText(label)}</text>`
-    : ''
-  return rect + text
+	const color = resolveNodeColor(model, node, preset);
+	const fill = node.color
+		? nodeFill(node.color)
+		: isRoot(model, node.id)
+		? "#ECE7FE"
+		: nodeFill(color);
+	const ink = safeColor(readableInk(fill), "#171717");
+	const strokeWidth = isRoot(model, node.id) ? 2.5 : 1.8;
+	const fontSize = num(node.fontSize || (isRoot(model, node.id) ? 17 : 14), 14);
+	const fontWeight = node.bold || isRoot(model, node.id) ? 700 : 500;
+	const rect = mindmapNodeShape(node, nodeBox, fill, color, strokeWidth);
+	const { x, y, w, h } = box(nodeBox);
+	const label = (node.emoji ? node.emoji + "  " : "") + (node.text || "");
+	const text = label
+		? `<text x="${x + w / 2}" y="${
+				y + h / 2
+		  }" text-anchor="middle" dominant-baseline="central" fill="${ink}" font-size="${fontSize}" font-weight="${fontWeight}" font-family="Inter, sans-serif">${escapeText(
+				label
+		  )}</text>`
+		: "";
+	return rect + text;
 }
 
 // ----- flowchart (mirrors FlowchartLayer) ------------------------------------
 
 function flowchartBody(doc) {
-  const model = doc.flowchart
-  const bounds = flowchartContentBounds(model)
-  const triad = primaryTriad(doc.themePreset || 'ocean')
-  const offsets = routeOffsets(model)
-  const edges = model.edges
-    .map((edge) => flowchartEdge(model, edge, offsets[edge.id] || 0))
-    .filter(Boolean)
-    .join('')
-  const nodes = model.nodes.map((node) => flowchartNode(node, triad)).join('')
-  const defs =
-    '<defs><marker id="fc-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#7C7C7C"/></marker></defs>'
-  return {
-    viewBox: `${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}`,
-    body: defs + edges + nodes,
-  }
+	const model = doc.flowchart;
+	const bounds = flowchartContentBounds(model);
+	const triad = primaryTriad(doc.themePreset || "ocean");
+	const offsets = routeOffsets(model);
+	const edges = model.edges
+		.map((edge) => flowchartEdge(model, edge, offsets[edge.id] || 0))
+		.filter(Boolean)
+		.join("");
+	const nodes = model.nodes.map((node) => flowchartNode(node, triad)).join("");
+	const defs =
+		'<defs><marker id="fc-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#7C7C7C"/></marker></defs>';
+	return {
+		viewBox: `${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}`,
+		body: defs + edges + nodes,
+	};
 }
 
 function flowchartEdge(model, edge, offsetIndex) {
-  const route = routeEdge(model, edge, offsetIndex)
-  if (!route) return ''
-  const markerEnd = edge.arrowheads?.end ? ' marker-end="url(#fc-arrow)"' : ''
-  const path = `<path d="${pointsToPath(route.points)}" fill="none" stroke="#7C7C7C" stroke-width="2"${markerEnd}/>`
-  if (!edge.label) return path
-  const half = edge.label.length * 4 + 8
-  // The route is derived from node.x/node.y, which are persisted values, so the
-  // label anchor is guarded like any other coordinate in this file.
-  const lx = num(route.labelPoint.x)
-  const ly = num(route.labelPoint.y)
-  const pill = `<rect x="${lx - half}" y="${ly - 10}" width="${edge.label.length * 8 + 16}" height="20" rx="6" fill="#FFFFFF" stroke="#E2E2E2"/>`
-  const label = `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#525252" font-family="Inter, sans-serif">${escapeText(edge.label)}</text>`
-  return path + pill + label
+	const route = routeEdge(model, edge, offsetIndex);
+	if (!route) return "";
+	const markerEnd = edge.arrowheads?.end ? ' marker-end="url(#fc-arrow)"' : "";
+	const path = `<path d="${pointsToPath(
+		route.points
+	)}" fill="none" stroke="#7C7C7C" stroke-width="2"${markerEnd}/>`;
+	if (!edge.label) return path;
+	const half = edge.label.length * 4 + 8;
+	// The route is derived from node.x/node.y, which are persisted values, so the
+	// label anchor is guarded like any other coordinate in this file.
+	const lx = num(route.labelPoint.x);
+	const ly = num(route.labelPoint.y);
+	const pill = `<rect x="${lx - half}" y="${ly - 10}" width="${
+		edge.label.length * 8 + 16
+	}" height="20" rx="6" fill="#FFFFFF" stroke="#E2E2E2"/>`;
+	const label = `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="12" fill="#525252" font-family="Inter, sans-serif">${escapeText(
+		edge.label
+	)}</text>`;
+	return path + pill + label;
 }
 
 function flowchartNode(node, triad) {
-  const size = flowchartNodeSize(node)
-  const shape = nodeShape(node.nodeType, size.w, size.h)
-  // Mirror the live layer: 'none' is the explicit "No fill" sentinel.
-  const fill = node.fill === 'none' ? 'transparent' : safeColor(node.fill, triad.fill)
-  const stroke = safeColor(node.border, triad.stroke)
-  const attrs = `fill="${fill}" stroke="${stroke}" stroke-width="1.5"`
-  const nx = num(node.x)
-  const ny = num(node.y)
-  let body
-  if (shape.kind === 'ellipse') {
-    body = `<ellipse cx="${nx + size.w / 2}" cy="${ny + size.h / 2}" rx="${size.w / 2}" ry="${size.h / 2}" ${attrs}/>`
-  } else if (shape.kind === 'polygon') {
-    body = `<polygon points="${shiftPolygon(shape.points, nx, ny)}" ${attrs}/>`
-  } else {
-    body = `<rect x="${nx}" y="${ny}" width="${size.w}" height="${size.h}" rx="${shape.rx}" ${attrs}/>`
-  }
-  const text =
-    node.nodeType !== 'connector' && node.text
-      ? `<text x="${nx + size.w / 2}" y="${ny + size.h / 2}" text-anchor="middle" dominant-baseline="central" font-size="14" fill="${triad.ink}" font-family="Inter, sans-serif">${escapeText(node.text)}</text>`
-      : ''
-  return body + text
+	const size = flowchartNodeSize(node);
+	const shape = nodeShape(node.nodeType, size.w, size.h);
+	// Mirror the live layer: 'none' is the explicit "No fill" sentinel.
+	const fill = node.fill === "none" ? "transparent" : safeColor(node.fill, triad.fill);
+	const stroke = safeColor(node.border, triad.stroke);
+	const attrs = `fill="${fill}" stroke="${stroke}" stroke-width="1.5"`;
+	const nx = num(node.x);
+	const ny = num(node.y);
+	let body;
+	if (shape.kind === "ellipse") {
+		body = `<ellipse cx="${nx + size.w / 2}" cy="${ny + size.h / 2}" rx="${size.w / 2}" ry="${
+			size.h / 2
+		}" ${attrs}/>`;
+	} else if (shape.kind === "polygon") {
+		body = `<polygon points="${shiftPolygon(shape.points, nx, ny)}" ${attrs}/>`;
+	} else {
+		body = `<rect x="${nx}" y="${ny}" width="${size.w}" height="${size.h}" rx="${shape.rx}" ${attrs}/>`;
+	}
+	const text =
+		node.nodeType !== "connector" && node.text
+			? `<text x="${nx + size.w / 2}" y="${
+					ny + size.h / 2
+			  }" text-anchor="middle" dominant-baseline="central" font-size="14" fill="${
+					triad.ink
+			  }" font-family="Inter, sans-serif">${escapeText(node.text)}</text>`
+			: "";
+	return body + text;
 }
 
 // Translate a node-local polygon points string (origin at the node's top-left)
 // into absolute canvas coordinates.
 function shiftPolygon(points, dx, dy) {
-  return points
-    .split(' ')
-    .map((pair) => {
-      const [x, y] = pair.split(',').map(Number)
-      return `${x + dx},${y + dy}`
-    })
-    .join(' ')
+	return points
+		.split(" ")
+		.map((pair) => {
+			const [x, y] = pair.split(",").map(Number);
+			return `${x + dx},${y + dy}`;
+		})
+		.join(" ");
 }
 
 // ----- whiteboard (mirrors WhiteboardLayer; never the laser trail) -----------
 
 function whiteboardBody(doc) {
-  const model = doc.whiteboard
-  const bounds = whiteboardContentBounds(model, doc.shapes || [])
-  const flowchartRoutes = computeFlowchartRoutes(doc)
-  const connectors = (doc.connectors || [])
-    .map((c) => connectorBody(c, doc.shapes || [], flowchartRoutes))
-    .join('')
-  // Shapes and board objects share one stacking scale (#27), so the export paints
-  // them in a single zIndex-ordered pass — the same order the canvas draws. Lines
-  // and tables used to be omitted entirely here, so a board holding either
-  // exported and thumbnailed as though that content did not exist.
-  const objects = [
-    ...(doc.shapes || []).filter((s) => !s.hidden).map((s) => ({ kind: 'shape', object: s })),
-    ...whiteboardObjectsInZOrder(model),
-  ]
-    .sort((a, b) => (a.object.zIndex || 0) - (b.object.zIndex || 0))
-    .map(({ kind, object }) => WB_BODY[kind](object))
-    .join('')
-  return {
-    viewBox: `${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}`,
-    body: connectors + objects,
-  }
+	const model = doc.whiteboard;
+	const bounds = whiteboardContentBounds(model, doc.shapes || []);
+	const flowchartRoutes = computeFlowchartRoutes(doc);
+	const connectors = (doc.connectors || [])
+		.map((c) => connectorBody(c, doc.shapes || [], flowchartRoutes))
+		.join("");
+	// Shapes and board objects share one stacking scale (#27), so the export paints
+	// them in a single zIndex-ordered pass — the same order the canvas draws. Lines
+	// and tables used to be omitted entirely here, so a board holding either
+	// exported and thumbnailed as though that content did not exist.
+	const objects = [
+		...(doc.shapes || []).filter((s) => !s.hidden).map((s) => ({ kind: "shape", object: s })),
+		...whiteboardObjectsInZOrder(model),
+	]
+		.sort((a, b) => (a.object.zIndex || 0) - (b.object.zIndex || 0))
+		.map(({ kind, object }) => WB_BODY[kind](object))
+		.join("");
+	return {
+		viewBox: `${bounds.x} ${bounds.y} ${bounds.w} ${bounds.h}`,
+		body: connectors + objects,
+	};
 }
 
 const WB_BODY = {
-  shape: (s) => renderShape(s),
-  stroke: whiteboardStroke,
-  line: whiteboardLine,
-  table: whiteboardTable,
-  sticky: whiteboardSticky,
-}
+	shape: (s) => renderShape(s),
+	stroke: whiteboardStroke,
+	line: whiteboardLine,
+	table: whiteboardTable,
+	sticky: whiteboardSticky,
+};
 
 // Curved through the same builder the canvas uses (#426), and faded through the
 // same one (#409) — this file paints exports, thumbnails and the minimap, none of
 // which can reach the editor's UI state, so anything it recomputes locally is a
 // divergence waiting to happen.
 function whiteboardStroke(stroke) {
-  if (!stroke.points || stroke.points.length < 2) return ''
-  const opacity = strokeOpacity(stroke)
-  const linecap = stroke.kind === 'highlighter' ? 'butt' : 'round'
-  const color = safeColor(stroke.color, '#171717')
-  return `<path d="${smoothPath(stroke.points)}" fill="none" stroke="${color}" stroke-width="${num(stroke.width, 2)}" stroke-opacity="${opacity}" stroke-linecap="${linecap}" stroke-linejoin="round"/>`
+	if (!stroke.points || stroke.points.length < 2) return "";
+	const opacity = strokeOpacity(stroke);
+	const linecap = stroke.kind === "highlighter" ? "butt" : "round";
+	const color = safeColor(stroke.color, "#171717");
+	return `<path d="${smoothPath(
+		stroke.points
+	)}" fill="none" stroke="${color}" stroke-width="${num(
+		stroke.width,
+		2
+	)}" stroke-opacity="${opacity}" stroke-linecap="${linecap}" stroke-linejoin="round"/>`;
 }
 
 function whiteboardSticky(note) {
-  const color = safeColor(note.color, '#FFE9A8')
-  const ink = safeColor(contrastInk(color), '#171717')
-  const { x, y, w, h } = box(note)
-  const rect = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${color}" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>`
-  return rect + stickyText(note, { x, y, w, h }, ink)
+	const color = safeColor(note.color, "#FFE9A8");
+	const ink = safeColor(contrastInk(color), "#171717");
+	const { x, y, w, h } = box(note);
+	const rect = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${color}" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>`;
+	return rect + stickyText(note, { x, y, w, h }, ink);
 }
 
 // A note is multi-line plain text (#416), and SVG <text> neither wraps nor honours
@@ -800,244 +1047,277 @@ function whiteboardSticky(note) {
 // the wrapped lines reliably; guessing would put the wrong words in bold in a
 // downloaded file, which is worse than showing the note unformatted.
 function stickyText(note, { x, y, w, h }, ink) {
-  if (!note.text) return ''
-  const style = stickyTextStyle(note)
-  const runs = stickyRuns(note)
-  const size = num(style.size, STICKY_FONT_SIZE)
-  const step = size * STICKY_LINE_HEIGHT
-  const lines = stickyLines(note.text, w, size).slice(0, Math.max(0, Math.floor((h - STICKY_PAD_Y) / step)) || 1)
-  const anchor = { left: 'start', center: 'middle', right: 'end' }[style.align] || 'start'
-  const textX =
-    style.align === 'center' ? x + w / 2 : style.align === 'right' ? x + w - STICKY_PAD_X / 2 : x + STICKY_PAD_X / 2
-  const spans = lines
-    .map((line, index) => `<tspan x="${num(textX)}" y="${y + STICKY_PAD_Y / 2 + step * (index + 0.8)}">${escapeText(line)}</tspan>`)
-    .join('')
-  return (
-    `<text fill="${safeColor(style.color, ink)}" font-size="${size}"` +
-    ` text-anchor="${anchor}" font-family="Inter, sans-serif"${wholeNoteMarks(runs)}>${spans}</text>`
-  )
+	if (!note.text) return "";
+	const style = stickyTextStyle(note);
+	const runs = stickyRuns(note);
+	const size = num(style.size, STICKY_FONT_SIZE);
+	const step = size * STICKY_LINE_HEIGHT;
+	const lines = stickyLines(note.text, w, size).slice(
+		0,
+		Math.max(0, Math.floor((h - STICKY_PAD_Y) / step)) || 1
+	);
+	const anchor = { left: "start", center: "middle", right: "end" }[style.align] || "start";
+	const textX =
+		style.align === "center"
+			? x + w / 2
+			: style.align === "right"
+			? x + w - STICKY_PAD_X / 2
+			: x + STICKY_PAD_X / 2;
+	const spans = lines
+		.map(
+			(line, index) =>
+				`<tspan x="${num(textX)}" y="${
+					y + STICKY_PAD_Y / 2 + step * (index + 0.8)
+				}">${escapeText(line)}</tspan>`
+		)
+		.join("");
+	return (
+		`<text fill="${safeColor(style.color, ink)}" font-size="${size}"` +
+		` text-anchor="${anchor}" font-family="Inter, sans-serif"${wholeNoteMarks(
+			runs
+		)}>${spans}</text>`
+	);
 }
 
 // The marks every run carries, as SVG attributes. Empty when the note is only
 // partly marked — see stickyText.
 function wholeNoteMarks(runs) {
-  const everywhere = (mark) => runs.length > 0 && runs.every((run) => resolveMark(run, mark))
-  let out = ''
-  if (everywhere('bold')) out += ' font-weight="600"'
-  if (everywhere('italic')) out += ' font-style="italic"'
-  const decoration = [
-    everywhere('underline') ? 'underline' : null,
-    everywhere('strike') ? 'line-through' : null,
-  ].filter(Boolean).join(' ')
-  if (decoration) out += ` text-decoration="${decoration}"`
-  return out
+	const everywhere = (mark) => runs.length > 0 && runs.every((run) => resolveMark(run, mark));
+	let out = "";
+	if (everywhere("bold")) out += ' font-weight="600"';
+	if (everywhere("italic")) out += ' font-style="italic"';
+	const decoration = [
+		everywhere("underline") ? "underline" : null,
+		everywhere("strike") ? "line-through" : null,
+	]
+		.filter(Boolean)
+		.join(" ");
+	if (decoration) out += ` text-decoration="${decoration}"`;
+	return out;
 }
-
 
 // Straight lines. Endpoint decorations (arrow / dot) are approximated by a dot at the
 // decorated end: the export is a flat SVG with no marker defs for these, and a missing
 // line reads far worse than a missing arrowhead.
 function whiteboardLine(line) {
-  const color = safeColor(line.color, '#171717')
-  const width = num(line.width, 2)
-  const [x1, y1, x2, y2] = [num(line.x1), num(line.y1), num(line.x2), num(line.y2)]
-  const stroke = `stroke="${color}" stroke-width="${width}" stroke-linecap="round"`
-  let out = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" ${stroke}/>`
-  const cap = (x, y) => `<circle cx="${x}" cy="${y}" r="${width * 1.6}" fill="${color}"/>`
-  if (line.start && line.start !== 'none') out += cap(x1, y1)
-  if (line.end && line.end !== 'none') out += cap(x2, y2)
-  return out
+	const color = safeColor(line.color, "#171717");
+	const width = num(line.width, 2);
+	const [x1, y1, x2, y2] = [num(line.x1), num(line.y1), num(line.x2), num(line.y2)];
+	const stroke = `stroke="${color}" stroke-width="${width}" stroke-linecap="round"`;
+	let out = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" ${stroke}/>`;
+	const cap = (x, y) => `<circle cx="${x}" cy="${y}" r="${width * 1.6}" fill="${color}"/>`;
+	if (line.start && line.start !== "none") out += cap(x1, y1);
+	if (line.end && line.end !== "none") out += cap(x2, y2);
+	return out;
 }
-
 
 // The export has always drawn cell text at a fixed 13px regardless of the
 // cell's own size (a pre-existing simplification, not something #556 changes)
 // — named now only because the wrap math below needs the same number twice.
-const EXPORT_FONT_SIZE = 13
+const EXPORT_FONT_SIZE = 13;
 
 function whiteboardTable(table) {
-  // Same geometry as the live canvas (WhiteboardTable): per-column/row sizes,
-  // merged-cell spans and text alignment, so an export/thumbnail matches what's
-  // on screen. Counts stay clamped (tableRows/tableCols), and cellW/cellH default
-  // to sane numbers, so a malformed document can't blow the loop up.
-  const rows = tableRows(table)
-  const cols = tableCols(table)
-  const safe = { ...table, cellW: num(table.cellW, 120), cellH: num(table.cellH, 40) }
-  const color = safeColor(table.color, '#171717')
-  const align = table.align || 'left'
-  let out = headerBand(safe) + headerColBand(safe)
-  for (let r = 0; r < rows; r += 1) {
-    for (let c = 0; c < cols; c += 1) {
-      if (isCoveredCell(safe, r, c)) continue
-      const box = cellSpanBox(safe, r, c)
-      // Gridlines are neutral, not the table's colour (#553): that colour is the
-      // table's TEXT colour, which is what the control on a table now sets.
-      out += `<rect x="${num(box.x)}" y="${num(box.y)}" width="${num(box.w)}" height="${num(box.h)}" fill="none" stroke="${TABLE_GRID_COLOR}" stroke-width="1"/>`
-      const runs = tableCellRuns(safe, r, c)
-      if (runs.length) {
-        let tx = box.x + 8
-        let anchor = ''
-        if (align === 'center') {
-          tx = box.x + box.w / 2
-          anchor = ' text-anchor="middle"'
-        } else if (align === 'right') {
-          tx = box.x + box.w - 8
-          anchor = ' text-anchor="end"'
-        }
-        // Wrapped into as many lines as the column forces, one tspan per
-        // formatted run within each (#344, #556) — including the header
-        // row/column's bold, which this path used to drop. Only the first
-        // tspan of a line carries x/dy, exactly like the live canvas render:
-        // that is what resets the cursor and steps down a line, so a run
-        // continuing the same line picks up right after the previous one.
-        const header = isHeaderRow(safe, r) || isHeaderColumn(safe, c)
-        const lines = wrappedCellRunLines(safe, r, c)
-        const lineHeight = EXPORT_FONT_SIZE * TABLE_LINE_HEIGHT
-        const ty = box.y + box.h / 2 - ((lines.length - 1) * lineHeight) / 2 + 5
-        const body = lines
-          .map((line, lineIndex) =>
-            line
-              .map((run, spanIndex) => {
-                const pos = spanIndex === 0 ? ` x="${num(tx)}" dy="${lineIndex === 0 ? 0 : lineHeight}"` : ''
-                return `<tspan${pos}${runAttributes(run, header)}>${escapeText(run.text)}</tspan>`
-              })
-              .join(''),
-          )
-          .join('')
-        out += `<text y="${num(ty)}"${anchor} fill="${color}" font-size="${EXPORT_FONT_SIZE}" font-family="Inter, sans-serif">${body}</text>`
-      }
-    }
-  }
-  return out
+	// Same geometry as the live canvas (WhiteboardTable): per-column/row sizes,
+	// merged-cell spans and text alignment, so an export/thumbnail matches what's
+	// on screen. Counts stay clamped (tableRows/tableCols), and cellW/cellH default
+	// to sane numbers, so a malformed document can't blow the loop up.
+	const rows = tableRows(table);
+	const cols = tableCols(table);
+	const safe = { ...table, cellW: num(table.cellW, 120), cellH: num(table.cellH, 40) };
+	const color = safeColor(table.color, "#171717");
+	const align = table.align || "left";
+	let out = headerBand(safe) + headerColBand(safe);
+	for (let r = 0; r < rows; r += 1) {
+		for (let c = 0; c < cols; c += 1) {
+			if (isCoveredCell(safe, r, c)) continue;
+			const box = cellSpanBox(safe, r, c);
+			// Gridlines are neutral, not the table's colour (#553): that colour is the
+			// table's TEXT colour, which is what the control on a table now sets.
+			out += `<rect x="${num(box.x)}" y="${num(box.y)}" width="${num(box.w)}" height="${num(
+				box.h
+			)}" fill="none" stroke="${TABLE_GRID_COLOR}" stroke-width="1"/>`;
+			const runs = tableCellRuns(safe, r, c);
+			if (runs.length) {
+				let tx = box.x + 8;
+				let anchor = "";
+				if (align === "center") {
+					tx = box.x + box.w / 2;
+					anchor = ' text-anchor="middle"';
+				} else if (align === "right") {
+					tx = box.x + box.w - 8;
+					anchor = ' text-anchor="end"';
+				}
+				// Wrapped into as many lines as the column forces, one tspan per
+				// formatted run within each (#344, #556) — including the header
+				// row/column's bold, which this path used to drop. Only the first
+				// tspan of a line carries x/dy, exactly like the live canvas render:
+				// that is what resets the cursor and steps down a line, so a run
+				// continuing the same line picks up right after the previous one.
+				const header = isHeaderRow(safe, r) || isHeaderColumn(safe, c);
+				const lines = wrappedCellRunLines(safe, r, c);
+				const lineHeight = EXPORT_FONT_SIZE * TABLE_LINE_HEIGHT;
+				const ty = box.y + box.h / 2 - ((lines.length - 1) * lineHeight) / 2 + 5;
+				const body = lines
+					.map((line, lineIndex) =>
+						line
+							.map((run, spanIndex) => {
+								const pos =
+									spanIndex === 0
+										? ` x="${num(tx)}" dy="${
+												lineIndex === 0 ? 0 : lineHeight
+										  }"`
+										: "";
+								return `<tspan${pos}${runAttributes(run, header)}>${escapeText(
+									run.text
+								)}</tspan>`;
+							})
+							.join("")
+					)
+					.join("");
+				out += `<text y="${num(
+					ty
+				)}"${anchor} fill="${color}" font-size="${EXPORT_FONT_SIZE}" font-family="Inter, sans-serif">${body}</text>`;
+			}
+		}
+	}
+	return out;
 }
 
 // The tinted band behind the header rows, matching the live canvas (#553).
 function headerBand(table) {
-  const count = tableHeaderRows(table)
-  if (!count) return ''
-  const heights = rowHeightsOf(table).slice(0, count)
-  const height = heights.reduce((total, each) => total + each, 0)
-  const width = tableWidth(table)
-  return `<rect x="${num(table.x)}" y="${num(table.y)}" width="${num(width)}" height="${num(height)}" fill="${TABLE_HEADER_FILL}"/>`
+	const count = tableHeaderRows(table);
+	if (!count) return "";
+	const heights = rowHeightsOf(table).slice(0, count);
+	const height = heights.reduce((total, each) => total + each, 0);
+	const width = tableWidth(table);
+	return `<rect x="${num(table.x)}" y="${num(table.y)}" width="${num(width)}" height="${num(
+		height
+	)}" fill="${TABLE_HEADER_FILL}"/>`;
 }
 
 // Same tint, mirrored onto the header columns (#556), matching the live canvas.
 function headerColBand(table) {
-  const count = tableHeaderCols(table)
-  if (!count) return ''
-  const widths = colWidthsOf(table).slice(0, count)
-  const width = widths.reduce((total, each) => total + each, 0)
-  const height = tableHeight(table)
-  return `<rect x="${num(table.x)}" y="${num(table.y)}" width="${num(width)}" height="${num(height)}" fill="${TABLE_HEADER_FILL}"/>`
+	const count = tableHeaderCols(table);
+	if (!count) return "";
+	const widths = colWidthsOf(table).slice(0, count);
+	const width = widths.reduce((total, each) => total + each, 0);
+	const height = tableHeight(table);
+	return `<rect x="${num(table.x)}" y="${num(table.y)}" width="${num(width)}" height="${num(
+		height
+	)}" fill="${TABLE_HEADER_FILL}"/>`;
 }
 
 // The SVG attributes for one formatted run. A header cell bolds by default; an
 // explicit mark on the run wins either way (matches WhiteboardTable).
 function runAttributes(run, header) {
-  let out = ` font-weight="${resolveMark(run, 'bold', header) ? 600 : 400}"`
-  if (resolveMark(run, 'italic')) out += ' font-style="italic"'
-  // Underline and strike combine in one attribute (#508), so a cell that is both
-  // exports as both rather than as whichever was checked first.
-  const decoration = [
-    resolveMark(run, 'underline') ? 'underline' : null,
-    resolveMark(run, 'strike') ? 'line-through' : null,
-  ].filter(Boolean).join(' ')
-  if (decoration) out += ` text-decoration="${decoration}"`
-  return out
+	let out = ` font-weight="${resolveMark(run, "bold", header) ? 600 : 400}"`;
+	if (resolveMark(run, "italic")) out += ' font-style="italic"';
+	// Underline and strike combine in one attribute (#508), so a cell that is both
+	// exports as both rather than as whichever was checked first.
+	const decoration = [
+		resolveMark(run, "underline") ? "underline" : null,
+		resolveMark(run, "strike") ? "line-through" : null,
+	]
+		.filter(Boolean)
+		.join(" ");
+	if (decoration) out += ` text-decoration="${decoration}"`;
+	return out;
 }
 
 // True when a parsed document has nothing to preview, accounting for every type's
 // content (not just the shared shapes/connectors arrays).
 export function isDocumentEmpty(rawDocument) {
-  const doc = parseDiagramDocument(rawDocument)
-  if ((doc.shapes || []).length || (doc.connectors || []).length || (doc.sections || []).length) return false
-  if (doc.diagramType === 'mindmap' && doc.mindmap) {
-    return (doc.mindmap.nodes || []).length <= 1
-  }
-  if (doc.diagramType === 'flowchart' && doc.flowchart) {
-    return !(doc.flowchart.nodes || []).length && !(doc.flowchart.edges || []).length
-  }
-  if (doc.diagramType === 'whiteboard' && doc.whiteboard) return isWhiteboardBlank(doc.whiteboard)
-  // The unified canvas had NO branch here, so any unified document without block
-  // shapes was reported empty — a canvas holding only ink, or only a mind-map frame,
-  // showed "nothing to preview". It is empty only when every layer is.
-  if (isUnifiedDocument(doc)) {
-    return (
-      isWhiteboardBlank(doc.whiteboard) &&
-      !(doc.mindmap?.nodes || []).length &&
-      !(doc.flowchart?.nodes || []).length &&
-      !(doc.flowchart?.edges || []).length
-    )
-  }
-  return true
+	const doc = parseDiagramDocument(rawDocument);
+	if ((doc.shapes || []).length || (doc.connectors || []).length || (doc.sections || []).length)
+		return false;
+	if (doc.diagramType === "mindmap" && doc.mindmap) {
+		return (doc.mindmap.nodes || []).length <= 1;
+	}
+	if (doc.diagramType === "flowchart" && doc.flowchart) {
+		return !(doc.flowchart.nodes || []).length && !(doc.flowchart.edges || []).length;
+	}
+	if (doc.diagramType === "whiteboard" && doc.whiteboard)
+		return isWhiteboardBlank(doc.whiteboard);
+	// The unified canvas had NO branch here, so any unified document without block
+	// shapes was reported empty — a canvas holding only ink, or only a mind-map frame,
+	// showed "nothing to preview". It is empty only when every layer is.
+	if (isUnifiedDocument(doc)) {
+		return (
+			isWhiteboardBlank(doc.whiteboard) &&
+			!(doc.mindmap?.nodes || []).length &&
+			!(doc.flowchart?.nodes || []).length &&
+			!(doc.flowchart?.edges || []).length
+		);
+	}
+	return true;
 }
 
 // Lines and tables count as content too; leaving them out reported a board holding
 // only a table as blank.
 function isWhiteboardBlank(model) {
-  if (!model) return true
-  return (
-    !(model.strokes || []).length &&
-    !(model.stickyNotes || []).length &&
-    !(model.lines || []).length &&
-    !(model.tables || []).length
-  )
+	if (!model) return true;
+	return (
+		!(model.strokes || []).length &&
+		!(model.stickyNotes || []).length &&
+		!(model.lines || []).length &&
+		!(model.tables || []).length
+	);
 }
 
 // Rasterize a store's current document to a PNG data URL, throttled per store,
 // and persist it via the backend save_thumbnail method (which decodes the data
 // URL into a private File and links it — spec §11.2/§11.4).
 export function useThumbnail(store, diagramResource) {
-  let lastRunAt = 0
-  const saver = createResource({ url: 'draw.api.diagram.save_thumbnail' })
+	let lastRunAt = 0;
+	const saver = createResource({ url: "draw.api.diagram.save_thumbnail" });
 
-  async function generate({ force = false } = {}) {
-    const now = Date.now()
-    if (!force && now - lastRunAt < THROTTLE_MS) return null
-    const name = diagramResource?.doc?.name
-    if (!name) return null
-    lastRunAt = now
-    const document = store.getDocument()
-    // An emptied diagram used to be rasterized to a blank white PNG, so Home had
-    // to read every diagram's document to tell "blank" from "has a preview"
-    // (#93, #223). Clear the stored thumbnail instead: with no raster, Home knows
-    // the tile is blank without fetching anything.
-    if (isDocumentEmpty(document)) {
-      saver.submit({ name, thumbnail: '' })
-      return null
-    }
-    // The raster path goes through an <img>, which will not fetch an image the
-    // markup only points at, so any inserted image has to travel as bytes (#518).
-    const images = await inlinedImages(document)
-    const dataUrl = await rasterize(documentToSvg(document, { images }))
-    if (dataUrl) saver.submit({ name, thumbnail: dataUrl })
-    return dataUrl
-  }
+	async function generate({ force = false } = {}) {
+		const now = Date.now();
+		if (!force && now - lastRunAt < THROTTLE_MS) return null;
+		const name = diagramResource?.doc?.name;
+		if (!name) return null;
+		lastRunAt = now;
+		const document = store.getDocument();
+		// An emptied diagram used to be rasterized to a blank white PNG, so Home had
+		// to read every diagram's document to tell "blank" from "has a preview"
+		// (#93, #223). Clear the stored thumbnail instead: with no raster, Home knows
+		// the tile is blank without fetching anything.
+		if (isDocumentEmpty(document)) {
+			saver.submit({ name, thumbnail: "" });
+			return null;
+		}
+		// The raster path goes through an <img>, which will not fetch an image the
+		// markup only points at, so any inserted image has to travel as bytes (#518).
+		const images = await inlinedImages(document);
+		const dataUrl = await rasterize(documentToSvg(document, { images }));
+		if (dataUrl) saver.submit({ name, thumbnail: dataUrl });
+		return dataUrl;
+	}
 
-  return { generate }
+	return { generate };
 }
 
 // SVG string -> PNG data URL via an offscreen canvas. Returns null on failure so
 // callers fall back to a neutral placeholder (never a broken image, spec §2).
 function rasterize(svgMarkup, scale = 1) {
-  return new Promise((resolve) => {
-    const image = new Image()
-    const blob = new Blob([svgMarkup], { type: 'image/svg+xml' })
-    const url = URL.createObjectURL(blob)
-    image.onload = () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = image.width * scale || 400
-      canvas.height = image.height * scale || 200
-      canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height)
-      URL.revokeObjectURL(url)
-      resolve(canvas.toDataURL('image/png'))
-    }
-    image.onerror = () => {
-      URL.revokeObjectURL(url)
-      resolve(null)
-    }
-    image.src = url
-  })
+	return new Promise((resolve) => {
+		const image = new Image();
+		const blob = new Blob([svgMarkup], { type: "image/svg+xml" });
+		const url = URL.createObjectURL(blob);
+		image.onload = () => {
+			const canvas = document.createElement("canvas");
+			canvas.width = image.width * scale || 400;
+			canvas.height = image.height * scale || 200;
+			canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+			URL.revokeObjectURL(url);
+			resolve(canvas.toDataURL("image/png"));
+		};
+		image.onerror = () => {
+			URL.revokeObjectURL(url);
+			resolve(null);
+		};
+		image.src = url;
+	});
 }
 
-export { findThemePreset }
+export { findThemePreset };

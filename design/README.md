@@ -92,6 +92,12 @@ gray, so the white paper reads as a distinct object). Grid dots are **`#DCDCDF`*
 | smart-guide pink | `#E34AA6` | alignment guide lines + snap pill |
 
 ### Type — Inter (`--es-font-sans`), four weights: 500 / 600 / 700 / 800
+
+This type scale describes application chrome. Canvas shape text uses the separate
+font registry in `frontend/src/diagram/textFonts.js`; Vazirmatn is bundled for
+canvas text. See [Canvas typography](canvas-typography.md) and
+[Paragraph direction](paragraph-direction-v2.md).
+
 | Role | Size / weight / line-height | Tracking |
 |---|---|---|
 | Page H1 ("All diagrams") | 22px / 700 / 1.1 | -0.01em |
@@ -305,7 +311,7 @@ grids.
 | **Distribute & size** | Dist. H, Dist. V, Remove gaps · Width, Height, Same size — 3-col |
 | **Transform** | Swap, Rotate L, Rotate R, Flip H, Flip V, **Painter** (toggle) — 6-col |
 | **Fill & border** | Fill swatch row + Border swatch row (6 swatches + "+ more"); Weight field ("2 px") + Style field ("Solid ▾") |
-| **Text** | Font field ("Inter ▾") + size field ("16 ▾"); then Bold, Italic, Underline, Left, Center, Right — 6-col |
+| **Text** | Canvas font field ("Inter ▾") + size field ("16 ▾"); then Bold, Italic, Underline, Left, Center, Right — 6-col |
 | **Transparency** | slider (filled track + knob) + "100%" readout |
 | **Theme presets** | 2-col cards: Ocean / Slate / Violet / Sunset — each shows 3 swatch bars + name; active = 1.5px gray-900 border |
 | **Canvas** | size-preset field ("Widescreen 16:9 · 1280 × 720") + background swatch row |

@@ -69,6 +69,7 @@ declare module 'vue' {
     MoveToDriveDialog: typeof import('./src/components/toolbar/MoveToDriveDialog.vue')['default']
     OverflowMenu: typeof import('./src/components/toolbar/OverflowMenu.vue')['default']
     PaletteSection: typeof import('./src/components/palette-right/PaletteSection.vue')['default']
+    ParagraphDirectionMenu: typeof import('./src/components/toolbar/groups/ParagraphDirectionMenu.vue')['default']
     PointerGroup: typeof import('./src/components/toolbar/groups/PointerGroup.vue')['default']
     PolygonSidesPicker: typeof import('./src/components/floating/PolygonSidesPicker.vue')['default']
     PresenceAvatars: typeof import('./src/components/toolbar/PresenceAvatars.vue')['default']

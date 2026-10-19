@@ -67,3 +67,7 @@ draw/www/draw.html
 e2e/.auth/
 test-results/
 playwright-report/
+
+.agents
+skills-lock.json
+docs

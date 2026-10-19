@@ -3,93 +3,119 @@
 // one editing session without prop plumbing through DiagramCanvas.
 // Geometry stays in logical canvas units; commits go through the store.
 
-import { reactive, computed } from 'vue'
-import { shapeCenter } from '@/diagram/geometry.js'
-import { mindmapTextArea } from '@/diagram/mindmapNodeSize.js'
-import { flowchartTextArea } from '@/diagram/flowchartNodeSize.js'
+import { reactive, computed } from "vue";
+import { shapeCenter } from "@/diagram/geometry.js";
+import { mindmapTextArea } from "@/diagram/mindmapNodeSize.js";
+import { flowchartTextArea } from "@/diagram/flowchartNodeSize.js";
 
 // The text area inside a shape. Diamonds/triangles use their inscribed
 // rectangle so wrapped text never spills past the sloped edges (spec §6).
-const INSCRIBED_FACTOR = { diamond: 0.5, triangle: 0.5 }
-const INSCRIBED_PAD = 6
+const INSCRIBED_FACTOR = { diamond: 0.5, triangle: 0.5 };
+const INSCRIBED_PAD = 6;
 // Fixed left/right breathing room for text inside a shape, so a label never
 // touches the shape's edges. Replaces the old ruler-driven adjustable inset.
-const TEXT_PADDING = 12
-const FONT_FAMILY = 'Inter, sans-serif'
+const TEXT_PADDING = 12;
+const FONT_FAMILY = "Inter, sans-serif";
 // A casual, handwritten-feel stack (no web font needed) used by whiteboard text
 // to read closer to TLDraw's hand-drawn style.
-const HANDWRITTEN_FONT = "'Bradley Hand', 'Chalkboard SE', 'Comic Sans MS', 'Segoe Print', cursive"
-const LINE_HEIGHT = 1.3
+const HANDWRITTEN_FONT =
+	"'Bradley Hand', 'Chalkboard SE', 'Comic Sans MS', 'Segoe Print', cursive";
+const LINE_HEIGHT = 1.3;
+const LIST_TYPES = new Set(["bulletList", "orderedList"]);
+let editingSessionId = 0;
 
-let singleton = null
+let singleton = null;
 
 export function useTextEditing(store, editorUi) {
-  // Re-bind to a fresh store when EditorShell mounts a new diagram; readers
-  // that pass no args keep sharing whatever session is active.
-  if (store && (!singleton || singleton.store !== store)) {
-    singleton = createTextEditing(store, editorUi)
-  }
-  return singleton
+	// Re-bind to a fresh store when EditorShell mounts a new diagram; readers
+	// that pass no args keep sharing whatever session is active.
+	if (store && (!singleton || singleton.store !== store)) {
+		singleton = createTextEditing(store, editorUi);
+	}
+	return singleton;
 }
 
 function createTextEditing(store, editorUi) {
-  const session = reactive({ shapeId: null, connectorId: null, selectAll: false, seedIfEmpty: null })
-  const api = { session, store, editorUi }
-  attachEditingState(api, session)
-  attachShapeEditing(api, session, store)
-  attachConnectorEditing(api, session, store)
-  return api
+	const session = reactive({
+		shapeId: null,
+		connectorId: null,
+		selectAll: false,
+		seedIfEmpty: null,
+		pendingListType: null,
+		id: 0,
+	});
+	const api = { session, store, editorUi };
+	attachEditingState(api, session);
+	attachShapeEditing(api, session, store);
+	attachConnectorEditing(api, session, store);
+	return api;
 }
 
 // Reactive readouts the overlay consumes.
 function attachEditingState(api, session) {
-  api.editingShapeId = computed(() => session.shapeId)
-  api.editingConnectorId = computed(() => session.connectorId)
-  api.isEditing = computed(() => Boolean(session.shapeId || session.connectorId))
+	api.editingShapeId = computed(() => session.shapeId);
+	api.editingConnectorId = computed(() => session.connectorId);
+	api.isEditing = computed(() => Boolean(session.shapeId || session.connectorId));
 }
 
 function attachShapeEditing(api, session, store) {
-  // opts.seedIfEmpty seeds a default label into an empty shape (e.g. "New idea" on a
-  // freshly dropped node); opts.selectAll selects the seeded/existing text so the
-  // first keystroke replaces it — the drop-to-type flow (#263).
-  api.beginTextEdit = (shapeId, opts = {}) => {
-    session.connectorId = null
-    session.shapeId = shapeId
-    session.selectAll = !!opts.selectAll
-    session.seedIfEmpty = opts.seedIfEmpty || null
-    store.select(shapeId)
-  }
+	// opts.seedIfEmpty seeds a default label into an empty shape (e.g. "New idea" on a
+	// freshly dropped node); opts.selectAll selects the seeded/existing text so the
+	// first keystroke replaces it — the drop-to-type flow (#263).
+	api.beginTextEdit = (shapeId, opts = {}) => {
+		session.id = ++editingSessionId;
+		session.connectorId = null;
+		session.shapeId = shapeId;
+		session.selectAll = !!opts.selectAll;
+		session.seedIfEmpty = opts.seedIfEmpty || null;
+		session.pendingListType = null;
+		store.select(shapeId);
+	};
+	api.beginTextEditForList = (shapeId, listType) => {
+		if (!LIST_TYPES.has(listType)) throw new Error(`Unsupported list type: ${listType}`);
+		api.beginTextEdit(shapeId, { selectAll: true });
+		session.pendingListType = listType;
+	};
 }
 
 function attachConnectorEditing(api, session, store) {
-  api.beginConnectorLabelEdit = (connectorId) => {
-    session.shapeId = null
-    session.connectorId = connectorId
-    store.select(connectorId)
-  }
+	api.beginConnectorLabelEdit = (connectorId) => {
+		session.id = ++editingSessionId;
+		session.shapeId = null;
+		session.connectorId = connectorId;
+		session.selectAll = false;
+		session.seedIfEmpty = null;
+		session.pendingListType = null;
+		store.select(connectorId);
+	};
 }
 
 // The logical-unit text area for the shape being edited (inscribed for
 // diamonds/triangles). Returns null when no shape is editing.
 export function shapeTextArea(shape) {
-  if (!shape) return null
-  // A mind-map node's padding is part of its measured box (#427 item 5): the box
-  // was sized as text plus this frame, so editing and rendering must inset by the
-  // same frame or the text wraps at a width the box was never measured for.
-  if (shape.role === 'mindmap-node') return mindmapTextArea(shape)
-  // A flowchart node is the same idea with a per-shape frame (#441 items 5/14):
-  // the inset clears the geometry the shape itself takes away — a diamond's
-  // corners, a document's wave, a cylinder's rim — so the label stays inside the
-  // SHAPE and not merely inside its bounding box.
-  if (shape.role === 'flowchart-node') return flowchartTextArea(shape)
-  const factor = INSCRIBED_FACTOR[shape.type]
-  if (!factor) {
-    return { x: shape.x + TEXT_PADDING, y: shape.y, w: Math.max(8, shape.w - TEXT_PADDING * 2), h: shape.h }
-  }
-  const w = Math.max(8, shape.w * factor - INSCRIBED_PAD * 2 - TEXT_PADDING * 2)
-  const h = shape.h * factor - INSCRIBED_PAD * 2
-  const center = shapeCenter(shape)
-  return { x: center.x - w / 2, y: center.y - h / 2, w, h }
+	if (!shape) return null;
+	// A mind-map node's padding is part of its measured box (#427 item 5): the box
+	// was sized as text plus this frame, so editing and rendering must inset by the
+	// same frame or the text wraps at a width the box was never measured for.
+	if (shape.role === "mindmap-node") return mindmapTextArea(shape);
+	// A flowchart node is the same idea with a per-shape frame (#441 items 5/14):
+	// the inset clears the geometry the shape itself takes away — a diamond's
+	// corners, a document's wave, a cylinder's rim — so the label stays inside the
+	// SHAPE and not merely inside its bounding box.
+	if (shape.role === "flowchart-node") return flowchartTextArea(shape);
+	const factor = INSCRIBED_FACTOR[shape.type];
+	if (!factor) {
+		return {
+			x: shape.x + TEXT_PADDING,
+			y: shape.y,
+			w: Math.max(8, shape.w - TEXT_PADDING * 2),
+			h: shape.h,
+		};
+	}
+	const w = Math.max(8, shape.w * factor - INSCRIBED_PAD * 2 - TEXT_PADDING * 2);
+	const h = shape.h * factor - INSCRIBED_PAD * 2;
+	const center = shapeCenter(shape);
+	return { x: center.x - w / 2, y: center.y - h / 2, w, h };
 }
 
 // CSS for the contentEditable, derived from the shape's text.style.
@@ -103,42 +129,51 @@ export function shapeTextArea(shape) {
 // Sized here for ONE empty line, and anchored so the caret lands where the pointer
 // was rather than the box being centred on it.
 export function canvasTextShape(point, style = {}) {
-  const size = style.size || 16
-  return {
-    type: 'text',
-    x: Math.round(point.x - TEXT_PADDING),
-    y: Math.round(point.y - (size * LINE_HEIGHT) / 2),
-    w: TEXT_PADDING * 2 + size,
-    h: Math.ceil(size * LINE_HEIGHT) + 8,
-    text: { content: '', align: 'left', valign: 'top', fitWidth: true, style: { size, ...style } },
-  }
+	const size = style.size || 16;
+	return {
+		type: "text",
+		x: Math.round(point.x - TEXT_PADDING),
+		y: Math.round(point.y - (size * LINE_HEIGHT) / 2),
+		w: TEXT_PADDING * 2 + size,
+		h: Math.ceil(size * LINE_HEIGHT) + 8,
+		text: {
+			content: "",
+			align: "left",
+			valign: "top",
+			fitWidth: true,
+			style: { size, ...style },
+		},
+	};
 }
 
 // Whether a shape's text hugs its content rather than wrapping inside a fixed box.
 export function fitsWidthToText(shape) {
-  return Boolean(shape?.text?.fitWidth)
+	return Boolean(shape?.text?.fitWidth);
 }
 
-export function textStyleCss(style = {}, valign = 'middle', align = 'center') {
-  return {
-    fontFamily: style.font || FONT_FAMILY,
-    fontSize: `${style.size || 16}px`,
-    lineHeight: String(LINE_HEIGHT),
-    fontWeight: style.bold ? 700 : 500,
-    fontStyle: style.italic ? 'italic' : 'normal',
-    textDecoration: [style.underline && 'underline', style.strike && 'line-through'].filter(Boolean).join(' ') || 'none',
-    color: style.color || '#171717',
-    textAlign: align,
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: justifyFor(valign),
-  }
+export function textStyleCss(style = {}, valign = "middle", align = "center") {
+	return {
+		fontFamily: style.font || FONT_FAMILY,
+		fontSize: `${style.size || 16}px`,
+		lineHeight: String(LINE_HEIGHT),
+		fontWeight: style.bold ? 700 : 500,
+		fontStyle: style.italic ? "italic" : "normal",
+		textDecoration:
+			[style.underline && "underline", style.strike && "line-through"]
+				.filter(Boolean)
+				.join(" ") || "none",
+		color: style.color || "#171717",
+		textAlign: align,
+		display: "flex",
+		flexDirection: "column",
+		justifyContent: justifyFor(valign),
+	};
 }
 
 function justifyFor(valign) {
-  if (valign === 'top') return 'flex-start'
-  if (valign === 'bottom') return 'flex-end'
-  return 'center'
+	if (valign === "top") return "flex-start";
+	if (valign === "bottom") return "flex-end";
+	return "center";
 }
 
-export { LINE_HEIGHT, FONT_FAMILY, HANDWRITTEN_FONT }
+export { LINE_HEIGHT, FONT_FAMILY, HANDWRITTEN_FONT };
